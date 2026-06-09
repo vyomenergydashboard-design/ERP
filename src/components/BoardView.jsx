@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Filter } from 'lucide-react';
+import { Filter, Search, X } from 'lucide-react';
 import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
 
 function StatusBadge({ status }) {
@@ -15,11 +15,18 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('incomplete');
   const [sortBy, setSortBy] = useState('updated');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const token = localStorage.getItem('token');
 
   useEffect(() => {
     fetchBoard();
+
+    const handleUpdate = () => {
+      fetchBoard();
+    };
+    window.addEventListener('orderUpdated', handleUpdate);
+    return () => window.removeEventListener('orderUpdated', handleUpdate);
   }, []);
 
   const fetchBoard = async () => {
@@ -46,6 +53,17 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
       if (priorityFilter !== 'all' && (o.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
       if (statusFilter === 'incomplete' && o.status === 'completed') return false;
       if (statusFilter === 'completed' && o.status !== 'completed') return false;
+      
+      if (searchTerm.trim() !== '') {
+        const query = searchTerm.toLowerCase();
+        const matchesOrderNumber = (o.order_number || '').toLowerCase().includes(query);
+        const matchesCompany = (o.company_name || '').toLowerCase().includes(query);
+        const matchesPO = (o.po_number || '').toLowerCase().includes(query);
+        const matchesSteps = o.steps && o.steps.some(s => (s.name || '').toLowerCase().includes(query) || (s.dept || '').toLowerCase().includes(query));
+        
+        if (!matchesOrderNumber && !matchesCompany && !matchesPO && !matchesSteps) return false;
+      }
+      
       return true;
     })
     .sort((a, b) => {
@@ -87,24 +105,48 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
             <option value="low">Low</option>
           </select>
         </div>
+
+        <div className="board-search-container">
+          <Search size={14} className="board-search-icon" />
+          <input
+            type="text"
+            placeholder="Search by Order, PO, Company or Task..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="board-search-input"
+          />
+          {searchTerm && (
+            <button className="search-clear-btn" onClick={() => setSearchTerm('')} title="Clear search">
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
       {displayOrders.map((order) => {
-        // Find the specific active steps for the entire order
-        let displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review'].includes(s.status));
-        
-        // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
-        if (displaySteps.length === 0) {
-          const firstPending = order.steps.find(s => s.status === 'pending');
-          if (firstPending) {
-            displaySteps = [firstPending];
-          } else {
-            return null; // Entire order is done or has no steps
+        let displaySteps = [];
+        let orderDepts = [];
+
+        if (order.status === 'completed') {
+          // For completed orders, show all steps so they appear under their departments as 'done'
+          displaySteps = order.steps;
+          orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
+        } else {
+          // Find the specific active steps for the entire order
+          displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review'].includes(s.status));
+          
+          // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
+          if (displaySteps.length === 0) {
+            const firstPending = order.steps.find(s => s.status === 'pending');
+            if (firstPending) {
+              displaySteps = [firstPending];
+            } else {
+              return null; // Entire order is done or has no steps
+            }
           }
+          orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
         }
 
-        // Only show departments that contain these specific active steps
-        const orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
         if (orderDepts.length === 0) return null;
 
         return (
@@ -146,6 +188,27 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
                           </div>
                         )}
                       </div>
+                      
+                      {order.notes && (
+                        <div style={{
+                          marginTop: '10px',
+                          fontSize: '11px',
+                          color: '#f59e0b',
+                          background: 'rgba(245, 158, 11, 0.05)',
+                          border: '1px solid rgba(245, 158, 11, 0.15)',
+                          borderRadius: '6px',
+                          padding: '6px 10px',
+                          fontStyle: 'italic',
+                          lineHeight: '1.4',
+                          wordBreak: 'break-word',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '4px'
+                        }}>
+                          <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: '#f59e0b', marginTop: '1px', flexShrink: 0 }}>Note:</span>
+                          <span style={{ color: '#d1d5db' }}>{order.notes}</span>
+                        </div>
+                      )}
                     </div>
                     
                     <div className="dept-card-tasks">
@@ -179,7 +242,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
         .board-filters {
           display: flex;
           align-items: center;
-          gap: 24px;
+          gap: 20px;
           background: rgba(25, 25, 25, 0.4);
           padding: 12px 20px;
           border-radius: 8px;
@@ -327,6 +390,60 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           background: rgba(255, 255, 255, 0.05);
           border-color: rgba(255, 255, 255, 0.1);
           transform: translateX(4px);
+        }
+        .board-search-container {
+          position: relative;
+          display: flex;
+          align-items: center;
+          background: rgba(0, 0, 0, 0.2);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 6px;
+          padding: 4px 10px;
+          margin-left: auto;
+          flex: 1 1 200px;
+          max-width: 280px;
+          min-width: 140px;
+          height: 26px;
+          box-sizing: border-box;
+          transition: all 0.2s ease;
+        }
+        .board-search-container:focus-within {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+          width: 320px;
+        }
+        .board-search-icon {
+          color: #888;
+          margin-right: 8px;
+          flex-shrink: 0;
+        }
+        .board-search-input {
+          background: transparent;
+          border: none;
+          color: #e2e8f0;
+          font-size: 12px;
+          outline: none;
+          width: 100%;
+          padding: 0;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .search-clear-btn {
+          background: transparent;
+          border: none;
+          color: #888;
+          cursor: pointer;
+          padding: 0;
+          margin-left: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 4px;
+          flex-shrink: 0;
+        }
+        .search-clear-btn:hover {
+          color: #ef4444;
+          background: rgba(239, 68, 68, 0.1);
         }
       `}} />
     </div>

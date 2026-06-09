@@ -6,10 +6,110 @@ function StatusBadge({ status }) {
   return <span className={`step-status-badge ${cls}`}>{label}</span>;
 }
 
-export default function FlowView({ steps, currentFilter, onOpenModal, onSetView, userRole, selectedOrderId, selectedOrder, onStepsChanged }) {
+export default function FlowView({ 
+  steps, 
+  currentFilter, 
+  onOpenModal, 
+  onSetView, 
+  userRole, 
+  selectedOrderId, 
+  selectedOrder, 
+  onStepsChanged,
+  selectedUnitId,
+  setSelectedUnitId,
+  unitSteps,
+  setUnitSteps
+}) {
   const [taskMasters, setTaskMasters] = useState([]);
   const [draggedStep, setDraggedStep] = useState(null);
   const token = localStorage.getItem('token');
+
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+  const [editingUnitStep, setEditingUnitStep] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [unitStepError, setUnitStepError] = useState(null);
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const canEditUnitStep = editingUnitStep ? (['Admin', 'Manager'].includes(userRole) || editingUnitStep.dept === userRole || editingUnitStep.assigned_user_id === currentUser.id) : false;
+
+  useEffect(() => {
+    fetch('http://localhost:5000/api/users', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(async res => {
+      if (res.ok) setUsers(await res.json());
+    })
+    .catch(console.error);
+  }, [token]);
+
+  const handleUpdateUnitStep = async (stepId, body) => {
+    if (!canEditUnitStep) return;
+    const stepObj = unitSteps.find(s => s.id === stepId);
+    const unitId = stepObj ? stepObj.order_unit_id : selectedUnitId;
+    if (!unitId) return;
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/units/${unitId}/steps/${stepId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        const freshSteps = await fetch(`http://localhost:5000/api/units/${unitId}/steps`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }).then(r => r.json());
+        setUnitSteps(freshSteps);
+        
+        const updatedStep = freshSteps.find(s => s.id === stepId);
+        setEditingUnitStep(updatedStep);
+        
+        if (onStepsChanged) onStepsChanged();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setUnitStepError(errData.error || 'Failed to update step');
+      }
+    } catch (err) {
+      console.error(err);
+      setUnitStepError('Network error — could not update step');
+    }
+  };
+
+
+  const handleStepClick = (step) => {
+    setUnitStepError(null); // clear errors when opening a new step
+    if (step.order_unit_id) {
+      setEditingUnitStep(step);
+      setIsUnitModalOpen(true);
+    } else {
+      onOpenModal(step.id);
+    }
+  };
+
+  const orderLevelSteps = steps.filter(s => !s.order_unit_id);
+  const activeSteps = [...unitSteps, ...orderLevelSteps];
+
+  const renderUnitSelector = () => {
+    const units = selectedOrder?.units || [];
+    return (
+      <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 13, color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
+        <select 
+          className="form-select"
+          value={selectedUnitId}
+          onChange={(e) => setSelectedUnitId(e.target.value)}
+          style={{ width: 'auto', background: 'var(--bg3)', fontSize: '13px', padding: '6px 12px', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer' }}
+        >
+          <option value="">Order Milestones</option>
+          {units.map(u => (
+            <option key={u.id} value={u.id}>Unit: {u.unit_id} ({u.status})</option>
+          ))}
+        </select>
+      </div>
+    );
+  };
 
   useEffect(() => {
     fetch('http://localhost:5000/api/task_masters', {
@@ -34,6 +134,7 @@ export default function FlowView({ steps, currentFilter, onOpenModal, onSetView,
       });
       if (res.ok) {
         if (onStepsChanged) onStepsChanged();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
       }
     } catch (err) {
       console.error(err);
@@ -88,42 +189,212 @@ export default function FlowView({ steps, currentFilter, onOpenModal, onSetView,
       });
       if (res.ok && onStepsChanged) {
         onStepsChanged(); // Refresh steps from server
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
       }
     } catch (err) {
       console.error('Failed to reorder', err);
     }
   };
 
-  const depts = currentFilter === 'all' ? DEPTS : DEPTS.filter((d) => d.id === currentFilter);
+  const sortedDepts = [...DEPTS].sort((a, b) => {
+    if (['Admin', 'Manager'].includes(userRole)) return 0;
+    if (a.id === userRole) return -1;
+    if (b.id === userRole) return 1;
+    return 0;
+  });
+  const depts = currentFilter === 'all' ? sortedDepts : sortedDepts.filter((d) => d.id === currentFilter);
 
   if (currentFilter === 'all') {
     return (
-      <div className="lanes">
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        {renderUnitSelector()}
+        <div className="lanes">
+          {depts.map((dept) => {
+            const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
+            const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
+            const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
+            
+            const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
+
+            return (
+              <div key={dept.id} className={`lane${hasBlocked ? ' active-lane' : ''}`}>
+                <div className="lane-label">
+                  <div style={{ width: 3, height: 20, background: dept.color, borderRadius: 2, marginBottom: 6 }} />
+                  <div className="lane-name">{dept.label}</div>
+                  <div className="lane-sub">{dept.sub}</div>
+                  {dept.id === 'Sales' && userRole === 'Sales' && !selectedUnitId && (
+                    <button 
+                      className="vbtn" 
+                      style={{ marginTop: 12, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                      onClick={() => onSetView('new-order')}
+                    >
+                      + New Order
+                    </button>
+                  )}
+                  
+                  {canEdit && availableTasks.length > 0 && selectedOrderId && !selectedUnitId && (
+                    <div style={{ marginTop: 12 }}>
+                      <select 
+                        className="form-select" 
+                        style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
+                        onChange={(e) => {
+                          handleAddTask(e.target.value);
+                          e.target.value = "";
+                        }}
+                      >
+                        <option value="">+ Add Task...</option>
+                        {availableTasks.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                <div className="lane-steps">
+                  {deptSteps.map((step, i) => {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    const isUnitStep = !!step.order_unit_id;
+                    const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
+                    const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
+                    return (
+                      <div 
+                        key={isUnitStep ? `unit-${step.id}` : `order-${step.id}`}
+                        style={{ display: 'flex', alignItems: 'center' }}
+                        draggable={canDrag}
+                        onDragStart={(e) => canDrag && handleDragStart(e, step)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => handleDragOver(e, dept.id)}
+                        onDrop={(e) => canDrag && handleDrop(e, step)}
+                      >
+                        <div 
+                          className={`step status-${step.status}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
+                          onClick={() => handleStepClick(step)}
+                          style={{ cursor: canDrag ? 'grab' : 'pointer' }}
+                        >
+                          <span className={`step-dot dot-${step.status}`} />
+                          <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
+                          <div className="step-name">
+                            {step.name} 
+                            {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4 }}>📎</span>}
+                          </div>
+                          <div className="step-sub">{step.sub}</div>
+                          <StatusBadge status={step.status} />
+                          {step.notes && <div className="step-note">{step.notes}</div>}
+                          {step.special === 'sales' && userRole === 'Sales' && (
+                            <button 
+                              className="vbtn"
+                              style={{ marginTop: 8, fontSize: 10, width: '100%', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--teal)', border: '1px solid rgba(20, 184, 166, 0.4)' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onSetView('new-order');
+                              }}
+                            >
+                              Go to Order Creation
+                            </button>
+                          )}
+                        </div>
+                        {i < deptSteps.length - 1 && <div className="step-arrow">›</div>}
+                      </div>
+                    );
+                  })}
+                  {deptSteps.length === 0 && (
+                    <div style={{ padding: 12, color: '#666', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
+                      No tasks assigned to this department.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          
+          <style dangerouslySetInnerHTML={{ __html: `
+            .pulse-sales {
+              animation: sales-glow 2s infinite ease-in-out;
+              border: 1px solid rgba(20, 184, 166, 0.4) !important;
+            }
+            @keyframes sales-glow {
+              0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.2); }
+              50% { box-shadow: 0 0 15px 0 rgba(20, 184, 166, 0.4); }
+              100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.2); }
+            }
+          `}} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      {renderUnitSelector()}
+      
+      <div className="flow-card-grid">
         {depts.map((dept) => {
-          const deptSteps = steps.filter((s) => s.dept === dept.id);
+          const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
           const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
-          const canEdit = ['Admin', 'Manager'].includes(userRole) || dept.id === userRole;
+          const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
           
           const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
 
           return (
-            <div key={dept.id} className={`lane${hasBlocked ? ' active-lane' : ''}`}>
-              <div className="lane-label">
-                <div style={{ width: 3, height: 20, background: dept.color, borderRadius: 2, marginBottom: 6 }} />
-                <div className="lane-name">{dept.label}</div>
-                <div className="lane-sub">{dept.sub}</div>
-                {dept.id === 'Sales' && userRole === 'Sales' && (
+            <div key={dept.id} className={`dept-flow-card${hasBlocked ? ' has-blocked' : ''}`}>
+              <div className="dept-card-header">
+                <div className="dept-card-title-row">
+                  <div className="dept-color-bar" style={{ background: dept.color }}></div>
+                  <div>
+                    <div className="dept-card-title">{dept.label}</div>
+                    <div className="dept-card-sub">{dept.sub}</div>
+                  </div>
+                </div>
+                
+                {selectedOrder && (
+                  <div className="dept-card-ord-row">
+                    <div className="ord-badge">{selectedOrder.order_number}</div>
+                    {selectedOrder.company_name && (
+                      <div style={{ fontSize: '11px', color: '#aaa', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                        {selectedOrder.company_name}
+                      </div>
+                    )}
+                    {selectedOrder.delivery_date && (
+                      <div className="delivery-badge">
+                        <span className="icon">🚚</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {selectedOrder && selectedOrder.notes && (
+                  <div style={{
+                    marginTop: '10px',
+                    fontSize: '11px',
+                    color: '#f59e0b',
+                    background: 'rgba(245, 158, 11, 0.05)',
+                    border: '1px solid rgba(245, 158, 11, 0.15)',
+                    borderRadius: '6px',
+                    padding: '6px 10px',
+                    fontStyle: 'italic',
+                    lineHeight: '1.4',
+                    wordBreak: 'break-word',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '4px'
+                  }}>
+                    <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: '#f59e0b', marginTop: '1px', flexShrink: 0 }}>Note:</span>
+                    <span style={{ color: '#d1d5db' }}>{selectedOrder.notes}</span>
+                  </div>
+                )}
+                
+                {dept.id === 'Sales' && userRole === 'Sales' && !selectedUnitId && (
                   <button 
                     className="vbtn" 
-                    style={{ marginTop: 12, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                    style={{ marginTop: 8, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
                     onClick={() => onSetView('new-order')}
                   >
                     + New Order
                   </button>
                 )}
                 
-                {canEdit && availableTasks.length > 0 && selectedOrderId && (
-                  <div style={{ marginTop: 12 }}>
+                {canEdit && availableTasks.length > 0 && selectedOrderId && !selectedUnitId && (
+                  <div style={{ marginTop: 8 }}>
                     <select 
                       className="form-select" 
                       style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
@@ -140,23 +411,27 @@ export default function FlowView({ steps, currentFilter, onOpenModal, onSetView,
                   </div>
                 )}
               </div>
-              <div className="lane-steps">
+              
+              <div className="dept-card-tasks-vertical">
                 {deptSteps.map((step, i) => {
-                  const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole;
+                  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                  const isUnitStep = !!step.order_unit_id;
+                  const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
+                  const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
                   return (
                     <div 
-                      key={step.id} 
+                      key={isUnitStep ? `unit-${step.id}` : `order-${step.id}`}
                       style={{ display: 'flex', alignItems: 'center' }}
-                      draggable={canEditStep}
-                      onDragStart={(e) => canEditStep && handleDragStart(e, step)}
+                      draggable={canDrag}
+                      onDragStart={(e) => canDrag && handleDragStart(e, step)}
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => handleDragOver(e, dept.id)}
-                      onDrop={(e) => canEditStep && handleDrop(e, step)}
+                      onDrop={(e) => canDrag && handleDrop(e, step)}
                     >
                       <div 
                         className={`step status-${step.status}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
-                        onClick={() => canEditStep && onOpenModal(step.id)}
-                        style={{ cursor: canEditStep ? 'grab' : 'pointer' }}
+                        onClick={() => handleStepClick(step)}
+                        style={{ cursor: canDrag ? 'grab' : 'pointer' }}
                       >
                         <span className={`step-dot dot-${step.status}`} />
                         <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
@@ -180,7 +455,6 @@ export default function FlowView({ steps, currentFilter, onOpenModal, onSetView,
                           </button>
                         )}
                       </div>
-                      {i < deptSteps.length - 1 && <div className="step-arrow">›</div>}
                     </div>
                   );
                 })}
@@ -193,142 +467,164 @@ export default function FlowView({ steps, currentFilter, onOpenModal, onSetView,
             </div>
           );
         })}
-        
-        <style dangerouslySetInnerHTML={{ __html: `
-          .pulse-sales {
-            animation: sales-glow 2s infinite ease-in-out;
-            border: 1px solid rgba(20, 184, 166, 0.4) !important;
-          }
-          @keyframes sales-glow {
-            0% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.2); }
-            50% { box-shadow: 0 0 15px 0 rgba(20, 184, 166, 0.4); }
-            100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.2); }
-          }
-        `}} />
       </div>
-    );
-  }
 
-  return (
-    <div className="flow-card-grid">
-      {depts.map((dept) => {
-        const deptSteps = steps.filter((s) => s.dept === dept.id);
-        const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
-        const canEdit = ['Admin', 'Manager'].includes(userRole) || dept.id === userRole;
-        
-        // Find tasks from taskMasters that belong to this dept and are not already added
-        const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
-
-        return (
-          <div key={dept.id} className={`dept-flow-card${hasBlocked ? ' has-blocked' : ''}`}>
-            <div className="dept-card-header">
-              <div className="dept-card-title-row">
-                <div className="dept-color-bar" style={{ background: dept.color }}></div>
-                <div>
-                  <div className="dept-card-title">{dept.label}</div>
-                  <div className="dept-card-sub">{dept.sub}</div>
-                </div>
+      {isUnitModalOpen && editingUnitStep && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setIsUnitModalOpen(false); }}>
+          <div className="modal" style={{ maxWidth: '500px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">{canEditUnitStep ? 'Edit Unit Step' : 'View Unit Step'}</div>
+                <div className="modal-sub">{editingUnitStep.name} ({editingUnitStep.dept})</div>
               </div>
-              
-              {selectedOrder && (
-                <div className="dept-card-ord-row">
-                  <div className="ord-badge">{selectedOrder.order_number}</div>
-                  {selectedOrder.company_name && (
-                    <div style={{ fontSize: '11px', color: '#aaa', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
-                      {selectedOrder.company_name}
-                    </div>
-                  )}
-                  {selectedOrder.delivery_date && (
-                    <div className="delivery-badge">
-                      <span className="icon">🚚</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </div>
-                  )}
+              <button className="modal-close" onClick={() => setIsUnitModalOpen(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              {/* Read-Only Banner */}
+              {!canEditUnitStep && (
+                <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#60a5fa', fontSize: '12px' }}>
+                  ℹ️ <strong>View-Only Mode</strong> — This task is managed by the <strong>{editingUnitStep.dept}</strong> department.
                 </div>
               )}
-              
-              {dept.id === 'Sales' && userRole === 'Sales' && (
-                <button 
-                  className="vbtn" 
-                  style={{ marginTop: 8, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-                  onClick={() => onSetView('new-order')}
-                >
-                  + New Order
-                </button>
+
+              {/* Upstream Validation Error Banner */}
+              {unitStepError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '14px', flexShrink: 0 }}>⛔</span>
+                  <span style={{ flex: 1 }}>{unitStepError}</span>
+                  <button onClick={() => setUnitStepError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '14px', padding: '0', lineHeight: 1 }}>✕</button>
+                </div>
               )}
-              
-              {/* Optional Tasks Add Button */}
-              {canEdit && availableTasks.length > 0 && selectedOrderId && (
-                <div style={{ marginTop: 8 }}>
+
+              <div className="modal-field" style={{ marginBottom: '16px' }}>
+                <label>Status</label>
+                {canEditUnitStep ? (
                   <select 
-                    className="form-select" 
-                    style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
-                    onChange={(e) => {
-                      handleAddTask(e.target.value);
-                      e.target.value = "";
-                    }}
+                    className="form-select"
+                    value={editingUnitStep.status}
+                    onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { status: e.target.value })}
+                    style={{ background: '#111', fontSize: '13px' }}
                   >
-                    <option value="">+ Add Task...</option>
-                    {availableTasks.map(t => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
+                    <option value="pending">Pending</option>
+                    <option value="inprogress">In Progress</option>
+                    <option value="done">Done</option>
+                    <option value="blocked">Blocked</option>
+                    <option value="review">Review</option>
+                  </select>
+                ) : (
+                  <div style={{ marginTop: '4px' }}>
+                    <span className={`step-status-badge ${(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).cls}`} style={{ fontSize: '12px', padding: '4px 10px', fontWeight: 'bold' }}>
+                      {(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).label}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-field" style={{ marginBottom: '16px' }}>
+                <label>Assign Worker</label>
+                {canEditUnitStep ? (
+                  <select 
+                    className="form-select"
+                    value={editingUnitStep.assigned_user_id || ''}
+                    onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
+                    style={{ background: '#111', fontSize: '13px' }}
+                  >
+                    <option value="">Unassigned</option>
+                    {users.filter(u => u.role === editingUnitStep.dept).map(u => (
+                      <option key={u.id} value={u.id}>{u.username}</option>
                     ))}
                   </select>
-                </div>
-              )}
-            </div>
-            
-            <div className="dept-card-tasks-vertical">
-              {deptSteps.map((step, i) => {
-                const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole;
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                    {(() => {
+                      const worker = users.find(u => u.id === editingUnitStep.assigned_user_id);
+                      return worker ? worker.username : 'Unassigned';
+                    })()}
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-field" style={{ marginBottom: '16px' }}>
+                <label>Notes</label>
+                {canEditUnitStep ? (
+                  <textarea 
+                    className="form-input"
+                    defaultValue={editingUnitStep.notes || ''}
+                    onBlur={(e) => handleUpdateUnitStep(editingUnitStep.id, { notes: e.target.value })}
+                    placeholder="Add step notes..."
+                    style={{ background: '#111', fontSize: '13px', height: '60px', resize: 'vertical' }}
+                  />
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 12px', borderRadius: '6px', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
+                    {editingUnitStep.notes || 'No notes added.'}
+                  </div>
+                )}
+              </div>
+
+              {(() => {
+                let cf = [];
+                try {
+                  cf = Array.isArray(editingUnitStep.custom_fields) ? editingUnitStep.custom_fields : JSON.parse(editingUnitStep.custom_fields || '[]');
+                } catch {
+                  cf = [];
+                }
+                if (cf.length === 0) return null;
+
                 return (
-                  <div 
-                    key={step.id} 
-                    style={{ display: 'flex', alignItems: 'center' }}
-                    draggable={canEditStep}
-                    onDragStart={(e) => canEditStep && handleDragStart(e, step)}
-                    onDragEnd={handleDragEnd}
-                    onDragOver={(e) => handleDragOver(e, dept.id)}
-                    onDrop={(e) => canEditStep && handleDrop(e, step)}
-                  >
-                    <div 
-                      className={`step status-${step.status}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
-                      onClick={() => canEditStep && onOpenModal(step.id)}
-                      style={{ cursor: canEditStep ? 'grab' : 'pointer' }}
-                    >
-                      <span className={`step-dot dot-${step.status}`} />
-                      <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
-                      <div className="step-name">
-                        {step.name} 
-                        {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4 }}>📎</span>}
-                      </div>
-                      <div className="step-sub">{step.sub}</div>
-                      <StatusBadge status={step.status} />
-                      {step.notes && <div className="step-note">{step.notes}</div>}
-                      {step.special === 'sales' && userRole === 'Sales' && (
-                        <button 
-                          className="vbtn"
-                          style={{ marginTop: 8, fontSize: 10, width: '100%', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--teal)', border: '1px solid rgba(20, 184, 166, 0.4)' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSetView('new-order');
-                          }}
-                        >
-                          Go to Order Creation
-                        </button>
-                      )}
-                    </div>
+                  <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>Custom Fields</div>
+                    {cf.map((field, fIdx) => {
+                      const handleFieldChange = (val) => {
+                        const updatedCF = [...cf];
+                        updatedCF[fIdx].value = val;
+                        handleUpdateUnitStep(editingUnitStep.id, { custom_fields: updatedCF });
+                      };
+
+                      return (
+                        <div key={field.id} style={{ marginBottom: '8px' }}>
+                          <label style={{ fontSize: '11px', color: '#ccc', display: 'block', marginBottom: '2px' }}>{field.label}</label>
+                          {!canEditUnitStep ? (
+                            <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
+                              {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                            </div>
+                          ) : field.type === 'Yes/No' ? (
+                            <input 
+                              type="checkbox"
+                              checked={!!field.value}
+                              onChange={(e) => handleFieldChange(e.target.checked)}
+                            />
+                          ) : field.type === 'Dropdown' ? (
+                            <select 
+                              className="form-select"
+                              value={field.value || ''}
+                              onChange={(e) => handleFieldChange(e.target.value)}
+                              style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                            >
+                              <option value="">Select...</option>
+                              {field.options?.map(o => (
+                                <option key={o} value={o}>{o}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input 
+                              type={field.type === 'Number' ? 'number' : 'text'}
+                              className="form-input"
+                              defaultValue={field.value || ''}
+                              onBlur={(e) => handleFieldChange(e.target.value)}
+                              style={{ background: '#111', fontSize: '12px', padding: '4px 8px' }}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
-              })}
-              {deptSteps.length === 0 && (
-                <div style={{ padding: 12, color: '#666', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
-                  No tasks assigned to this department.
-                </div>
-              )}
+              })()}
             </div>
           </div>
-        );
-      })}
-      
+        </div>
+      )}
+
       <style dangerouslySetInnerHTML={{ __html: `
         .flow-card-grid {
           display: grid;

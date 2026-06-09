@@ -4,7 +4,7 @@ const DOC_TYPES = [
   'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
 ];
 
-export default function DocumentManager({ entityType, entityId, initialDocs = [], onUploadSuccess, onDocsUpdate }) {
+export default function DocumentManager({ entityType, entityId, initialDocs = [], onUploadSuccess, onDocsUpdate, readOnly = false }) {
   const [docs, setDocs] = useState(initialDocs);
   const [isUploading, setIsUploading] = useState(false);
   const [selectedType, setSelectedType] = useState(DOC_TYPES[0]);
@@ -112,25 +112,27 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
     <div className="doc-manager">
       <div className="doc-header">
         <h4>Documents ({docs.length}/20)</h4>
-        <div className="doc-upload-controls">
-          <select 
-            value={selectedType} 
-            onChange={(e) => setSelectedType(e.target.value)}
-            className="doc-type-select"
-          >
-            {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          <label className="upload-btn">
-            {isUploading ? 'Uploading...' : 'Add Files'}
-            <input 
-              type="file" 
-              multiple 
-              hidden 
-              onChange={handleFileChange} 
-              disabled={isUploading || docs.length >= 20}
-            />
-          </label>
-        </div>
+        {!readOnly && (
+          <div className="doc-upload-controls">
+            <select 
+              value={selectedType} 
+              onChange={(e) => setSelectedType(e.target.value)}
+              className="doc-type-select"
+            >
+              {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <label className="upload-btn">
+              {isUploading ? 'Uploading...' : 'Add Files'}
+              <input 
+                type="file" 
+                multiple 
+                hidden 
+                onChange={handleFileChange} 
+                disabled={isUploading || docs.length >= 20}
+              />
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="doc-list">
@@ -153,13 +155,15 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
                   >
                     View
                   </a>
-                  <button 
-                    onClick={() => handleDeleteDoc(doc.id)} 
-                    style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
-                    title="Delete document"
-                  >
-                    ✕
-                  </button>
+                  {!readOnly && (
+                    <button 
+                      onClick={() => handleDeleteDoc(doc.id)} 
+                      style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', marginLeft: '8px', fontSize: '14px' }}
+                      title="Delete document"
+                    >
+                      ✕
+                    </button>
+                  )}
               </div>
             </div>
           ))

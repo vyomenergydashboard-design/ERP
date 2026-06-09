@@ -13,12 +13,10 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'Viewer' C
 CREATE TABLE IF NOT EXISTS activity_logs (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-    order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL,
     dept TEXT,
     action_text TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL;
 -- Masters System
 CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
@@ -101,6 +99,8 @@ CREATE TABLE IF NOT EXISTS task_masters (
     is_mandatory BOOLEAN DEFAULT true,
     requires_upload BOOLEAN DEFAULT false,
     special TEXT,
+    custom_fields JSONB DEFAULT '[]'::jsonb,
+    order_fields JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -121,3 +121,27 @@ CREATE TABLE IF NOT EXISTS order_steps (
     custom_fields JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL;
+ALTER TABLE task_masters ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE task_masters ADD COLUMN IF NOT EXISTS order_fields JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE task_masters ADD COLUMN IF NOT EXISTS level TEXT DEFAULT 'unit' CHECK (level IN ('order', 'unit'));
+
+CREATE TABLE IF NOT EXISTS unit_steps (
+    id SERIAL PRIMARY KEY,
+    order_unit_id INTEGER NOT NULL REFERENCES order_units(id) ON DELETE CASCADE,
+    task_id INTEGER REFERENCES task_masters(id) ON DELETE SET NULL,
+    dept TEXT NOT NULL,
+    name TEXT NOT NULL,
+    sub TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'inprogress', 'done', 'blocked', 'review')),
+    notes TEXT,
+    updated TEXT,
+    dispatch_date DATE,
+    requires_upload BOOLEAN DEFAULT false,
+    step_order INTEGER DEFAULT 0,
+    custom_fields JSONB DEFAULT '[]'::jsonb,
+    assigned_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+

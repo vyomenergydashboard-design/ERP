@@ -6,7 +6,14 @@ function StatusBadge({ status }) {
 }
 
 export default function TableView({ steps, currentFilter, onOpenModal, userRole }) {
-  const filtered = currentFilter === 'all' ? steps : steps.filter((s) => s.dept === currentFilter);
+  const filtered = (currentFilter === 'all' ? steps : steps.filter((s) => s.dept === currentFilter))
+    .slice()
+    .sort((a, b) => {
+      if (['Admin', 'Manager'].includes(userRole)) return 0;
+      if (a.dept === userRole && b.dept !== userRole) return -1;
+      if (b.dept === userRole && a.dept !== userRole) return 1;
+      return 0;
+    });
 
   return (
     <table className="step-table">
@@ -23,12 +30,10 @@ export default function TableView({ steps, currentFilter, onOpenModal, userRole 
       <tbody>
         {filtered.map((step, i) => {
           const dept = DEPTS.find((d) => d.id === step.dept);
-          const canEdit = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole;
           return (
             <tr 
               key={step.id} 
-              onClick={() => canEdit && onOpenModal(step.id)}
-              className={!canEdit ? 'read-only' : ''}
+              onClick={() => onOpenModal(step.id)}
             >
               <td style={{ color: 'var(--text3)', fontFamily: 'var(--font-mono)', fontSize: 10 }}>{i + 1}</td>
               <td>

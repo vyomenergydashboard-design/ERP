@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
+import { STATUS_BADGE_MAP } from '../data/planningData';
 
 export default function OrderList({ initialSelectedId }) {
   const [orders, setOrders] = useState([]);
@@ -7,11 +8,87 @@ export default function OrderList({ initialSelectedId }) {
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [displayField, setDisplayField] = useState('created_at');
   const [isLoading, setIsLoading] = useState(true);
+  const [orderTab, setOrderTab] = useState('inprogress'); // 'inprogress' | 'completed'
   const token = localStorage.getItem('token');
+
+  const [unitSteps, setUnitSteps] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [expandedStepId, setExpandedStepId] = useState(null);
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   useEffect(() => {
     fetchOrders();
+    fetchUsers();
+
+    const handleUpdate = (e) => {
+      fetchOrders();
+      if (e.detail && e.detail.orderId) {
+        setSelectedOrder(prev => {
+          if (prev && prev.id === e.detail.orderId) {
+            fetchOrderDetails(e.detail.orderId);
+          }
+          return prev;
+        });
+      }
+    };
+    window.addEventListener('orderUpdated', handleUpdate);
+    return () => window.removeEventListener('orderUpdated', handleUpdate);
   }, []);
+
+  useEffect(() => {
+    if (selectedUnit) {
+      fetchUnitSteps(selectedUnit.id);
+    } else {
+      setUnitSteps([]);
+      setExpandedStepId(null);
+    }
+  }, [selectedUnit]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/users', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUsers(await res.json());
+      }
+    } catch (err) {
+      console.error('Fetch users error:', err);
+    }
+  };
+
+  const fetchUnitSteps = async (unitId) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/units/${unitId}/steps`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setUnitSteps(await res.json());
+      }
+    } catch (err) {
+      console.error('Fetch unit steps error:', err);
+    }
+  };
+
+  const updateUnitStep = async (stepId, body) => {
+    try {
+      const res = await fetch(`http://localhost:5000/api/units/${selectedUnit.id}/steps/${stepId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      if (res.ok) {
+        await fetchUnitSteps(selectedUnit.id);
+        await fetchOrderDetails(selectedOrder.id);
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      }
+    } catch (err) {
+      console.error('Update unit step error:', err);
+    }
+  };
 
   useEffect(() => {
     if (initialSelectedId && orders.length > 0) {
@@ -43,6 +120,10 @@ export default function OrderList({ initialSelectedId }) {
       if (res.ok) {
         const data = await res.json();
         setSelectedOrder(data);
+        if (selectedUnit) {
+          const freshUnit = data.units?.find(u => u.id === selectedUnit.id);
+          if (freshUnit) setSelectedUnit(freshUnit);
+        }
       }
     } catch (err) {
       console.error('Fetch details error:', err);
@@ -53,10 +134,16 @@ export default function OrderList({ initialSelectedId }) {
     if (!units || units.length === 0) return 0;
     const weights = {
       'Pending': 0,
-      'In Production': 25,
-      'Testing': 50,
-      'QC Passed': 75,
-      'Dispatched': 100
+      'Design': 15,
+      'Material Waiting': 30,
+      'Production': 55,
+      'QC Testing': 75,
+      'QC Passed': 90,
+      'Ready for Dispatch': 95,
+      'Dispatched': 100,
+      'Delivered': 100,
+      'Rework': 40,
+      'QC Failed': 60
     };
     let totalProgress = 0;
     units.forEach(u => {
@@ -82,6 +169,7 @@ export default function OrderList({ initialSelectedId }) {
           units: prev.units.map(u => u.id === unitId ? { ...u, status: newStatus } : u)
         }));
         setSelectedUnit(prev => ({ ...prev, status: newStatus }));
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
       }
     } catch (err) {
       console.error('Failed to update unit status', err);
@@ -90,11 +178,19 @@ export default function OrderList({ initialSelectedId }) {
 
   if (isLoading) return <div className="loading">Loading orders...</div>;
 
+  const isCompleted = (order) =>
+    parseInt(order.unit_count) > 0 &&
+    parseInt(order.dispatched_unit_count) >= parseInt(order.unit_count);
+
+  const inProgressOrders = orders.filter(o => !isCompleted(o));
+  const completedOrders  = orders.filter(o => isCompleted(o));
+  const visibleOrders    = orderTab === 'completed' ? completedOrders : inProgressOrders;
+
   return (
     <div className="order-list-container">
       <div className="orders-sidebar">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 className="sidebar-title" style={{ margin: 0 }}>Recent Orders</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 className="sidebar-title" style={{ margin: 0 }}>Orders</h3>
           <select 
             value={displayField} 
             onChange={(e) => setDisplayField(e.target.value)}
@@ -107,8 +203,35 @@ export default function OrderList({ initialSelectedId }) {
             <option value="po_number">PO Number</option>
           </select>
         </div>
+
+        {/* In Progress / Completed tabs */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: '#111', borderRadius: '8px', padding: '4px' }}>
+          <button
+            onClick={() => setOrderTab('inprogress')}
+            style={{ flex: 1, padding: '6px 0', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s',
+              background: orderTab === 'inprogress' ? '#1d4ed8' : 'transparent',
+              color: orderTab === 'inprogress' ? '#fff' : '#888'
+            }}
+          >
+            In Progress <span style={{ opacity: 0.7, fontWeight: 400 }}>({inProgressOrders.length})</span>
+          </button>
+          <button
+            onClick={() => setOrderTab('completed')}
+            style={{ flex: 1, padding: '6px 0', borderRadius: '6px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s',
+              background: orderTab === 'completed' ? '#065f46' : 'transparent',
+              color: orderTab === 'completed' ? '#34d399' : '#888'
+            }}
+          >
+            Completed <span style={{ opacity: 0.7, fontWeight: 400 }}>({completedOrders.length})</span>
+          </button>
+        </div>
         <div className="order-items">
-          {orders.map(order => (
+          {visibleOrders.length === 0 && (
+            <div style={{ color: '#555', fontSize: '13px', textAlign: 'center', padding: '32px 16px', fontStyle: 'italic' }}>
+              {orderTab === 'completed' ? 'No completed orders yet.' : 'No in-progress orders.'}
+            </div>
+          )}
+          {visibleOrders.map(order => (
             <div 
               key={order.id} 
               className={`order-card ${selectedOrder?.id === order.id ? 'active' : ''}`}
@@ -116,7 +239,9 @@ export default function OrderList({ initialSelectedId }) {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <div className="order-num" style={{ margin: 0 }}>{order.order_number}</div>
-                {order.priority && (
+                {orderTab === 'completed' ? (
+                  <span style={{ background: 'rgba(16,185,129,0.15)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '20px', padding: '2px 8px', fontSize: '10px', fontWeight: '700' }}>✓ DONE</span>
+                ) : order.priority && (
                   <span className={`priority-badge ${order.priority.toLowerCase()}`}>
                     {order.priority}
                   </span>
@@ -237,37 +362,199 @@ export default function OrderList({ initialSelectedId }) {
 
       {selectedUnit && (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setSelectedUnit(null); }}>
-          <div className="modal">
+          <div className="modal" style={{ maxWidth: '600px', width: '95%' }}>
             <div className="modal-header">
               <div>
                 <div className="modal-title">Unit Tracking</div>
-                <div className="modal-sub">{selectedUnit.unit_id}</div>
+                <div className="modal-sub">{selectedUnit.unit_id} ({selectedUnit.status})</div>
               </div>
               <button className="modal-close" onClick={() => setSelectedUnit(null)}>✕</button>
             </div>
             <div className="modal-body">
-              <div className="modal-field">
-                <label>Unit Status</label>
-                <select 
-                  className="form-select"
-                  value={selectedUnit.status}
-                  onChange={(e) => updateUnitStatus(selectedUnit.id, e.target.value)}
-                >
-                  <option value="Pending">Pending</option>
-                  <option value="Design">Design</option>
-                  <option value="Material Waiting">Material Waiting</option>
-                  <option value="Production">Production</option>
-                  <option value="QC Testing">QC Testing</option>
-                  <option value="QC Failed">QC Failed</option>
-                  <option value="QC Passed">QC Passed</option>
-                  <option value="Rework">Rework</option>
-                  <option value="Ready for Dispatch">Ready for Dispatch</option>
-                  <option value="Dispatched">Dispatched</option>
-                  <option value="Delivered">Delivered</option>
-                </select>
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#fff', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Production Steps</h4>
+                
+                {unitSteps.length === 0 ? (
+                  <div style={{ color: '#666', fontSize: '13px', fontStyle: 'italic' }}>Loading steps...</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {[...unitSteps].sort((a, b) => {
+                      if (['Admin', 'Manager'].includes(currentUser.role)) return 0;
+                      if (a.dept === currentUser.role && b.dept !== currentUser.role) return -1;
+                      if (b.dept === currentUser.role && a.dept !== currentUser.role) return 1;
+                      return 0;
+                    }).map(step => {
+                      const isExpanded = expandedStepId === step.id;
+                      const canEditStep = ['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role || step.assigned_user_id === currentUser.id;
+                      const assignedUser = users.find(u => u.id === step.assigned_user_id);
+                      
+                      let stepCustomFields = [];
+                      try {
+                        stepCustomFields = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]');
+                      } catch {
+                        stepCustomFields = [];
+                      }
+
+                      const matchingUsers = users.filter(u => u.role === step.dept);
+
+                      return (
+                        <div key={step.id} style={{ background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', borderRadius: '8px', padding: '12px' }}>
+                          <div 
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                            onClick={() => setExpandedStepId(isExpanded ? null : step.id)}
+                          >
+                            <div>
+                              <div style={{ fontWeight: '600', color: '#fff', fontSize: '13px' }}>
+                                {!canEditStep && (
+                                  <span style={{ color: '#60a5fa', marginRight: '6px', fontSize: '9px', textTransform: 'uppercase', background: 'rgba(59, 130, 246, 0.1)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                    View Only
+                                  </span>
+                                )}
+                                {step.name}
+                              </div>
+                              <div style={{ fontSize: '11px', color: '#888', marginTop: '2px' }}>
+                                Dept: <span style={{ color: '#60a5fa' }}>{step.dept}</span> | Assigned: <span style={{ color: '#34d399' }}>{assignedUser ? assignedUser.username : 'Unassigned'}</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span className={`step-status-badge badge-${step.status}`} style={{ fontSize: '9px', fontWeight: 'bold' }}>
+                                {step.status}
+                              </span>
+                              <span style={{ fontSize: '10px', color: '#666' }}>{isExpanded ? '▲' : '▼'}</span>
+                            </div>
+                          </div>
+
+                          {isExpanded && (
+                            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px dashed rgba(255, 255, 255, 0.1)' }}>
+                              {/* Read-Only Banner */}
+                              {!canEditStep && (
+                                <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', color: '#60a5fa', fontSize: '11px' }}>
+                                  ℹ️ <strong>View-Only Mode</strong> — managed by the <strong>{step.dept}</strong> department.
+                                </div>
+                              )}
+                              
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
+                                <div>
+                                  <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>Step Status</label>
+                                  {canEditStep ? (
+                                    <select 
+                                      className="form-select"
+                                      value={step.status}
+                                      onChange={(e) => updateUnitStep(step.id, { status: e.target.value })}
+                                      style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                                    >
+                                      <option value="pending">Pending</option>
+                                      <option value="inprogress">In Progress</option>
+                                      <option value="done">Done</option>
+                                      <option value="blocked">Blocked</option>
+                                      <option value="review">Review</option>
+                                    </select>
+                                  ) : (
+                                    <div style={{ marginTop: '2px' }}>
+                                      <span className={`step-status-badge ${(STATUS_BADGE_MAP[step.status] || STATUS_BADGE_MAP.pending).cls}`} style={{ fontSize: '11px', padding: '3px 8px', fontWeight: 'bold' }}>
+                                        {(STATUS_BADGE_MAP[step.status] || STATUS_BADGE_MAP.pending).label}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div>
+                                  <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>Assign Worker</label>
+                                  {canEditStep ? (
+                                    <select 
+                                      className="form-select"
+                                      value={step.assigned_user_id || ''}
+                                      onChange={(e) => updateUnitStep(step.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
+                                      style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                                    >
+                                      <option value="">Unassigned</option>
+                                      {matchingUsers.map(u => (
+                                        <option key={u.id} value={u.id}>{u.username}</option>
+                                      ))}
+                                    </select>
+                                  ) : (
+                                    <div style={{ fontSize: '12px', color: '#ddd', background: '#111', padding: '6px 10px', borderRadius: '6px' }}>
+                                      {assignedUser ? assignedUser.username : 'Unassigned'}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div style={{ marginBottom: '12px' }}>
+                                <label style={{ fontSize: '11px', color: '#888', display: 'block', marginBottom: '4px' }}>Notes</label>
+                                {canEditStep ? (
+                                  <textarea 
+                                    className="form-input"
+                                    defaultValue={step.notes || ''}
+                                    onBlur={(e) => updateUnitStep(step.id, { notes: e.target.value })}
+                                    placeholder="Add step notes..."
+                                    style={{ background: '#111', fontSize: '12px', height: '50px', resize: 'vertical' }}
+                                  />
+                                ) : (
+                                  <div style={{ fontSize: '12px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '8px 12px', borderRadius: '6px', whiteSpace: 'pre-wrap' }}>
+                                    {step.notes || 'No notes added.'}
+                                  </div>
+                                )}
+                              </div>
+
+                              {stepCustomFields.length > 0 && (
+                                <div style={{ marginBottom: '12px', padding: '10px', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                  <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>Custom Fields</div>
+                                  {stepCustomFields.map((field, fIdx) => {
+                                    const handleFieldChange = (val) => {
+                                      const updatedCF = [...stepCustomFields];
+                                      updatedCF[fIdx].value = val;
+                                      updateUnitStep(step.id, { custom_fields: updatedCF });
+                                    };
+
+                                    return (
+                                      <div key={field.id} style={{ marginBottom: '8px' }}>
+                                        <label style={{ fontSize: '11px', color: '#ccc', display: 'block', marginBottom: '2px' }}>{field.label}</label>
+                                        {!canEditStep ? (
+                                          <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
+                                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                                          </div>
+                                        ) : field.type === 'Yes/No' ? (
+                                          <input 
+                                            type="checkbox"
+                                            checked={!!field.value}
+                                            onChange={(e) => handleFieldChange(e.target.checked)}
+                                          />
+                                        ) : field.type === 'Dropdown' ? (
+                                          <select 
+                                            className="form-select"
+                                            value={field.value || ''}
+                                            onChange={(e) => handleFieldChange(e.target.value)}
+                                            style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                                          >
+                                            <option value="">Select...</option>
+                                            {field.options?.map(o => (
+                                              <option key={o} value={o}>{o}</option>
+                                            ))}
+                                          </select>
+                                        ) : (
+                                          <input 
+                                            type={field.type === 'Number' ? 'number' : 'text'}
+                                            className="form-input"
+                                            defaultValue={field.value || ''}
+                                            onBlur={(e) => handleFieldChange(e.target.value)}
+                                            style={{ background: '#111', fontSize: '12px', padding: '4px 8px' }}
+                                          />
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
-              <div style={{ marginTop: 24 }}>
+              <div style={{ marginTop: 24, borderTop: '1px solid #333', paddingTop: '16px' }}>
                 <DocumentManager 
                   entityType="Unit" 
                   entityId={selectedUnit.id} 

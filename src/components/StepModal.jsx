@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
+import { STATUS_BADGE_MAP } from '../data/planningData';
 
 export default function StepModal({ step, isOpen, onClose, onSave, onDelete, userRole, selectedOrder }) {
   const [status, setStatus] = useState('pending');
@@ -10,8 +11,10 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
   const [docCount, setDocCount] = useState(0);
   const [customFields, setCustomFields] = useState([]);
   const [activeTab, setActiveTab] = useState('details');
+  const [saveError, setSaveError] = useState(null);
 
   const canEditStructure = ['Admin', 'Manager'].includes(userRole);
+  const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) : false;
 
   useEffect(() => {
     if (step) {
@@ -22,6 +25,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
       setChecklist({ layout: false, electrical: false, bom: false });
       setDocCount(0);
       setActiveTab('details');
+      setSaveError(null);
       try {
         const cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]');
         setCustomFields(Array.isArray(cf) ? cf : []);
@@ -33,12 +37,15 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
   if (!isOpen || !step) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!canEditStep) return;
     if (step.requires_upload && status === 'done' && docCount === 0) {
       alert('You must upload at least one document to complete this task.');
       return;
     }
-    onSave({ status, notes, qcFailTarget, dispatchDate, checklist, custom_fields: customFields });
+    setSaveError(null);
+    const err = await onSave({ status, notes, qcFailTarget, dispatchDate, checklist, custom_fields: customFields });
+    if (err) setSaveError(err);
   };
 
   const updateFieldValue = (idx, value) => {
@@ -59,6 +66,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
             value={field.value || ''}
             onChange={e => updateFieldValue(idx, e.target.value)}
             placeholder={`Enter ${field.label}...`}
+            disabled={!canEditStep}
           />
         );
       case 'Number':
@@ -68,6 +76,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
             className="form-input"
             value={field.value || ''}
             onChange={e => updateFieldValue(idx, e.target.value)}
+            disabled={!canEditStep}
           />
         );
       case 'Date':
@@ -77,6 +86,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
             className="form-input"
             value={field.value || ''}
             onChange={e => updateFieldValue(idx, e.target.value)}
+            disabled={!canEditStep}
           />
         );
       case 'Yes/No':
@@ -86,12 +96,12 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               <button
                 key={opt}
                 type="button"
-                onClick={() => updateFieldValue(idx, opt)}
+                onClick={() => canEditStep && updateFieldValue(idx, opt)}
                 style={{
                   padding: '6px 20px',
                   borderRadius: '6px',
                   border: '1px solid',
-                  cursor: 'pointer',
+                  cursor: canEditStep ? 'pointer' : 'default',
                   fontSize: '13px',
                   fontWeight: '600',
                   background: field.value === opt
@@ -103,6 +113,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   color: field.value === opt
                     ? (opt === 'Yes' ? '#10b981' : '#ef4444')
                     : '#888',
+                  opacity: !canEditStep && field.value !== opt ? 0.4 : 1
                 }}
               >
                 {opt}
@@ -116,6 +127,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
             className="form-select"
             value={field.value || ''}
             onChange={e => updateFieldValue(idx, e.target.value)}
+            disabled={!canEditStep}
           >
             <option value="">-- Select --</option>
             {(field.options || []).map(opt => (
@@ -124,7 +136,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           </select>
         );
       default:
-        return <input type="text" className="form-input" value={field.value || ''} onChange={e => updateFieldValue(idx, e.target.value)} placeholder={`Enter ${field.label}...`} />;
+        return <input type="text" className="form-input" value={field.value || ''} onChange={e => updateFieldValue(idx, e.target.value)} placeholder={`Enter ${field.label}...`} disabled={!canEditStep} />;
     }
   };
 
@@ -173,6 +185,23 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           {/* ── TAB: DETAILS ── */}
           {activeTab === 'details' && (
             <>
+              {/* Read-Only Banner */}
+              {!canEditStep && (
+                <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#60a5fa', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '15px' }}>ℹ️</span>
+                  <span><strong>View-Only Mode</strong> — This task is managed by the <strong>{step.dept}</strong> department.</span>
+                </div>
+              )}
+
+              {/* Upstream Validation Error */}
+              {saveError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#f87171', fontSize: '13px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                  <span style={{ fontSize: '15px', flexShrink: 0 }}>⛔</span>
+                  <span style={{ flex: 1 }}>{saveError}</span>
+                  <button onClick={() => setSaveError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '16px', padding: '0', lineHeight: 1 }}>✕</button>
+                </div>
+              )}
+
               {/* Order Reference Fields */}
               {selectedOrder && step.order_fields && step.order_fields.length > 0 && (
                 <div style={{ marginBottom: '16px', padding: '12px 16px', background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: '8px' }}>
@@ -205,48 +234,92 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
               <div className="modal-field">
                 <label>Status</label>
-                <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
-                  <option value="pending">Pending</option>
-                  <option value="inprogress">In Progress</option>
-                  <option value="review">Under Review</option>
-                  <option value="done">Done</option>
-                  <option value="blocked">Blocked</option>
-                </select>
+                {canEditStep ? (
+                  <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <option value="pending">Pending</option>
+                    <option value="inprogress">In Progress</option>
+                    <option value="review">Under Review</option>
+                    <option value="done">Done</option>
+                    <option value="blocked">Blocked</option>
+                  </select>
+                ) : (
+                  <div style={{ marginTop: '4px' }}>
+                    <span className={`step-status-badge ${(STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending).cls}`} style={{ fontSize: '12px', padding: '4px 10px', fontWeight: 'bold' }}>
+                      {(STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending).label}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {step.special === 'qc' && (
                 <div id="qcFailArea">
                   <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>If QC Fail — return to:</label>
-                  <div className="qc-options">
-                    <div className={`qc-opt${qcFailTarget === 'production' ? ' selected' : ''}`} onClick={() => setQcFailTarget('production')}>
-                      ↩ Production<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Rework</span>
+                  {canEditStep ? (
+                    <div className="qc-options">
+                      <div 
+                        className={`qc-opt${qcFailTarget === 'production' ? ' selected' : ''}`} 
+                        onClick={() => canEditStep && setQcFailTarget('production')}
+                        style={{ cursor: canEditStep ? 'pointer' : 'default' }}
+                      >
+                        ↩ Production<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Rework</span>
+                      </div>
+                      <div 
+                        className={`qc-opt${qcFailTarget === 'design' ? ' selected' : ''}`} 
+                        onClick={() => canEditStep && setQcFailTarget('design')}
+                        style={{ cursor: canEditStep ? 'pointer' : 'default' }}
+                      >
+                        ↩ Design<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Re-check</span>
+                      </div>
                     </div>
-                    <div className={`qc-opt${qcFailTarget === 'design' ? ' selected' : ''}`} onClick={() => setQcFailTarget('design')}>
-                      ↩ Design<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Re-check</span>
+                  ) : (
+                    <div style={{ fontSize: '13px', color: '#eee', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                      {qcFailTarget ? `↩ Returned to ${qcFailTarget.charAt(0).toUpperCase() + qcFailTarget.slice(1)}` : 'No fail action selected'}
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
 
               {step.special === 'design' && (
                 <div className="design-checklist">
                   <div className="design-checklist-title">Simultaneous Release Checklist</div>
-                  <label><input type="checkbox" checked={checklist.layout} onChange={(e) => setChecklist({ ...checklist, layout: e.target.checked })} /> Panel Layout (for Fitter)</label>
-                  <label><input type="checkbox" checked={checklist.electrical} onChange={(e) => setChecklist({ ...checklist, electrical: e.target.checked })} /> Electrical Design (for Wireman)</label>
-                  <label><input type="checkbox" checked={checklist.bom} onChange={(e) => setChecklist({ ...checklist, bom: e.target.checked })} /> BOM Released to Purchase &amp; Stores</label>
+                  {canEditStep ? (
+                    <>
+                      <label><input type="checkbox" checked={checklist.layout} onChange={(e) => setChecklist({ ...checklist, layout: e.target.checked })} /> Panel Layout (for Fitter)</label>
+                      <label><input type="checkbox" checked={checklist.electrical} onChange={(e) => setChecklist({ ...checklist, electrical: e.target.checked })} /> Electrical Design (for Wireman)</label>
+                      <label><input type="checkbox" checked={checklist.bom} onChange={(e) => setChecklist({ ...checklist, bom: e.target.checked })} /> BOM Released to Purchase &amp; Stores</label>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                      <div>{checklist.layout ? '✅' : '❌'} Panel Layout (for Fitter)</div>
+                      <div>{checklist.electrical ? '✅' : '❌'} Panel Design (for Wireman)</div>
+                      <div>{checklist.bom ? '✅' : '❌'} BOM Released to Purchase &amp; Stores</div>
+                    </div>
+                  )}
                 </div>
               )}
 
               {step.special === 'dispatch' && (
                 <div className="modal-field">
                   <label>Confirmed Dispatch Date</label>
-                  <input type="date" className="form-input" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} />
+                  {canEditStep ? (
+                    <input type="date" className="form-input" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} />
+                  ) : (
+                    <div style={{ fontSize: '14px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                      {dispatchDate ? new Date(dispatchDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not set'}
+                    </div>
+                  )}
                 </div>
               )}
 
               <div className="modal-field">
                 <label>Notes / Remarks</label>
-                <textarea className="form-textarea" placeholder="Add notes…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                {canEditStep ? (
+                  <textarea className="form-textarea" placeholder="Add notes…" value={notes} onChange={(e) => setNotes(e.target.value)} />
+                ) : (
+                  <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 14px', borderRadius: '6px', border: '1px solid #222', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
+                    {notes || 'No notes or remarks added.'}
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -255,7 +328,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           {activeTab === 'fields' && customFields.length > 0 && (
             <div>
               <div style={{ color: '#888', fontSize: '12px', marginBottom: '16px' }}>
-                Fill in the required information for this task.
+                {!canEditStep ? 'Information filled in for this task.' : 'Fill in the required information for this task.'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {customFields.map((field, idx) => (
@@ -264,7 +337,13 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                       <span style={{ color: '#eee', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
                       <span style={{ marginLeft: '8px', fontSize: '10px', color: '#555', textTransform: 'uppercase', background: '#222', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
                     </div>
-                    {renderFieldInput(field, idx)}
+                    {!canEditStep ? (
+                      <div style={{ fontSize: '13px', color: '#ddd', fontWeight: '500', marginTop: '4px' }}>
+                        {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                      </div>
+                    ) : (
+                      renderFieldInput(field, idx)
+                    )}
                   </div>
                 ))}
               </div>
@@ -284,13 +363,14 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                 entityId={step.id}
                 initialDocs={[]}
                 onDocsUpdate={(docs) => setDocCount(docs.length)}
+                readOnly={!canEditStep}
               />
             </div>
           )}
 
           {/* Actions */}
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #222' }}>
-            {canEditStructure ? (
+            {canEditStructure && canEditStep ? (
               <button
                 className="vbtn"
                 style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444' }}
@@ -300,8 +380,14 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               </button>
             ) : <div />}
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button className="btn-cancel" onClick={onClose}>Cancel</button>
-              <button className="btn-save" onClick={handleSave}>Update Status</button>
+              {canEditStep ? (
+                <>
+                  <button className="btn-cancel" onClick={onClose}>Cancel</button>
+                  <button className="btn-save" onClick={handleSave}>Update Status</button>
+                </>
+              ) : (
+                <button className="btn-cancel" onClick={onClose} style={{ minWidth: '100px' }}>Close</button>
+              )}
             </div>
           </div>
         </div>

@@ -43,12 +43,37 @@ export default function Masters() {
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditMasters = ['Admin', 'Manager'].includes(user.role);
+  const canEditMasters = ['Admin', 'Manager', 'Sales'].includes(user.role);
 
   useEffect(() => {
     fetchCompanies();
     fetchTasks();
   }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Check if Alt+N is pressed
+      if (e.altKey && e.key.toLowerCase() === 'n') {
+        e.preventDefault(); // Prevent standard browser Alt+N shortcut behavior
+        if (activeTab === 'companies') {
+          setShowCompanyModal(true);
+        } else if (activeTab === 'tasks') {
+          if (canEditMasters) {
+            setEditingTaskId(null);
+            setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, order_fields: [] });
+            setTaskCustomFields([]);
+            setShowFieldBuilder(false);
+            setShowTaskModal(true);
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeTab, canEditMasters]);
 
   const fetchCompanies = async () => {
     try {
@@ -185,7 +210,7 @@ export default function Masters() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
             <h2 style={{ margin: 0, color: '#fff' }}>Company Masters</h2>
-            <button className="vbtn" onClick={() => setShowCompanyModal(true)}>+ Register Company</button>
+            <button className="vbtn" onClick={() => setShowCompanyModal(true)}>+ Register Company (Alt+N)</button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -218,9 +243,11 @@ export default function Masters() {
             {canEditMasters && (
               <button className="vbtn" onClick={() => {
                 setEditingTaskId(null);
-                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false });
+                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, order_fields: [] });
+                setTaskCustomFields([]);
+                setShowFieldBuilder(false);
                 setShowTaskModal(true);
-              }}>+ New Task</button>
+              }}>+ New Task (Alt+N)</button>
             )}
           </div>
 
