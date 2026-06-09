@@ -27,6 +27,11 @@ export default function Header({ onLogout }) {
       }
     };
     window.addEventListener('setView', handleSetView);
+
+    const handleUpdate = () => {
+      fetchOrders();
+    };
+    window.addEventListener('orderUpdated', handleUpdate);
     
     // Click outside to close dropdown
     const handleClickOutside = (event) => {
@@ -39,6 +44,7 @@ export default function Header({ onLogout }) {
     return () => {
       clearInterval(id);
       window.removeEventListener('setView', handleSetView);
+      window.removeEventListener('orderUpdated', handleUpdate);
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
@@ -92,8 +98,8 @@ export default function Header({ onLogout }) {
   return (
     <div className="header">
       <div className="header-left">
-        <div className="logo">Vyom ERP Engine</div>
-        <div className="header-title">Planning Module — Control Panel Manufacturing</div>
+        <div className="logo">Vyom ERP</div>
+        <div className="header-title">Control Panel Manufacturing</div>
       </div>
       <div className="header-right">
         <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px', color: 'var(--text2)', fontSize: '12px' }}>

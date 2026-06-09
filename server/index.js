@@ -16,12 +16,178 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
+const DEFAULT_STEPS = [
+  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, level: 'order' },
+  { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, level: 'order' },
+  { dept: 'Design', name: 'Review & Classify', sub: 'Standard / Non-Standard', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, level: 'unit' },
+  { dept: 'Purchase', name: 'Receive Shortfall', sub: 'From Stores after BOM check', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Purchase', name: 'Procure Materials', sub: 'Raise PO to supplier', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Stores', name: 'Stock Check vs BOM', sub: 'Verify availability', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Stores', name: 'Material Status', sub: 'Allotted → Acceptance → Accept-complete', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Stores', name: 'Inform Purchase', sub: 'Send shortfall list', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Production', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'Production', name: 'Manufacture', sub: 'Fitter (mechanical) + Wireman (electrical)', special: null, requires_upload: false, level: 'unit' },
+  { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, level: 'unit' },
+  { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, level: 'unit' },
+  { dept: 'Dispatch', name: 'Ready for Dispatch', sub: 'QC cleared panels', special: null, requires_upload: true, level: 'unit' },
+  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, level: 'order' }
+];
+
+const deriveUnitStatus = async (unitId, clientOrPool) => {
+  const stepsRes = await clientOrPool.query(
+    `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
+    [unitId]
+  );
+  
+  if (stepsRes.rows.length === 0) return;
+
+  const steps = stepsRes.rows;
+  
+  let newStatus = 'Pending';
+  let newDept = 'Planning';
+
+  const blockedStep = steps.find(s => s.status === 'blocked');
+  if (blockedStep) {
+    newDept = blockedStep.dept;
+    if (blockedStep.dept === 'QC') {
+      newStatus = 'QC Failed';
+    } else if (blockedStep.dept === 'Production') {
+      newStatus = 'Rework';
+    } else {
+      newStatus = 'Blocked';
+    }
+  } else {
+    const allDone = steps.every(s => s.status === 'done');
+    if (allDone) {
+      newStatus = 'Dispatched';
+      newDept = 'Accounts';
+    } else {
+      const firstIncomplete = steps.find(s => s.status !== 'done');
+      if (firstIncomplete) {
+        newDept = firstIncomplete.dept;
+        
+        const statusMap = {
+          'Sales': 'Pending',
+          'Design': 'Design',
+          'Purchase': 'Material Waiting',
+          'Stores': 'Material Waiting',
+          'Production': 'Production',
+          'QC': 'QC Testing',
+          'Dispatch': 'Ready for Dispatch',
+          'Accounts': 'Dispatched'
+        };
+        
+        newStatus = statusMap[firstIncomplete.dept] || 'Production';
+      }
+    }
+  }
+
+  await clientOrPool.query(
+    `UPDATE order_units SET status = $1, current_dept = $2 WHERE id = $3`,
+    [newStatus, newDept, unitId]
+  );
+};
+
 // Auto-initialize Database
 const initDB = async () => {
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
     await pool.query(sql);
     console.log('Database initialized successfully (Tables checked/created)');
+
+    // Synchronize default task_masters to match tasks
+    const currentTasks = await pool.query('SELECT name, level FROM task_masters WHERE is_mandatory = true');
+    const currentSignatures = currentTasks.rows.map(r => `${r.name}:${r.level}`).sort();
+    const expectedSignatures = DEFAULT_STEPS.map(s => `${s.name}:${s.level}`).sort();
+    const isMatching = JSON.stringify(currentSignatures) === JSON.stringify(expectedSignatures);
+    
+    if (!isMatching) {
+      console.log('Syncing task_masters to new defaults...');
+      await pool.query('TRUNCATE TABLE task_masters RESTART IDENTITY CASCADE;');
+      for (const step of DEFAULT_STEPS) {
+        await pool.query(
+          `INSERT INTO task_masters (dept, name, sub, special, requires_upload, is_mandatory, level) 
+           VALUES ($1, $2, $3, $4, $5, true, $6)`,
+          [step.dept, step.name, step.sub, step.special, step.requires_upload, step.level]
+        );
+      }
+      console.log('task_masters updated successfully!');
+    }
+
+    // Auto-restore steps for existing orders and units if they have 0 steps
+    const ordersRes = await pool.query('SELECT id FROM orders');
+    const dbTasks = await pool.query(`
+      SELECT * FROM task_masters 
+      WHERE is_mandatory = true 
+      ORDER BY 
+        CASE dept
+          WHEN 'Sales' THEN 1
+          WHEN 'Design' THEN 2
+          WHEN 'Purchase' THEN 3
+          WHEN 'Stores' THEN 4
+          WHEN 'Production' THEN 5
+          WHEN 'QC' THEN 6
+          WHEN 'Dispatch' THEN 7
+          WHEN 'Accounts' THEN 8
+          ELSE 9
+        END ASC,
+        id ASC
+    `);
+    const tasks = dbTasks.rows.length > 0 ? dbTasks.rows : DEFAULT_STEPS;
+    
+    let restoredCount = 0;
+    for (const order of ordersRes.rows) {
+      const stepsCount = await pool.query('SELECT COUNT(*) FROM order_steps WHERE order_id = $1', [order.id]);
+      if (parseInt(stepsCount.rows[0].count) === 0) {
+        restoredCount++;
+        const orderTasks = tasks.filter(t => t.level === 'order');
+        for (let i = 0; i < orderTasks.length; i++) {
+          const task = orderTasks[i];
+          let fieldDefs = [];
+          if (task.id) {
+            try {
+              const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+              fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+            } catch { fieldDefs = []; }
+          }
+          await pool.query(
+            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
+          );
+        }
+      }
+
+      // Check unit steps
+      const unitsRes = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [order.id]);
+      for (const unit of unitsRes.rows) {
+        const unitStepsCount = await pool.query('SELECT COUNT(*) FROM unit_steps WHERE order_unit_id = $1', [unit.id]);
+        if (parseInt(unitStepsCount.rows[0].count) === 0) {
+          const unitTasks = tasks.filter(t => t.level === 'unit');
+          for (let i = 0; i < unitTasks.length; i++) {
+            const task = unitTasks[i];
+            let fieldDefs = [];
+            if (task.id) {
+              try {
+                const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+                fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+              } catch { fieldDefs = []; }
+            }
+            await pool.query(
+              `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order) 
+               VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
+              [unit.id, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+            );
+          }
+          // derive initial status
+          await deriveUnitStatus(unit.id, pool);
+        }
+      }
+    }
+    if (restoredCount > 0) {
+      console.log(`Auto-restored steps for ${restoredCount} orders.`);
+    }
   } catch (err) {
     console.error('Database initialization failed:', err);
   }
@@ -31,6 +197,10 @@ initDB();
 
 app.use(cors());
 app.use(express.json());
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.url}`);
+  next();
+});
 
 // Multer Configuration
 const storage = multer.diskStorage({
@@ -85,13 +255,26 @@ const authorize = (roles = []) => {
     
     if (!token) return res.status(401).json({ error: 'No token provided' });
     
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
       if (err) return res.status(401).json({ error: 'Unauthorized' });
-      if (roles.length && !roles.includes(decoded.role)) {
-        return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+      
+      try {
+        const userRes = await pool.query('SELECT id, role FROM users WHERE id = $1', [decoded.id]);
+        if (userRes.rows.length === 0) {
+          return res.status(401).json({ error: 'Unauthorized: User does not exist' });
+        }
+        
+        const dbUser = userRes.rows[0];
+        if (roles.length && !roles.includes(dbUser.role)) {
+          return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
+        }
+        
+        req.user = { ...decoded, role: dbUser.role };
+        next();
+      } catch (dbErr) {
+        console.error('Auth DB check failed:', dbErr);
+        return res.status(500).json({ error: 'Internal server error during authorization' });
       }
-      req.user = decoded;
-      next();
     });
   };
 };
@@ -117,20 +300,24 @@ app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
+  console.log(`[LOGIN TRY] Email: "${email}"`);
   try {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     if (result.rows.length === 0) {
+      console.log(`[LOGIN FAIL] User not found for email: "${email}"`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
     const user = result.rows[0];
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
+      console.log(`[LOGIN FAIL] Password mismatch for email: "${email}"`);
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+    console.log(`[LOGIN SUCCESS] Email: "${email}", Role: "${user.role}"`);
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
   } catch (err) {
-    console.error(err);
+    console.error('[LOGIN ERROR]', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -149,13 +336,21 @@ app.get('/api/auth/profile', authorize(), async (req, res) => {
 // Logs & Users
 app.get('/api/logs', authorize(), async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT l.*, u.username, o.order_number 
-       FROM activity_logs l 
-       JOIN users u ON l.user_id = u.id 
-       LEFT JOIN orders o ON l.order_id = o.id
-       ORDER BY l.timestamp DESC LIMIT 200`
-    );
+    const limit = req.query.limit || '1000';
+    let queryText = `
+      SELECT l.*, u.username, o.order_number 
+      FROM activity_logs l 
+      JOIN users u ON l.user_id = u.id 
+      LEFT JOIN orders o ON l.order_id = o.id
+      ORDER BY l.timestamp DESC
+    `;
+    const params = [];
+    if (limit !== 'all') {
+      queryText += ` LIMIT $1`;
+      params.push(parseInt(limit) || 1000);
+    }
+    
+    const result = await pool.query(queryText, params);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -177,13 +372,126 @@ app.post('/api/logs', authorize(), async (req, res) => {
   }
 });
 
-app.get('/api/users', authorize(['Admin']), async (req, res) => {
+app.get('/api/users', authorize(), async (req, res) => {
   try {
     const result = await pool.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
     res.json(result.rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
+  const { role } = req.body;
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  if (!VALID_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE users SET role = $1 WHERE id = $2 RETURNING id, username, email, role',
+      [role, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.patch('/api/users/:id/password', authorize(['Admin']), async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2 RETURNING id, username, email, role',
+      [hashedPassword, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
+  const { username, email, role, password } = req.body;
+  const { id } = req.params;
+  
+  if (!username || !email || !role) {
+    return res.status(400).json({ error: 'Username, email, and role are required' });
+  }
+  
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  if (!VALID_ROLES.includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+  
+  try {
+    let query = 'UPDATE users SET username = $1, email = $2, role = $3';
+    const params = [username, email, role, id];
+    
+    if (password && password.length >= 6) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      query += ', password = $4 WHERE id = $5';
+      params.splice(3, 0, hashedPassword);
+    } else {
+      query += ' WHERE id = $4';
+    }
+    
+    query += ' RETURNING id, username, email, role, created_at';
+    
+    const result = await pool.query(query, params);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Username or email already exists' });
+    }
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/users/:id', authorize(['Admin']), async (req, res) => {
+  const { id } = req.params;
+  
+  if (parseInt(id) === req.user.id) {
+    return res.status(400).json({ error: 'You cannot delete your own account' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    await client.query('UPDATE orders SET created_by = NULL WHERE created_by = $1', [id]);
+    await client.query('UPDATE order_units SET assigned_user = NULL WHERE assigned_user = $1', [id]);
+    await client.query('UPDATE documents SET uploaded_by = NULL WHERE uploaded_by = $1', [id]);
+    await client.query('UPDATE unit_steps SET assigned_user_id = NULL WHERE assigned_user_id = $1', [id]);
+    
+    const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [id]);
+    
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    await client.query('COMMIT');
+    res.json({ message: 'User deleted successfully', deletedUser: result.rows[0] });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  } finally {
+    client.release();
   }
 });
 
@@ -207,11 +515,10 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id]
     );
-    const order = orderResult.rows[0];
-
-    // 2. Insert Line Items and Generate Unit IDs sequentially
+    const order = orderResult.rows[0];    // 2. Insert Line Items and Generate Unit IDs sequentially
     let globalUnitCounter = 1;
     let totalUnits = 0;
+    const createdUnits = [];
 
     for (const li of parsedLineItems) {
       const liResult = await client.query(
@@ -226,30 +533,79 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
       for (let i = 0; i < qty; i++) {
         const short_serial = globalUnitCounter.toString().padStart(4, '0');
         const unit_id = `${order_number}-${short_serial}`;
-        await client.query(
-          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1, $2, $3, $4)`,
+        const unitResult = await client.query(
+          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1, $2, $3, $4) RETURNING id`,
           [order.id, lineItem.id, unit_id, short_serial]
         );
+        createdUnits.push(unitResult.rows[0].id);
         globalUnitCounter++;
       }
     }
 
     // 3. Auto-assign mandatory steps
-    const tasksResult = await client.query('SELECT * FROM task_masters WHERE is_mandatory = true');
-    const tasks = tasksResult.rows;
-    for (const task of tasks) {
-      // Copy field definitions (without values) from task master to the order step
+    const tasksResult = await client.query(`
+      SELECT * FROM task_masters 
+      WHERE is_mandatory = true 
+      ORDER BY 
+        CASE dept
+          WHEN 'Sales' THEN 1
+          WHEN 'Design' THEN 2
+          WHEN 'Purchase' THEN 3
+          WHEN 'Stores' THEN 4
+          WHEN 'Production' THEN 5
+          WHEN 'QC' THEN 6
+          WHEN 'Dispatch' THEN 7
+          WHEN 'Accounts' THEN 8
+          ELSE 9
+        END ASC,
+        id ASC
+    `);
+    let tasks = tasksResult.rows;
+    if (tasks.length === 0) {
+      tasks = DEFAULT_STEPS;
+    }
+
+    const orderTasks = tasks.filter(t => t.level === 'order');
+    const unitTasks = tasks.filter(t => t.level === 'unit');
+
+    // Insert order-level milestones
+    for (let i = 0; i < orderTasks.length; i++) {
+      const task = orderTasks[i];
       let fieldDefs = [];
-      try {
-        const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
-        fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
-      } catch { fieldDefs = []; }
+      if (task.id) {
+        try {
+          const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+          fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+        } catch { fieldDefs = []; }
+      }
 
       await client.query(
-        `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [order.id, task.id, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs)]
+        `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+        [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
       );
+    }
+
+    // Insert unit-level production steps for each unit
+    for (const unitDbId of createdUnits) {
+      for (let i = 0; i < unitTasks.length; i++) {
+        const task = unitTasks[i];
+        let fieldDefs = [];
+        if (task.id) {
+          try {
+            const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+            fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+          } catch { fieldDefs = []; }
+        }
+
+        await client.query(
+          `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order) 
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
+          [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+        );
+      }
+      // Derive initial unit status
+      await deriveUnitStatus(unitDbId, client);
     }
 
     // 4. Save Uploaded Documents
@@ -269,7 +625,7 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
       }
     }
 
-  await client.query('COMMIT');
+    await client.query('COMMIT');
     res.status(201).json({ order, message: `Order ${order_number} created with ${totalUnits} units.` });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -371,20 +727,48 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
   // 3. Resolve company_name + company_city → company_location_id (cached)
   const locationCache = new Map();
-  const resolveLocation = async (name, city) => {
+  const resolveLocation = async (client, name, city) => {
     const key = `${name}|||${city}`.toLowerCase();
     if (locationCache.has(key)) return locationCache.get(key);
 
-    const result = await pool.query(
-      `SELECT cl.id FROM company_locations cl
-       JOIN companies c ON cl.company_id = c.id
-       WHERE LOWER(c.name) = LOWER($1) AND LOWER(cl.city) = LOWER($2)
-       LIMIT 1`,
-      [name, city]
+    // 1. Find or create company
+    let compRes = await client.query(
+      `SELECT id FROM companies WHERE LOWER(name) = LOWER($1) LIMIT 1`,
+      [name]
     );
-    const id = result.rows.length > 0 ? result.rows[0].id : null;
-    locationCache.set(key, id);
-    return id;
+    let companyId;
+    if (compRes.rows.length > 0) {
+      companyId = compRes.rows[0].id;
+    } else {
+      compRes = await client.query(
+        `INSERT INTO companies (name) VALUES ($1)
+         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+         RETURNING id`,
+        [name]
+      );
+      companyId = compRes.rows[0].id;
+    }
+
+    // 2. Find or create location under that company
+    let locRes = await client.query(
+      `SELECT id FROM company_locations 
+       WHERE company_id = $1 AND LOWER(city) = LOWER($2) 
+       LIMIT 1`,
+      [companyId, city]
+    );
+    let locationId;
+    if (locRes.rows.length > 0) {
+      locationId = locRes.rows[0].id;
+    } else {
+      locRes = await client.query(
+        `INSERT INTO company_locations (company_id, city) VALUES ($1, $2) RETURNING id`,
+        [companyId, city]
+      );
+      locationId = locRes.rows[0].id;
+    }
+
+    locationCache.set(key, locationId);
+    return locationId;
   };
 
   // 4. Create each order in a transaction
@@ -402,16 +786,9 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       if (!companyName || !companyCity) {
         errors.push({ po_number, error: 'company_name or company_city is missing.' });
         await client.query('ROLLBACK');
-        client.release();
         continue;
       }
-      const company_location_id = await resolveLocation(companyName, companyCity);
-      if (!company_location_id) {
-        errors.push({ po_number, error: `Company "${companyName}" in "${companyCity}" not found in Masters.` });
-        await client.query('ROLLBACK');
-        client.release();
-        continue;
-      }
+      const company_location_id = await resolveLocation(client, companyName, companyCity);
 
       // Validate priority
       const VALID_PRIORITIES = ['Low', 'Medium', 'High', 'Urgent'];
@@ -520,33 +897,82 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         const lineItem = liResult.rows[0];
         totalUnits += qty;
 
+        const createdUnits = [];
         for (let i = 0; i < qty; i++) {
           const short_serial = globalUnitCounter.toString().padStart(4, '0');
           const unit_id = `${order_number}-${short_serial}`;
-          await client.query(
-            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1,$2,$3,$4)`,
+          const unitResult = await client.query(
+            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1,$2,$3,$4) RETURNING id`,
             [order.id, lineItem.id, unit_id, short_serial]
           );
+          createdUnits.push(unitResult.rows[0].id);
           globalUnitCounter++;
         }
       }
 
-      // Auto-assign mandatory steps (only for new orders)
+      // Auto-assign steps
+      const tasksResult = await client.query(`
+        SELECT * FROM task_masters 
+        WHERE is_mandatory = true 
+        ORDER BY 
+          CASE dept
+            WHEN 'Sales' THEN 1
+            WHEN 'Design' THEN 2
+            WHEN 'Purchase' THEN 3
+            WHEN 'Stores' THEN 4
+            WHEN 'Production' THEN 5
+            WHEN 'QC' THEN 6
+            WHEN 'Dispatch' THEN 7
+            WHEN 'Accounts' THEN 8
+            ELSE 9
+          END ASC,
+          id ASC
+      `);
+      let tasks = tasksResult.rows;
+      if (tasks.length === 0) {
+        tasks = DEFAULT_STEPS;
+      }
+
+      const orderTasks = tasks.filter(t => t.level === 'order');
+      const unitTasks = tasks.filter(t => t.level === 'unit');
+
       if (!isAppended) {
-        const tasksResult = await client.query('SELECT * FROM task_masters WHERE is_mandatory = true');
-        for (const task of tasksResult.rows) {
+        for (let i = 0; i < orderTasks.length; i++) {
+          const task = orderTasks[i];
           let fieldDefs = [];
-          try {
-            const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
-            fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
-          } catch { fieldDefs = []; }
+          if (task.id) {
+            try {
+              const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+              fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+            } catch { fieldDefs = []; }
+          }
 
           await client.query(
-            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-            [order.id, task.id, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs)]
+            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
           );
         }
+      }
+
+      for (const unitDbId of createdUnits) {
+        for (let i = 0; i < unitTasks.length; i++) {
+          const task = unitTasks[i];
+          let fieldDefs = [];
+          if (task.id) {
+            try {
+              const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+              fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+            } catch { fieldDefs = []; }
+          }
+
+          await client.query(
+            `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order)
+             VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8)`,
+            [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+          );
+        }
+        await deriveUnitStatus(unitDbId, client);
       }
 
       await client.query('COMMIT');
@@ -572,6 +998,7 @@ app.get('/api/orders', authorize(), async (req, res) => {
     const result = await pool.query(
       `SELECT o.*, u.username as creator_name, 
        (SELECT count(*) FROM order_units WHERE order_id = o.id) as unit_count,
+       (SELECT count(*) FROM order_units WHERE order_id = o.id AND status = 'Dispatched') as dispatched_unit_count,
        c.name as company_name, l.city as company_city
        FROM orders o 
        JOIN users u ON o.created_by = u.id 
@@ -586,33 +1013,69 @@ app.get('/api/orders', authorize(), async (req, res) => {
   }
 });
 
+
 app.get('/api/board', authorize(), async (req, res) => {
   try {
     const ordersResult = await pool.query(
-      `SELECT o.id, o.order_number, o.delivery_date, o.priority, c.name as company_name,
+      `SELECT o.id, o.order_number, o.po_number, o.delivery_date, o.priority, o.notes, c.name as company_name,
               COALESCE(
                 (SELECT MAX(s.created_at) FROM order_steps s WHERE s.order_id = o.id),
                 o.created_at
-              ) as updated_at,
-              CASE 
-                WHEN (SELECT COUNT(*) FROM order_steps s WHERE s.order_id = o.id) = 0 THEN 'no_steps'
-                WHEN (SELECT COUNT(*) FROM order_steps s WHERE s.order_id = o.id AND s.status != 'done') = 0 THEN 'completed'
-                ELSE 'incomplete'
-              END as status
+              ) as updated_at
        FROM orders o
        LEFT JOIN company_locations l ON o.company_location_id = l.id
        LEFT JOIN companies c ON l.company_id = c.id
        ORDER BY o.created_at DESC`
     );
-    const stepsResult = await pool.query(
-      `SELECT id, order_id, dept, name, status, requires_upload, notes
-       FROM order_steps
-       ORDER BY step_order ASC, id ASC`
+
+    // Fetch order-level steps
+    const orderStepsRes = await pool.query(
+      `SELECT s.id, s.order_id, s.dept, s.name, s.status, s.requires_upload, s.notes, s.step_order
+       FROM order_steps s
+       ORDER BY s.step_order ASC, s.id ASC`
     );
-    const orders = ordersResult.rows.map(o => ({
-      ...o,
-      steps: stepsResult.rows.filter(s => s.order_id === o.id)
-    }));
+
+    // Fetch unit-level steps joined with order_units to get order_id
+    const unitStepsRes = await pool.query(
+      `SELECT s.id, u.order_id, s.dept, CONCAT(u.short_serial, ': ', s.name) as name, s.status, s.requires_upload, s.notes, s.step_order
+       FROM unit_steps s
+       JOIN order_units u ON s.order_unit_id = u.id
+       ORDER BY s.step_order ASC, s.id ASC`
+    );
+
+    const orders = ordersResult.rows.map(o => {
+      const oSteps = orderStepsRes.rows.filter(s => s.order_id === o.id).map(s => ({
+        id: `o_${s.id}`,
+        dept: s.dept,
+        name: s.name,
+        status: s.status,
+        notes: s.notes
+      }));
+      
+      const uSteps = unitStepsRes.rows.filter(s => s.order_id === o.id).map(s => ({
+        id: `u_${s.id}`,
+        dept: s.dept,
+        name: s.name,
+        status: s.status,
+        notes: s.notes
+      }));
+
+      const allSteps = [...oSteps, ...uSteps];
+
+      let status = 'incomplete';
+      if (allSteps.length === 0) {
+        status = 'no_steps';
+      } else if (allSteps.every(s => s.status === 'done')) {
+        status = 'completed';
+      }
+
+      return {
+        ...o,
+        status,
+        steps: allSteps
+      };
+    });
+
     res.json(orders);
   } catch (err) {
     console.error(err);
@@ -739,6 +1202,33 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
   const { status, notes, dispatchDate, custom_fields } = req.body;
   const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   try {
+    // Fetch step details to verify permissions
+    const stepRes = await pool.query('SELECT dept FROM order_steps WHERE id = $1 AND order_id = $2', [req.params.stepId, req.params.orderId]);
+    if (stepRes.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
+    const step = stepRes.rows[0];
+
+    const canEdit = ['Admin', 'Manager'].includes(req.user.role) || step.dept === req.user.role;
+    if (!canEdit) {
+      return res.status(403).json({ error: 'Forbidden: You are not authorized to update this task.' });
+    }
+
+    // Upstream validation: block marking 'done' if upstream depts are incomplete
+    if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
+      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts'];
+      const myIndex = PIPELINE.indexOf(step.dept);
+      if (myIndex > 0) {
+        const upstreamDepts = PIPELINE.slice(0, myIndex);
+        const blockingRes = await pool.query(
+          `SELECT DISTINCT dept FROM order_steps WHERE order_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
+          [req.params.orderId, upstreamDepts]
+        );
+        if (blockingRes.rows.length > 0) {
+          const blocking = blockingRes.rows.map(r => r.dept).join(', ');
+          return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
+        }
+      }
+    }
+
     let cfJson = null;
     if (custom_fields) {
       cfJson = JSON.stringify(custom_fields);
@@ -755,6 +1245,7 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
     res.status(500).json({ error: 'Failed to update step' });
   }
 });
+
 
 app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager']), async (req, res) => {
   try {
@@ -776,6 +1267,115 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
     res.status(500).json({ error: 'Failed to delete step' });
   }
 });
+
+app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT s.*, tm.custom_fields as tm_custom_fields, tm.order_fields as tm_order_fields
+       FROM unit_steps s
+       LEFT JOIN task_masters tm ON s.task_id = tm.id
+       WHERE s.order_unit_id = $1
+       ORDER BY s.step_order ASC, s.id ASC`,
+      [req.params.unitId]
+    );
+
+    const steps = result.rows.map(step => {
+      let cf = [];
+      try { cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]'); } catch { cf = []; }
+      
+      if (cf.length === 0 && step.tm_custom_fields) {
+        try {
+          const tmCf = Array.isArray(step.tm_custom_fields) ? step.tm_custom_fields : JSON.parse(step.tm_custom_fields);
+          cf = tmCf.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+        } catch { cf = []; }
+      }
+      
+      let orderFields = [];
+      try { orderFields = Array.isArray(step.tm_order_fields) ? step.tm_order_fields : JSON.parse(step.tm_order_fields || '[]'); } catch { orderFields = []; }
+
+      const { tm_custom_fields, tm_order_fields, ...rest } = step;
+      return { ...rest, custom_fields: cf, order_fields: orderFields };
+    });
+
+    res.json(steps);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch unit steps' });
+  }
+});
+
+app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
+  const { status, notes, dispatchDate, custom_fields, assigned_user_id } = req.body;
+  const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Fetch step details to verify permissions
+    const stepRes = await client.query('SELECT dept, assigned_user_id FROM unit_steps WHERE id = $1 AND order_unit_id = $2', [req.params.stepId, req.params.unitId]);
+    if (stepRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Unit step not found' });
+    }
+    const step = stepRes.rows[0];
+
+    const canEdit = ['Admin', 'Manager'].includes(req.user.role) || step.dept === req.user.role || step.assigned_user_id === req.user.id;
+    if (!canEdit) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Forbidden: You are not authorized to update this task.' });
+    }
+
+    // Upstream validation: block marking 'done' if upstream depts are incomplete
+    if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
+      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts'];
+      const myIndex = PIPELINE.indexOf(step.dept);
+      if (myIndex > 0) {
+        const upstreamDepts = PIPELINE.slice(0, myIndex);
+        const blockingRes = await client.query(
+          `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
+          [req.params.unitId, upstreamDepts]
+        );
+        if (blockingRes.rows.length > 0) {
+          const blocking = blockingRes.rows.map(r => r.dept).join(', ');
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
+        }
+      }
+    }
+    
+    let cfJson = null;
+    if (custom_fields) {
+      cfJson = JSON.stringify(custom_fields);
+    }
+
+    const result = await client.query(
+      `UPDATE unit_steps 
+       SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields), assigned_user_id = COALESCE($6, assigned_user_id) 
+       WHERE id = $7 AND order_unit_id = $8 
+       RETURNING *`,
+      [status, notes, dispatchDate || null, updated, cfJson, assigned_user_id || null, req.params.stepId, req.params.unitId]
+    );
+
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Unit step not found' });
+    }
+
+    // Recalculate derived status
+    await deriveUnitStatus(req.params.unitId, client);
+
+    await client.query('COMMIT');
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update unit step' });
+  } finally {
+    client.release();
+  }
+});
+
 
 app.put('/api/units/:id/status', authorize(), async (req, res) => {
   const { status } = req.body;
@@ -911,7 +1511,22 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
 
 app.get('/api/task_masters', authorize(), async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM task_masters ORDER BY dept, id ASC');
+    const result = await pool.query(`
+      SELECT * FROM task_masters 
+      ORDER BY 
+        CASE dept
+          WHEN 'Sales' THEN 1
+          WHEN 'Design' THEN 2
+          WHEN 'Purchase' THEN 3
+          WHEN 'Stores' THEN 4
+          WHEN 'Production' THEN 5
+          WHEN 'QC' THEN 6
+          WHEN 'Dispatch' THEN 7
+          WHEN 'Accounts' THEN 8
+          ELSE 9
+        END ASC,
+        id ASC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -919,7 +1534,7 @@ app.get('/api/task_masters', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/task_masters', authorize(['Admin', 'Manager']), async (req, res) => {
+app.post('/api/task_masters', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { dept, name, sub, special, is_mandatory, requires_upload, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
@@ -934,7 +1549,7 @@ app.post('/api/task_masters', authorize(['Admin', 'Manager']), async (req, res) 
   }
 });
 
-app.put('/api/task_masters/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+app.put('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { dept, name, sub, special, is_mandatory, requires_upload, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
@@ -950,7 +1565,7 @@ app.put('/api/task_masters/:id', authorize(['Admin', 'Manager']), async (req, re
   }
 });
 
-app.delete('/api/task_masters/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+app.delete('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });

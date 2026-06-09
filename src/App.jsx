@@ -32,7 +32,7 @@ function Dashboard() {
   const [steps, setSteps] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
   const [currentFilter, setCurrentFilter] = useState('all');
-  const [currentView, setCurrentView] = useState('orders'); // default to orders so they pick one
+  const [currentView, setCurrentView] = useState('board'); // default to board
   const [bomState, setBomState] = useState('Accept-Complete');
   const [designType, setDesignType] = useState('Standard');
   const [selectedStepId, setSelectedStepId] = useState(null);
@@ -40,6 +40,10 @@ function Dashboard() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrderIdRef = useRef(null); // ref so closures always see latest value
   const [selectedOrder, setSelectedOrder] = useState(null);
+
+  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [unitSteps, setUnitSteps] = useState([]);
+  const lastInitializedOrderIdRef = useRef(null);
   const navigate = useNavigate();
 
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
@@ -94,6 +98,73 @@ function Dashboard() {
       setSelectedOrder(null);
     }
   }, [selectedOrderId]);
+
+  // Auto-select unit when order changes
+  useEffect(() => {
+    if (!selectedOrder) {
+      setSelectedUnitId('');
+      lastInitializedOrderIdRef.current = null;
+      return;
+    }
+
+    if (lastInitializedOrderIdRef.current !== selectedOrder.id) {
+      const units = selectedOrder.units || [];
+      if (units.length > 0) {
+        setSelectedUnitId(units[0].id.toString());
+      } else {
+        setSelectedUnitId('');
+      }
+      lastInitializedOrderIdRef.current = selectedOrder.id;
+    } else {
+      const units = selectedOrder.units || [];
+      if (selectedUnitId && !units.some(u => u.id.toString() === selectedUnitId.toString())) {
+        if (units.length > 0) {
+          setSelectedUnitId(units[0].id.toString());
+        } else {
+          setSelectedUnitId('');
+        }
+      }
+    }
+  }, [selectedOrder, selectedUnitId]);
+
+  // Fetch unit steps when selectedUnitId or selectedOrder changes
+  useEffect(() => {
+    const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
+    if (targetUnitId && token) {
+      fetch(`http://localhost:5000/api/units/${targetUnitId}/steps`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(async res => {
+        if (res.ok) setUnitSteps(await res.json());
+      })
+      .catch(console.error);
+    } else {
+      setUnitSteps([]);
+    }
+  }, [selectedUnitId, selectedOrder, token]);
+
+  // Reactively fetch steps and order details when any step is updated
+  useEffect(() => {
+    const handleOrderUpdate = () => {
+      if (selectedOrderId) {
+        fetchOrderSteps(selectedOrderId);
+        fetchOrderDetails(selectedOrderId);
+        
+        const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
+        if (targetUnitId && token) {
+          fetch(`http://localhost:5000/api/units/${targetUnitId}/steps`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          })
+          .then(async res => {
+            if (res.ok) setUnitSteps(await res.json());
+          })
+          .catch(console.error);
+        }
+      }
+    };
+    window.addEventListener('orderUpdated', handleOrderUpdate);
+    return () => window.removeEventListener('orderUpdated', handleOrderUpdate);
+  }, [selectedOrderId, selectedUnitId, selectedOrder, token]);
 
   const fetchOrderDetails = async (orderId) => {
     if (!token) return;
@@ -170,17 +241,24 @@ function Dashboard() {
     navigate('/');
   };
 
+  // Navigating to Board clears the selected order — Board shows all orders,
+  // so having one "selected" is confusing and pollutes the stats + right panel.
+  const navigateToView = (view) => {
+    setCurrentView(view);
+    if (view === 'board') {
+      setSelectedOrderId(null);
+      selectedOrderIdRef.current = null;
+      setSelectedOrder(null);
+      setSteps([]);
+      setCurrentFilter('all'); // board always shows all departments
+      // Also tell the Header to clear its search input
+      window.dispatchEvent(new CustomEvent('setView', { detail: { orderId: null } }));
+    }
+  };
+
   const selectedStep = steps.find((s) => s.id === selectedStepId) || null;
 
   const handleOpenModal = (id) => {
-    const step = steps.find(s => s.id === id);
-    const canEdit = ['Admin', 'Manager'].includes(user.role) || step.dept === user.role;
-    
-    if (!canEdit) {
-      alert(`Access Denied: Your role (${user.role}) is not authorized to edit ${step.dept} tasks.`);
-      return;
-    }
-
     setSelectedStepId(id);
     setIsModalOpen(true);
   };
@@ -199,6 +277,8 @@ function Dashboard() {
       
       if (res.ok) {
         await fetchOrderSteps(selectedOrderId); // refresh steps
+        await fetchOrderDetails(selectedOrderId); // refresh order details
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
 
         if (selectedStep.special === 'qc' && data.status === 'blocked' && data.qcFailTarget) {
           const routeText = data.qcFailTarget === 'production' 
@@ -209,9 +289,14 @@ function Dashboard() {
         
         logActivity(selectedStep.dept, `"${selectedStep.name}" → ${data.status.toUpperCase()}${data.notes ? ' — ' + data.notes : ''}`, selectedOrderId);
         setIsModalOpen(false);
+        return null; // success
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        return errData.error || 'Failed to save step'; // return error to StepModal
       }
     } catch (err) {
       console.error('Failed to save step', err);
+      return 'Network error — could not save step';
     }
   };
 
@@ -225,6 +310,7 @@ function Dashboard() {
       if (res.ok) {
         setIsModalOpen(false);
         fetchOrderSteps(selectedOrderId);
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
       } else {
         alert('Failed to delete step');
       }
@@ -251,12 +337,15 @@ function Dashboard() {
     logActivity('Design', `Design classified as ${type}`, selectedOrderId);
   };
 
+  const orderLevelSteps = steps.filter(s => !s.order_unit_id);
+  const combinedSteps = [...unitSteps, ...orderLevelSteps];
+
   return (
     <div className="app-container">
       <Header onLogout={handleLogout} />
       <div className="app">
         <Sidenav
-          steps={steps}
+          steps={combinedSteps}
           currentFilter={currentFilter}
           onFilterDept={setCurrentFilter}
           bomState={bomState}
@@ -264,54 +353,70 @@ function Dashboard() {
           designType={designType}
           onSetDesignType={handleSetDesignType}
           currentView={currentView}
-          onSetView={setCurrentView}
+          onSetView={navigateToView}
           userRole={user.role}
         />
         <main className="main">
-          <StatsRow steps={steps} currentFilter={currentFilter} />
+          <StatsRow steps={combinedSteps} currentFilter={currentFilter} selectedOrder={selectedOrder} />
           
           <div className="flow-header">
             <div className="flow-title">
-              {currentView === 'flow' ? 'Process Flow' :
+              {currentView === 'board' ? 'Board' :
+               currentView === 'flow' ? 'Process Flow' :
+               currentView === 'table' ? 'Table View' :
                currentView === 'orders' ? 'Order Directory' :
-               currentView === 'new-order' ? 'New Order Creation' :
-               currentView === 'import' ? 'Bulk Import Orders' :
+               currentView === 'new-order' ? 'New Order' :
+               currentView === 'import' ? 'Import Orders' :
                currentView === 'masters' ? 'Masters' :
-               'Management'}
+               currentView === 'logs' ? 'System Logs' :
+               'User Management'}
             </div>
-            <div className="view-toggle">
-              <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => setCurrentView('board')}>Board</button>
-              <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
-              <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => setCurrentView('table')}>Table</button>
-              <button className={`vbtn${currentView === 'orders' ? ' active' : ''}`} onClick={() => setCurrentView('orders')}>Orders</button>
-              <button className={`vbtn${currentView === 'masters' ? ' active' : ''}`} onClick={() => setCurrentView('masters')}>Masters</button>
-              {['Admin', 'Manager', 'Sales'].includes(user.role) && (
-                <button className={`vbtn${currentView === 'import' ? ' active' : ''}`} style={{ background: currentView === 'import' ? '#065f46' : undefined, color: currentView === 'import' ? '#34d399' : undefined }} onClick={() => setCurrentView('import')}>⬆ Import</button>
-              )}
-              {user.role === 'Admin' && (
-                <button className={`vbtn${currentView === 'users' ? ' active' : ''}`} onClick={() => setCurrentView('users')}>Users</button>
-              )}
-            </div>
+            {['board', 'flow', 'table'].includes(currentView) && (
+              <div className="view-toggle">
+                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => navigateToView('board')}>Board</button>
+                <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
+                <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => setCurrentView('table')}>Table</button>
+              </div>
+            )}
           </div>
 
           {currentView === 'board' ? (
             <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
           ) : currentView === 'flow' ? (
             selectedOrderId ? (
-              <FlowView steps={steps} currentFilter={currentFilter} onOpenModal={handleOpenModal} onSetView={setCurrentView} userRole={user.role} selectedOrderId={selectedOrderId} selectedOrder={selectedOrder} onStepsChanged={() => fetchOrderSteps(selectedOrderId)} />
+              <FlowView 
+                steps={steps} 
+                currentFilter={currentFilter} 
+                onOpenModal={handleOpenModal} 
+                onSetView={setCurrentView} 
+                userRole={user.role} 
+                selectedOrderId={selectedOrderId} 
+                selectedOrder={selectedOrder} 
+                onStepsChanged={() => fetchOrderSteps(selectedOrderId)}
+                selectedUnitId={selectedUnitId}
+                setSelectedUnitId={setSelectedUnitId}
+                unitSteps={unitSteps}
+                setUnitSteps={setUnitSteps}
+              />
             ) : (
               <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
                 Please select an order from the Header dropdown to view its Process Flow.
               </div>
             )
           ) : currentView === 'table' ? (
-            <TableView steps={steps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
+            <TableView steps={combinedSteps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
           ) : currentView === 'new-order' ? (
-            <OrderCreationFlow onOrderCreated={() => setCurrentView('orders')} />
+            <OrderCreationFlow onOrderCreated={() => {
+              setCurrentView('orders');
+              window.dispatchEvent(new CustomEvent('orderUpdated'));
+            }} />
           ) : currentView === 'import' ? (
-            <OrderImport onImportComplete={() => setCurrentView('orders')} />
+            <OrderImport onImportComplete={() => {
+              setCurrentView('orders');
+              window.dispatchEvent(new CustomEvent('orderUpdated'));
+            }} />
           ) : currentView === 'masters' ? (
             <Masters />
           ) : currentView === 'logs' ? (

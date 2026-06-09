@@ -317,12 +317,12 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <input type="text" className="form-input" value={li.line_item_number} onChange={e => handleLineItemChange(idx, 'line_item_number', e.target.value)} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Material Description *</label>
-                    <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} required />
+                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Material Description</label>
+                    <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Part Number</label>
-                    <input type="text" className="form-input" value={li.part_number} onChange={e => handleLineItemChange(idx, 'part_number', e.target.value)} />
+                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Part Number *</label>
+                    <input type="text" className="form-input" value={li.part_number} onChange={e => handleLineItemChange(idx, 'part_number', e.target.value)} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Panel Type / Size</label>
