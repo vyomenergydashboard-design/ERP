@@ -860,6 +860,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
       // Insert line items & units
       let totalUnits = 0;
+      const createdUnits = [];
 
       for (const li of lineItems) {
         const li_number = String(li['line_item_number'] || '').trim() ||
@@ -897,7 +898,6 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         const lineItem = liResult.rows[0];
         totalUnits += qty;
 
-        const createdUnits = [];
         for (let i = 0; i < qty; i++) {
           const short_serial = globalUnitCounter.toString().padStart(4, '0');
           const unit_id = `${order_number}-${short_serial}`;
