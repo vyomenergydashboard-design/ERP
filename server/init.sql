@@ -145,3 +145,9 @@ CREATE TABLE IF NOT EXISTS unit_steps (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Seed default Admin user if not exists (password: admin123)
+INSERT INTO users (username, email, password, role)
+VALUES ('admin', 'admin@absolutemotion.in', '$2a$10$pM5q2/qZtJkKoLjQ3McavedSnylKyzJqHsQSPyhWFN.WKYluU8vSK', 'Admin')
+ON CONFLICT (username) DO NOTHING;
+
+
