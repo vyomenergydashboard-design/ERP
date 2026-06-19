@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Maximize2, Minimize2 } from 'lucide-react';
 import Header from './components/Header';
 import Sidenav from './components/Sidenav';
 import StatsRow from './components/StatsRow';
@@ -15,6 +16,7 @@ import OrderImport from './components/OrderImport';
 import OrderList from './components/OrderList';
 import Masters from './components/Masters';
 import LogsView from './components/LogsView';
+import PlanningModule from './components/PlanningModule';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 
 const ProtectedRoute = ({ children }) => {
@@ -40,6 +42,7 @@ function Dashboard() {
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const selectedOrderIdRef = useRef(null); // ref so closures always see latest value
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
 
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitSteps, setUnitSteps] = useState([]);
@@ -344,24 +347,27 @@ function Dashboard() {
     <div className="app-container">
       <Header onLogout={handleLogout} />
       <div className="app">
-        <Sidenav
-          steps={combinedSteps}
-          currentFilter={currentFilter}
-          onFilterDept={setCurrentFilter}
-          bomState={bomState}
-          onSetBomState={handleSetBomState}
-          designType={designType}
-          onSetDesignType={handleSetDesignType}
-          currentView={currentView}
-          onSetView={navigateToView}
-          userRole={user.role}
-        />
+        {(!isPlanningFullscreen || currentView !== 'planning') && (
+          <Sidenav
+            steps={combinedSteps}
+            currentFilter={currentFilter}
+            onFilterDept={setCurrentFilter}
+            bomState={bomState}
+            onSetBomState={handleSetBomState}
+            designType={designType}
+            onSetDesignType={handleSetDesignType}
+            currentView={currentView}
+            onSetView={navigateToView}
+            userRole={user.role}
+          />
+        )}
         <main className="main">
           <StatsRow steps={combinedSteps} currentFilter={currentFilter} selectedOrder={selectedOrder} />
           
           <div className="flow-header">
             <div className="flow-title">
               {currentView === 'board' ? 'Board' :
+               currentView === 'planning' ? 'Planning Board' :
                currentView === 'flow' ? 'Process Flow' :
                currentView === 'table' ? 'Table View' :
                currentView === 'orders' ? 'Order Directory' :
@@ -378,10 +384,22 @@ function Dashboard() {
                 <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => setCurrentView('table')}>Table</button>
               </div>
             )}
+            {currentView === 'planning' && (
+              <button
+                className={`vbtn${isPlanningFullscreen ? ' active' : ''}`}
+                onClick={() => setIsPlanningFullscreen(!isPlanningFullscreen)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                {isPlanningFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                {isPlanningFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              </button>
+            )}
           </div>
 
           {currentView === 'board' ? (
             <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
+          ) : currentView === 'planning' ? (
+            <PlanningModule />
           ) : currentView === 'flow' ? (
             selectedOrderId ? (
               <FlowView 
@@ -425,7 +443,9 @@ function Dashboard() {
             <UserManagement />
           )}
         </main>
-        <RightPanel selectedStep={selectedStep} activityLog={activityLog} selectedOrder={selectedOrder} />
+        {currentView !== 'planning' && (
+          <RightPanel selectedStep={selectedStep} activityLog={activityLog} selectedOrder={selectedOrder} />
+        )}
       </div>
 
       <StepModal

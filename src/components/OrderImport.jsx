@@ -57,6 +57,33 @@ export default function OrderImport({ onImportComplete }) {
     }
   };
 
+  const handleDownloadTemplate = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('http://localhost:5000/api/template/download', {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+      if (!res.ok) {
+        alert('Failed to download template');
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'order_import_template.xlsx';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    } catch (err) {
+      console.error('Download error:', err);
+      alert('Failed to download template due to network error');
+    }
+  };
+
   const reset = () => { setFile(null); setResult(null); if (inputRef.current) inputRef.current.value = ''; };
 
   return (
@@ -72,10 +99,10 @@ export default function OrderImport({ onImportComplete }) {
             </p>
           </div>
           <a
-            href={`http://localhost:5000/api/template/download?token=${token}`}
+            href="#"
+            onClick={handleDownloadTemplate}
             className="oi-download-btn"
             title="Download the sample template"
-            download="order_import_template.xlsx"
           >
             ⬇ Download Template
           </a>
@@ -159,6 +186,7 @@ export default function OrderImport({ onImportComplete }) {
                   { f: 'unit',         r: true,  note: 'e.g. Nos, Sets' },
                   { f: 'unit_price',   r: true,  note: 'Numeric, no ₹' },
                   { f: 'packaging_type', r: false, note: 'Wooden Packaging / Foam Packaging' },
+                  { f: 'end_client_name', r: false, note: 'Optional end client name / site location' },
                   { f: 'order_notes',  r: false, note: 'Optional' },
                   { f: 'part_number',  r: false, note: 'Optional' },
                   { f: 'panel_type_size', r: false, note: 'e.g. 800x600' },

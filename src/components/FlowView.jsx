@@ -204,10 +204,11 @@ export default function FlowView({
   });
   const depts = currentFilter === 'all' ? sortedDepts : sortedDepts.filter((d) => d.id === currentFilter);
 
-  if (currentFilter === 'all') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-        {renderUnitSelector()}
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+      {renderUnitSelector()}
+      
+      {currentFilter === 'all' ? (
         <div className="lanes">
           {depts.map((dept) => {
             const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
@@ -319,16 +320,9 @@ export default function FlowView({
             }
           `}} />
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-      {renderUnitSelector()}
-      
-      <div className="flow-card-grid">
-        {depts.map((dept) => {
+      ) : (
+        <div className="flow-card-grid">
+          {depts.map((dept) => {
           const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
           const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
           const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
@@ -467,7 +461,7 @@ export default function FlowView({
             </div>
           );
         })}
-      </div>
+      </div>)}
 
       {isUnitModalOpen && editingUnitStep && (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setIsUnitModalOpen(false); }}>

@@ -9,6 +9,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     priority: 'Medium',
     po_number: '',
     packaging_type: '',
+    end_client_name: '',
     lineItems: [{
       line_item_number: '00010',
       material_description: '',
@@ -143,6 +144,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('notes', formData.notes);
     data.append('priority', formData.priority);
     data.append('po_number', formData.po_number);
+    data.append('end_client_name', formData.end_client_name || '');
     data.append('lineItems', JSON.stringify(formData.lineItems));
 
     if (files.po) data.append('po', files.po);
@@ -172,6 +174,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           notes: '',
           priority: 'Medium',
           po_number: '',
+          packaging_type: '',
+          end_client_name: '',
           lineItems: [{
             line_item_number: '00010',
             material_description: '',
@@ -269,7 +273,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 name="po_number" 
                 value={formData.po_number} 
                 onChange={handleInputChange} 
-                placeholder="e.g. PO-2026-908"
               />
             </div>
 
@@ -287,13 +290,22 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               </select>
             </div>
 
+            <div className="form-group">
+              <label>End Client Name (Optional)</label>
+              <input 
+                type="text" 
+                name="end_client_name" 
+                value={formData.end_client_name} 
+                onChange={handleInputChange} 
+              />
+            </div>
+
             <div className="form-group full-width">
               <label>Overall Order Notes</label>
               <textarea 
                 name="notes" 
                 value={formData.notes} 
                 onChange={handleInputChange} 
-                placeholder="Additional instructions..."
               />
             </div>
           </div>
@@ -326,7 +338,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Panel Type / Size</label>
-                    <input type="text" className="form-input" value={li.panel_type_size} onChange={e => handleLineItemChange(idx, 'panel_type_size', e.target.value)} placeholder="e.g. VFD Panel 800x600" />
+                    <input type="text" className="form-input" value={li.panel_type_size} onChange={e => handleLineItemChange(idx, 'panel_type_size', e.target.value)} />
                   </div>
                 </div>
 
@@ -337,7 +349,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Unit</label>
-                    <input type="text" className="form-input" value={li.unit} onChange={e => handleLineItemChange(idx, 'unit', e.target.value)} placeholder="Nos" />
+                    <input type="text" className="form-input" value={li.unit} onChange={e => handleLineItemChange(idx, 'unit', e.target.value)} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Unit Price *</label>
