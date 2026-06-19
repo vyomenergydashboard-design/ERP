@@ -140,24 +140,7 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder })
             )}
           </div>
         </div>
-      ) : (
-        <div className="panel-section">
-          <div className="panel-sec-title">Getting Started</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { dot: 'var(--teal)',   text: 'Search for an order in the header to view its Flow' },
-              { dot: 'var(--blue)',   text: 'Use Board view to see what\'s active across all orders' },
-              { dot: 'var(--purple)', text: 'Click any step card to update its status' },
-              { dot: 'var(--green)',  text: 'Use Masters to manage companies & task templates' },
-            ].map((tip, i) => (
-              <div key={i} className="vis-tag">
-                <span className="vis-dot" style={{ background: tip.dot }} />
-                {tip.text}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* ── Activity Log ── */}
       <div className="panel-section" style={{ flex: 1 }}>

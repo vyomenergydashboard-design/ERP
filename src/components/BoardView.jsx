@@ -124,28 +124,63 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
       </div>
 
       {displayOrders.map((order) => {
+        if (order.status === 'completed') {
+          if (currentFilter !== 'all') {
+            const hasMatchingDept = order.steps.some(s => s.dept === currentFilter);
+            if (!hasMatchingDept) return null;
+          }
+
+          return (
+            <div 
+              key={order.id} 
+              className="completed-order-row"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
+                onSetView('flow');
+              }}
+            >
+              <div className="completed-order-header">
+                <h3 className="board-order-title">
+                  {order.order_number} {order.company_name && <span className="board-order-company">— {order.company_name}</span>}
+                </h3>
+                <div className="completed-badges-row">
+                  {order.delivery_date && (
+                    <div className="delivery-badge">
+                      <span className="icon">🚚</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
+                  <span className="completed-global-badge">COMPLETED</span>
+                </div>
+              </div>
+              <div className="completed-banner">
+                <div className="completed-banner-content">
+                  <div className="completed-icon-badge">✓</div>
+                  <div className="completed-text-content">
+                    <span className="completed-title">Order Fully Completed</span>
+                    <span className="completed-subtitle">All steps have been successfully finalized. Click to view process flow logs.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         let displaySteps = [];
         let orderDepts = [];
 
-        if (order.status === 'completed') {
-          // For completed orders, show all steps so they appear under their departments as 'done'
-          displaySteps = order.steps;
-          orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
-        } else {
-          // Find the specific active steps for the entire order
-          displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review'].includes(s.status));
-          
-          // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
-          if (displaySteps.length === 0) {
-            const firstPending = order.steps.find(s => s.status === 'pending');
-            if (firstPending) {
-              displaySteps = [firstPending];
-            } else {
-              return null; // Entire order is done or has no steps
-            }
+        // Find the specific active steps for the entire order
+        displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review'].includes(s.status));
+        
+        // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
+        if (displaySteps.length === 0) {
+          const firstPending = order.steps.find(s => s.status === 'pending');
+          if (firstPending) {
+            displaySteps = [firstPending];
+          } else {
+            return null; // Entire order is done or has no steps
           }
-          orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
         }
+        orderDepts = depts.filter(dept => displaySteps.some(s => s.dept === dept.id));
 
         if (orderDepts.length === 0) return null;
 
@@ -444,6 +479,87 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
         .search-clear-btn:hover {
           color: #ef4444;
           background: rgba(239, 68, 68, 0.1);
+        }
+        .completed-order-row {
+          background: rgba(16, 185, 129, 0.03);
+          border: 1px solid rgba(16, 185, 129, 0.15);
+          border-radius: 12px;
+          padding: 24px;
+          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          cursor: pointer;
+        }
+        .completed-order-row:hover {
+          background: rgba(16, 185, 129, 0.06);
+          border-color: rgba(16, 185, 129, 0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+        }
+        .completed-order-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 16px;
+        }
+        .completed-order-header .board-order-title {
+          margin: 0;
+          border-bottom: none;
+          padding-bottom: 0;
+        }
+        .completed-badges-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .completed-global-badge {
+          font-size: 11px;
+          color: #10b981;
+          background: rgba(16, 185, 129, 0.1);
+          padding: 4px 10px;
+          border-radius: 6px;
+          border: 1px solid rgba(16, 185, 129, 0.2);
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+        .completed-banner {
+          display: flex;
+          background: rgba(16, 185, 129, 0.05);
+          border: 1px solid rgba(16, 185, 129, 0.12);
+          border-radius: 8px;
+          padding: 16px 20px;
+          align-items: center;
+        }
+        .completed-banner-content {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+        .completed-icon-badge {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          background: #10b981;
+          color: #fff;
+          border-radius: 50%;
+          font-size: 18px;
+          font-weight: bold;
+          box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+        .completed-text-content {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+        .completed-title {
+          font-size: 15px;
+          font-weight: 700;
+          color: #10b981;
+        }
+        .completed-subtitle {
+          font-size: 13px;
+          color: #a7f3d0;
+          opacity: 0.8;
         }
       `}} />
     </div>

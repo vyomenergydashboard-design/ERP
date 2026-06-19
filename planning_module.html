@@ -579,6 +579,7 @@
     <div class="header-title">Planning Module — Control Panel Manufacturing</div>
   </div>
   <div class="header-right">
+    <div class="order-chip" id="partChip" style="color:var(--teal); border-color: var(--teal);">PN-9942X</div>
     <div class="order-chip" id="orderChip">ORD-2026-001</div>
     <div class="clock" id="clock">--:--:--</div>
   </div>
@@ -660,7 +661,7 @@
       <div class="stat-card">
         <div class="stat-label">Order Status</div>
         <div class="stat-value" id="statStatus" style="color:var(--blue);font-size:14px;margin-top:2px">IN PROGRESS</div>
-        <div class="stat-sub" id="statOrderNo">ORD-2026-001</div>
+        <div class="stat-sub" id="statOrderNo">ORD-2026-001 • PN-9942X</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Steps Done</div>
@@ -703,6 +704,7 @@
         <thead>
           <tr style="border-bottom:1px solid var(--border2)">
             <th style="text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;font-family:var(--font-mono);font-size:10px">#</th>
+            <th style="text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;font-family:var(--font-mono);font-size:10px">PART NO</th>
             <th style="text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;font-family:var(--font-mono);font-size:10px">DEPT</th>
             <th style="text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;font-family:var(--font-mono);font-size:10px">STEP</th>
             <th style="text-align:left;padding:8px 12px;color:var(--text3);font-weight:500;font-family:var(--font-mono);font-size:10px">STATUS</th>
@@ -960,8 +962,10 @@ function renderTable() {
   body.innerHTML = steps.map((s,i) => {
     const badge = statusBadge(s.status);
     const dept = DEPTS.find(d=>d.id===s.dept);
+    const partNo = s.partNo || 'PN-9942X';
     return `<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="openModal('${s.id}')" onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
       <td style="padding:8px 12px;color:var(--text3);font-family:var(--font-mono);font-size:10px">${i+1}</td>
+      <td style="padding:8px 12px;font-family:var(--font-mono);font-size:11px;color:var(--teal)">${partNo}</td>
       <td style="padding:8px 12px"><span style="color:${dept?dept.color:'var(--text2)'};font-weight:500">${s.dept}</span></td>
       <td style="padding:8px 12px"><div style="font-weight:500">${s.name}</div><div style="font-size:10px;color:var(--text3)">${s.sub}</div></td>
       <td style="padding:8px 12px">${badge}</td>

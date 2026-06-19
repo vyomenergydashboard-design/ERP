@@ -89,6 +89,53 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   );
 };
 
+const updateOrderQCStatusFromSteps = async (orderId, clientOrPool) => {
+  try {
+    const orderQcRes = await clientOrPool.query(
+      `SELECT name, status FROM order_steps WHERE order_id = $1 AND dept = 'QC'`,
+      [orderId]
+    );
+    const unitQcRes = await clientOrPool.query(
+      `SELECT us.name, us.status 
+       FROM unit_steps us 
+       JOIN order_units ou ON us.order_unit_id = ou.id 
+       WHERE ou.order_id = $1 AND us.dept = 'QC'`,
+      [orderId]
+    );
+
+    const allQcSteps = [...orderQcRes.rows, ...unitQcRes.rows];
+    if (allQcSteps.length === 0) return;
+
+    const decisionSteps = allQcSteps.filter(s => s.name.toLowerCase().includes('decision'));
+    const targetSteps = decisionSteps.length > 0 ? decisionSteps : allQcSteps;
+
+    let newQcStatus = 'Pending';
+    let setQcDate = false;
+
+    if (targetSteps.some(s => s.status === 'blocked')) {
+      newQcStatus = 'Fail';
+      setQcDate = true;
+    } else if (targetSteps.every(s => s.status === 'done')) {
+      newQcStatus = 'Pass';
+      setQcDate = true;
+    }
+
+    if (setQcDate) {
+      await clientOrPool.query(
+        `UPDATE orders SET qc_status = $1, qc_date = CURRENT_DATE WHERE id = $2`,
+        [newQcStatus, orderId]
+      );
+    } else {
+      await clientOrPool.query(
+        `UPDATE orders SET qc_status = $1, qc_date = NULL WHERE id = $2`,
+        [newQcStatus, orderId]
+      );
+    }
+  } catch (err) {
+    console.error('Error in updateOrderQCStatusFromSteps:', err);
+  }
+};
+
 // Auto-initialize Database
 const initDB = async () => {
   try {
@@ -188,6 +235,12 @@ const initDB = async () => {
     if (restoredCount > 0) {
       console.log(`Auto-restored steps for ${restoredCount} orders.`);
     }
+
+    // Sync QC status and date for all existing orders
+    for (const order of ordersRes.rows) {
+      await updateOrderQCStatusFromSteps(order.id, pool);
+    }
+    console.log('QC statuses synchronized for all orders.');
   } catch (err) {
     console.error('Database initialization failed:', err);
   }
@@ -500,7 +553,7 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type } = req.body;
+    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name } = req.body;
     let parsedLineItems = [];
     try {
       parsedLineItems = JSON.parse(lineItems);
@@ -511,9 +564,9 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
     // 1. Create Order
     const order_number = await generateOrderNumber();
     const orderResult = await client.query(
-      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id]
+      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null]
     );
     const order = orderResult.rows[0];    // 2. Insert Line Items and Generate Unit IDs sequentially
     let globalUnitCounter = 1;
@@ -848,10 +901,10 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         // Create order
         const order_number = await generateOrderNumber();
         const orderResult = await client.query(
-          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
           [order_number, company_location_id, order_date, delivery_date,
-           header['order_notes'] || null, priority, po_number, packaging_type, req.user.id]
+           header['order_notes'] || null, priority, po_number, packaging_type, req.user.id, header['end_client_name'] || header['end_client'] || null]
         );
         order = orderResult.rows[0];
       }
@@ -1239,6 +1292,9 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
       [status, notes, dispatchDate || null, updated, cfJson, req.params.stepId, req.params.orderId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
+    
+    await updateOrderQCStatusFromSteps(req.params.orderId, pool);
+    
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -1265,6 +1321,202 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete step' });
+  }
+});
+
+app.get('/api/planning', authorize(), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT 
+          oli.id as line_item_id,
+          o.id as order_id,
+          o.order_number,
+          o.po_number,
+          o.delivery_date,
+          o.priority,
+          o.notes,
+          o.end_client_name,
+          oli.planned_dispatch_date,
+          oli.wiring_assigned_date,
+          oli.wiring_expected_date,
+          oli.expected_qc_date,
+          oli.status,
+          oli.qc_status,
+          oli.qc_date,
+          oli.part_number,
+          oli.line_item_number,
+          c.name as company_name,
+          l.city as company_city,
+          (
+              SELECT COUNT(*) 
+              FROM order_steps os 
+              WHERE os.order_id = o.id
+          ) + (
+              SELECT COUNT(*) 
+              FROM unit_steps us
+              JOIN order_units ou ON us.order_unit_id = ou.id
+              WHERE ou.line_item_id = oli.id
+          ) as total_steps,
+          (
+              SELECT COUNT(*) 
+              FROM order_steps os 
+              WHERE os.order_id = o.id AND os.status = 'done'
+          ) + (
+              SELECT COUNT(*) 
+              FROM unit_steps us
+              JOIN order_units ou ON us.order_unit_id = ou.id
+              WHERE ou.line_item_id = oli.id AND us.status = 'done'
+          ) as done_steps,
+          (
+              SELECT ou.current_dept
+              FROM order_units ou
+              WHERE ou.line_item_id = oli.id AND ou.status NOT IN ('Dispatched')
+              ORDER BY ou.id ASC
+              LIMIT 1
+          ) as active_dept
+      FROM order_line_items oli
+      JOIN orders o ON oli.order_id = o.id
+      LEFT JOIN company_locations l ON o.company_location_id = l.id
+      LEFT JOIN companies c ON l.company_id = c.id
+      ORDER BY o.created_at DESC, oli.id ASC`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Failed to fetch planning orders:', err);
+    res.status(500).json({ error: 'Failed to fetch planning orders' });
+  }
+});
+
+app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+  const { 
+    end_client_name, 
+    planned_dispatch_date, 
+    wiring_assigned_date, 
+    wiring_expected_date, 
+    expected_qc_date, 
+    priority, 
+    status, 
+    qc_status, 
+    qc_date 
+  } = req.body;
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [req.params.lineItemId]);
+    if (checkLi.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Line item not found' });
+    }
+    const order_id = checkLi.rows[0].order_id;
+
+    // Update order level fields
+    await client.query(
+      `UPDATE orders SET end_client_name = COALESCE($1, end_client_name), priority = COALESCE($2, priority) WHERE id = $3`,
+      [end_client_name || null, priority, order_id]
+    );
+
+    // Update line item level fields
+    const result = await client.query(
+      `UPDATE order_line_items 
+       SET planned_dispatch_date = $1, 
+           wiring_assigned_date = $2, 
+           wiring_expected_date = $3, 
+           expected_qc_date = $4, 
+           status = COALESCE($5, status), 
+           qc_status = COALESCE($6, qc_status), 
+           qc_date = $7 
+       WHERE id = $8 
+       RETURNING *`,
+      [
+        planned_dispatch_date || null, 
+        wiring_assigned_date || null, 
+        wiring_expected_date || null, 
+        expected_qc_date || null, 
+        status, 
+        qc_status, 
+        qc_date || null, 
+        req.params.lineItemId
+      ]
+    );
+
+    await client.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Updated planning details for line item`, order_id]
+    );
+
+    await client.query('COMMIT');
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to update planning details:', err);
+    res.status(500).json({ error: 'Failed to update planning details' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+  const { 
+    end_client_name, 
+    planned_dispatch_date, 
+    wiring_assigned_date, 
+    wiring_expected_date, 
+    expected_qc_date, 
+    priority, 
+    status, 
+    qc_status, 
+    qc_date 
+  } = req.body;
+  
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order_number = checkOrder.rows[0].order_number;
+
+    const result = await pool.query(
+      `UPDATE orders 
+       SET end_client_name = $1, 
+           planned_dispatch_date = $2, 
+           wiring_assigned_date = $3, 
+           wiring_expected_date = $4, 
+           expected_qc_date = $5, 
+           priority = COALESCE($6, priority), 
+           status = COALESCE($7, status), 
+           qc_status = COALESCE($8, qc_status), 
+           qc_date = $9 
+       WHERE id = $10 
+       RETURNING *`,
+      [
+        end_client_name || null, 
+        planned_dispatch_date || null, 
+        wiring_assigned_date || null, 
+        wiring_expected_date || null, 
+        expected_qc_date || null, 
+        priority, 
+        status, 
+        qc_status, 
+        qc_date || null, 
+        req.params.id
+      ]
+    );
+
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [
+        req.user.id, 
+        req.user.role, 
+        `Updated planning details for order ${order_number}`, 
+        req.params.id
+      ]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Failed to update planning details:', err);
+    res.status(500).json({ error: 'Failed to update planning details' });
   }
 });
 
@@ -1364,6 +1616,11 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
     // Recalculate derived status
     await deriveUnitStatus(req.params.unitId, client);
+
+    const unitRes = await client.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
+    if (unitRes.rows.length > 0) {
+      await updateOrderQCStatusFromSteps(unitRes.rows[0].order_id, client);
+    }
 
     await client.query('COMMIT');
     res.json(result.rows[0]);
@@ -1591,6 +1848,7 @@ app.get('/api/template/download', authorize(), (req, res) => {
     ['PO Details','po_number','PO-2026-1234','YES','Groups rows into one order. Same PO = same order.'],
     ['PO Details','priority','Medium','YES','Low | Medium | High | Urgent'],
     ['PO Details','packaging_type','Wooden Packaging','NO','Wooden Packaging | Foam Packaging'],
+    ['PO Details','end_client_name','Basavanakolla site','NO','End client name / site location'],
     ['PO Details','order_notes','Handle with care.','NO','Overall order notes'],
     ['── LINE ITEMS ──','','','','One row per line item; repeat po_number to group into one order'],
     ['Line Item','line_item_number','00010','YES','00010, 00020, 00030 etc.'],
@@ -1611,7 +1869,7 @@ app.get('/api/template/download', authorize(), (req, res) => {
   // ── Sheet 2: Import Template — 2000 blank rows ready for bulk paste ──────
   const COLS = [
     'company_name','company_city','order_date','delivery_date',
-    'po_number','priority','packaging_type','order_notes',
+    'po_number','priority','packaging_type','end_client_name','order_notes',
     'line_item_number','material_description','part_number','panel_type_size',
     'quantity','unit','unit_price','total_price',
     'line_item_delivery_date','line_item_notes'
@@ -1619,22 +1877,22 @@ app.get('/api/template/download', authorize(), (req, res) => {
 
   // Visual group-label row so users understand which columns are order-level vs item-level
   const groupRow = [
-    '<-- ORDER LEVEL: repeat these 8 columns on every row of the same PO -->',
-    '','','','','','','',
+    '<-- ORDER LEVEL: repeat these 9 columns on every row of the same PO -->',
+    '','','','','','','','',
     '<-- LINE ITEM LEVEL: one row = one item in the order -->',
     '','','','','','','','',''
   ];
 
   const exampleRows = [
     // ORDER 1 — PO-2026-1001 — 3 line items (same PO groups them into 1 order)
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Rush order — deliver before monsoon','00010','VFD Control Panel 22kW','VFD-22K-STD','VFD Panel 800x600',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','','00020','Motor Control Centre 8 Way','MCC-400A-8W','MCC Panel 1800x800',2,'Nos',72000,144000,'2026-07-15',''],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','','00030','Power Factor Correction Panel','PFCP-100K','PFCP 600x500',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Rush order — deliver before monsoon','00010','VFD Control Panel 22kW','VFD-22K-STD','VFD Panel 800x600',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','00020','Motor Control Centre 8 Way','MCC-400A-8W','MCC Panel 1800x800',2,'Nos',72000,144000,'2026-07-15',''],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','00030','Power Factor Correction Panel','PFCP-100K','PFCP 600x500',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
     // ORDER 2 — PO-2026-1002 — 1 line item
-    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','','00010','PLC Automation Panel','PLC-S7-300','600x400',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
+    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','','00010','PLC Automation Panel','PLC-S7-300','600x400',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
     // ORDER 3 — PO-2026-1003 — 2 line items
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','Standard delivery','00010','Distribution Board 8 Way','DB-8W-63A','DB 400x300',5,'Nos',12000,60000,'2026-09-01',''],
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Standard delivery','00010','Distribution Board 8 Way','DB-8W-63A','DB 400x300',5,'Nos',12000,60000,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
   ];
 
   // Pre-allocate 2000 blank rows so the sheet is bulk-paste ready
@@ -1642,7 +1900,7 @@ app.get('/api/template/download', authorize(), (req, res) => {
 
   const tmpl = [groupRow, COLS, ...exampleRows, ...blankRows];
   const ws2 = XLSX.utils.aoa_to_sheet(tmpl);
-  ws2['!cols'] = [20,15,13,15,20,10,18,38,18,32,18,22,10,8,12,12,24,38].map(w => ({ wch: w }));
+  ws2['!cols'] = [20,15,13,15,20,10,18,22,38,18,32,18,22,10,8,12,12,24,38].map(w => ({ wch: w }));
   // Freeze top 2 rows — headers stay visible scrolling through thousands of rows
   ws2['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
   XLSX.utils.book_append_sheet(wb, ws2, 'Import Template');
@@ -1695,6 +1953,7 @@ app.get('/api/template/download', authorize(), (req, res) => {
     ['po_number','Text','YES','Any alphanumeric string','Row skipped if blank'],
     ['priority','Enum','YES','Low | Medium | High | Urgent','Defaults to Medium'],
     ['packaging_type','Enum','NO','Wooden Packaging | Foam Packaging','Left blank if invalid'],
+    ['end_client_name','Text','NO','End client name / site location','Left blank if missing'],
     ['quantity','Integer','YES','Positive whole number','Defaults to 1'],
     ['unit','Text','YES','Nos, Sets, Pcs ...','Defaults to Nos'],
     ['unit_price','Decimal','YES','Numeric, no Rs.','Defaults to 0'],

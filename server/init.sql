@@ -150,4 +150,21 @@ INSERT INTO users (username, email, password, role)
 VALUES ('admin', 'admin@absolutemotion.in', '$2a$10$pM5q2/qZtJkKoLjQ3McavedSnylKyzJqHsQSPyhWFN.WKYluU8vSK', 'Admin')
 ON CONFLICT (username) DO NOTHING;
 
+-- Planning Module columns for orders
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS end_client_name TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS planned_dispatch_date DATE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wiring_assigned_date DATE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS wiring_expected_date DATE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS qc_date DATE;
 
+-- Planning Module columns for order_line_items (Line Item Planning)
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS planned_dispatch_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_assigned_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_expected_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_date DATE;
