@@ -17,6 +17,8 @@ import OrderList from './components/OrderList';
 import Masters from './components/Masters';
 import LogsView from './components/LogsView';
 import PlanningModule from './components/PlanningModule';
+import SettingsView from './components/Settings';
+import DeptWorklist from './components/DeptWorklist';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 
 const ProtectedRoute = ({ children }) => {
@@ -362,7 +364,9 @@ function Dashboard() {
           />
         )}
         <main className="main">
-          <StatsRow steps={combinedSteps} currentFilter={currentFilter} selectedOrder={selectedOrder} />
+          {currentView !== 'planning' && (
+            <StatsRow steps={combinedSteps} currentFilter={currentFilter} selectedOrder={selectedOrder} />
+          )}
           
           <div className="flow-header">
             <div className="flow-title">
@@ -375,6 +379,7 @@ function Dashboard() {
                currentView === 'import' ? 'Import Orders' :
                currentView === 'masters' ? 'Masters' :
                currentView === 'logs' ? 'System Logs' :
+               currentView === 'worklist' ? `${user.role} Worklist` :
                'User Management'}
             </div>
             {['board', 'flow', 'table'].includes(currentView) && (
@@ -439,6 +444,10 @@ function Dashboard() {
             <Masters />
           ) : currentView === 'logs' ? (
             <LogsView />
+          ) : currentView === 'settings' ? (
+            <SettingsView />
+          ) : currentView === 'worklist' ? (
+            <DeptWorklist dept={user.role} />
           ) : (
             <UserManagement />
           )}

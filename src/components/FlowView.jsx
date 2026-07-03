@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
+import DocumentManager from './DocumentManager';
+
 
 function StatusBadge({ status }) {
   const { cls, label } = STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending;
@@ -30,6 +32,18 @@ export default function FlowView({
   const [unitStepError, setUnitStepError] = useState(null);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const canEditUnitStep = editingUnitStep ? (['Admin', 'Manager'].includes(userRole) || editingUnitStep.dept === userRole || editingUnitStep.assigned_user_id === currentUser.id) : false;
+  const [unitModalActiveTab, setUnitModalActiveTab] = useState('details');
+  const [unitDocCount, setUnitDocCount] = useState(0);
+
+  const unitCustomFields = (() => {
+    if (!editingUnitStep) return [];
+    try {
+      return Array.isArray(editingUnitStep.custom_fields) ? editingUnitStep.custom_fields : JSON.parse(editingUnitStep.custom_fields || '[]');
+    } catch {
+      return [];
+    }
+  })();
+
 
   useEffect(() => {
     fetch('http://localhost:5000/api/users', {
@@ -82,6 +96,8 @@ export default function FlowView({
     setUnitStepError(null); // clear errors when opening a new step
     if (step.order_unit_id) {
       setEditingUnitStep(step);
+      setUnitModalActiveTab('details');
+      setUnitDocCount(0);
       setIsUnitModalOpen(true);
     } else {
       onOpenModal(step.id);
@@ -465,7 +481,7 @@ export default function FlowView({
 
       {isUnitModalOpen && editingUnitStep && (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setIsUnitModalOpen(false); }}>
-          <div className="modal" style={{ maxWidth: '500px', width: '95%' }}>
+          <div className="modal" style={{ maxWidth: '600px', width: '95%' }}>
             <div className="modal-header">
               <div>
                 <div className="modal-title">{canEditUnitStep ? 'Edit Unit Step' : 'View Unit Step'}</div>
@@ -473,6 +489,36 @@ export default function FlowView({
               </div>
               <button className="modal-close" onClick={() => setIsUnitModalOpen(false)}>✕</button>
             </div>
+
+            {/* Tabs */}
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #333', padding: '0 24px', marginBottom: '16px' }}>
+              {(['details', ...(unitCustomFields.length > 0 ? ['fields'] : []), 'documents']).map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setUnitModalActiveTab(tab)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    borderBottom: unitModalActiveTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
+                    color: unitModalActiveTab === tab ? '#60a5fa' : '#888',
+                    padding: '10px 16px',
+                    cursor: 'pointer',
+                    fontSize: '13px',
+                    fontWeight: unitModalActiveTab === tab ? '600' : '400',
+                    textTransform: 'capitalize',
+                    marginBottom: '-1px',
+                  }}
+                >
+                  {tab === 'fields' ? 'Form Fields' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {tab === 'fields' && (
+                    <span style={{ marginLeft: 6, background: '#3b82f6', color: '#fff', borderRadius: '10px', padding: '1px 6px', fontSize: '10px' }}>
+                      {unitCustomFields.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
             <div className="modal-body">
               {/* Read-Only Banner */}
               {!canEditUnitStep && (
@@ -490,130 +536,152 @@ export default function FlowView({
                 </div>
               )}
 
-              <div className="modal-field" style={{ marginBottom: '16px' }}>
-                <label>Status</label>
-                {canEditUnitStep ? (
-                  <select 
-                    className="form-select"
-                    value={editingUnitStep.status}
-                    onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { status: e.target.value })}
-                    style={{ background: '#111', fontSize: '13px' }}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="inprogress">In Progress</option>
-                    <option value="done">Done</option>
-                    <option value="blocked">Blocked</option>
-                    <option value="review">Review</option>
-                  </select>
-                ) : (
-                  <div style={{ marginTop: '4px' }}>
-                    <span className={`step-status-badge ${(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).cls}`} style={{ fontSize: '12px', padding: '4px 10px', fontWeight: 'bold' }}>
-                      {(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).label}
-                    </span>
+              {unitModalActiveTab === 'details' && (
+                <>
+                  <div className="modal-field" style={{ marginBottom: '16px' }}>
+                    <label>Status</label>
+                    {canEditUnitStep ? (
+                      <select 
+                        className="form-select"
+                        value={editingUnitStep.status}
+                        onChange={(e) => {
+                          const newStatus = e.target.value;
+                          if (editingUnitStep.requires_upload && newStatus === 'done' && unitDocCount === 0) {
+                            alert('You must upload at least one document to complete this task.');
+                            return;
+                          }
+                          handleUpdateUnitStep(editingUnitStep.id, { status: newStatus });
+                        }}
+                        style={{ background: '#111', fontSize: '13px' }}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="inprogress">In Progress</option>
+                        <option value="done">Done</option>
+                        <option value="blocked">Blocked</option>
+                        <option value="review">Review</option>
+                      </select>
+                    ) : (
+                      <div style={{ marginTop: '4px' }}>
+                        <span className={`step-status-badge ${(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).cls}`} style={{ fontSize: '12px', padding: '4px 10px', fontWeight: 'bold' }}>
+                          {(STATUS_BADGE_MAP[editingUnitStep.status] || STATUS_BADGE_MAP.pending).label}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <div className="modal-field" style={{ marginBottom: '16px' }}>
-                <label>Assign Worker</label>
-                {canEditUnitStep ? (
-                  <select 
-                    className="form-select"
-                    value={editingUnitStep.assigned_user_id || ''}
-                    onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
-                    style={{ background: '#111', fontSize: '13px' }}
-                  >
-                    <option value="">Unassigned</option>
-                    {users.filter(u => u.role === editingUnitStep.dept).map(u => (
-                      <option key={u.id} value={u.id}>{u.username}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <div style={{ fontSize: '13px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
-                    {(() => {
-                      const worker = users.find(u => u.id === editingUnitStep.assigned_user_id);
-                      return worker ? worker.username : 'Unassigned';
-                    })()}
+                  <div className="modal-field" style={{ marginBottom: '16px' }}>
+                    <label>Assign Worker</label>
+                    {canEditUnitStep ? (
+                      <select 
+                        className="form-select"
+                        value={editingUnitStep.assigned_user_id || ''}
+                        onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
+                        style={{ background: '#111', fontSize: '13px' }}
+                      >
+                        <option value="">Unassigned</option>
+                        {users.filter(u => u.role === editingUnitStep.dept).map(u => (
+                          <option key={u.id} value={u.id}>{u.username}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <div style={{ fontSize: '13px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                        {(() => {
+                          const worker = users.find(u => u.id === editingUnitStep.assigned_user_id);
+                          return worker ? worker.username : 'Unassigned';
+                        })()}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              <div className="modal-field" style={{ marginBottom: '16px' }}>
-                <label>Notes</label>
-                {canEditUnitStep ? (
-                  <textarea 
-                    className="form-input"
-                    defaultValue={editingUnitStep.notes || ''}
-                    onBlur={(e) => handleUpdateUnitStep(editingUnitStep.id, { notes: e.target.value })}
-                    placeholder="Add step notes..."
-                    style={{ background: '#111', fontSize: '13px', height: '60px', resize: 'vertical' }}
-                  />
-                ) : (
-                  <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 12px', borderRadius: '6px', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
-                    {editingUnitStep.notes || 'No notes added.'}
+                  <div className="modal-field" style={{ marginBottom: '16px' }}>
+                    <label>Notes</label>
+                    {canEditUnitStep ? (
+                      <textarea 
+                        className="form-input"
+                        defaultValue={editingUnitStep.notes || ''}
+                        onBlur={(e) => handleUpdateUnitStep(editingUnitStep.id, { notes: e.target.value })}
+                        placeholder="Add step notes..."
+                        style={{ background: '#111', fontSize: '13px', height: '60px', resize: 'vertical' }}
+                      />
+                    ) : (
+                      <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 12px', borderRadius: '6px', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
+                        {editingUnitStep.notes || 'No notes added.'}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
-              {(() => {
-                let cf = [];
-                try {
-                  cf = Array.isArray(editingUnitStep.custom_fields) ? editingUnitStep.custom_fields : JSON.parse(editingUnitStep.custom_fields || '[]');
-                } catch {
-                  cf = [];
-                }
-                if (cf.length === 0) return null;
+              {unitModalActiveTab === 'fields' && unitCustomFields.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {unitCustomFields.map((field, fIdx) => {
+                    const handleFieldChange = (val) => {
+                      const updatedCF = [...unitCustomFields];
+                      updatedCF[fIdx].value = val;
+                      handleUpdateUnitStep(editingUnitStep.id, { custom_fields: updatedCF });
+                    };
 
-                return (
-                  <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                    <div style={{ fontSize: '11px', color: '#888', fontWeight: 'bold', marginBottom: '8px', textTransform: 'uppercase' }}>Custom Fields</div>
-                    {cf.map((field, fIdx) => {
-                      const handleFieldChange = (val) => {
-                        const updatedCF = [...cf];
-                        updatedCF[fIdx].value = val;
-                        handleUpdateUnitStep(editingUnitStep.id, { custom_fields: updatedCF });
-                      };
-
-                      return (
-                        <div key={field.id} style={{ marginBottom: '8px' }}>
-                          <label style={{ fontSize: '11px', color: '#ccc', display: 'block', marginBottom: '2px' }}>{field.label}</label>
-                          {!canEditUnitStep ? (
-                            <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
-                              {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
-                            </div>
-                          ) : field.type === 'Yes/No' ? (
-                            <input 
-                              type="checkbox"
-                              checked={!!field.value}
-                              onChange={(e) => handleFieldChange(e.target.checked)}
-                            />
-                          ) : field.type === 'Dropdown' ? (
-                            <select 
-                              className="form-select"
-                              value={field.value || ''}
-                              onChange={(e) => handleFieldChange(e.target.value)}
-                              style={{ background: '#111', fontSize: '12px', padding: '4px' }}
-                            >
-                              <option value="">Select...</option>
-                              {field.options?.map(o => (
-                                <option key={o} value={o}>{o}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            <input 
-                              type={field.type === 'Number' ? 'number' : 'text'}
-                              className="form-input"
-                              defaultValue={field.value || ''}
-                              onBlur={(e) => handleFieldChange(e.target.value)}
-                              style={{ background: '#111', fontSize: '12px', padding: '4px 8px' }}
-                            />
-                          )}
+                    return (
+                      <div key={field.id} style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px' }}>
+                        <div style={{ marginBottom: '8px' }}>
+                          <span style={{ color: '#eee', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
+                          <span style={{ marginLeft: '8px', fontSize: '10px', color: '#555', textTransform: 'uppercase', background: '#222', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+                        {!canEditUnitStep ? (
+                          <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
+                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                          </div>
+                        ) : field.type === 'Yes/No' ? (
+                          <input 
+                            type="checkbox"
+                            checked={!!field.value}
+                            onChange={(e) => handleFieldChange(e.target.checked)}
+                          />
+                        ) : field.type === 'Dropdown' ? (
+                          <select 
+                            className="form-select"
+                            value={field.value || ''}
+                            onChange={(e) => handleFieldChange(e.target.value)}
+                            style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                          >
+                            <option value="">Select...</option>
+                            {field.options?.map(o => (
+                              <option key={o} value={o}>{o}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input 
+                            type={field.type === 'Number' ? 'number' : 'text'}
+                            className="form-input"
+                            defaultValue={field.value || ''}
+                            onBlur={(e) => handleFieldChange(e.target.value)}
+                            style={{ background: '#111', fontSize: '12px', padding: '4px 8px' }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {unitModalActiveTab === 'documents' && (
+                <div>
+                  {editingUnitStep.requires_upload && (
+                    <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, color: '#fbbf24', fontSize: 13 }}>
+                      ⚠️ This task requires at least one document to be marked as Done.
+                    </div>
+                  )}
+                  <DocumentManager
+                    entityType="UnitStep"
+                    entityId={editingUnitStep.id}
+                    initialDocs={[]}
+                    onDocsUpdate={(docs) => setUnitDocCount(docs.length)}
+                    readOnly={!canEditUnitStep}
+                    defaultDocType={editingUnitStep.default_doc_type || 'General'}
+                    userRole={userRole}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>

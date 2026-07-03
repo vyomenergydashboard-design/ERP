@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { LogOut, User, Search } from 'lucide-react';
+import { LogOut, User, Search, Sun, Moon } from 'lucide-react';
 
 export default function Header({ onLogout }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
@@ -10,6 +10,28 @@ export default function Header({ onLogout }) {
   const searchRef = useRef(null);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
+  const [isDark, setIsDark] = useState(() => {
+    const saved = localStorage.getItem('erp_theme');
+    return saved ? saved === 'dark' : true; // default dark
+  });
+
+  const [logoName, setLogoName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom ERP');
+  const [headerTitle, setHeaderTitle] = useState(() => localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
+
+  // Apply theme to document root
+  useEffect(() => {
+    const saved = localStorage.getItem('erp_theme');
+    const dark = saved ? saved === 'dark' : true;
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    setIsDark(dark);
+  }, []);
+
+  const toggleTheme = () => {
+    const newDark = !isDark;
+    setIsDark(newDark);
+    localStorage.setItem('erp_theme', newDark ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', newDark ? 'dark' : 'light');
+  };
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -40,12 +62,19 @@ export default function Header({ onLogout }) {
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
+
+    const handleSettingsUpdate = () => {
+      setLogoName(localStorage.getItem('erp_company_name') || 'Vyom ERP');
+      setHeaderTitle(localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
+    };
+    window.addEventListener('erpSettingsUpdated', handleSettingsUpdate);
     
     return () => {
       clearInterval(id);
       window.removeEventListener('setView', handleSetView);
       window.removeEventListener('orderUpdated', handleUpdate);
       document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener('erpSettingsUpdated', handleSettingsUpdate);
     };
   }, []);
 
@@ -98,8 +127,8 @@ export default function Header({ onLogout }) {
   return (
     <div className="header">
       <div className="header-left">
-        <div className="logo">Vyom ERP</div>
-        <div className="header-title">Control Panel Manufacturing</div>
+        <div className="logo">{logoName}</div>
+        <div className="header-title">{headerTitle}</div>
       </div>
       <div className="header-right">
         <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px', color: 'var(--text2)', fontSize: '12px' }}>
@@ -156,6 +185,29 @@ export default function Header({ onLogout }) {
         </div>
 
         <div className="clock" style={{ marginRight: '16px' }}>{time}</div>
+        <button
+          onClick={toggleTheme}
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          style={{
+            background: 'var(--bg4)',
+            border: '1px solid var(--border2)',
+            borderRadius: '6px',
+            color: 'var(--text2)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            padding: '5px 10px',
+            marginRight: '8px',
+            transition: 'all 0.2s',
+            gap: '5px',
+            fontSize: '12px',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text2)'; e.currentTarget.style.borderColor = 'var(--border2)'; }}
+        >
+          {isDark ? <Sun size={13} /> : <Moon size={13} />}
+          {isDark ? 'Light' : 'Dark'}
+        </button>
         <button onClick={onLogout} className="logout-btn">
           <LogOut size={14} />
           Logout
@@ -170,10 +222,10 @@ export default function Header({ onLogout }) {
           margin-right: 16px;
         }
         .order-search-input {
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--bg4);
+          border: 1px solid var(--border2);
           border-radius: 20px;
-          color: #eee;
+          color: var(--text);
           padding: 6px 30px 6px 32px;
           font-size: 12px;
           width: 240px;
@@ -181,14 +233,14 @@ export default function Header({ onLogout }) {
           transition: all 0.2s;
         }
         .order-search-input:focus {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: #3b82f6;
+          background: var(--bg3);
+          border-color: var(--blue);
           box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
         }
         .search-icon {
           position: absolute;
           left: 12px;
-          color: #888;
+          color: var(--text3);
           pointer-events: none;
         }
         .clear-search {
@@ -196,13 +248,13 @@ export default function Header({ onLogout }) {
           right: 12px;
           background: none;
           border: none;
-          color: #888;
+          color: var(--text3);
           cursor: pointer;
           font-size: 16px;
           line-height: 1;
           padding: 0;
         }
-        .clear-search:hover { color: #fff; }
+        .clear-search:hover { color: var(--text); }
         
         .search-dropdown-menu {
           position: absolute;
@@ -211,23 +263,24 @@ export default function Header({ onLogout }) {
           width: 100%;
           max-height: 300px;
           overflow-y: auto;
-          background: #1a1a1a;
-          border: 1px solid #333;
+          background: var(--bg2);
+          border: 1px solid var(--border2);
           border-radius: 8px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+          box-shadow: 0 10px 25px rgba(0,0,0,0.25);
           z-index: 1000;
         }
         .search-dropdown-item {
           padding: 8px 12px;
           cursor: pointer;
           font-size: 12px;
-          border-bottom: 1px solid #222;
+          color: var(--text2);
+          border-bottom: 1px solid var(--border);
           transition: background 0.15s;
         }
         .search-dropdown-item:last-child { border-bottom: none; }
-        .search-dropdown-item:hover { background: #2a2a2a; }
-        .search-dropdown-item.active { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .search-dropdown-item.empty { color: #888; text-align: center; font-style: italic; cursor: default; }
+        .search-dropdown-item:hover { background: var(--bg3); color: var(--text); }
+        .search-dropdown-item.active { background: var(--blue-dim); color: var(--blue); }
+        .search-dropdown-item.empty { color: var(--text3); text-align: center; font-style: italic; cursor: default; }
         .search-dropdown-item.empty:hover { background: transparent; }
       `}} />
     </div>

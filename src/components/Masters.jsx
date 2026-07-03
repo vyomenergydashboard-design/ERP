@@ -35,6 +35,7 @@ export default function Masters() {
     special: '',
     is_mandatory: true,
     requires_upload: false,
+    default_doc_type: 'General',
     order_fields: []
   });
   const [taskCustomFields, setTaskCustomFields] = useState([]);
@@ -140,7 +141,7 @@ export default function Masters() {
       if (res.ok) {
         setShowTaskModal(false);
         setEditingTaskId(null);
-        setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, order_fields: [] });
+        setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', order_fields: [] });
         setTaskCustomFields([]);
         setShowFieldBuilder(false);
         fetchTasks();
@@ -159,6 +160,7 @@ export default function Masters() {
       special: task.special || '',
       is_mandatory: task.is_mandatory,
       requires_upload: task.requires_upload,
+      default_doc_type: task.default_doc_type || 'General',
       order_fields: Array.isArray(task.order_fields) ? task.order_fields : (task.order_fields ? JSON.parse(task.order_fields) : [])
     });
     try {
@@ -243,7 +245,7 @@ export default function Masters() {
             {canEditMasters && (
               <button className="vbtn" onClick={() => {
                 setEditingTaskId(null);
-                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, order_fields: [] });
+                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', order_fields: [] });
                 setTaskCustomFields([]);
                 setShowFieldBuilder(false);
                 setShowTaskModal(true);
@@ -277,7 +279,7 @@ export default function Masters() {
                         
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            {task.requires_upload && <span style={{ fontSize: '10px', background: '#f59e0b44', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px' }}>Requires Upload</span>}
+                            {task.requires_upload && <span style={{ fontSize: '10px', background: '#f59e0b44', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px' }}>Requires: {task.default_doc_type || 'General'}</span>}
                             {task.special && <span style={{ fontSize: '10px', background: '#10b98144', color: '#34d399', padding: '2px 6px', borderRadius: '4px' }}>Special: {task.special}</span>}
                           </div>
                           {canEditMasters && (
@@ -374,6 +376,26 @@ export default function Masters() {
                   <input type="checkbox" checked={taskFormData.requires_upload} onChange={(e) => setTaskFormData({ ...taskFormData, requires_upload: e.target.checked })} />
                   <label style={{ margin: 0, color: '#fff' }}>Requires Document Upload to complete</label>
                 </div>
+                {taskFormData.requires_upload && (
+                  <div className="modal-field" style={{ marginLeft: '24px', marginTop: '8px' }}>
+                    <label style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Default Document Type</label>
+                    <select 
+                      className="form-select" 
+                      value={taskFormData.default_doc_type || 'General'} 
+                      onChange={(e) => setTaskFormData({ ...taskFormData, default_doc_type: e.target.value })}
+                      style={{ background: '#111', fontSize: '13px', width: '100%', padding: '6px 12px' }}
+                    >
+                      <option value="General">General</option>
+                      <option value="PO">PO</option>
+                      <option value="Quotation">Quotation</option>
+                      <option value="BOM">BOM</option>
+                      <option value="Drawing">Drawing</option>
+                      <option value="QC Report">QC Report</option>
+                      <option value="Dispatch Document">Dispatch Document</option>
+                      <option value="Photo">Photo</option>
+                    </select>
+                  </div>
+                )}
 
                 {/* Order Fields to Display */}
                 <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #333' }}>

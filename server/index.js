@@ -8,6 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import XLSX from 'xlsx';
+import nodemailer from 'nodemailer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,22 +18,173 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 const DEFAULT_STEPS = [
-  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, level: 'order' },
-  { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, level: 'order' },
-  { dept: 'Design', name: 'Review & Classify', sub: 'Standard / Non-Standard', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, level: 'unit' },
-  { dept: 'Purchase', name: 'Receive Shortfall', sub: 'From Stores after BOM check', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Purchase', name: 'Procure Materials', sub: 'Raise PO to supplier', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Stores', name: 'Stock Check vs BOM', sub: 'Verify availability', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Stores', name: 'Material Status', sub: 'Allotted → Acceptance → Accept-complete', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Stores', name: 'Inform Purchase', sub: 'Send shortfall list', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Production', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'Production', name: 'Manufacture', sub: 'Fitter (mechanical) + Wireman (electrical)', special: null, requires_upload: false, level: 'unit' },
-  { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, level: 'unit' },
-  { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, level: 'unit' },
-  { dept: 'Dispatch', name: 'Ready for Dispatch', sub: 'QC cleared panels', special: null, requires_upload: true, level: 'unit' },
-  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, level: 'order' }
+  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order' },
+  { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, default_doc_type: 'General', level: 'order' },
+  { dept: 'Design', name: 'Review & Classify', sub: 'Standard / Non-Standard', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, default_doc_type: 'Drawing', level: 'unit' },
+  { dept: 'Purchase', name: 'Receive Shortfall', sub: 'From Stores after BOM check', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Purchase', name: 'Procure Materials', sub: 'Raise PO to supplier', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Stores', name: 'Stock Check vs BOM', sub: 'Verify availability', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Stores', name: 'Material Status', sub: 'Allotted → Acceptance → Accept-complete', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Stores', name: 'Inform Purchase', sub: 'Send shortfall list', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Production', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Production', name: 'Manufacture', sub: 'Fitter (mechanical) + Wireman (electrical)', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, default_doc_type: 'QC Report', level: 'unit' },
+  { dept: 'Dispatch', name: 'Ready for Dispatch', sub: 'QC cleared panels', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'unit' },
+  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'order' }
 ];
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+  port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_SECURE === 'true',
+  auth: {
+    user: process.env.SMTP_USER || 'mock_user',
+    pass: process.env.SMTP_PASS || 'mock_pass'
+  }
+});
+
+const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nextDept) => {
+  const emailSubject = `[Vyom ERP] Handover: ${prevDept} finished, ${nextDept} can start - Unit ${unitIdStr}`;
+  
+  let recipientEmails = [];
+  try {
+    const usersRes = await pool.query(
+      `SELECT email, username FROM users WHERE role = $1 OR role = 'Admin' OR role = 'Manager'`,
+      [nextDept]
+    );
+    recipientEmails = usersRes.rows.map(u => u.email).filter(Boolean);
+  } catch (err) {
+    console.error('Error fetching recipient emails:', err);
+  }
+
+  if (recipientEmails.length === 0) {
+    recipientEmails.push(`${nextDept.toLowerCase()}@vyomerp.local`);
+  }
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e1e8ed; border-radius: 12px; background-color: #fafbfc;">
+      <div style="text-align: center; border-bottom: 2px solid #f59e0b; padding-bottom: 15px; margin-bottom: 20px;">
+        <h2 style="color: #1e293b; margin: 0;">Vyom ERP Handover Alert</h2>
+        <span style="color: #64748b; font-size: 13px;">Task Transfer Notification</span>
+      </div>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        Hello team <strong>${nextDept}</strong>,
+      </p>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        This is to notify you that the department <strong>${prevDept}</strong> has completed their assigned tasks for unit <strong>${unitIdStr}</strong> (Serial: <strong>${shortSerial}</strong>).
+      </p>
+      <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr>
+            <td style="padding: 4px 0; color: #64748b; width: 140px;"><strong>Unit ID:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b; font-family: monospace;">${unitIdStr}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Unit Serial:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b;">${shortSerial}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Previous Dept:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #0f766e;">${prevDept} (Completed)</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Next Active Dept:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #b45309;">${nextDept} (Pending Your Action)</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        You can now log in to the ERP panel to begin working on the next steps for this unit.
+      </p>
+      <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+        <a href="http://localhost:5173" style="background-color: #f59e0b; color: #000; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">Go to Planning Board</a>
+      </div>
+      <div style="text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px;">
+        Automated notification sent by Vyom ERP. Please do not reply directly to this mail.
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: '"Vyom ERP System" <noreply@vyomerp.local>',
+    to: recipientEmails.join(', '),
+    subject: emailSubject,
+    html: htmlContent
+  };
+
+  console.log('\n┌────────────────────────────────────────────────────────┐');
+  console.log('│                  SIMULATED OUTGOING EMAIL              │');
+  console.log('├────────────────────────────────────────────────────────┤');
+  console.log(`│ From:    ${mailOptions.from}`);
+  console.log(`│ To:      ${mailOptions.to}`);
+  console.log(`│ Subject: ${mailOptions.subject}`);
+  console.log('├────────────────────────────────────────────────────────┤');
+  console.log(`│ handover: ${prevDept} -> ${nextDept} for unit ${unitIdStr}`);
+  console.log('└────────────────────────────────────────────────────────┘\n');
+
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) 
+       VALUES ((SELECT id FROM users WHERE username = 'admin' LIMIT 1), 'System', $1)`,
+      [`[Email Sent] ${emailSubject} to ${mailOptions.to}`]
+    );
+  } catch (err) {
+    console.error('Error logging email activity:', err);
+  }
+
+  if (process.env.SMTP_USER && process.env.SMTP_USER !== 'mock_user') {
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Email sent successfully via SMTP');
+    } catch (smtpErr) {
+      console.error('SMTP Delivery failed:', smtpErr);
+    }
+  }
+};
+
+const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
+  try {
+    const unitsRes = await clientOrPool.query(
+      `SELECT current_dept, status FROM order_units WHERE line_item_id = $1`,
+      [lineItemId]
+    );
+    const units = unitsRes.rows;
+    if (units.length === 0) return;
+
+    const allDispatched = units.every(u => u.status === 'Dispatched' || u.current_dept === 'Accounts');
+    if (allDispatched) {
+      await clientOrPool.query(
+        `UPDATE order_line_items SET status = 'Completed' WHERE id = $1`,
+        [lineItemId]
+      );
+      return;
+    }
+
+    const depts = units.map(u => u.current_dept);
+    let mappedStatus = 'Not Started';
+    
+    if (depts.includes('Design')) {
+      mappedStatus = 'In Progress';
+    } else if (depts.includes('Purchase') || depts.includes('Stores')) {
+      mappedStatus = 'Waiting for Material';
+    } else if (depts.includes('Production')) {
+      mappedStatus = 'In Progress';
+    } else if (depts.includes('QC')) {
+      mappedStatus = 'QC Testing';
+    } else if (depts.includes('Dispatch') || depts.includes('Accounts')) {
+      mappedStatus = 'Completed';
+    }
+    
+    await clientOrPool.query(
+      `UPDATE order_line_items SET status = $1 WHERE id = $2`,
+      [mappedStatus, lineItemId]
+    );
+  } catch (err) {
+    console.error('Error in syncLineItemStatusFromUnits:', err);
+  }
+};
 
 const deriveUnitStatus = async (unitId, clientOrPool) => {
   const stepsRes = await clientOrPool.query(
@@ -43,19 +195,30 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   if (stepsRes.rows.length === 0) return;
 
   const steps = stepsRes.rows;
+
+  const prevUnitRes = await clientOrPool.query(
+    `SELECT current_dept, unit_id, short_serial FROM order_units WHERE id = $1`,
+    [unitId]
+  );
+  const oldDept = prevUnitRes.rows[0]?.current_dept;
+  const unit_id_str = prevUnitRes.rows[0]?.unit_id || '';
+  const short_serial = prevUnitRes.rows[0]?.short_serial || '';
   
   let newStatus = 'Pending';
   let newDept = 'Planning';
 
   const blockedStep = steps.find(s => s.status === 'blocked');
   if (blockedStep) {
-    newDept = blockedStep.dept;
     if (blockedStep.dept === 'QC') {
-      newStatus = 'QC Failed';
-    } else if (blockedStep.dept === 'Production') {
+      newDept = 'Production';
       newStatus = 'Rework';
     } else {
-      newStatus = 'Blocked';
+      newDept = blockedStep.dept;
+      if (blockedStep.dept === 'Production') {
+        newStatus = 'Rework';
+      } else {
+        newStatus = 'Blocked';
+      }
     }
   } else {
     const allDone = steps.every(s => s.status === 'done');
@@ -87,6 +250,21 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
     `UPDATE order_units SET status = $1, current_dept = $2 WHERE id = $3`,
     [newStatus, newDept, unitId]
   );
+
+  if (oldDept && oldDept !== newDept && newDept !== 'Planning') {
+    sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept).catch(console.error);
+  }
+
+  const lineItemRes = await clientOrPool.query(
+    `SELECT line_item_id FROM order_units WHERE id = $1`,
+    [unitId]
+  );
+  if (lineItemRes.rows.length > 0) {
+    const lineItemId = lineItemRes.rows[0].line_item_id;
+    if (lineItemId) {
+      await syncLineItemStatusFromUnits(lineItemId, clientOrPool);
+    }
+  }
 };
 
 const updateOrderQCStatusFromSteps = async (orderId, clientOrPool) => {
@@ -131,6 +309,50 @@ const updateOrderQCStatusFromSteps = async (orderId, clientOrPool) => {
         [newQcStatus, orderId]
       );
     }
+
+    // Update each line item of this order individually based on its own units' QC steps
+    const lineItemsRes = await clientOrPool.query(
+      `SELECT id FROM order_line_items WHERE order_id = $1`,
+      [orderId]
+    );
+
+    for (const li of lineItemsRes.rows) {
+      const liQcRes = await clientOrPool.query(
+        `SELECT us.name, us.status 
+         FROM unit_steps us 
+         JOIN order_units ou ON us.order_unit_id = ou.id 
+         WHERE ou.line_item_id = $1 AND us.dept = 'QC'`,
+        [li.id]
+      );
+      const liQcSteps = liQcRes.rows;
+      if (liQcSteps.length === 0) continue;
+
+      const liDecisionSteps = liQcSteps.filter(s => s.name.toLowerCase().includes('decision'));
+      const liTargetSteps = liDecisionSteps.length > 0 ? liDecisionSteps : liQcSteps;
+
+      let liQcStatus = 'Pending';
+      let liSetQcDate = false;
+
+      if (liTargetSteps.some(s => s.status === 'blocked')) {
+        liQcStatus = 'Fail';
+        liSetQcDate = true;
+      } else if (liTargetSteps.every(s => s.status === 'done')) {
+        liQcStatus = 'Pass';
+        liSetQcDate = true;
+      }
+
+      if (liSetQcDate) {
+        await clientOrPool.query(
+          `UPDATE order_line_items SET qc_status = $1, qc_date = CURRENT_DATE WHERE id = $2`,
+          [liQcStatus, li.id]
+        );
+      } else {
+        await clientOrPool.query(
+          `UPDATE order_line_items SET qc_status = $1, qc_date = NULL WHERE id = $2`,
+          [liQcStatus, li.id]
+        );
+      }
+    }
   } catch (err) {
     console.error('Error in updateOrderQCStatusFromSteps:', err);
   }
@@ -154,9 +376,9 @@ const initDB = async () => {
       await pool.query('TRUNCATE TABLE task_masters RESTART IDENTITY CASCADE;');
       for (const step of DEFAULT_STEPS) {
         await pool.query(
-          `INSERT INTO task_masters (dept, name, sub, special, requires_upload, is_mandatory, level) 
-           VALUES ($1, $2, $3, $4, $5, true, $6)`,
-          [step.dept, step.name, step.sub, step.special, step.requires_upload, step.level]
+          `INSERT INTO task_masters (dept, name, sub, special, requires_upload, default_doc_type, is_mandatory, level) 
+           VALUES ($1, $2, $3, $4, $5, $6, true, $7)`,
+          [step.dept, step.name, step.sub, step.special, step.requires_upload, step.default_doc_type || 'General', step.level]
         );
       }
       console.log('task_masters updated successfully!');
@@ -199,9 +421,9 @@ const initDB = async () => {
             } catch { fieldDefs = []; }
           }
           await pool.query(
-            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
+            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, custom_fields, step_order) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
           );
         }
       }
@@ -222,9 +444,9 @@ const initDB = async () => {
               } catch { fieldDefs = []; }
             }
             await pool.query(
-              `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order) 
-               VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
-              [unit.id, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+              `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, default_doc_type, custom_fields, step_order) 
+               VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`,
+              [unit.id, task.id || null, task.dept, task.name, task.sub, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
             );
           }
           // derive initial status
@@ -248,7 +470,10 @@ const initDB = async () => {
 
 initDB();
 
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  exposedHeaders: ['Content-Disposition']
+}));
 app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[REQUEST] ${req.method} ${req.url}`);
@@ -549,7 +774,7 @@ app.delete('/api/users/:id', authorize(['Admin']), async (req, res) => {
 });
 
 // Orders & Documents API
-app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => {
+app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -633,9 +858,9 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
       }
 
       await client.query(
-        `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order) 
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
+        `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, custom_fields, step_order) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
       );
     }
 
@@ -652,9 +877,9 @@ app.post('/api/orders', authorize(['Sales']), upload.any(), async (req, res) => 
         }
 
         await client.query(
-          `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order) 
-           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
-          [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+          `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, default_doc_type, custom_fields, step_order) 
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`,
+          [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
         );
       }
       // Derive initial unit status
@@ -874,7 +1099,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
       let order;
       let globalUnitCounter = 1;
-      let lineNum = 10;
+      let lineNum = 1;
       let isAppended = false;
 
       if (existingOrderRes.rows.length > 0) {
@@ -895,7 +1120,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         );
         if (maxLiRes.rows.length > 0) {
           const lastLiNum = parseInt(maxLiRes.rows[0].line_item_number) || 0;
-          lineNum = lastLiNum + 10;
+          lineNum = lastLiNum + 1;
         }
       } else {
         // Create order
@@ -917,8 +1142,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
       for (const li of lineItems) {
         const li_number = String(li['line_item_number'] || '').trim() ||
-                          String(lineNum).padStart(5, '0');
-        lineNum += 10;
+                          String(lineNum).padStart(4, '0');
+        lineNum += 1;
 
         // Smart Deduplication: Check if this line item already exists (by number OR by matching description)
         if (isAppended) {
@@ -1001,9 +1226,9 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           }
 
           await client.query(
-            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs), i]
+            `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, custom_fields, step_order)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [order.id, task.id || null, task.dept, task.name, task.sub, task.special, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
           );
         }
       }
@@ -1020,9 +1245,9 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           }
 
           await client.query(
-            `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, custom_fields, step_order)
-             VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8)`,
-            [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, JSON.stringify(fieldDefs), i]
+            `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, default_doc_type, custom_fields, step_order)
+             VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,$8,$9)`,
+            [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
           );
         }
         await deriveUnitStatus(unitDbId, client);
@@ -1049,12 +1274,12 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 app.get('/api/orders', authorize(), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT o.*, u.username as creator_name, 
+      `SELECT o.*, COALESCE(u.username, 'System') as creator_name, 
        (SELECT count(*) FROM order_units WHERE order_id = o.id) as unit_count,
        (SELECT count(*) FROM order_units WHERE order_id = o.id AND status = 'Dispatched') as dispatched_unit_count,
        c.name as company_name, l.city as company_city
        FROM orders o 
-       JOIN users u ON o.created_by = u.id 
+       LEFT JOIN users u ON o.created_by = u.id 
        LEFT JOIN company_locations l ON o.company_location_id = l.id
        LEFT JOIN companies c ON l.company_id = c.id
        ORDER BY o.created_at DESC`
@@ -1156,7 +1381,13 @@ app.get('/api/orders/:id', authorize(), async (req, res) => {
       [req.params.id]
     );
     
-    res.json({ ...order.rows[0], line_items: lineItems.rows, units: units.rows, documents: docs.rows });
+    let docsList = docs.rows;
+    const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
+    if (!isSalesOrAccounts) {
+      docsList = docsList.filter(d => d.doc_type !== 'PO');
+    }
+    
+    res.json({ ...order.rows[0], line_items: lineItems.rows, units: units.rows, documents: docsList });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1216,9 +1447,9 @@ app.post('/api/orders/:id/steps', authorize(), async (req, res) => {
     } catch { fieldDefs = []; }
 
     const result = await pool.query(
-      `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, custom_fields, step_order) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, (SELECT COALESCE(MAX(step_order), 0) + 1 FROM order_steps WHERE order_id = $1 AND dept = $3)) RETURNING *`,
-      [req.params.id, task.id, task.dept, task.name, task.sub, task.special, task.requires_upload, JSON.stringify(fieldDefs)]
+      `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, custom_fields, step_order) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(step_order), 0) + 1 FROM order_steps WHERE order_id = $1 AND dept = $3)) RETURNING *`,
+      [req.params.id, task.id, task.dept, task.name, task.sub, task.special, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs)]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1293,6 +1524,25 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
     
+    if (step.dept === 'QC' && status === 'blocked') {
+      const { qcFailTarget } = req.body;
+      const target = qcFailTarget === 'design' ? 'Design' : 'Production';
+      const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
+      
+      await pool.query(
+        `UPDATE order_steps 
+         SET status = 'inprogress', notes = $1, updated = $2 
+         WHERE order_id = $3 AND dept = $4`,
+        [remark, updated, req.params.orderId, target]
+      );
+      
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+         VALUES ($1, $2, 'QC', $3)`,
+        [req.user.id, req.params.orderId, `QC FAIL → returned to ${target} for ${target === 'Design' ? 're-check' : 'rework'}`]
+      );
+    }
+
     await updateOrderQCStatusFromSteps(req.params.orderId, pool);
     
     res.json(result.rows[0]);
@@ -1343,6 +1593,8 @@ app.get('/api/planning', authorize(), async (req, res) => {
           oli.status,
           oli.qc_status,
           oli.qc_date,
+          oli.mounting_start_date,
+          oli.mounting_complete_date,
           oli.part_number,
           oli.line_item_number,
           c.name as company_name,
@@ -1387,6 +1639,110 @@ app.get('/api/planning', authorize(), async (req, res) => {
   }
 });
 
+app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+  const { lineItemIds, fields } = req.body;
+  if (!lineItemIds || !Array.isArray(lineItemIds) || lineItemIds.length === 0) {
+    return res.status(400).json({ error: 'lineItemIds array required' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (const lineItemId of lineItemIds) {
+      const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [lineItemId]);
+      if (checkLi.rows.length === 0) continue;
+      const order_id = checkLi.rows[0].order_id;
+
+      // 1. Update order level fields (only if provided in req.body.fields)
+      const orderUpdates = [];
+      const orderParams = [];
+      let oIdx = 1;
+
+      if (fields.hasOwnProperty('end_client_name')) {
+        orderUpdates.push(`end_client_name = $${oIdx++}`);
+        orderParams.push(fields.end_client_name || null);
+      }
+      if (fields.hasOwnProperty('priority')) {
+        orderUpdates.push(`priority = $${oIdx++}`);
+        orderParams.push(fields.priority || 'Medium');
+      }
+
+      if (orderUpdates.length > 0) {
+        orderParams.push(order_id);
+        await client.query(
+          `UPDATE orders SET ${orderUpdates.join(', ')} WHERE id = $${oIdx}`,
+          orderParams
+        );
+      }
+
+      // 2. Update line item level fields
+      const liUpdates = [];
+      const liParams = [];
+      let lIdx = 1;
+
+      if (fields.hasOwnProperty('planned_dispatch_date')) {
+        liUpdates.push(`planned_dispatch_date = $${lIdx++}`);
+        liParams.push(fields.planned_dispatch_date || null);
+      }
+      if (fields.hasOwnProperty('wiring_assigned_date')) {
+        liUpdates.push(`wiring_assigned_date = $${lIdx++}`);
+        liParams.push(fields.wiring_assigned_date || null);
+      }
+      if (fields.hasOwnProperty('wiring_expected_date')) {
+        liUpdates.push(`wiring_expected_date = $${lIdx++}`);
+        liParams.push(fields.wiring_expected_date || null);
+      }
+      if (fields.hasOwnProperty('expected_qc_date')) {
+        liUpdates.push(`expected_qc_date = $${lIdx++}`);
+        liParams.push(fields.expected_qc_date || null);
+      }
+      if (fields.hasOwnProperty('status')) {
+        liUpdates.push(`status = $${lIdx++}`);
+        liParams.push(fields.status || 'Not Started');
+      }
+      if (fields.hasOwnProperty('qc_status')) {
+        liUpdates.push(`qc_status = $${lIdx++}`);
+        liParams.push(fields.qc_status || 'Pending');
+      }
+      if (fields.hasOwnProperty('qc_date')) {
+        liUpdates.push(`qc_date = $${lIdx++}`);
+        liParams.push(fields.qc_date || null);
+      }
+      if (fields.hasOwnProperty('mounting_start_date')) {
+        liUpdates.push(`mounting_start_date = $${lIdx++}`);
+        liParams.push(fields.mounting_start_date || null);
+      }
+      if (fields.hasOwnProperty('mounting_complete_date')) {
+        liUpdates.push(`mounting_complete_date = $${lIdx++}`);
+        liParams.push(fields.mounting_complete_date || null);
+      }
+
+      if (liUpdates.length > 0) {
+        liParams.push(lineItemId);
+        await client.query(
+          `UPDATE order_line_items SET ${liUpdates.join(', ')} WHERE id = $${lIdx}`,
+          liParams
+        );
+      }
+
+      await client.query(
+        'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+        [req.user.id, req.user.role, 'Updated planning details (bulk) for line item', order_id]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: `Bulk updated ${lineItemIds.length} line items` });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to bulk update planning details:', err);
+    res.status(500).json({ error: 'Failed to bulk update planning details' });
+  } finally {
+    client.release();
+  }
+});
+
 app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
   const { 
     end_client_name, 
@@ -1397,7 +1753,9 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
     priority, 
     status, 
     qc_status, 
-    qc_date 
+    qc_date,
+    mounting_start_date,
+    mounting_complete_date
   } = req.body;
   
   const client = await pool.connect();
@@ -1425,8 +1783,10 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
            expected_qc_date = $4, 
            status = COALESCE($5, status), 
            qc_status = COALESCE($6, qc_status), 
-           qc_date = $7 
-       WHERE id = $8 
+           qc_date = $7,
+           mounting_start_date = $8,
+           mounting_complete_date = $9
+       WHERE id = $10 
        RETURNING *`,
       [
         planned_dispatch_date || null, 
@@ -1436,6 +1796,8 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
         status, 
         qc_status, 
         qc_date || null, 
+        mounting_start_date || null,
+        mounting_complete_date || null,
         req.params.lineItemId
       ]
     );
@@ -1614,6 +1976,23 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       return res.status(404).json({ error: 'Unit step not found' });
     }
 
+    if (step.dept === 'QC' && status === 'blocked') {
+      await client.query(
+        `UPDATE unit_steps 
+         SET status = 'inprogress', notes = 'Returned from QC — rework required', updated = $1 
+         WHERE order_unit_id = $2 AND dept = 'Production'`,
+        [updated, req.params.unitId]
+      );
+
+      const unitResForLog = await client.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
+      const orderIdForLog = unitResForLog.rows[0]?.order_id || null;
+      await client.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+         VALUES ($1, $2, 'QC', 'QC FAIL → returned to Production for rework')`,
+        [req.user.id, orderIdForLog]
+      );
+    }
+
     // Recalculate derived status
     await deriveUnitStatus(req.params.unitId, client);
 
@@ -1642,10 +2021,111 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
       [status, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Unit not found' });
+
+    const lineItemId = result.rows[0].line_item_id;
+    if (lineItemId) {
+      await syncLineItemStatusFromUnits(lineItemId, pool);
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update unit status' });
+  }
+});
+
+app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(), async (req, res) => {
+  const { dept, status } = req.body;
+  if (!dept || !status) return res.status(400).json({ error: 'dept and status are required' });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    
+    // 1. Update all unit steps for this line item and department
+    await client.query(
+      `UPDATE unit_steps 
+       SET status = $1, updated = $2
+       WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $3) AND dept = $4`,
+      [status, new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId, dept]
+    );
+
+    // 2. Derive unit status for all units of this line item to propagate departments & statuses
+    const unitsRes = await client.query(
+      'SELECT id FROM order_units WHERE line_item_id = $1',
+      [req.params.lineItemId]
+    );
+    for (const unit of unitsRes.rows) {
+      await deriveUnitStatus(unit.id, client);
+    }
+
+    // 3. Update QC calculations for this order if the updated steps were in QC
+    const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [req.params.lineItemId]);
+    if (checkLi.rows.length > 0) {
+      await updateOrderQCStatusFromSteps(checkLi.rows[0].order_id, client);
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: `Successfully updated all ${dept} steps to ${status} for this batch.` });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: 'Failed to bulk update unit steps' });
+  } finally {
+    client.release();
+  }
+});
+
+// Dept Worklist API
+app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
+  const dept = req.params.dept;
+  try {
+    // Get all units currently in this department
+    const result = await pool.query(`
+      SELECT
+        ou.id          AS unit_id,
+        ou.unit_id     AS unit_serial,
+        ou.short_serial,
+        ou.status      AS unit_status,
+        ou.current_dept,
+        o.id           AS order_id,
+        o.order_number,
+        o.priority,
+        o.delivery_date,
+        cl.city        AS company_city,
+        co.name        AS company_name,
+        oli.id         AS line_item_id,
+        oli.line_item_number,
+        oli.material_description,
+        oli.part_number,
+        oli.quantity   AS batch_qty,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', us.id,
+              'name', us.name,
+              'status', us.status,
+              'dept', us.dept,
+              'notes', us.notes,
+              'updated', us.updated,
+              'assigned_user_id', us.assigned_user_id
+            ) ORDER BY us.id
+          )
+          FROM unit_steps us
+          WHERE us.order_unit_id = ou.id AND us.dept = $1
+        ) AS dept_steps
+      FROM order_units ou
+      JOIN orders o         ON ou.order_id = o.id
+      JOIN order_line_items oli ON ou.line_item_id = oli.id
+      LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+      LEFT JOIN companies co ON cl.company_id = co.id
+      WHERE ou.current_dept = $1
+      ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
+    `, [dept]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch dept worklist' });
   }
 });
 
@@ -1699,6 +2179,12 @@ app.post('/api/companies', authorize(['Admin', 'Manager', 'Sales']), async (req,
 app.post('/api/documents/upload', authorize(), upload.array('files', 20), async (req, res) => {
   const { entity_type, entity_id, doc_type } = req.body;
   try {
+    if (doc_type === 'PO') {
+      const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
+      if (!isSalesOrAccounts) {
+        return res.status(403).json({ error: 'Forbidden: Only Sales and Accounts roles can upload PO documents.' });
+      }
+    }
     if (doc_type === 'PO' || doc_type === 'Quotation') {
       if (req.files.length > 1) {
         return res.status(400).json({ error: `${doc_type} can only be a single file.` });
@@ -1734,7 +2220,12 @@ app.get('/api/documents/:entityType/:entityId', authorize(), async (req, res) =>
       'SELECT * FROM documents WHERE entity_type = $1 AND entity_id = $2 ORDER BY uploaded_at DESC',
       [req.params.entityType, req.params.entityId]
     );
-    res.json(result.rows);
+    let docs = result.rows;
+    const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
+    if (!isSalesOrAccounts) {
+      docs = docs.filter(d => d.doc_type !== 'PO');
+    }
+    res.json(docs);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch documents' });
@@ -1792,12 +2283,12 @@ app.get('/api/task_masters', authorize(), async (req, res) => {
 });
 
 app.post('/api/task_masters', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
-  const { dept, name, sub, special, is_mandatory, requires_upload, custom_fields, order_fields } = req.body;
+  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
-      `INSERT INTO task_masters (dept, name, sub, special, is_mandatory, requires_upload, custom_fields, order_fields) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, JSON.stringify(custom_fields || []), JSON.stringify(order_fields || [])]
+      `INSERT INTO task_masters (dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || [])]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -1807,12 +2298,12 @@ app.post('/api/task_masters', authorize(['Admin', 'Manager', 'Sales']), async (r
 });
 
 app.put('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
-  const { dept, name, sub, special, is_mandatory, requires_upload, custom_fields, order_fields } = req.body;
+  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
-      `UPDATE task_masters SET dept = $1, name = $2, sub = $3, special = $4, is_mandatory = $5, requires_upload = $6, custom_fields = $7, order_fields = $8
-       WHERE id = $9 RETURNING *`,
-      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), req.params.id]
+      `UPDATE task_masters SET dept = $1, name = $2, sub = $3, special = $4, is_mandatory = $5, requires_upload = $6, default_doc_type = $7, custom_fields = $8, order_fields = $9
+       WHERE id = $10 RETURNING *`,
+      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
     res.json(result.rows[0]);
@@ -1834,7 +2325,7 @@ app.delete('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), as
 });
 
 // ── Template Download ─────────────────────────────────────────────────────────
-app.get('/api/template/download', authorize(), (req, res) => {
+const templateHandler = (req, res) => {
   const wb = XLSX.utils.book_new();
 
   // ── Sheet 1: Field Reference ─────────────────────────────────────────────
@@ -1851,7 +2342,7 @@ app.get('/api/template/download', authorize(), (req, res) => {
     ['PO Details','end_client_name','Basavanakolla site','NO','End client name / site location'],
     ['PO Details','order_notes','Handle with care.','NO','Overall order notes'],
     ['── LINE ITEMS ──','','','','One row per line item; repeat po_number to group into one order'],
-    ['Line Item','line_item_number','00010','YES','00010, 00020, 00030 etc.'],
+    ['Line Item','line_item_number','0001','YES','0001, 0002, 0003 etc.'],
     ['Line Item','material_description','VFD Control Panel 22kW','YES','Full description'],
     ['Line Item','part_number','VFD-22K-STD','NO','Internal / customer part number'],
     ['Line Item','panel_type_size','VFD Panel 800x600','NO','Physical type/size'],
@@ -1964,10 +2455,16 @@ app.get('/api/template/download', authorize(), (req, res) => {
   XLSX.utils.book_append_sheet(wb, ws4, 'Validation Rules');
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.setHeader('Content-Disposition', 'attachment; filename="order_import_template.xlsx"');
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.send(buf);
-});
+};
+
+app.get('/api/template/download', templateHandler);
+app.get('/api/template/order_import_template.xlsx', templateHandler);
 
 // Static files
 app.use('/uploads', authorize(), express.static(path.join(__dirname, 'uploads')));

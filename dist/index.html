@@ -6,8 +6,16 @@
     <title>Planning Module — Vyom ERP Engine</title>
     <meta name="description" content="Vyom ERP Engine — Planning Module for Control Panel Manufacturing. Track production workflow across Sales, Design, Purchase, Stores, Production, QC, Dispatch and Accounts." />
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-B3pTlYpo.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-CHamUbWC.css">
+    <!-- Bootstrap theme before React mounts to prevent flash of wrong theme -->
+    <script>
+      (function() {
+        var saved = localStorage.getItem('erp_theme');
+        var theme = saved ? saved : 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-D6KDgtwf.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-CUsphLGC.css">
   </head>
   <body>
     <div id="root"></div>

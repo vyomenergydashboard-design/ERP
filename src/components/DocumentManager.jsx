@@ -1,13 +1,23 @@
 import { useState, useEffect } from 'react';
 
 const DOC_TYPES = [
-  'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
+  'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
 ];
 
-export default function DocumentManager({ entityType, entityId, initialDocs = [], onUploadSuccess, onDocsUpdate, readOnly = false }) {
+const PO_AUTHORIZED_ROLES = ['Sales', 'Accounts', 'Admin', 'Manager'];
+
+export default function DocumentManager({ entityType, entityId, initialDocs = [], onUploadSuccess, onDocsUpdate, readOnly = false, defaultDocType = 'General', userRole = null }) {
+  const canSeePO = !userRole || PO_AUTHORIZED_ROLES.includes(userRole);
+  const availableDocTypes = canSeePO ? DOC_TYPES : DOC_TYPES.filter(t => t !== 'PO');
   const [docs, setDocs] = useState(initialDocs);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedType, setSelectedType] = useState(DOC_TYPES[0]);
+  const [selectedType, setSelectedType] = useState(defaultDocType);
+
+  useEffect(() => {
+    if (defaultDocType) {
+      setSelectedType(defaultDocType);
+    }
+  }, [defaultDocType]);
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -119,7 +129,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
               onChange={(e) => setSelectedType(e.target.value)}
               className="doc-type-select"
             >
-              {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              {availableDocTypes.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
             <label className="upload-btn">
               {isUploading ? 'Uploading...' : 'Add Files'}

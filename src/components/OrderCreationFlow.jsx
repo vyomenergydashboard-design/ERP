@@ -11,7 +11,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     packaging_type: '',
     end_client_name: '',
     lineItems: [{
-      line_item_number: '00010',
+      line_item_number: '0001',
       material_description: '',
       part_number: '',
       panel_type_size: '',
@@ -67,7 +67,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       const lastNumber = prev.lineItems.length > 0 
         ? parseInt(prev.lineItems[prev.lineItems.length - 1].line_item_number)
         : 0;
-      const nextNumber = String(lastNumber + 10).padStart(5, '0');
+      const nextNumber = String(lastNumber + 1).padStart(4, '0');
       
       return {
         ...prev,
@@ -177,7 +177,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           packaging_type: '',
           end_client_name: '',
           lineItems: [{
-            line_item_number: '00010',
+            line_item_number: '0001',
             material_description: '',
             part_number: '',
             panel_type_size: '',

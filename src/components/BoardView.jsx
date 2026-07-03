@@ -278,10 +278,10 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           display: flex;
           align-items: center;
           gap: 20px;
-          background: rgba(25, 25, 25, 0.4);
+          background: var(--bg2);
           padding: 12px 20px;
           border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          border: 1px solid var(--border);
           margin-bottom: -8px;
         }
         .filter-group {
@@ -290,18 +290,18 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           gap: 8px;
         }
         .filter-icon {
-          color: #888;
+          color: var(--text3);
         }
         .filter-label {
           font-size: 11px;
-          color: #888;
+          color: var(--text3);
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
         .board-select {
-          background: rgba(0, 0, 0, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          color: #e2e8f0;
+          background: var(--bg4);
+          border: 1px solid var(--border2);
+          color: var(--text);
           font-size: 12px;
           padding: 4px 8px;
           border-radius: 6px;
@@ -309,23 +309,23 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           cursor: pointer;
         }
         .board-select option {
-          background: #1a1a1a;
-          color: #eee;
+          background: var(--bg3);
+          color: var(--text);
         }
         .board-select:hover {
-          border-color: rgba(255, 255, 255, 0.2);
+          border-color: var(--accent);
         }
         .board-order-title {
           margin: 0 0 20px 0;
           font-size: 20px;
           font-weight: 700;
-          color: #f8fafc;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          color: var(--text);
+          border-bottom: 1px solid var(--border);
           padding-bottom: 12px;
           letter-spacing: 0.5px;
         }
         .board-order-company {
-          color: #94a3b8;
+          color: var(--text2);
           font-size: 15px;
           font-weight: normal;
         }
@@ -336,26 +336,24 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           align-items: start;
         }
         .dept-flow-card {
-          background: rgba(25, 25, 25, 0.6);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-top: 2px solid var(--border2);
           border-radius: 12px;
           padding: 20px;
           cursor: pointer;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-          transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
         }
         .dept-flow-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
-          border-color: rgba(255, 255, 255, 0.15);
+          transform: translateY(-3px);
+          box-shadow: 0 10px 32px rgba(0, 0, 0, 0.15);
+          border-color: var(--accent);
         }
         .dept-card-header {
           margin-bottom: 20px;
           padding-bottom: 16px;
-          border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+          border-bottom: 1px dashed var(--border2);
         }
         .dept-card-title-row {
           display: flex;
@@ -371,7 +369,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
         .dept-card-title {
           font-size: 15px;
           font-weight: 700;
-          color: #f8fafc;
+          color: var(--text);
           letter-spacing: 0.5px;
           text-transform: uppercase;
         }
@@ -379,27 +377,27 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(0, 0, 0, 0.2);
+          background: var(--bg4);
           padding: 8px 12px;
           border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border);
         }
         .ord-badge {
-          font-family: 'JetBrains Mono', 'Fira Code', monospace;
+          font-family: 'IBM Plex Mono', monospace;
           font-weight: 600;
           font-size: 13px;
-          color: #cbd5e1;
+          color: var(--text);
         }
         .delivery-badge {
           display: flex;
           align-items: center;
           gap: 4px;
           font-size: 11px;
-          color: #a78bfa;
-          background: rgba(167, 139, 250, 0.1);
+          color: var(--purple);
+          background: var(--purple-dim);
           padding: 4px 8px;
           border-radius: 6px;
-          border: 1px solid rgba(167, 139, 250, 0.2);
+          border: 1px solid rgba(124, 58, 237, 0.25);
           font-weight: 500;
         }
         .delivery-badge .icon {
@@ -416,46 +414,52 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           gap: 8px;
           padding: 8px 10px;
           border-radius: 8px;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: var(--bg3);
+          border: 1px solid var(--border);
           font-size: 12px;
           transition: all 0.2s;
         }
         .board-task:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.1);
-          transform: translateX(4px);
+          background: var(--bg4);
+          border-color: var(--border2);
+          transform: translateX(3px);
+        }
+        .board-task-name {
+          flex: 1;
+          color: var(--text);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         .board-search-container {
           position: relative;
           display: flex;
           align-items: center;
-          background: rgba(0, 0, 0, 0.2);
-          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--bg4);
+          border: 1px solid var(--border2);
           border-radius: 6px;
           padding: 4px 10px;
           margin-left: auto;
           flex: 1 1 200px;
           max-width: 280px;
           min-width: 140px;
-          height: 26px;
+          height: 28px;
           box-sizing: border-box;
           transition: all 0.2s ease;
         }
         .board-search-container:focus-within {
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-          width: 320px;
+          border-color: var(--blue);
+          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
         }
         .board-search-icon {
-          color: #888;
+          color: var(--text3);
           margin-right: 8px;
           flex-shrink: 0;
         }
         .board-search-input {
           background: transparent;
           border: none;
-          color: #e2e8f0;
+          color: var(--text);
           font-size: 12px;
           outline: none;
           width: 100%;
@@ -463,10 +467,13 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           height: 100%;
           box-sizing: border-box;
         }
+        .board-search-input::placeholder {
+          color: var(--text3);
+        }
         .search-clear-btn {
           background: transparent;
           border: none;
-          color: #888;
+          color: var(--text3);
           cursor: pointer;
           padding: 0;
           margin-left: 4px;
@@ -477,22 +484,21 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           flex-shrink: 0;
         }
         .search-clear-btn:hover {
-          color: #ef4444;
-          background: rgba(239, 68, 68, 0.1);
+          color: var(--red);
+          background: var(--red-dim);
         }
         .completed-order-row {
-          background: rgba(16, 185, 129, 0.03);
-          border: 1px solid rgba(16, 185, 129, 0.15);
+          background: var(--green-dim);
+          border: 1px solid rgba(22, 163, 74, 0.25);
           border-radius: 12px;
           padding: 24px;
-          transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          transition: all 0.25s ease;
           cursor: pointer;
         }
         .completed-order-row:hover {
-          background: rgba(16, 185, 129, 0.06);
-          border-color: rgba(16, 185, 129, 0.3);
+          border-color: var(--green);
           transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
         }
         .completed-order-header {
           display: flex;
@@ -512,18 +518,18 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
         }
         .completed-global-badge {
           font-size: 11px;
-          color: #10b981;
-          background: rgba(16, 185, 129, 0.1);
+          color: var(--green);
+          background: var(--green-dim);
           padding: 4px 10px;
           border-radius: 6px;
-          border: 1px solid rgba(16, 185, 129, 0.2);
+          border: 1px solid rgba(22, 163, 74, 0.3);
           font-weight: 700;
           letter-spacing: 0.5px;
         }
         .completed-banner {
           display: flex;
-          background: rgba(16, 185, 129, 0.05);
-          border: 1px solid rgba(16, 185, 129, 0.12);
+          background: var(--bg3);
+          border: 1px solid var(--border);
           border-radius: 8px;
           padding: 16px 20px;
           align-items: center;
@@ -539,12 +545,11 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           justify-content: center;
           width: 32px;
           height: 32px;
-          background: #10b981;
+          background: var(--green);
           color: #fff;
           border-radius: 50%;
           font-size: 18px;
           font-weight: bold;
-          box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
         }
         .completed-text-content {
           display: flex;
@@ -554,14 +559,17 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
         .completed-title {
           font-size: 15px;
           font-weight: 700;
-          color: #10b981;
+          color: var(--green);
         }
         .completed-subtitle {
           font-size: 13px;
-          color: #a7f3d0;
-          opacity: 0.8;
+          color: var(--text2);
+        }
+        .loading {
+          color: var(--text3);
         }
       `}} />
     </div>
   );
 }
+
