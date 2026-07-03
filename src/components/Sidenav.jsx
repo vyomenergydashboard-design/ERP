@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo } from 'lucide-react';
 import { DEPTS } from '../data/planningData';
 
 const BOM_STATES = [
@@ -15,11 +15,13 @@ const PRIMARY_NAV = [
   { id: 'new-order', icon: PlusCircle,      label: 'New Order', roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'masters',   icon: Database,        label: 'Masters',   roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'import',    icon: Upload,          label: 'Import',    roles: ['Admin', 'Manager', 'Sales'] },
+  { id: 'worklist',  icon: ListTodo,        label: 'My Worklist', roles: ['Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Sales'] },
 ];
 
 const ADMIN_NAV = [
   { id: 'users', icon: Users,      label: 'User Directory' },
   { id: 'logs',  icon: ScrollText, label: 'System Logs' },
+  { id: 'settings', icon: Settings, label: 'System Settings' },
 ];
 
 export default function Sidenav({

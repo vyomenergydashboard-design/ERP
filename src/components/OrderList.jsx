@@ -16,6 +16,41 @@ export default function OrderList({ initialSelectedId }) {
   const [expandedStepId, setExpandedStepId] = useState(null);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
+  const [bulkUpdateLi, setBulkUpdateLi] = useState(null);
+  const [bulkDept, setBulkDept] = useState('');
+  const [bulkStatus, setBulkStatus] = useState('done');
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+  const handleBulkUpdateSubmit = async (e) => {
+    e.preventDefault();
+    if (!bulkDept || !bulkStatus) return;
+    setBulkSubmitting(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/planning/line-items/${bulkUpdateLi.id}/bulk-units-status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ dept: bulkDept, status: bulkStatus })
+      });
+      if (res.ok) {
+        alert(`Successfully updated all ${bulkDept} steps to ${bulkStatus} for this batch.`);
+        setBulkUpdateLi(null);
+        await fetchOrderDetails(selectedOrder.id);
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to bulk update units.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error, please try again.');
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     fetchOrders();
     fetchUsers();
@@ -323,9 +358,22 @@ export default function OrderList({ initialSelectedId }) {
                 const liUnits = selectedOrder.units?.filter(u => u.line_item_id === li.id) || [];
                 return (
                   <div key={li.id} style={{ background: '#222', borderRadius: '8px', padding: '16px', marginBottom: '16px', border: '1px solid #333' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', borderBottom: '1px solid #444', paddingBottom: '8px' }}>
-                      <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid #444', paddingBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <strong>Line {li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
+                        {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts'].includes(currentUser.role) && (
+                          <button 
+                            className="vbtn" 
+                            style={{ padding: '2px 8px', fontSize: '10px', background: '#2563eb', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', height: '22px' }} 
+                            onClick={() => {
+                              setBulkDept('');
+                              setBulkStatus('done');
+                              setBulkUpdateLi(li);
+                            }}
+                          >
+                            Bulk Update Batch
+                          </button>
+                        )}
                       </div>
                       <div style={{ color: '#888', fontSize: '13px' }}>
                         {li.quantity} {li.unit || 'Nos'} @ ₹{li.unit_price}
@@ -353,6 +401,7 @@ export default function OrderList({ initialSelectedId }) {
               entityType="Order" 
               entityId={selectedOrder.id} 
               initialDocs={selectedOrder.documents?.filter(d => d.entity_type === 'Order') || []} 
+              userRole={currentUser.role}
             />
           </div>
         ) : (
@@ -560,9 +609,67 @@ export default function OrderList({ initialSelectedId }) {
                   entityId={selectedUnit.id} 
                   initialDocs={selectedOrder.documents?.filter(d => d.entity_type === 'Unit' && d.entity_id === selectedUnit.id) || []} 
                   onUploadSuccess={() => fetchOrderDetails(selectedOrder.id)}
+                  userRole={currentUser.role}
                 />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {bulkUpdateLi && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setBulkUpdateLi(null); }}>
+          <div className="modal" style={{ maxWidth: '400px', width: '90%' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Bulk Update Batch Units</div>
+                <div className="modal-sub">Line Item: {bulkUpdateLi.line_item_number} ({bulkUpdateLi.quantity} units)</div>
+              </div>
+              <button className="modal-close" onClick={() => setBulkUpdateLi(null)}>✕</button>
+            </div>
+            <form onSubmit={handleBulkUpdateSubmit} className="modal-body">
+              <div className="modal-field" style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', color: '#bbb', fontSize: '13px', marginBottom: '6px' }}>Target Department Task</label>
+                <select 
+                  className="form-select" 
+                  value={bulkDept} 
+                  onChange={(e) => setBulkDept(e.target.value)}
+                  style={{ width: '100%', background: '#111', color: '#fff', border: '1px solid #333', borderRadius: '6px', padding: '10px' }}
+                  required
+                >
+                  <option value="">-- Select Department --</option>
+                  <option value="Design">Design</option>
+                  <option value="Purchase">Purchase</option>
+                  <option value="Stores">Stores</option>
+                  <option value="Production">Production</option>
+                  <option value="QC">QC</option>
+                  <option value="Dispatch">Dispatch</option>
+                </select>
+              </div>
+
+              <div className="modal-field" style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: '#bbb', fontSize: '13px', marginBottom: '6px' }}>Set Task Status to</label>
+                <select 
+                  className="form-select" 
+                  value={bulkStatus} 
+                  onChange={(e) => setBulkStatus(e.target.value)}
+                  style={{ width: '100%', background: '#111', color: '#fff', border: '1px solid #333', borderRadius: '6px', padding: '10px' }}
+                  required
+                >
+                  <option value="pending">Pending</option>
+                  <option value="inprogress">In Progress</option>
+                  <option value="done">Done</option>
+                  <option value="blocked">Blocked</option>
+                </select>
+              </div>
+
+              <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button type="button" className="btn-cancel" onClick={() => setBulkUpdateLi(null)} disabled={bulkSubmitting} style={{ background: 'transparent', border: '1px solid #444', color: '#ccc', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer' }}>Cancel</button>
+                <button type="submit" className="btn-save" disabled={bulkSubmitting} style={{ background: '#3b82f6', border: 'none', color: '#fff', borderRadius: '6px', padding: '8px 16px', cursor: 'pointer', fontWeight: '600' }}>
+                  {bulkSubmitting ? 'Updating...' : 'Update All Units'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

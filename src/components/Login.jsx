@@ -63,13 +63,13 @@ export default function Login() {
           )}
 
           <div className="input-group">
-            <label htmlFor="email">Email Address</label>
+            <label htmlFor="email">Email Address / Username</label>
             <div className="input-wrapper">
               <Mail className="input-icon" size={18} />
               <input
                 id="email"
-                type="email"
-                placeholder="name@company.com"
+                type="text"
+                placeholder="email or username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

@@ -57,31 +57,9 @@ export default function OrderImport({ onImportComplete }) {
     }
   };
 
-  const handleDownloadTemplate = async (e) => {
+  const handleDownloadTemplate = (e) => {
     e.preventDefault();
-    try {
-      const res = await fetch('http://localhost:5000/api/template/download', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
-      if (!res.ok) {
-        alert('Failed to download template');
-        return;
-      }
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'order_import_template.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(url), 100);
-    } catch (err) {
-      console.error('Download error:', err);
-      alert('Failed to download template due to network error');
-    }
+    window.location.href = 'http://localhost:5000/api/template/order_import_template.xlsx';
   };
 
   const reset = () => { setFile(null); setResult(null); if (inputRef.current) inputRef.current.value = ''; };

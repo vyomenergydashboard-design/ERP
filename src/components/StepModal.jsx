@@ -364,6 +364,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                 initialDocs={[]}
                 onDocsUpdate={(docs) => setDocCount(docs.length)}
                 readOnly={!canEditStep}
+                defaultDocType={step.default_doc_type || 'General'}
+                userRole={userRole}
               />
             </div>
           )}
