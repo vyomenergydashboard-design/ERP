@@ -152,7 +152,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
         </div>
 
         {/* Tabs — only show Form Fields tab if there are fields */}
-        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #333', padding: '0 24px' }}>
+        <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 24px' }}>
           {(['details', ...(customFields.length > 0 ? ['fields'] : []), 'documents']).map(tab => (
             <button
               key={tab}
@@ -160,8 +160,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               style={{
                 background: 'transparent',
                 border: 'none',
-                borderBottom: activeTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
-                color: activeTab === tab ? '#60a5fa' : '#888',
+                borderBottom: activeTab === tab ? `2px solid var(--blue)` : '2px solid transparent',
+                color: activeTab === tab ? 'var(--blue)' : 'var(--text3)',
                 padding: '10px 16px',
                 cursor: 'pointer',
                 fontSize: '13px',
@@ -212,9 +212,9 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                       let val = selectedOrder[key];
                       if (key === 'delivery_date' && val) val = new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                       return (
-                        <div key={key} style={{ background: '#111', borderRadius: '6px', padding: '8px 10px' }}>
-                          <div style={{ fontSize: '10px', color: '#555', marginBottom: '3px' }}>{labelMap[key] || key}</div>
-                          <div style={{ fontSize: '13px', color: '#ddd', fontWeight: '500' }}>{val || '—'}</div>
+                        <div key={key} style={{ background: 'var(--bg3)', borderRadius: '6px', padding: '8px 10px' }}>
+                          <div style={{ fontSize: '10px', color: 'var(--text3)', marginBottom: '3px' }}>{labelMap[key] || key}</div>
+                          <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>{val || '—'}</div>
                         </div>
                       );
                     })}
@@ -272,7 +272,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                       </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: '13px', color: '#eee', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text)', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px' }}>
                       {qcFailTarget ? `↩ Returned to ${qcFailTarget.charAt(0).toUpperCase() + qcFailTarget.slice(1)}` : 'No fail action selected'}
                     </div>
                   )}
@@ -304,7 +304,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   {canEditStep ? (
                     <input type="date" className="form-input" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} />
                   ) : (
-                    <div style={{ fontSize: '14px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '14px', color: 'var(--text)', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px' }}>
                       {dispatchDate ? new Date(dispatchDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Not set'}
                     </div>
                   )}
@@ -316,7 +316,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                 {canEditStep ? (
                   <textarea className="form-textarea" placeholder="Add notes…" value={notes} onChange={(e) => setNotes(e.target.value)} />
                 ) : (
-                  <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 14px', borderRadius: '6px', border: '1px solid #222', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text2)', fontStyle: 'italic', background: 'var(--bg3)', padding: '10px 14px', borderRadius: '6px', border: '1px solid var(--border)', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
                     {notes || 'No notes or remarks added.'}
                   </div>
                 )}
@@ -327,18 +327,18 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           {/* ── TAB: FORM FIELDS ── */}
           {activeTab === 'fields' && customFields.length > 0 && (
             <div>
-              <div style={{ color: '#888', fontSize: '12px', marginBottom: '16px' }}>
+              <div style={{ color: 'var(--text3)', fontSize: '12px', marginBottom: '16px' }}>
                 {!canEditStep ? 'Information filled in for this task.' : 'Fill in the required information for this task.'}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {customFields.map((field, idx) => (
-                  <div key={idx} style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px' }}>
+                  <div key={idx} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
                     <div style={{ marginBottom: '8px' }}>
-                      <span style={{ color: '#eee', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
-                      <span style={{ marginLeft: '8px', fontSize: '10px', color: '#555', textTransform: 'uppercase', background: '#222', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
+                      <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
+                      <span style={{ marginLeft: '8px', fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', background: 'var(--bg4)', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
                     </div>
                     {!canEditStep ? (
-                      <div style={{ fontSize: '13px', color: '#ddd', fontWeight: '500', marginTop: '4px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500', marginTop: '4px' }}>
                         {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
                       </div>
                     ) : (
@@ -371,7 +371,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           )}
 
           {/* Actions */}
-          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #222' }}>
+          <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
             {canEditStructure && canEditStep ? (
               <button
                 className="vbtn"
@@ -403,7 +403,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           margin-bottom: 20px;
         }
         .action-label { color: var(--teal); font-size: 11px; font-weight: 700; margin-bottom: 4px; text-transform: uppercase; }
-        .action-text { color: #ccc; font-size: 13px; margin-bottom: 12px; line-height: 1.4; }
+        .action-text { color: var(--text2); font-size: 13px; margin-bottom: 12px; line-height: 1.4; }
         .action-btn {
           background: var(--teal);
           color: #000;

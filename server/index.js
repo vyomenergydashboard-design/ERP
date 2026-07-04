@@ -108,7 +108,7 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
   `;
 
   const mailOptions = {
-    from: '"Vyom ERP System" <noreply@vyomerp.local>',
+    from: process.env.SMTP_FROM || '"Vyom ERP System" <noreply@vyomerp.local>',
     to: recipientEmails.join(', '),
     subject: emailSubject,
     html: htmlContent
@@ -580,7 +580,7 @@ app.post('/api/auth/login', async (req, res) => {
   const { email, password } = req.body;
   console.log(`[LOGIN TRY] Email: "${email}"`);
   try {
-    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const result = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $1', [email]);
     if (result.rows.length === 0) {
       console.log(`[LOGIN FAIL] User not found for email: "${email}"`);
       return res.status(400).json({ error: 'Invalid credentials' });
@@ -778,7 +778,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name } = req.body;
+    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name, gst_number } = req.body;
     let parsedLineItems = [];
     try {
       parsedLineItems = JSON.parse(lineItems);
@@ -789,9 +789,9 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     // 1. Create Order
     const order_number = await generateOrderNumber();
     const orderResult = await client.query(
-      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null]
+      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null]
     );
     const order = orderResult.rows[0];    // 2. Insert Line Items and Generate Unit IDs sequentially
     let globalUnitCounter = 1;
@@ -2076,11 +2076,10 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(), a
   }
 });
 
-// Dept Worklist API
 app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
   const dept = req.params.dept;
   try {
-    // Get all units currently in this department
+    // Get all units currently in this department (or all units if Sales)
     const result = await pool.query(`
       SELECT
         ou.id          AS unit_id,
@@ -2112,14 +2111,14 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
             ) ORDER BY us.id
           )
           FROM unit_steps us
-          WHERE us.order_unit_id = ou.id AND us.dept = $1
+          WHERE us.order_unit_id = ou.id AND us.dept = ou.current_dept
         ) AS dept_steps
       FROM order_units ou
       JOIN orders o         ON ou.order_id = o.id
       JOIN order_line_items oli ON ou.line_item_id = oli.id
       LEFT JOIN company_locations cl ON o.company_location_id = cl.id
       LEFT JOIN companies co ON cl.company_id = co.id
-      WHERE ou.current_dept = $1
+      WHERE $1 = 'Sales' OR ou.current_dept = $1
       ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
     `, [dept]);
     res.json(result.rows);
@@ -2146,7 +2145,7 @@ app.get('/api/companies', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/companies', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.post('/api/companies', authorize(['Admin']), async (req, res) => {
   const { name, locations } = req.body;
   const client = await pool.connect();
   try {
@@ -2211,6 +2210,77 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to upload documents' });
+  }
+});
+
+app.get('/api/documents/directory', authorize(), async (req, res) => {
+  try {
+    const ordersRes = await pool.query(`
+      SELECT 
+        o.id, 
+        o.order_number, 
+        o.po_number, 
+        o.order_date,
+        o.delivery_date,
+        o.end_client_name,
+        c.name AS company_name
+      FROM orders o
+      LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+      LEFT JOIN companies c ON cl.company_id = c.id
+      ORDER BY o.created_at DESC
+    `);
+    
+    const docsRes = await pool.query(`
+      SELECT 
+        d.id,
+        d.entity_type,
+        d.entity_id,
+        d.doc_type,
+        d.file_name,
+        d.file_path,
+        d.file_size,
+        d.mime_type,
+        d.uploaded_at,
+        u.username AS uploader_username,
+        u.role AS uploader_role,
+        COALESCE(
+          CASE WHEN d.entity_type = 'Order' THEN d.entity_id END,
+          CASE WHEN d.entity_type = 'Unit' THEN (SELECT order_id FROM order_units WHERE id = d.entity_id) END,
+          CASE WHEN d.entity_type = 'Step' THEN (
+            COALESCE(
+              (SELECT order_id FROM order_steps WHERE id = d.entity_id),
+              (SELECT ou.order_id FROM unit_steps us JOIN order_units ou ON us.order_unit_id = ou.id WHERE us.id = d.entity_id)
+            )
+          ) END
+        ) AS order_id,
+        CASE 
+          WHEN d.entity_type = 'Unit' THEN (SELECT unit_id FROM order_units WHERE id = d.entity_id)
+          WHEN d.entity_type = 'Step' THEN (
+            COALESCE(
+              (SELECT 'Order Step: ' || name FROM order_steps WHERE id = d.entity_id),
+              (SELECT 'Unit Step (' || ou.unit_id || '): ' || us.name FROM unit_steps us JOIN order_units ou ON us.order_unit_id = ou.id WHERE us.id = d.entity_id)
+            )
+          )
+          ELSE 'Order Level'
+        END AS source_details
+      FROM documents d
+      LEFT JOIN users u ON d.uploaded_by = u.id
+      ORDER BY d.uploaded_at DESC
+    `);
+
+    let docs = docsRes.rows;
+    const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
+    if (!isSalesOrAccounts) {
+      docs = docs.filter(d => d.doc_type !== 'PO');
+    }
+
+    res.json({
+      orders: ordersRes.rows,
+      documents: docs
+    });
+  } catch (err) {
+    console.error('Error fetching document directory:', err);
+    res.status(500).json({ error: 'Failed to fetch document directory' });
   }
 });
 
@@ -2282,7 +2352,7 @@ app.get('/api/task_masters', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/task_masters', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.post('/api/task_masters', authorize(['Admin']), async (req, res) => {
   const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
@@ -2297,7 +2367,7 @@ app.post('/api/task_masters', authorize(['Admin', 'Manager', 'Sales']), async (r
   }
 });
 
-app.put('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
   try {
     const result = await pool.query(
@@ -2313,7 +2383,7 @@ app.put('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async
   }
 });
 
-app.delete('/api/task_masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.delete('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });

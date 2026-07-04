@@ -441,11 +441,21 @@ export default function PlanningModule() {
 
   // ── Filtered rows ──
   const filteredOrders = orders.filter(order => {
-    const matchesSearch =
-      order.order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.po_number || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.company_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.end_client_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+    let matchesSearch = true;
+    if (searchTerm.trim() !== '') {
+      const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
+      const orderNum = (order.order_number || '').toLowerCase();
+      const poNum = (order.po_number || '').toLowerCase();
+      const compName = (order.company_name || '').toLowerCase();
+      const endClient = (order.end_client_name || '').toLowerCase();
+      
+      matchesSearch = tokens.every(token => 
+        orderNum.includes(token) ||
+        poNum.includes(token) ||
+        compName.includes(token) ||
+        endClient.includes(token)
+      );
+    }
 
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
     const matchesPriority = priorityFilter === 'all' || order.priority === priorityFilter;

@@ -68,20 +68,25 @@ export default function LogsView() {
       return false;
     }
     // Text Search Filter
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      const userMatch = (log.username || '').toLowerCase().includes(term);
-      const actionMatch = (log.action_text || '').toLowerCase().includes(term);
-      const orderMatch = (log.order_number || '').toLowerCase().includes(term);
-      return userMatch || actionMatch || orderMatch;
+    if (searchTerm.trim() !== '') {
+      const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
+      const username = (log.username || '').toLowerCase();
+      const action = (log.action_text || '').toLowerCase();
+      const orderNum = (log.order_number || '').toLowerCase();
+      
+      return tokens.every(token => 
+        username.includes(token) || 
+        action.includes(token) || 
+        orderNum.includes(token)
+      );
     }
     return true;
   });
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid #333', paddingBottom: '16px' }}>
-        <h2 style={{ margin: 0, color: '#fff', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+        <h2 style={{ margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <FileText size={22} style={{ color: '#f59e0b' }} />
           System Activity Logs
         </h2>
@@ -89,8 +94,8 @@ export default function LogsView() {
 
       {/* Filters Dashboard Panel */}
       <div style={{
-        background: '#14161a',
-        border: '1px solid #2a2f3a',
+        background: 'var(--bg2)',
+        border: '1px solid var(--border)',
         borderRadius: '12px',
         padding: '16px 20px',
         marginBottom: '20px',
@@ -103,7 +108,7 @@ export default function LogsView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', flex: 1, minWidth: '300px' }}>
           {/* Search Box */}
           <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
-            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5a6070' }} />
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
             <input
               type="text"
               placeholder="Search logs by user, action or order #..."
@@ -111,10 +116,10 @@ export default function LogsView() {
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{
                 width: '100%',
-                background: '#0e0f11',
-                border: '1px solid #2a2f3a',
+                background: 'var(--bg3)',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
-                color: '#e8eaf0',
+                color: 'var(--text)',
                 padding: '10px 12px 10px 38px',
                 fontSize: '13px',
                 outline: 'none',
@@ -126,16 +131,16 @@ export default function LogsView() {
 
           {/* Department Select */}
           <div style={{ position: 'relative', width: '180px' }}>
-            <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5a6070' }} />
+            <Filter size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
             <select
               value={selectedDept}
               onChange={(e) => setSelectedDept(e.target.value)}
               style={{
                 width: '100%',
-                background: '#0e0f11',
-                border: '1px solid #2a2f3a',
+                background: 'var(--bg3)',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
-                color: '#e8eaf0',
+                color: 'var(--text)',
                 padding: '10px 12px 10px 34px',
                 fontSize: '13px',
                 outline: 'none',
@@ -153,21 +158,21 @@ export default function LogsView() {
               <option value="Dispatch">Dispatch</option>
               <option value="Accounts">Accounts</option>
             </select>
-            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#5a6070', fontSize: '10px' }}>▼</div>
+            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text3)', fontSize: '10px' }}>▼</div>
           </div>
 
           {/* Limit Select */}
           <div style={{ position: 'relative', width: '160px' }}>
-            <Database size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#5a6070' }} />
+            <Database size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text3)' }} />
             <select
               value={limit}
               onChange={(e) => setLimit(e.target.value)}
               style={{
                 width: '100%',
-                background: '#0e0f11',
-                border: '1px solid #2a2f3a',
+                background: 'var(--bg3)',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
-                color: '#e8eaf0',
+                color: 'var(--text)',
                 padding: '10px 12px 10px 34px',
                 fontSize: '13px',
                 outline: 'none',
@@ -182,7 +187,7 @@ export default function LogsView() {
               <option value="5000">Fetch 5000 Logs</option>
               <option value="all">Fetch All Logs</option>
             </select>
-            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: '#5a6070', fontSize: '10px' }}>▼</div>
+            <div style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--text3)', fontSize: '10px' }}>▼</div>
           </div>
         </div>
 
@@ -213,9 +218,9 @@ export default function LogsView() {
             onClick={() => fetchLogs(limit)}
             disabled={isLoading}
             style={{
-              background: '#1c1f26',
-              border: '1px solid #2a2f3a',
-              color: '#e8eaf0',
+              background: 'var(--bg3)',
+              border: '1px solid var(--border)',
+              color: 'var(--text)',
               padding: '10px 16px',
               borderRadius: '8px',
               fontSize: '13px',
@@ -241,11 +246,11 @@ export default function LogsView() {
         padding: '0 8px',
         marginBottom: '12px',
         fontSize: '12px',
-        color: '#8a93a8'
+        color: 'var(--text3)'
       }}>
         <div>
-          Showing <span style={{ color: '#f59e0b', fontWeight: '600' }}>{filteredLogs.length}</span>{' '}
-          of <span style={{ color: '#fff', fontWeight: '600' }}>{logs.length}</span> fetched logs{' '}
+          Showing <span style={{ color: 'var(--accent)', fontWeight: '600' }}>{filteredLogs.length}</span>{' '}
+          of <span style={{ color: 'var(--text)', fontWeight: '600' }}>{logs.length}</span> fetched logs{' '}
           {limit === 'all' ? '(full system history)' : `(limit: ${limit})`}
         </div>
         {filteredLogs.length < logs.length && (
@@ -255,38 +260,38 @@ export default function LogsView() {
         )}
       </div>
 
-      <div style={{ background: '#111', borderRadius: '12px', border: '1px solid #2a2f3a', overflow: 'hidden' }}>
+      <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
           <thead>
-            <tr style={{ background: '#14161a', borderBottom: '1px solid #2a2f3a' }}>
-              <th style={{ padding: '16px', color: '#8a93a8', fontWeight: '500' }}>Timestamp</th>
-              <th style={{ padding: '16px', color: '#8a93a8', fontWeight: '500' }}>User</th>
-              <th style={{ padding: '16px', color: '#8a93a8', fontWeight: '500' }}>Order #</th>
-              <th style={{ padding: '16px', color: '#8a93a8', fontWeight: '500' }}>Department</th>
-              <th style={{ padding: '16px', color: '#8a93a8', fontWeight: '500' }}>Action</th>
+            <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
+              <th style={{ padding: '16px', color: 'var(--text3)', fontWeight: '500' }}>Timestamp</th>
+              <th style={{ padding: '16px', color: 'var(--text3)', fontWeight: '500' }}>User</th>
+              <th style={{ padding: '16px', color: 'var(--text3)', fontWeight: '500' }}>Order #</th>
+              <th style={{ padding: '16px', color: 'var(--text3)', fontWeight: '500' }}>Department</th>
+              <th style={{ padding: '16px', color: 'var(--text3)', fontWeight: '500' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && logs.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: '#8a93a8' }}>
+                <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: 'var(--text3)' }}>
                   <RefreshCw size={24} className="spin" style={{ margin: '0 auto 12px', color: '#f59e0b', display: 'block' }} />
                   Loading activity logs...
                 </td>
               </tr>
             ) : filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: '#5a6070' }}>No matching activity logs found.</td>
+                <td colSpan="5" style={{ padding: '48px', textAlign: 'center', color: 'var(--text3)' }}>No matching activity logs found.</td>
               </tr>
             ) : (
               filteredLogs.map(log => (
-                <tr key={log.id} style={{ borderBottom: '1px solid #1c1f26' }} className="log-row">
-                  <td style={{ padding: '16px', color: '#8a93a8', whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
-                  <td style={{ padding: '16px', color: '#fff', fontWeight: '600' }}>{log.username}</td>
+                <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }} className="log-row">
+                  <td style={{ padding: '16px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
+                  <td style={{ padding: '16px', color: 'var(--text)', fontWeight: '600' }}>{log.username}</td>
                   <td style={{ padding: '16px' }}>
                     {log.order_number 
-                      ? <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'rgba(245,158,11,0.1)', color: '#f59e0b', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245,158,11,0.2)' }}>{log.order_number}</span>
-                      : <span style={{ color: '#444' }}>—</span>
+                      ? <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--orange-dim)', color: 'var(--accent)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245,158,11,0.2)' }}>{log.order_number}</span>
+                      : <span style={{ color: 'var(--text3)' }}>—</span>
                     }
                   </td>
                   <td style={{ padding: '16px' }}>
@@ -302,10 +307,10 @@ export default function LogsView() {
                         {log.dept}
                       </span>
                     ) : (
-                      <span style={{ color: '#444' }}>—</span>
+                      <span style={{ color: 'var(--text3)' }}>—</span>
                     )}
                   </td>
-                  <td style={{ padding: '16px', color: '#e8eaf0' }}>{log.action_text}</td>
+                  <td style={{ padding: '16px', color: 'var(--text)' }}>{log.action_text}</td>
                 </tr>
               ))
             )}
@@ -322,9 +327,9 @@ export default function LogsView() {
           background: rgba(239, 68, 68, 0.2) !important;
         }
         .refresh-btn:hover:not(:disabled) {
-          background: #242830 !important;
-          border-color: #363d4a !important;
-          color: #fff !important;
+          background: var(--bg4) !important;
+          border-color: var(--border2) !important;
+          color: var(--text) !important;
         }
         .spin {
           animation: spin-anim 1s linear infinite;
@@ -338,8 +343,8 @@ export default function LogsView() {
           border-left: 3px solid transparent;
         }
         .log-row:hover {
-          background: #14161a !important;
-          border-left-color: #f59e0b !important;
+          background: var(--bg3) !important;
+          border-left-color: var(--accent) !important;
         }
       `}} />
     </div>

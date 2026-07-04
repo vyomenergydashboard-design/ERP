@@ -19,6 +19,7 @@ import LogsView from './components/LogsView';
 import PlanningModule from './components/PlanningModule';
 import SettingsView from './components/Settings';
 import DeptWorklist from './components/DeptWorklist';
+import DocumentDirectory from './components/DocumentDirectory';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 
 const ProtectedRoute = ({ children }) => {
@@ -45,6 +46,7 @@ function Dashboard() {
   const selectedOrderIdRef = useRef(null); // ref so closures always see latest value
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitSteps, setUnitSteps] = useState([]);
@@ -375,6 +377,7 @@ function Dashboard() {
                currentView === 'flow' ? 'Process Flow' :
                currentView === 'table' ? 'Table View' :
                currentView === 'orders' ? 'Order Directory' :
+               currentView === 'documents' ? 'Document Directory' :
                currentView === 'new-order' ? 'New Order' :
                currentView === 'import' ? 'Import Orders' :
                currentView === 'masters' ? 'Masters' :
@@ -430,6 +433,8 @@ function Dashboard() {
             <TableView steps={combinedSteps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
+          ) : currentView === 'documents' ? (
+            <DocumentDirectory />
           ) : currentView === 'new-order' ? (
             <OrderCreationFlow onOrderCreated={() => {
               setCurrentView('orders');
@@ -453,7 +458,13 @@ function Dashboard() {
           )}
         </main>
         {currentView !== 'planning' && (
-          <RightPanel selectedStep={selectedStep} activityLog={activityLog} selectedOrder={selectedOrder} />
+          <RightPanel
+            selectedStep={selectedStep}
+            activityLog={activityLog}
+            selectedOrder={selectedOrder}
+            isOpen={rightPanelOpen}
+            onToggle={() => setRightPanelOpen(o => !o)}
+          />
         )}
       </div>
 

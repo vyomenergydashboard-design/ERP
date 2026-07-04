@@ -1,4 +1,4 @@
-import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText } from 'lucide-react';
 import { DEPTS } from '../data/planningData';
 
 const BOM_STATES = [
@@ -12,6 +12,7 @@ const PRIMARY_NAV = [
   { id: 'board',     icon: LayoutDashboard, label: 'Board',     roles: null },
   { id: 'planning',  icon: Calendar,        label: 'Planning',  roles: null },
   { id: 'orders',    icon: ClipboardList,   label: 'Orders',    roles: null },
+  { id: 'documents', icon: FileText,        label: 'Documents', roles: null },
   { id: 'new-order', icon: PlusCircle,      label: 'New Order', roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'masters',   icon: Database,        label: 'Masters',   roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'import',    icon: Upload,          label: 'Import',    roles: ['Admin', 'Manager', 'Sales'] },

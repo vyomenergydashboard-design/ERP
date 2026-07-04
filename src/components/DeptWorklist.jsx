@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, Layers, User, Calendar } from 'lucide-react';
+import { RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User } from 'lucide-react';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
@@ -27,25 +27,7 @@ const DEPT_COLORS = {
   Sales:      '#f97316',
 };
 
-function groupUnitsByOrder(units) {
-  const map = {};
-  for (const unit of units) {
-    const key = unit.order_number;
-    if (!map[key]) {
-      map[key] = {
-        order_number: unit.order_number,
-        order_id: unit.order_id,
-        priority: unit.priority,
-        delivery_date: unit.delivery_date,
-        company_name: unit.company_name,
-        company_city: unit.company_city,
-        units: [],
-      };
-    }
-    map[key].units.push(unit);
-  }
-  return Object.values(map);
-}
+
 
 function StepPill({ step, onStatusChange, canEdit }) {
   const cfg = STEP_STATUS_CONFIG[step.status] || STEP_STATUS_CONFIG.pending;
@@ -79,12 +61,16 @@ function StepPill({ step, onStatusChange, canEdit }) {
   );
 }
 
-function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
+function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   const [expanded, setExpanded] = useState(false);
   const steps = unit.dept_steps || [];
   const doneCount = steps.filter(s => s.status === 'done').length;
   const allDone = doneCount === steps.length && steps.length > 0;
   const hasBlocked = steps.some(s => s.status === 'blocked');
+
+  const getCanEditStep = (step) => {
+    return ['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role;
+  };
 
   const rowBorder = hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
 
@@ -100,20 +86,53 @@ function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
         }}
         className="worklist-row"
       >
-        <td style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: 'var(--text3)', fontSize: 11, marginRight: 4 }}>
-            {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-          </span>
-          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
-            {unit.unit_serial}
-          </span>
+        {/* Order Info */}
+        <td style={{ padding: '10px 14px' }}>
+          <div style={{ fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
+            {unit.order_number}
+          </div>
+          {unit.company_name && (
+            <div style={{ color: 'var(--text3)', fontSize: 11, marginTop: 2 }}>
+              🏢 {unit.company_name}{unit.company_city ? ` · ${unit.company_city}` : ''}
+            </div>
+          )}
         </td>
+
+        {/* Unit ID */}
+        <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
+          {unit.unit_serial}
+        </td>
+
+        {/* Item Details */}
         <td style={{ padding: '10px 14px', color: 'var(--text2)', fontSize: 12 }}>
           {unit.material_description}
           {unit.part_number && (
-            <span style={{ marginLeft: 6, color: 'var(--text3)', fontSize: 10 }}>({unit.part_number})</span>
+            <div style={{ color: 'var(--text3)', fontSize: 10, marginTop: 2 }}>Part: {unit.part_number}</div>
           )}
         </td>
+
+        {/* Priority */}
+        <td style={{ padding: '10px 14px' }}>
+          {(() => {
+            const pCfg = PRIORITY_CONFIG[unit.priority] || PRIORITY_CONFIG.Medium;
+            return (
+              <span style={{
+                padding: '3px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700,
+                background: pCfg.bg, color: pCfg.color, border: `1px solid ${pCfg.border}`,
+                textTransform: 'uppercase', letterSpacing: 0.5,
+              }}>
+                {unit.priority}
+              </span>
+            );
+          })()}
+        </td>
+
+        {/* Delivery Date */}
+        <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)' }}>
+          {unit.delivery_date ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+        </td>
+
+        {/* Tasks Pills */}
         <td style={{ padding: '10px 14px' }}>
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             {steps.length === 0 ? (
@@ -123,13 +142,15 @@ function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
                 <StepPill
                   key={step.id}
                   step={step}
-                  canEdit={canEdit}
+                  canEdit={getCanEditStep(step)}
                   onStatusChange={(stepId, val) => onStepStatusChange(unit.unit_id, stepId, val)}
                 />
               ))
             )}
           </div>
         </td>
+
+        {/* Progress Summary */}
         <td style={{ padding: '10px 14px', textAlign: 'center' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -140,10 +161,18 @@ function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
             {doneCount}/{steps.length}
           </div>
         </td>
+
+        {/* Expand Action */}
+        <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+          <span style={{ color: 'var(--text3)', display: 'inline-flex', alignItems: 'center' }}>
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </span>
+        </td>
       </tr>
+
       {expanded && steps.length > 0 && (
         <tr style={{ background: 'var(--bg3)' }}>
-          <td colSpan={4} style={{ padding: '12px 24px 16px 48px' }}>
+          <td colSpan={8} style={{ padding: '12px 24px 16px 24px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {steps.map(step => {
                 const cfg = STEP_STATUS_CONFIG[step.status] || STEP_STATUS_CONFIG.pending;
@@ -172,15 +201,15 @@ function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
                       {step.updated && (
                         <span style={{ color: 'var(--text3)', fontSize: 10 }}>{step.updated}</span>
                       )}
-                      {canEdit ? (
+                      {getCanEditStep(step) ? (
                         <select
-                          value={step.status}
-                          onChange={e => onStepStatusChange(unit.unit_id, step.id, e.target.value)}
-                          style={{
-                            background: cfg.bg, border: `1px solid ${cfg.color}44`,
-                            color: cfg.color, fontSize: 11, borderRadius: 6, padding: '4px 8px',
-                            cursor: 'pointer', fontWeight: 600, outline: 'none',
-                          }}
+                           value={step.status}
+                           onChange={e => onStepStatusChange(unit.unit_id, step.id, e.target.value)}
+                           style={{
+                             background: cfg.bg, border: `1px solid ${cfg.color}44`,
+                             color: cfg.color, fontSize: 11, borderRadius: 6, padding: '4px 8px',
+                             cursor: 'pointer', fontWeight: 600, outline: 'none',
+                           }}
                         >
                           <option value="pending">Pending</option>
                           <option value="inprogress">In Progress</option>
@@ -209,110 +238,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, canEdit }) {
   );
 }
 
-function OrderBlock({ group, dept, onStepStatusChange, users, canEdit }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const pCfg = PRIORITY_CONFIG[group.priority] || PRIORITY_CONFIG.Medium;
-  const deptColor = DEPT_COLORS[dept] || '#6366f1';
-  const totalSteps = group.units.reduce((acc, u) => acc + (u.dept_steps || []).length, 0);
-  const doneSteps  = group.units.reduce((acc, u) => acc + (u.dept_steps || []).filter(s => s.status === 'done').length, 0);
-  const pct = totalSteps > 0 ? Math.round((doneSteps / totalSteps) * 100) : 0;
-  const overdue = group.delivery_date && new Date(group.delivery_date) < new Date();
 
-  return (
-    <div style={{
-      background: 'var(--bg2)', borderRadius: 12, overflow: 'hidden',
-      border: `1px solid var(--border)`, marginBottom: 16,
-      boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-    }}>
-      {/* Order header */}
-      <div
-        onClick={() => setCollapsed(c => !c)}
-        style={{
-          padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12,
-          cursor: 'pointer', background: 'var(--bg3)',
-          borderBottom: collapsed ? 'none' : '1px solid var(--border)',
-          userSelect: 'none',
-        }}
-      >
-        <span style={{ color: 'var(--text3)' }}>
-          {collapsed ? <ChevronRight size={15} /> : <ChevronDown size={15} />}
-        </span>
-
-        <div style={{ fontFamily: 'monospace', fontWeight: 800, color: 'var(--text)', fontSize: 15, letterSpacing: 0.5 }}>
-          {group.order_number}
-        </div>
-
-        {group.company_name && (
-          <div style={{ color: 'var(--text3)', fontSize: 12 }}>
-            🏢 {group.company_name}{group.company_city ? ` · ${group.company_city}` : ''}
-          </div>
-        )}
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {group.delivery_date && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: overdue ? '#ef4444' : '#64748b' }}>
-              <Calendar size={11} />
-              {new Date(group.delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-              {overdue && <span style={{ color: '#ef4444', fontWeight: 700 }}>· OVERDUE</span>}
-            </div>
-          )}
-
-          <span style={{
-            padding: '3px 9px', borderRadius: 20, fontSize: 10, fontWeight: 800,
-            background: pCfg.bg, color: pCfg.color, border: `1px solid ${pCfg.border}`,
-            textTransform: 'uppercase', letterSpacing: 0.5,
-          }}>
-            {group.priority}
-          </span>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{
-              width: 70, height: 5, background: 'var(--border2)', borderRadius: 10, overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', width: `${pct}%`, borderRadius: 10,
-                background: pct === 100 ? 'var(--green)' : deptColor,
-                transition: 'width 0.4s',
-              }} />
-            </div>
-            <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600 }}>{pct}%</span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text3)' }}>
-            <Layers size={11} />
-            {group.units.length} unit{group.units.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-      </div>
-
-      {/* Units table */}
-      {!collapsed && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
-              <th style={{ padding: '8px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Unit ID</th>
-              <th style={{ padding: '8px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Item</th>
-              <th style={{ padding: '8px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tasks</th>
-              <th style={{ padding: '8px 14px', textAlign: 'center', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Progress</th>
-            </tr>
-          </thead>
-          <tbody>
-            {group.units.map(unit => (
-              <UnitRow
-                key={unit.unit_id}
-                unit={unit}
-                dept={dept}
-                onStepStatusChange={onStepStatusChange}
-                users={users}
-                canEdit={canEdit}
-              />
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
 
 export default function DeptWorklist({ dept }) {
   const [units, setUnits]       = useState([]);
@@ -381,14 +307,20 @@ export default function DeptWorklist({ dept }) {
 
   // Filtering
   const filteredUnits = units.filter(u => {
-    if (search) {
-      const q = search.toLowerCase();
-      const matches =
-        u.unit_serial?.toLowerCase().includes(q) ||
-        u.order_number?.toLowerCase().includes(q) ||
-        u.material_description?.toLowerCase().includes(q) ||
-        u.company_name?.toLowerCase().includes(q);
-      if (!matches) return false;
+    if (search.trim() !== '') {
+      const tokens = search.trim().toLowerCase().split(/\s+/);
+      const serial = (u.unit_serial || '').toLowerCase();
+      const orderNum = (u.order_number || '').toLowerCase();
+      const material = (u.material_description || '').toLowerCase();
+      const company = (u.company_name || '').toLowerCase();
+      
+      const matchesAllTokens = tokens.every(token => 
+        serial.includes(token) || 
+        orderNum.includes(token) || 
+        material.includes(token) || 
+        company.includes(token)
+      );
+      if (!matchesAllTokens) return false;
     }
     if (filter === 'done') {
       const steps = u.dept_steps || [];
@@ -405,7 +337,7 @@ export default function DeptWorklist({ dept }) {
     return true;
   });
 
-  const groups = groupUnitsByOrder(filteredUnits);
+
   const totalUnits = units.length;
   const doneUnits = units.filter(u => (u.dept_steps || []).every(s => s.status === 'done') && (u.dept_steps || []).length > 0).length;
   const inProgUnits = units.filter(u => (u.dept_steps || []).some(s => s.status === 'inprogress')).length;
@@ -448,7 +380,10 @@ export default function DeptWorklist({ dept }) {
               {dept} Worklist
             </h2>
             <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 2 }}>
-              {totalUnits} unit{totalUnits !== 1 ? 's' : ''} currently in {dept}
+              {dept === 'Sales' 
+                ? `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total in system`
+                : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} currently in ${dept}`
+              }
             </div>
           </div>
         </div>
@@ -521,14 +456,19 @@ export default function DeptWorklist({ dept }) {
       </div>
 
       {/* Empty state */}
-      {groups.length === 0 && (
+      {filteredUnits.length === 0 && (
         <div style={{
           textAlign: 'center', padding: '60px 20px',
           background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border)',
         }}>
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
           <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
-            {search || filter !== 'all' ? 'No matching units' : `No units in ${dept}`}
+            {search || filter !== 'all' 
+              ? 'No matching units' 
+              : dept === 'Sales' 
+                ? 'No units in the system' 
+                : `No units in ${dept}`
+            }
           </div>
           <div style={{ color: 'var(--text3)', fontSize: 13 }}>
             {search || filter !== 'all' ? 'Try adjusting your search or filter.' : `All ${dept} tasks are complete or no units have been assigned yet.`}
@@ -536,17 +476,40 @@ export default function DeptWorklist({ dept }) {
         </div>
       )}
 
-      {/* Order groups */}
-      {groups.map(group => (
-        <OrderBlock
-          key={group.order_number}
-          group={group}
-          dept={dept}
-          onStepStatusChange={handleStepStatusChange}
-          users={users}
-          canEdit={canEdit}
-        />
-      ))}
+      {/* Worklist Table */}
+      {filteredUnits.length > 0 && (
+        <div style={{
+          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+          overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Order Info</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Unit ID</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Item Details</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Priority</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Delivery Date</th>
+                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tasks</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Progress</th>
+                <th style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Expand</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredUnits.map(unit => (
+                <UnitRow
+                  key={unit.unit_id}
+                  unit={unit}
+                  dept={dept}
+                  onStepStatusChange={handleStepStatusChange}
+                  users={users}
+                  currentUser={currentUser}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <style>{`
         .worklist-row:hover { background: rgba(255,255,255,0.03) !important; }
