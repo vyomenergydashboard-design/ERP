@@ -111,7 +111,7 @@ export default function FlowView({
     const units = selectedOrder?.units || [];
     return (
       <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 13, color: '#aaa', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
+        <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
         <select 
           className="form-select"
           value={selectedUnitId}
@@ -315,7 +315,7 @@ export default function FlowView({
                     );
                   })}
                   {deptSteps.length === 0 && (
-                    <div style={{ padding: 12, color: '#666', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
+                    <div style={{ padding: 12, color: 'var(--text3)', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
                       No tasks assigned to this department.
                     </div>
                   )}
@@ -360,7 +360,7 @@ export default function FlowView({
                   <div className="dept-card-ord-row">
                     <div className="ord-badge">{selectedOrder.order_number}</div>
                     {selectedOrder.company_name && (
-                      <div style={{ fontSize: '11px', color: '#aaa', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
                         {selectedOrder.company_name}
                       </div>
                     )}
@@ -388,8 +388,8 @@ export default function FlowView({
                     alignItems: 'flex-start',
                     gap: '4px'
                   }}>
-                    <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: '#f59e0b', marginTop: '1px', flexShrink: 0 }}>Note:</span>
-                    <span style={{ color: '#d1d5db' }}>{selectedOrder.notes}</span>
+                    <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: 'var(--accent)', marginTop: '1px', flexShrink: 0 }}>Note:</span>
+                    <span style={{ color: 'var(--text2)' }}>{selectedOrder.notes}</span>
                   </div>
                 )}
                 
@@ -469,7 +469,7 @@ export default function FlowView({
                   );
                 })}
                 {deptSteps.length === 0 && (
-                  <div style={{ padding: 12, color: '#666', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
+                  <div style={{ padding: 12, color: 'var(--text3)', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
                     No tasks assigned to this department.
                   </div>
                 )}
@@ -491,7 +491,7 @@ export default function FlowView({
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid #333', padding: '0 24px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 24px', marginBottom: '16px' }}>
               {(['details', ...(unitCustomFields.length > 0 ? ['fields'] : []), 'documents']).map(tab => (
                 <button
                   key={tab}
@@ -499,8 +499,8 @@ export default function FlowView({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    borderBottom: unitModalActiveTab === tab ? '2px solid #3b82f6' : '2px solid transparent',
-                    color: unitModalActiveTab === tab ? '#60a5fa' : '#888',
+                    borderBottom: unitModalActiveTab === tab ? `2px solid var(--blue)` : '2px solid transparent',
+                    color: unitModalActiveTab === tab ? 'var(--blue)' : 'var(--text3)',
                     padding: '10px 16px',
                     cursor: 'pointer',
                     fontSize: '13px',
@@ -552,7 +552,7 @@ export default function FlowView({
                           }
                           handleUpdateUnitStep(editingUnitStep.id, { status: newStatus });
                         }}
-                        style={{ background: '#111', fontSize: '13px' }}
+                        style={{ fontSize: '13px' }}
                       >
                         <option value="pending">Pending</option>
                         <option value="inprogress">In Progress</option>
@@ -576,7 +576,7 @@ export default function FlowView({
                         className="form-select"
                         value={editingUnitStep.assigned_user_id || ''}
                         onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
-                        style={{ background: '#111', fontSize: '13px' }}
+                        style={{ fontSize: '13px' }}
                       >
                         <option value="">Unassigned</option>
                         {users.filter(u => u.role === editingUnitStep.dept).map(u => (
@@ -584,7 +584,7 @@ export default function FlowView({
                         ))}
                       </select>
                     ) : (
-                      <div style={{ fontSize: '13px', color: '#ddd', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text)', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px' }}>
                         {(() => {
                           const worker = users.find(u => u.id === editingUnitStep.assigned_user_id);
                           return worker ? worker.username : 'Unassigned';
@@ -601,10 +601,10 @@ export default function FlowView({
                         defaultValue={editingUnitStep.notes || ''}
                         onBlur={(e) => handleUpdateUnitStep(editingUnitStep.id, { notes: e.target.value })}
                         placeholder="Add step notes..."
-                        style={{ background: '#111', fontSize: '13px', height: '60px', resize: 'vertical' }}
+                        style={{ fontSize: '13px', height: '60px', resize: 'vertical' }}
                       />
                     ) : (
-                      <div style={{ fontSize: '13px', color: '#bbb', fontStyle: 'italic', background: '#111', padding: '10px 12px', borderRadius: '6px', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
+                      <div style={{ fontSize: '13px', color: 'var(--text2)', fontStyle: 'italic', background: 'var(--bg3)', padding: '10px 12px', borderRadius: '6px', minHeight: '40px', whiteSpace: 'pre-wrap' }}>
                         {editingUnitStep.notes || 'No notes added.'}
                       </div>
                     )}
@@ -622,10 +622,10 @@ export default function FlowView({
                     };
 
                     return (
-                      <div key={field.id} style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px' }}>
+                      <div key={field.id} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
                         <div style={{ marginBottom: '8px' }}>
-                          <span style={{ color: '#eee', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
-                          <span style={{ marginLeft: '8px', fontSize: '10px', color: '#555', textTransform: 'uppercase', background: '#222', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
+                          <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
+                          <span style={{ marginLeft: '8px', fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', background: 'var(--bg4)', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
                         </div>
                         {!canEditUnitStep ? (
                           <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
@@ -642,7 +642,7 @@ export default function FlowView({
                             className="form-select"
                             value={field.value || ''}
                             onChange={(e) => handleFieldChange(e.target.value)}
-                            style={{ background: '#111', fontSize: '12px', padding: '4px' }}
+                            style={{ fontSize: '12px', padding: '4px' }}
                           >
                             <option value="">Select...</option>
                             {field.options?.map(o => (
@@ -655,7 +655,7 @@ export default function FlowView({
                             className="form-input"
                             defaultValue={field.value || ''}
                             onBlur={(e) => handleFieldChange(e.target.value)}
-                            style={{ background: '#111', fontSize: '12px', padding: '4px 8px' }}
+                            style={{ fontSize: '12px', padding: '4px 8px' }}
                           />
                         )}
                       </div>
@@ -696,30 +696,28 @@ export default function FlowView({
           padding-bottom: 40px;
         }
         .dept-flow-card {
-          background: rgba(25, 25, 25, 0.6);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-top: 1px solid rgba(255, 255, 255, 0.12);
+          background: var(--bg2);
+          border: 1px solid var(--border);
+          border-top: 2px solid var(--border2);
           border-radius: 12px;
           padding: 20px;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
           transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease, border-color 0.3s ease;
         }
         .dept-flow-card:hover {
           transform: translateY(-4px);
-          box-shadow: 0 12px 48px rgba(0, 0, 0, 0.4);
-          border-color: rgba(255, 255, 255, 0.15);
+          box-shadow: 0 12px 32px rgba(0,0,0,0.15);
+          border-color: var(--border2);
         }
         .dept-flow-card.has-blocked {
-          border-color: rgba(239, 68, 68, 0.5);
-          box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
-          background: linear-gradient(180deg, rgba(239, 68, 68, 0.03) 0%, rgba(25, 25, 25, 0.6) 100%);
+          border-color: var(--red);
+          box-shadow: 0 0 20px rgba(239, 68, 68, 0.12);
+          background: linear-gradient(180deg, var(--red-dim) 0%, var(--bg2) 100%);
         }
         .dept-card-header {
           margin-bottom: 20px;
           padding-bottom: 16px;
-          border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+          border-bottom: 1px dashed var(--border2);
         }
         .dept-card-title-row {
           display: flex;
@@ -735,40 +733,40 @@ export default function FlowView({
         .dept-card-title {
           font-size: 15px;
           font-weight: 700;
-          color: #f8fafc;
+          color: var(--text);
           letter-spacing: 0.5px;
           text-transform: uppercase;
         }
         .dept-card-sub {
           font-size: 11px;
-          color: #94a3b8;
+          color: var(--text3);
           margin-top: 2px;
         }
         .dept-card-ord-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: rgba(0, 0, 0, 0.2);
+          background: var(--bg3);
           padding: 8px 12px;
           border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.03);
+          border: 1px solid var(--border);
         }
         .ord-badge {
           font-family: 'JetBrains Mono', 'Fira Code', monospace;
           font-weight: 600;
           font-size: 13px;
-          color: #cbd5e1;
+          color: var(--text2);
         }
         .delivery-badge {
           display: flex;
           align-items: center;
           gap: 4px;
           font-size: 11px;
-          color: #a78bfa;
-          background: rgba(167, 139, 250, 0.1);
+          color: var(--purple);
+          background: var(--purple-dim);
           padding: 4px 8px;
           border-radius: 6px;
-          border: 1px solid rgba(167, 139, 250, 0.2);
+          border: 1px solid rgba(167, 139, 250, 0.25);
           font-weight: 500;
         }
         .delivery-badge .icon {
@@ -784,14 +782,14 @@ export default function FlowView({
           width: 100%;
           min-width: 0;
           max-width: none;
-          background: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          background: var(--bg3);
+          border: 1px solid var(--border);
           border-radius: 8px;
           transition: all 0.2s;
         }
         .dept-card-tasks-vertical .step:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: rgba(255, 255, 255, 0.1);
+          background: var(--bg4);
+          border-color: var(--border2);
           transform: translateX(4px);
         }
         .pulse-sales {

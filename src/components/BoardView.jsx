@@ -55,13 +55,18 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
       if (statusFilter === 'completed' && o.status !== 'completed') return false;
       
       if (searchTerm.trim() !== '') {
-        const query = searchTerm.toLowerCase();
-        const matchesOrderNumber = (o.order_number || '').toLowerCase().includes(query);
-        const matchesCompany = (o.company_name || '').toLowerCase().includes(query);
-        const matchesPO = (o.po_number || '').toLowerCase().includes(query);
-        const matchesSteps = o.steps && o.steps.some(s => (s.name || '').toLowerCase().includes(query) || (s.dept || '').toLowerCase().includes(query));
+        const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
+        const orderNum = (o.order_number || '').toLowerCase();
+        const compName = (o.company_name || '').toLowerCase();
+        const poNum = (o.po_number || '').toLowerCase();
         
-        if (!matchesOrderNumber && !matchesCompany && !matchesPO && !matchesSteps) return false;
+        const matchesAllTokens = tokens.every(token => 
+          orderNum.includes(token) || 
+          compName.includes(token) || 
+          poNum.includes(token) ||
+          (o.steps && o.steps.some(s => (s.name || '').toLowerCase().includes(token) || (s.dept || '').toLowerCase().includes(token)))
+        );
+        if (!matchesAllTokens) return false;
       }
       
       return true;

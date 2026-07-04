@@ -119,10 +119,20 @@ export default function Header({ onLogout }) {
     }
   };
 
-  const filteredOrders = orders.filter(o => 
-    (o.order_number || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (o.company_name || '').toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const isQueryingSelected = selectedOrderId && searchQuery.trim() === (orders.find(o => o.id == selectedOrderId)?.order_number || '');
+  const filteredOrders = orders.filter(o => {
+    const q = isQueryingSelected ? '' : searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const tokens = q.split(/\s+/);
+    const orderNum = (o.order_number || '').toLowerCase();
+    const compName = (o.company_name || '').toLowerCase();
+    const poNum = (o.po_number || '').toLowerCase();
+    return tokens.every(token => 
+      orderNum.includes(token) || 
+      compName.includes(token) || 
+      poNum.includes(token)
+    );
+  });
 
   return (
     <div className="header">
@@ -222,20 +232,20 @@ export default function Header({ onLogout }) {
           margin-right: 16px;
         }
         .order-search-input {
-          background: var(--bg4);
+          background: var(--bg3);
           border: 1px solid var(--border2);
           border-radius: 20px;
           color: var(--text);
-          padding: 6px 30px 6px 32px;
+          padding: 8px 30px 8px 32px;
           font-size: 12px;
-          width: 240px;
+          width: 260px;
           outline: none;
           transition: all 0.2s;
+          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
         }
         .order-search-input:focus {
-          background: var(--bg3);
-          border-color: var(--blue);
-          box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.15);
         }
         .search-icon {
           position: absolute;

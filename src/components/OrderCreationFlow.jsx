@@ -10,6 +10,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     po_number: '',
     packaging_type: '',
     end_client_name: '',
+    gst_number: '',
     lineItems: [{
       line_item_number: '0001',
       material_description: '',
@@ -145,6 +146,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('priority', formData.priority);
     data.append('po_number', formData.po_number);
     data.append('end_client_name', formData.end_client_name || '');
+    data.append('gst_number', formData.gst_number || '');
     data.append('lineItems', JSON.stringify(formData.lineItems));
 
     if (files.po) data.append('po', files.po);
@@ -176,6 +178,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           po_number: '',
           packaging_type: '',
           end_client_name: '',
+          gst_number: '',
           lineItems: [{
             line_item_number: '0001',
             material_description: '',
@@ -300,6 +303,17 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               />
             </div>
 
+            <div className="form-group">
+              <label>GST Number (Optional)</label>
+              <input 
+                type="text" 
+                name="gst_number" 
+                value={formData.gst_number} 
+                onChange={handleInputChange} 
+                placeholder="e.g. 27AAAAA1111A1Z1"
+              />
+            </div>
+
             <div className="form-group full-width">
               <label>Overall Order Notes</label>
               <textarea 
@@ -319,48 +333,48 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
             
             {formData.lineItems.map((li, idx) => (
-              <div key={idx} style={{ background: '#111', padding: '20px', borderRadius: '12px', border: '1px solid #333', marginBottom: '16px', position: 'relative' }}>
+              <div key={idx} style={{ background: 'var(--bg3)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '16px', position: 'relative' }}>
                 {formData.lineItems.length > 1 && (
                   <button type="button" onClick={() => removeLineItem(idx)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>✕</button>
                 )}
                 <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Line Item #</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item #</label>
                     <input type="text" className="form-input" value={li.line_item_number} onChange={e => handleLineItemChange(idx, 'line_item_number', e.target.value)} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Material Description</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Material Description</label>
                     <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Part Number *</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Part Number *</label>
                     <input type="text" className="form-input" value={li.part_number} onChange={e => handleLineItemChange(idx, 'part_number', e.target.value)} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Panel Type / Size</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Type / Size</label>
                     <input type="text" className="form-input" value={li.panel_type_size} onChange={e => handleLineItemChange(idx, 'panel_type_size', e.target.value)} />
                   </div>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '100px 100px 150px 150px 150px', gap: '16px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Quantity *</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Quantity *</label>
                     <input type="number" className="form-input" min="1" value={li.quantity} onChange={e => handleLineItemChange(idx, 'quantity', e.target.value)} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Unit</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Unit</label>
                     <input type="text" className="form-input" value={li.unit} onChange={e => handleLineItemChange(idx, 'unit', e.target.value)} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Unit Price *</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Unit Price *</label>
                     <input type="number" step="0.01" className="form-input" value={li.unit_price} onChange={e => handleLineItemChange(idx, 'unit_price', e.target.value)} required />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Total Price</label>
-                    <input type="number" step="0.01" className="form-input" value={li.total_price} onChange={e => handleLineItemChange(idx, 'total_price', e.target.value)} readOnly style={{ background: '#222' }} />
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Total Price</label>
+                    <input type="number" step="0.01" className="form-input" value={li.total_price} onChange={e => handleLineItemChange(idx, 'total_price', e.target.value)} readOnly style={{ background: 'var(--bg4)', opacity: 0.7 }} />
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: '#888', marginBottom: '4px' }}>Delivery Date</label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Delivery Date</label>
                     <input type="date" className="form-input" value={li.delivery_date} onChange={e => handleLineItemChange(idx, 'delivery_date', e.target.value)} />
                   </div>
                 </div>
@@ -377,8 +391,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
           <div className="file-upload-section">
             <h3 className="section-title">Required Documents</h3>
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '16px' }}>
-              ⚠️ Only <strong style={{ color: '#aaa' }}>one</strong> PO copy and one Quotation allowed. To replace after submission, delete the existing file first.
+            <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '16px' }}>
+              ⚠️ Only <strong style={{ color: 'var(--text2)' }}>one</strong> PO copy and one Quotation allowed. To replace after submission, delete the existing file first.
             </div>
             <div className="file-grid">
 
@@ -386,7 +400,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               <div className="file-input-wrapper">
                 <label>Customer PO Copy</label>
                 {files.po ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px' }}>
                     <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.po.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -396,7 +410,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <button type="button" onClick={() => removeSingleFile('po')} className="remove-file-btn" title="Remove">✕</button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed #444', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: '#888', fontSize: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px' }}>
                     📎 Choose file…
                     <input id="file-input-po" type="file" hidden onChange={(e) => handleFileChange(e, 'po')} />
                   </label>
@@ -407,7 +421,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               <div className="file-input-wrapper">
                 <label>Quotation</label>
                 {files.quotation ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: '#1a1a1a', border: '1px solid #333', borderRadius: '6px', padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px' }}>
                     <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.quotation.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -417,7 +431,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <button type="button" onClick={() => removeSingleFile('quotation')} className="remove-file-btn" title="Remove">✕</button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed #444', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: '#888', fontSize: '12px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px' }}>
                     📎 Choose file…
                     <input id="file-input-quotation" type="file" hidden onChange={(e) => handleFileChange(e, 'quotation')} />
                   </label>
@@ -456,32 +470,32 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           margin: 0 auto;
         }
         .form-card {
-          background: #1a1a1a;
-          border: 1px solid #333;
+          background: var(--bg2);
+          border: 1px solid var(--border);
           border-radius: 16px;
           padding: 32px;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+          box-shadow: 0 4px 24px rgba(0,0,0,0.1);
         }
-        .form-title { margin: 0 0 8px 0; color: #fff; font-size: 24px; }
-        .form-subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
+        .form-title { margin: 0 0 8px 0; color: var(--text); font-size: 24px; }
+        .form-subtitle { color: var(--text3); font-size: 14px; margin-bottom: 32px; }
         
         .order-form { display: flex; flex-direction: column; gap: 24px; }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .full-width { grid-column: span 2; }
         
         .form-group { display: flex; flex-direction: column; gap: 8px; }
-        .form-group label { color: #bbb; font-size: 13px; font-weight: 500; }
+        .form-group label { color: var(--text2); font-size: 13px; font-weight: 500; }
         .form-group input, .form-group textarea {
-          background: #0f0f0f;
-          border: 1px solid #333;
+          background: var(--bg3);
+          border: 1px solid var(--border);
           border-radius: 8px;
           padding: 12px;
-          color: #eee;
+          color: var(--text);
           font-size: 14px;
           transition: border-color 0.2s;
         }
         .form-group input:focus, .form-group textarea:focus {
-          border-color: #3b82f6;
+          border-color: var(--blue);
           outline: none;
         }
         .form-group textarea { min-height: 80px; resize: vertical; }
@@ -489,23 +503,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         .file-upload-section {
           margin-top: 16px;
           padding-top: 24px;
-          border-top: 1px solid #333;
+          border-top: 1px solid var(--border);
         }
-        .section-title { font-size: 16px; color: #fff; margin-bottom: 16px; }
+        .section-title { font-size: 16px; color: var(--text); margin-bottom: 16px; }
         .file-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
         
         .file-input-wrapper { 
           display: flex; flex-direction: column; gap: 12px;
-          background: #111; border: 1px dashed #444; border-radius: 12px; padding: 20px;
+          background: var(--bg3); border: 1px dashed var(--border2); border-radius: 12px; padding: 20px;
           align-items: center; justify-content: center; text-align: center;
           transition: border-color 0.2s, background 0.2s;
         }
-        .file-input-wrapper:hover { border-color: #3b82f6; background: #151515; }
-        .file-input-wrapper label { color: #bbb; font-size: 13px; font-weight: 600; }
+        .file-input-wrapper:hover { border-color: var(--blue); background: var(--bg4); }
+        .file-input-wrapper label { color: var(--text2); font-size: 13px; font-weight: 600; }
         .file-input-wrapper input[type="file"] {
-          font-size: 12px; color: #888; max-width: 100%;
+          font-size: 12px; color: var(--text3); max-width: 100%;
         }
-        .file-name-hint { font-size: 12px; color: #3b82f6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;}
+        .file-name-hint { font-size: 12px; color: var(--blue); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;}
         
         .selected-files-list {
           display: flex; flex-direction: column; gap: 4px; width: 100%;
@@ -513,16 +527,16 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         }
         .selected-file-item {
           display: flex; justify-content: space-between; align-items: center;
-          background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;
+          background: var(--bg4); padding: 4px 8px; border-radius: 4px;
         }
         .remove-file-btn {
-          background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 12px; padding: 2px 6px;
+          background: transparent; border: none; color: var(--red); cursor: pointer; font-size: 12px; padding: 2px 6px;
         }
-        .remove-file-btn:hover { color: #f87171; }
+        .remove-file-btn:hover { opacity: 0.8; }
         
         .form-actions { margin-top: 16px; display: flex; justify-content: flex-end; }
         .submit-btn {
-          background: #3b82f6;
+          background: var(--blue);
           color: white;
           border: none;
           padding: 14px 28px;
@@ -531,7 +545,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           cursor: pointer;
           transition: transform 0.1s, background 0.2s;
         }
-        .submit-btn:hover { background: #2563eb; transform: translateY(-1px); }
+        .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
         .submit-btn:active { transform: translateY(0); }
         .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
       `}} />

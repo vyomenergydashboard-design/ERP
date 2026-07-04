@@ -165,6 +165,7 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS qc_date DATE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_number TEXT;
 
 -- Planning Module columns for order_line_items (Line Item Planning)
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS planned_dispatch_date DATE;
