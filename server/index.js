@@ -13,6 +13,30 @@ import nodemailer from 'nodemailer';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Hold validation helpers
+const isOrderOnHold = async (orderId) => {
+  const res = await pool.query("SELECT hold_status FROM orders WHERE id = $1", [orderId]);
+  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+};
+
+const isUnitOnHold = async (unitId) => {
+  const res = await pool.query(
+    "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1",
+    [unitId]
+  );
+  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+};
+
+const isLineItemOnHold = async (lineItemId) => {
+  const res = await pool.query(
+    "SELECT o.hold_status FROM orders o JOIN order_line_items oli ON oli.order_id = o.id WHERE oli.id = $1",
+    [lineItemId]
+  );
+  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+};
+
+let isSystemSeeding = false;
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -20,7 +44,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 const DEFAULT_STEPS = [
   { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order' },
   { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, default_doc_type: 'General', level: 'order' },
-  { dept: 'Design', name: 'Review & Classify', sub: 'Standard / Non-Standard', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { 
+    dept: 'Design', 
+    name: 'Review & Classify', 
+    sub: 'Standard / Non-Standard', 
+    special: null, 
+    requires_upload: false, 
+    default_doc_type: 'General', 
+    level: 'unit',
+    custom_fields: [
+      { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'] }
+    ]
+  },
   { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, default_doc_type: 'Drawing', level: 'unit' },
   { dept: 'Purchase', name: 'Receive Shortfall', sub: 'From Stores after BOM check', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'Purchase', name: 'Procure Materials', sub: 'Raise PO to supplier', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
@@ -144,6 +179,100 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
   }
 };
 
+const sendHoldRequestEmail = async (orderId, orderNumber, requestedByUsername) => {
+  const emailSubject = `[Vyom ERP] Hold Requested for Order ${orderNumber}`;
+  
+  let recipientEmails = [];
+  try {
+    const usersRes = await pool.query(
+      `SELECT email FROM users WHERE role = 'Admin' OR role = 'Manager'`
+    );
+    recipientEmails = usersRes.rows.map(u => u.email).filter(Boolean);
+  } catch (err) {
+    console.error('Error fetching admin/manager emails for hold:', err);
+  }
+
+  if (recipientEmails.length === 0) {
+    recipientEmails.push(`admin@vyomerp.local`);
+  }
+
+  const htmlContent = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #cbd5e1; border-radius: 12px; background-color: #fafbfc;">
+      <div style="text-align: center; border-bottom: 2px solid #ef4444; padding-bottom: 15px; margin-bottom: 20px;">
+        <h2 style="color: #1e293b; margin: 0;">Vyom ERP Hold Request Alert</h2>
+        <span style="color: #64748b; font-size: 13px;">Hold Approval Required</span>
+      </div>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        Hello Admin / Manager,
+      </p>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        The user <strong>${requestedByUsername}</strong> has requested to put Order <strong>${orderNumber}</strong> on hold.
+      </p>
+      <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ef4444;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+          <tr>
+            <td style="padding: 4px 0; color: #64748b; width: 140px;"><strong>Order Number:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b; font-weight: bold;">${orderNumber}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Requested By:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b;">${requestedByUsername}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Requested At:</strong></td>
+            <td style="padding: 4px 0; color: #1e293b;">${new Date().toLocaleString('en-IN')}</td>
+          </tr>
+        </table>
+      </div>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        Please log in to the ERP panel to review and Approve or Reject this hold request.
+      </p>
+      <div style="text-align: center; margin-top: 30px; margin-bottom: 20px;">
+        <a href="http://localhost:5173" style="background-color: #3b82f6; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block;">View Order Details</a>
+      </div>
+      <div style="text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 12px; margin-top: 20px;">
+        Automated notification sent by Vyom ERP. Please do not reply directly to this mail.
+      </div>
+    </div>
+  `;
+
+  const mailOptions = {
+    from: process.env.SMTP_FROM || '"Vyom ERP System" <noreply@vyomerp.local>',
+    to: recipientEmails.join(', '),
+    subject: emailSubject,
+    html: htmlContent
+  };
+
+  console.log('\n┌────────────────────────────────────────────────────────┐');
+  console.log('│             SIMULATED OUTGOING HOLD EMAIL              │');
+  console.log('├────────────────────────────────────────────────────────┤');
+  console.log(`│ From:    ${mailOptions.from}`);
+  console.log(`│ To:      ${mailOptions.to}`);
+  console.log(`│ Subject: ${mailOptions.subject}`);
+  console.log('├────────────────────────────────────────────────────────┤');
+  console.log(`│ Hold requested for order ${orderNumber} by ${requestedByUsername}`);
+  console.log('└────────────────────────────────────────────────────────┘\n');
+
+  try {
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text, order_id) 
+       VALUES ((SELECT id FROM users WHERE username = 'admin' LIMIT 1), 'System', $1, $2)`,
+      [`[Email Sent] ${emailSubject} to ${mailOptions.to}`, orderId]
+    );
+  } catch (err) {
+    console.error('Error logging email activity:', err);
+  }
+
+  if (process.env.SMTP_USER && process.env.SMTP_USER !== 'mock_user') {
+    try {
+      await transporter.sendMail(mailOptions);
+      console.log('Hold alert email sent successfully via SMTP');
+    } catch (smtpErr) {
+      console.error('SMTP Delivery failed for hold alert:', smtpErr);
+    }
+  }
+};
+
 const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
   try {
     const unitsRes = await clientOrPool.query(
@@ -251,7 +380,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
     [newStatus, newDept, unitId]
   );
 
-  if (oldDept && oldDept !== newDept && newDept !== 'Planning') {
+  if (oldDept && oldDept !== newDept && newDept !== 'Planning' && !isSystemSeeding) {
     sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept).catch(console.error);
   }
 
@@ -360,6 +489,7 @@ const updateOrderQCStatusFromSteps = async (orderId, clientOrPool) => {
 
 // Auto-initialize Database
 const initDB = async () => {
+  isSystemSeeding = true;
   try {
     const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
     await pool.query(sql);
@@ -371,17 +501,41 @@ const initDB = async () => {
     const expectedSignatures = DEFAULT_STEPS.map(s => `${s.name}:${s.level}`).sort();
     const isMatching = JSON.stringify(currentSignatures) === JSON.stringify(expectedSignatures);
     
-    if (!isMatching) {
+    // Force sync if the Design 'Review & Classify' step doesn't have the classification custom field template yet
+    const reviewTask = await pool.query("SELECT custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify'");
+    const hasDropdown = reviewTask.rows.length > 0 && reviewTask.rows[0].custom_fields?.some(f => f.label === 'Classification');
+
+    if (!isMatching || !hasDropdown) {
       console.log('Syncing task_masters to new defaults...');
       await pool.query('TRUNCATE TABLE task_masters RESTART IDENTITY CASCADE;');
       for (const step of DEFAULT_STEPS) {
         await pool.query(
-          `INSERT INTO task_masters (dept, name, sub, special, requires_upload, default_doc_type, is_mandatory, level) 
-           VALUES ($1, $2, $3, $4, $5, $6, true, $7)`,
-          [step.dept, step.name, step.sub, step.special, step.requires_upload, step.default_doc_type || 'General', step.level]
+          `INSERT INTO task_masters (dept, name, sub, special, requires_upload, default_doc_type, is_mandatory, level, custom_fields) 
+           VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8)`,
+          [
+            step.dept, 
+            step.name, 
+            step.sub, 
+            step.special, 
+            step.requires_upload, 
+            step.default_doc_type || 'General', 
+            step.level,
+            JSON.stringify(step.custom_fields || [])
+          ]
         );
       }
       console.log('task_masters updated successfully!');
+
+      // Retroactively update existing 'Review & Classify' steps in unit_steps
+      const designClassifyId = await pool.query("SELECT custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify' LIMIT 1");
+      if (designClassifyId.rows.length > 0) {
+        const templateCf = designClassifyId.rows[0].custom_fields;
+        const fieldDefsWithVal = templateCf.map(f => ({ ...f, value: 'Standard' }));
+        await pool.query(
+          "UPDATE unit_steps SET custom_fields = $1 WHERE name = 'Review & Classify' AND (custom_fields IS NULL OR custom_fields = '[]'::jsonb)",
+          [JSON.stringify(fieldDefsWithVal)]
+        );
+      }
     }
 
     // Auto-restore steps for existing orders and units if they have 0 steps
@@ -465,6 +619,8 @@ const initDB = async () => {
     console.log('QC statuses synchronized for all orders.');
   } catch (err) {
     console.error('Database initialization failed:', err);
+  } finally {
+    isSystemSeeding = false;
   }
 };
 
@@ -662,7 +818,7 @@ app.get('/api/users', authorize(), async (req, res) => {
 
 app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
   const { role } = req.body;
-  const VALID_ROLES = ['Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -706,7 +862,7 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     return res.status(400).json({ error: 'Username, email, and role are required' });
   }
   
-  const VALID_ROLES = ['Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -778,7 +934,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name, gst_number } = req.body;
+    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name, gst_number, reference_number, classification } = req.body;
     let parsedLineItems = [];
     try {
       parsedLineItems = JSON.parse(lineItems);
@@ -789,12 +945,13 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     // 1. Create Order
     const order_number = await generateOrderNumber();
     const orderResult = await client.query(
-      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null]
+      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard']
     );
     const order = orderResult.rows[0];    // 2. Insert Line Items and Generate Unit IDs sequentially
-    let globalUnitCounter = 1;
+    const maxSerialRes = await client.query('SELECT MAX(CAST(short_serial AS INTEGER)) as max_serial FROM order_units');
+    let globalUnitCounter = (maxSerialRes.rows[0]?.max_serial || 0) + 1;
     let totalUnits = 0;
     const createdUnits = [];
 
@@ -927,6 +1084,153 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     res.status(500).json({ error: 'Failed to create order' });
   } finally {
     client.release();
+  }
+});
+
+app.put('/api/orders/:id', authorize(['Admin']), async (req, res) => {
+  const { 
+    company_location_id, 
+    order_date, 
+    delivery_date, 
+    notes, 
+    priority, 
+    po_number, 
+    packaging_type, 
+    end_client_name, 
+    gst_number, 
+    reference_number,
+    classification
+  } = req.body;
+  
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order_number = checkOrder.rows[0].order_number;
+
+    const result = await pool.query(
+      `UPDATE orders 
+       SET company_location_id = COALESCE($1, company_location_id), 
+           order_date = $2, 
+           delivery_date = $3, 
+           notes = $4, 
+           priority = COALESCE($5, priority), 
+           po_number = $6, 
+           packaging_type = $7, 
+           end_client_name = $8, 
+           gst_number = $9, 
+           reference_number = $10,
+           classification = COALESCE($11, classification)
+       WHERE id = $12 
+       RETURNING *`,
+      [
+        company_location_id ? parseInt(company_location_id) : null, 
+        order_date || null, 
+        delivery_date || null, 
+        notes || null, 
+        priority || 'Medium', 
+        po_number || null, 
+        packaging_type || null, 
+        end_client_name || null, 
+        gst_number || null, 
+        reference_number || null,
+        classification || null,
+        req.params.id
+      ]
+    );
+
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [
+        req.user.id, 
+        req.user.role, 
+        `Amended order details for ${order_number}`, 
+        req.params.id
+      ]
+    );
+
+    res.json({ success: true, order: result.rows[0] });
+  } catch (err) {
+    console.error('Failed to amend order details:', err);
+    res.status(500).json({ error: 'Failed to amend order details' });
+  }
+});
+
+app.post('/api/orders/:id/hold/request', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order_number = checkOrder.rows[0].order_number;
+
+    await pool.query("UPDATE orders SET hold_status = 'Requested' WHERE id = $1", [req.params.id]);
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Requested hold for order ${order_number}`, req.params.id]
+    );
+
+    const userRes = await pool.query('SELECT username FROM users WHERE id = $1', [req.user.id]);
+    const requestedByUsername = userRes.rows[0]?.username || 'Sales User';
+    sendHoldRequestEmail(req.params.id, order_number, requestedByUsername).catch(console.error);
+
+    res.json({ success: true, message: 'Hold requested successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/orders/:id/hold/approve', authorize(['Admin', 'Manager']), async (req, res) => {
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order_number = checkOrder.rows[0].order_number;
+
+    await pool.query("UPDATE orders SET hold_status = 'Approved' WHERE id = $1", [req.params.id]);
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Approved hold for order ${order_number}`, req.params.id]
+    );
+    res.json({ success: true, message: 'Order put on hold.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/orders/:id/hold/reject', authorize(['Admin', 'Manager']), async (req, res) => {
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order_number = checkOrder.rows[0].order_number;
+
+    await pool.query("UPDATE orders SET hold_status = 'None' WHERE id = $1", [req.params.id]);
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Rejected hold request for order ${order_number}`, req.params.id]
+    );
+    res.json({ success: true, message: 'Hold request rejected.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/orders/:id/hold/resume', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  try {
+    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const order_number = checkOrder.rows[0].order_number;
+
+    await pool.query("UPDATE orders SET hold_status = 'None' WHERE id = $1", [req.params.id]);
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Resumed order ${order_number}`, req.params.id]
+    );
+    res.json({ success: true, message: 'Order resumed successfully.' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -1114,20 +1418,14 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       );
 
       let order;
-      let globalUnitCounter = 1;
+      const maxGlobalSerialRes = await client.query('SELECT COALESCE(MAX(short_serial::integer), 0) as max_serial FROM order_units');
+      let globalUnitCounter = parseInt(maxGlobalSerialRes.rows[0].max_serial) + 1;
       let lineNum = 1;
       let isAppended = false;
 
       if (existingOrderRes.rows.length > 0) {
         order = existingOrderRes.rows[0];
         isAppended = true;
-
-        // Find current max unit short_serial to continue the sequence
-        const maxSerialRes = await client.query(
-          'SELECT COALESCE(MAX(short_serial::integer), 0) as max_serial FROM order_units WHERE order_id = $1',
-          [order.id]
-        );
-        globalUnitCounter = parseInt(maxSerialRes.rows[0].max_serial) + 1;
 
         // Find current max line item number to continue the line sequence
         const maxLiRes = await client.query(
@@ -1141,11 +1439,17 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       } else {
         // Create order
         const order_number = await generateOrderNumber();
+        const VALID_CLASSIFICATIONS = ['Standard', 'Non-Standard'];
+        const classification = VALID_CLASSIFICATIONS.includes(header['classification']) ? header['classification'] : 'Standard';
         const orderResult = await client.query(
-          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
           [order_number, company_location_id, order_date, delivery_date,
-           header['order_notes'] || null, priority, po_number, packaging_type, req.user.id, header['end_client_name'] || header['end_client'] || null]
+           header['order_notes'] || null, priority, po_number, packaging_type, req.user.id,
+           header['end_client_name'] || header['end_client'] || null,
+           header['gst_number'] || null,
+           header['reference_number'] || null,
+           classification]
         );
         order = orderResult.rows[0];
       }
@@ -1518,6 +1822,9 @@ app.put('/api/orders/:orderId/steps/reorder', authorize(), async (req, res) => {
 });
 
 app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
+  if (await isOrderOnHold(req.params.orderId)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { status, notes, dispatchDate, custom_fields } = req.body;
   const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   try {
@@ -1609,7 +1916,7 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
   }
 });
 
-app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.get('/api/planning', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
@@ -1674,10 +1981,17 @@ app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req
   }
 });
 
-app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
   const { lineItemIds, fields } = req.body;
   if (!lineItemIds || !Array.isArray(lineItemIds) || lineItemIds.length === 0) {
     return res.status(400).json({ error: 'lineItemIds array required' });
+  }
+
+  // Check if any order is on hold
+  for (const lineItemId of lineItemIds) {
+    if (await isLineItemOnHold(lineItemId)) {
+      return res.status(400).json({ error: 'One or more of the selected orders are currently on hold. Updates are disabled.' });
+    }
   }
 
   const client = await pool.connect();
@@ -1778,7 +2092,10 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
   }
 });
 
-app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+  if (await isLineItemOnHold(req.params.lineItemId)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { 
     end_client_name, 
     planned_dispatch_date, 
@@ -1853,7 +2170,10 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
   }
 });
 
-app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+  if (await isOrderOnHold(req.params.id)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { 
     end_client_name, 
     planned_dispatch_date, 
@@ -1954,6 +2274,9 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
 });
 
 app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
+  if (await isUnitOnHold(req.params.unitId)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { status, notes, dispatchDate, custom_fields, assigned_user_id } = req.body;
   const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
   
@@ -2049,6 +2372,9 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
 
 app.put('/api/units/:id/status', authorize(), async (req, res) => {
+  if (await isUnitOnHold(req.params.id)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { status } = req.body;
   try {
     const result = await pool.query(
@@ -2069,7 +2395,10 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+  if (await isLineItemOnHold(req.params.lineItemId)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
   const { dept, status } = req.body;
   if (!dept || !status) return res.status(400).json({ error: 'dept and status are required' });
 
@@ -2213,6 +2542,15 @@ app.post('/api/companies', authorize(['Admin']), async (req, res) => {
 app.post('/api/documents/upload', authorize(), upload.array('files', 20), async (req, res) => {
   const { entity_type, entity_id, doc_type } = req.body;
   try {
+    if (entity_type === 'Order') {
+      if (await isOrderOnHold(entity_id)) {
+        return res.status(400).json({ error: 'Order is currently on hold. Document uploads are disabled.' });
+      }
+    } else if (entity_type === 'Unit') {
+      if (await isUnitOnHold(entity_id)) {
+        return res.status(400).json({ error: 'Order is currently on hold. Document uploads are disabled.' });
+      }
+    }
     if (doc_type === 'PO') {
       const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
       if (!isSalesOrAccounts) {
@@ -2462,6 +2800,9 @@ const templateHandler = (req, res) => {
     ['PO Details','packaging_type','Wooden Packaging','NO','Wooden Packaging | Foam Packaging'],
     ['PO Details','end_client_name','Basavanakolla site','NO','End client name / site location'],
     ['PO Details','order_notes','Handle with care.','NO','Overall order notes'],
+    ['PO Details','gst_number','27AAAAA1111A1Z1','NO','GST Number of client'],
+    ['PO Details','reference_number','REF-2026-99','NO','Customer Reference Number'],
+    ['PO Details','classification','Standard','NO','Standard | Non-Standard (Defaults to Standard)'],
     ['── LINE ITEMS ──','','','','One row per line item; repeat po_number to group into one order'],
     ['Line Item','line_item_number','0001','YES','0001, 0002, 0003 etc.'],
     ['Line Item','material_description','VFD Control Panel 22kW','YES','Full description'],
@@ -2482,6 +2823,7 @@ const templateHandler = (req, res) => {
   const COLS = [
     'company_name','company_city','order_date','delivery_date',
     'po_number','priority','packaging_type','end_client_name','order_notes',
+    'gst_number','reference_number','classification',
     'line_item_number','material_description','part_number','panel_type_size',
     'quantity','unit','unit_price','total_price',
     'line_item_delivery_date','line_item_notes'
@@ -2489,22 +2831,22 @@ const templateHandler = (req, res) => {
 
   // Visual group-label row so users understand which columns are order-level vs item-level
   const groupRow = [
-    '<-- ORDER LEVEL: repeat these 9 columns on every row of the same PO -->',
-    '','','','','','','','',
+    '<-- ORDER LEVEL: repeat these 12 columns on every row of the same PO -->',
+    '','','','','','','','','','','',
     '<-- LINE ITEM LEVEL: one row = one item in the order -->',
     '','','','','','','','',''
   ];
 
   const exampleRows = [
     // ORDER 1 — PO-2026-1001 — 3 line items (same PO groups them into 1 order)
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Rush order — deliver before monsoon','00010','VFD Control Panel 22kW','VFD-22K-STD','VFD Panel 800x600',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','00020','Motor Control Centre 8 Way','MCC-400A-8W','MCC Panel 1800x800',2,'Nos',72000,144000,'2026-07-15',''],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','00030','Power Factor Correction Panel','PFCP-100K','PFCP 600x500',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','VFD Panel 800x600',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','MCC Panel 1800x800',2,'Nos',72000,144000,'2026-07-15',''],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','PFCP 600x500',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
     // ORDER 2 — PO-2026-1002 — 1 line item
-    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','','00010','PLC Automation Panel','PLC-S7-300','600x400',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
+    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
     // ORDER 3 — PO-2026-1003 — 2 line items
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Standard delivery','00010','Distribution Board 8 Way','DB-8W-63A','DB 400x300',5,'Nos',12000,60000,'2026-09-01',''],
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','DB 400x300',5,'Nos',12000,60000,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
   ];
 
   // Pre-allocate 2000 blank rows so the sheet is bulk-paste ready
@@ -2512,7 +2854,7 @@ const templateHandler = (req, res) => {
 
   const tmpl = [groupRow, COLS, ...exampleRows, ...blankRows];
   const ws2 = XLSX.utils.aoa_to_sheet(tmpl);
-  ws2['!cols'] = [20,15,13,15,20,10,18,22,38,18,32,18,22,10,8,12,12,24,38].map(w => ({ wch: w }));
+  ws2['!cols'] = [20,15,13,15,20,10,18,22,38,22,22,16,18,32,18,22,10,8,12,12,24,38].map(w => ({ wch: w }));
   // Freeze top 2 rows — headers stay visible scrolling through thousands of rows
   ws2['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
   XLSX.utils.book_append_sheet(wb, ws2, 'Import Template');
@@ -2602,13 +2944,18 @@ app.use((err, req, res, next) => {
 // Auto-seed Admin User 'Saya' if not present
 const seedSayaUser = async () => {
   try {
-    // Auto-migrate role constraints at boot to support the new Planning role
+    // Auto-migrate tables at boot to support Reference Number and Hold Status
+    await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reference_number TEXT');
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None'");
+    await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard'");
+
+    // Auto-migrate role constraints at boot to revert Planning default
     await pool.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
     await pool.query(`
       ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'))
+      CHECK (role IN ('Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'))
     `);
-    await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Planning'");
+    await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Viewer'");
 
     const userRes = await pool.query("SELECT id FROM users WHERE username = 'Saya' OR email = 'sayamumbaikar26@gmail.com' LIMIT 1");
     if (userRes.rows.length === 0) {

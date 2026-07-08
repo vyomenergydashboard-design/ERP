@@ -23,6 +23,107 @@ export default function OrderList({ initialSelectedId }) {
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
+  // Amend Order states
+  const [editingOrderDetails, setEditingOrderDetails] = useState(null);
+  const [editOrderForm, setEditOrderForm] = useState({
+    company_location_id: '',
+    order_date: '',
+    delivery_date: '',
+    notes: '',
+    priority: 'Medium',
+    po_number: '',
+    packaging_type: '',
+    end_client_name: '',
+    gst_number: '',
+    reference_number: '',
+    classification: 'Standard',
+  });
+  const [companiesList, setCompaniesList] = useState([]);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+
+  const fetchCompanies = async () => {
+    try {
+      const res = await fetch(window.API_BASE + "/api/companies", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setCompaniesList(await res.json());
+      }
+    } catch (err) {
+      console.error('Fetch companies error:', err);
+    }
+  };
+
+  const handleStartEditOrder = (order) => {
+    setEditOrderForm({
+      company_location_id: order.company_location_id || '',
+      order_date: order.order_date ? order.order_date.split('T')[0] : '',
+      delivery_date: order.delivery_date ? order.delivery_date.split('T')[0] : '',
+      notes: order.notes || '',
+      priority: order.priority || 'Medium',
+      po_number: order.po_number || '',
+      packaging_type: order.packaging_type || '',
+      end_client_name: order.end_client_name || '',
+      gst_number: order.gst_number || '',
+      reference_number: order.reference_number || '',
+      classification: order.classification || 'Standard',
+    });
+    setEditingOrderDetails(order);
+    fetchCompanies();
+  };
+
+  const handleEditOrderSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingEdit(true);
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${editingOrderDetails.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(editOrderForm)
+      });
+      if (res.ok) {
+        alert('Order amended successfully!');
+        setEditingOrderDetails(null);
+        await fetchOrderDetails(selectedOrder.id);
+        await fetchOrders();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to amend order.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error, please try again.');
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleHoldAction = async (action) => {
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/hold/${action}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        await fetchOrderDetails(selectedOrder.id);
+        await fetchOrders();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to update hold status');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error updating hold status');
+    }
+  };
+
   const isAdmin = ['Admin', 'Manager', 'Sales'].includes(currentUser.role);
 
   const handleBulkUpdateSubmit = async (e) => {
@@ -337,15 +438,90 @@ export default function OrderList({ initialSelectedId }) {
           <div className="details-content">
             <div className="details-header">
               <div>
-                <h2>{selectedOrder.order_number}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                  <h2 style={{ margin: 0 }}>{selectedOrder.order_number}</h2>
+                  {currentUser.role === 'Admin' && (
+                    <button 
+                      className="vbtn" 
+                      style={{ padding: '4px 12px', fontSize: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => handleStartEditOrder(selectedOrder)}
+                    >
+                      Amend Order
+                    </button>
+                  )}
+
+                  {/* Hold management buttons */}
+                  {selectedOrder.hold_status === 'Requested' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontWeight: '600' }}>
+                        Hold Requested
+                      </span>
+                      {['Admin', 'Manager'].includes(currentUser.role) && (
+                        <>
+                          <button 
+                            type="button"
+                            className="vbtn" 
+                            style={{ padding: '4px 12px', fontSize: '11px', background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => handleHoldAction('approve')}
+                          >
+                            Approve Hold
+                          </button>
+                          <button 
+                            type="button"
+                            className="vbtn" 
+                            style={{ padding: '4px 12px', fontSize: '11px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                            onClick={() => handleHoldAction('reject')}
+                          >
+                            Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedOrder.hold_status === 'Approved' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
+                        ⛔ ON HOLD
+                      </span>
+                      {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                        <button 
+                          type="button"
+                          className="vbtn" 
+                          style={{ padding: '4px 12px', fontSize: '11px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                          onClick={() => handleHoldAction('resume')}
+                        >
+                          Resume Order
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {(selectedOrder.hold_status === 'None' || !selectedOrder.hold_status) && ['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                    <button 
+                      type="button"
+                      className="vbtn" 
+                      style={{ padding: '4px 12px', fontSize: '11px', background: '#f59e0b', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => handleHoldAction('request')}
+                    >
+                      Request Hold
+                    </button>
+                  )}
+                </div>
                 {selectedOrder.company_name && (
-                  <div className="order-company-lg">
+                  <div className="order-company-lg" style={{ marginTop: '4px' }}>
                     🏢 {selectedOrder.company_name} ({selectedOrder.company_city})
                   </div>
                 )}
               </div>
               <div className="creator-info">Created by: {selectedOrder.creator_name || 'System'}</div>
             </div>
+
+            {selectedOrder.hold_status === 'Approved' && (
+              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', color: '#ef4444', fontWeight: '500', fontSize: '13px' }}>
+                ⚠️ <strong>ORDER IS CURRENTLY ON HOLD</strong> — All production updates, step changes, and document uploads for this order and its units are currently locked.
+              </div>
+            )}
 
             <div className="order-progress-container">
               <div className="progress-labels">
@@ -360,7 +536,7 @@ export default function OrderList({ initialSelectedId }) {
               </div>
             </div>
 
-            <div className="details-grid">
+            <div className="details-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '20px' }}>
               <div className="detail-box">
                 <label>Priority</label>
                 <div className="val">
@@ -371,15 +547,41 @@ export default function OrderList({ initialSelectedId }) {
               </div>
               <div className="detail-box">
                 <label>Order Date</label>
-                <div className="val">{selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString() : 'N/A'}</div>
+                <div className="val">{selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString('en-IN') : 'N/A'}</div>
               </div>
               <div className="detail-box">
                 <label>Delivery Date</label>
-                <div className="val">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString() : 'TBD'}</div>
+                <div className="val">{selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString('en-IN') : 'TBD'}</div>
               </div>
               <div className="detail-box">
+                <label>PO Number</label>
+                <div className="val">{selectedOrder.po_number || 'N/A'}</div>
+              </div>
+              <div className="detail-box">
+                <label>Cust. Ref #</label>
+                <div className="val">{selectedOrder.reference_number || 'N/A'}</div>
+              </div>
+              <div className="detail-box">
+                <label>Classification</label>
+                <div className="val" style={{ fontWeight: '600', color: selectedOrder.classification === 'Non-Standard' ? 'var(--blue)' : 'var(--text2)' }}>
+                  {selectedOrder.classification || 'Standard'}
+                </div>
+              </div>
+              <div className="detail-box">
+                <label>End Client</label>
+                <div className="val">{selectedOrder.end_client_name || 'N/A'}</div>
+              </div>
+              <div className="detail-box">
+                <label>GST Number</label>
+                <div className="val">{selectedOrder.gst_number || 'N/A'}</div>
+              </div>
+              <div className="detail-box">
+                <label>Packaging</label>
+                <div className="val">{selectedOrder.packaging_type || 'N/A'}</div>
+              </div>
+              <div className="detail-box" style={{ gridColumn: '1 / -1' }}>
                 <label>Notes</label>
-                <div className="val">{selectedOrder.notes || 'No notes'}</div>
+                <div className="val" style={{ whiteSpace: 'pre-wrap' }}>{selectedOrder.notes || 'No notes'}</div>
               </div>
             </div>
 
@@ -397,6 +599,10 @@ export default function OrderList({ initialSelectedId }) {
                             className="vbtn" 
                             style={{ padding: '2px 8px', fontSize: '10px', background: '#2563eb', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', height: '22px' }} 
                             onClick={() => {
+                              if (selectedOrder.hold_status === 'Approved') {
+                                alert('Order is currently on hold. Updates are disabled.');
+                                return;
+                              }
                               setBulkDept('');
                               setBulkStatus('done');
                               setBulkUpdateLi(li);
@@ -433,6 +639,7 @@ export default function OrderList({ initialSelectedId }) {
               entityId={selectedOrder.id} 
               initialDocs={selectedOrder.documents?.filter(d => d.entity_type === 'Order') || []} 
               userRole={currentUser.role}
+              readOnly={selectedOrder.hold_status === 'Approved'}
             />
           </div>
         ) : (
@@ -451,6 +658,11 @@ export default function OrderList({ initialSelectedId }) {
               <button className="modal-close" onClick={() => setSelectedUnit(null)}>✕</button>
             </div>
             <div className="modal-body">
+              {selectedOrder?.hold_status === 'Approved' && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>
+                  ⛔ <strong>Order is on hold.</strong> Production flow step updates are locked until the hold is released.
+                </div>
+              )}
               <div style={{ marginBottom: 20 }}>
                 <h4 style={{ margin: '0 0 12px 0', color: 'var(--text)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Production Steps</h4>
                 
@@ -465,7 +677,7 @@ export default function OrderList({ initialSelectedId }) {
                       return 0;
                     }).map(step => {
                       const isExpanded = expandedStepId === step.id;
-                      const canEditStep = ['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role || step.assigned_user_id === currentUser.id;
+                      const canEditStep = (['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role || step.assigned_user_id === currentUser.id) && selectedOrder?.hold_status !== 'Approved';
                       const assignedUser = users.find(u => u.id === step.assigned_user_id);
                       
                       let stepCustomFields = [];
@@ -641,6 +853,7 @@ export default function OrderList({ initialSelectedId }) {
                   initialDocs={selectedOrder.documents?.filter(d => d.entity_type === 'Unit' && d.entity_id === selectedUnit.id) || []} 
                   onUploadSuccess={() => fetchOrderDetails(selectedOrder.id)}
                   userRole={currentUser.role}
+                  readOnly={selectedOrder.hold_status === 'Approved'}
                 />
               </div>
             </div>
@@ -798,6 +1011,167 @@ export default function OrderList({ initialSelectedId }) {
           window.dispatchEvent(new CustomEvent('orderUpdated'));
         }}
       />
+
+      {/* Amend Order Modal */}
+      {editingOrderDetails && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setEditingOrderDetails(null); }}>
+          <div className="modal" style={{ maxWidth: '700px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Amend Order Details</div>
+                <div className="modal-sub">Updating fields for {editingOrderDetails.order_number}</div>
+              </div>
+              <button className="modal-close" onClick={() => setEditingOrderDetails(null)}>✕</button>
+            </div>
+            <form onSubmit={handleEditOrderSubmit}>
+              <div className="modal-body">
+                <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Select Company & Location</label>
+                    <select 
+                      className="form-select"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.company_location_id} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, company_location_id: e.target.value})}
+                      required
+                    >
+                      <option value="">-- None --</option>
+                      {companiesList.map(comp => (
+                        <optgroup key={comp.id} label={comp.name}>
+                          {comp.locations?.map(loc => (
+                            <option key={loc.id} value={loc.id}>
+                              {comp.name} - {loc.city}
+                            </option>
+                          ))}
+                        </optgroup>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Order Date</label>
+                    <input 
+                      type="date" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.order_date} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, order_date: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Delivery Date</label>
+                    <input 
+                      type="date" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.delivery_date} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, delivery_date: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Priority</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.priority} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, priority: e.target.value})}
+                    >
+                      <option value="Low">Low</option>
+                      <option value="Medium">Medium</option>
+                      <option value="High">High</option>
+                      <option value="Urgent">Urgent</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Customer PO Number</label>
+                    <input 
+                      type="text" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.po_number} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, po_number: e.target.value})}
+                      placeholder="e.g. PO-45000"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Packaging Type</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.packaging_type} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, packaging_type: e.target.value})}
+                    >
+                      <option value="">-- Select Packaging Type --</option>
+                      <option value="Wooden Packaging">Wooden Packaging</option>
+                      <option value="Foam Packaging">Foam Packaging</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>End Client Name</label>
+                    <input 
+                      type="text" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.end_client_name} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, end_client_name: e.target.value})}
+                      placeholder="e.g. Reliance Industries"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>GST Number</label>
+                    <input 
+                      type="text" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.gst_number} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, gst_number: e.target.value})}
+                      placeholder="e.g. 27AAAAA1111A1Z1"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Customer Reference Number</label>
+                    <input 
+                      type="text" 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.reference_number} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, reference_number: e.target.value})}
+                      placeholder="e.g. REF-2026-99"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Classification</label>
+                    <select 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.classification || 'Standard'} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, classification: e.target.value})}
+                    >
+                      <option value="Standard">Standard</option>
+                      <option value="Non-Standard">Non-Standard</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Order Notes</label>
+                    <textarea 
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', height: '80px', resize: 'vertical' }}
+                      value={editOrderForm.notes} 
+                      onChange={(e) => setEditOrderForm({...editOrderForm, notes: e.target.value})}
+                      placeholder="Enter special notes..."
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px', borderTop: '1px solid var(--border)' }}>
+                <button type="button" className="vbtn" style={{ background: '#64748b', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setEditingOrderDetails(null)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: '#10b981', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }} disabled={isSubmittingEdit}>
+                  {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

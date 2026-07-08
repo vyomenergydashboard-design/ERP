@@ -11,6 +11,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     packaging_type: '',
     end_client_name: '',
     gst_number: '',
+    reference_number: '',
+    classification: 'Standard',
     lineItems: [{
       line_item_number: '0001',
       material_description: '',
@@ -147,6 +149,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('po_number', formData.po_number);
     data.append('end_client_name', formData.end_client_name || '');
     data.append('gst_number', formData.gst_number || '');
+    data.append('reference_number', formData.reference_number || '');
+    data.append('classification', formData.classification || 'Standard');
     data.append('lineItems', JSON.stringify(formData.lineItems));
 
     if (files.po) data.append('po', files.po);
@@ -179,6 +183,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           packaging_type: '',
           end_client_name: '',
           gst_number: '',
+          reference_number: '',
+          classification: 'Standard',
           lineItems: [{
             line_item_number: '0001',
             material_description: '',
@@ -314,6 +320,30 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               />
             </div>
 
+            <div className="form-group">
+              <label>Customer Reference Number (Optional)</label>
+              <input 
+                type="text" 
+                name="reference_number" 
+                value={formData.reference_number} 
+                onChange={handleInputChange} 
+                placeholder="e.g. REF-2026-99"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Classification</label>
+              <select 
+                name="classification" 
+                value={formData.classification || 'Standard'} 
+                onChange={handleInputChange}
+                style={{ width: '100%', padding: '8px 12px', background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text2)', fontSize: '13px' }}
+              >
+                <option value="Standard">Standard</option>
+                <option value="Non-Standard">Non-Standard</option>
+              </select>
+            </div>
+
             <div className="form-group full-width">
               <label>Overall Order Notes</label>
               <textarea 
@@ -337,7 +367,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 {formData.lineItems.length > 1 && (
                   <button type="button" onClick={() => removeLineItem(idx)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px' }}>✕</button>
                 )}
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <div className="line-item-grid-1">
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item #</label>
                     <input type="text" className="form-input" value={li.line_item_number} onChange={e => handleLineItemChange(idx, 'line_item_number', e.target.value)} required />
@@ -356,7 +386,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '100px 100px 150px 150px 150px', gap: '16px', marginBottom: '16px' }}>
+                <div className="line-item-grid-2">
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Quantity *</label>
                     <input type="number" className="form-input" min="1" value={li.quantity} onChange={e => handleLineItemChange(idx, 'quantity', e.target.value)} required />
@@ -548,6 +578,35 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
         .submit-btn:active { transform: translateY(0); }
         .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+        .line-item-grid-1 {
+          display: grid;
+          grid-template-columns: 100px 1fr 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        .line-item-grid-2 {
+          display: grid;
+          grid-template-columns: 100px 100px 1fr 1fr 1fr;
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+          .form-grid {
+            grid-template-columns: 1fr;
+          }
+          .full-width {
+            grid-column: span 1;
+          }
+          .form-card {
+            padding: 20px;
+          }
+          .line-item-grid-1, .line-item-grid-2 {
+            grid-template-columns: 1fr;
+            gap: 12px;
+          }
+        }
       `}} />
     </div>
   );
