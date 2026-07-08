@@ -9,7 +9,6 @@ export default defineConfig({
     hmr: {
       clientPort: 5173,
       protocol: 'ws',
-      host: 'localhost',
     },
     watch: {
       usePolling: true,
