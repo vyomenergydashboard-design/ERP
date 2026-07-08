@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle } from 'lucide-react';
+import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle, Hash, Lock } from 'lucide-react';
 
 export default function SettingsView() {
   const [companyName, setCompanyName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom ERP');
@@ -12,11 +12,60 @@ export default function SettingsView() {
   const [autoQCFromSteps, setAutoQCFromSteps] = useState(() => localStorage.getItem('erp_auto_qc_calc') === 'true');
   const [planningFullscreenDefault, setPlanningFullscreenDefault] = useState(() => localStorage.getItem('erp_planning_fs_default') === 'true');
 
+  // Order Numbering (DB-backed)
+  const [orderNumberStart, setOrderNumberStart] = useState('1');
+  const [ordersExist, setOrdersExist] = useState(true); // default to locked until confirmed
+  const [orderSettingError, setOrderSettingError] = useState('');
+  const [orderSettingSaving, setOrderSettingSaving] = useState(false);
+  const [orderSettingSuccess, setOrderSettingSuccess] = useState(false);
+  const token = localStorage.getItem('token');
+
   const [activeTab, setActiveTab] = useState('general');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [maintenanceSuccess, setMaintenanceSuccess] = useState('');
   const [isMaintenanceRunning, setIsMaintenanceRunning] = useState(false);
+
+  useEffect(() => {
+    fetch(window.API_BASE + '/api/system-settings', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.order_number_start) setOrderNumberStart(data.order_number_start);
+        setOrdersExist(!!data._orders_exist);
+      })
+      .catch(() => {});
+  }, [token]);
+
+  const handleOrderNumberSave = async () => {
+    setOrderSettingError('');
+    setOrderSettingSuccess(false);
+    const num = parseInt(orderNumberStart);
+    if (isNaN(num) || num < 1) {
+      setOrderSettingError('Please enter a valid positive number.');
+      return;
+    }
+    setOrderSettingSaving(true);
+    try {
+      const res = await fetch(window.API_BASE + '/api/system-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ order_number_start: num })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOrderSettingError(data.error || 'Failed to save.');
+      } else {
+        setOrderSettingSuccess(true);
+        setTimeout(() => setOrderSettingSuccess(false), 3000);
+      }
+    } catch {
+      setOrderSettingError('Network error.');
+    } finally {
+      setOrderSettingSaving(false);
+    }
+  };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -99,7 +148,8 @@ export default function SettingsView() {
         {/* Content Pane */}
         <div className="settings-content">
           {activeTab === 'general' && (
-            <form onSubmit={handleSave} className="settings-form">
+            <>
+              <form onSubmit={handleSave} className="settings-form">
               <h3 className="section-title">General System Configurations</h3>
               
               <div className="form-group">
@@ -158,6 +208,68 @@ export default function SettingsView() {
                 )}
               </div>
             </form>
+
+            {/* Order Numbering - DB-backed, one-time lock */}
+            <div style={{ marginTop: '28px', padding: '20px 24px', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+              <h3 style={{ margin: '0 0 6px 0', color: 'var(--text)', fontSize: '15px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Hash size={16} style={{ color: '#f59e0b' }} />
+                Order Number Sequence
+              </h3>
+              <p style={{ margin: '0 0 16px 0', color: 'var(--text3)', fontSize: '13px' }}>
+                Set the starting order number for this system. <strong style={{ color: '#f59e0b' }}>Once the first order is created, this setting is permanently locked.</strong>
+              </p>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg3)', border: `1px solid ${ordersExist ? 'var(--border)' : '#f59e0b'}`, borderRadius: '8px', padding: '8px 14px' }}>
+                  <span style={{ color: 'var(--text3)', fontSize: '13px', whiteSpace: 'nowrap' }}>ORD-{new Date().getFullYear()}-</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={orderNumberStart}
+                    onChange={e => { setOrderNumberStart(e.target.value); setOrderSettingError(''); }}
+                    disabled={ordersExist}
+                    style={{
+                      width: '90px',
+                      background: 'transparent',
+                      border: 'none',
+                      outline: 'none',
+                      color: ordersExist ? 'var(--text3)' : 'var(--text)',
+                      fontSize: '15px',
+                      fontWeight: '700',
+                      cursor: ordersExist ? 'not-allowed' : 'text',
+                    }}
+                  />
+                </div>
+
+                {ordersExist ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '13px' }}>
+                    <Lock size={14} />
+                    Locked &mdash; orders already exist
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleOrderNumberSave}
+                    disabled={orderSettingSaving}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f59e0b', color: '#000', border: 'none', borderRadius: '8px', padding: '9px 18px', fontWeight: '600', fontSize: '13px', cursor: 'pointer' }}
+                  >
+                    {orderSettingSaving ? <RefreshCw size={13} className="spin" /> : <Save size={13} />}
+                    {orderSettingSaving ? 'Saving...' : 'Set Starting Number'}
+                  </button>
+                )}
+
+                {orderSettingSuccess && (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontSize: '13px' }}>
+                    <CheckCircle size={14} /> Saved! Next order will be ORD-{new Date().getFullYear()}-{String(orderNumberStart).padStart(4, '0')}
+                  </span>
+                )}
+              </div>
+
+              {orderSettingError && (
+                <p style={{ margin: '10px 0 0', color: '#ef4444', fontSize: '12px' }}>{orderSettingError}</p>
+              )}
+            </div>
+            </>
           )}
 
           {activeTab === 'workflow' && (

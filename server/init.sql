@@ -181,3 +181,13 @@ ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pe
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+
+-- System Settings (key-value store for admin-configurable DB-backed settings)
+CREATE TABLE IF NOT EXISTS system_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+-- Seed default order number start
+INSERT INTO system_settings (key, value) VALUES ('order_number_start', '1') ON CONFLICT (key) DO NOTHING;
+
