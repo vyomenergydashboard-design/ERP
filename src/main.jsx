@@ -4,7 +4,7 @@ import App from './App.jsx'
 import './index.css'
 
 // Dynamic API Base URL detection
-window.API_BASE = `http://${window.location.hostname}:5000`;
+window.API_BASE = '';
 
 // Global fetch interceptor to handle 401 Unauthorized errors (e.g. expired or invalid tokens)
 const { fetch: originalFetch } = window;
