@@ -96,6 +96,16 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
               🏢 {unit.company_name}{unit.company_city ? ` · ${unit.company_city}` : ''}
             </div>
           )}
+          {unit.po_number && (
+            <div style={{ color: 'var(--text3)', fontSize: 11, marginTop: 1, fontFamily: 'monospace' }}>
+              PO: {unit.po_number}
+            </div>
+          )}
+          {unit.reference_number && (
+            <div style={{ color: '#f59e0b', fontSize: 10, marginTop: 1, fontWeight: 600 }}>
+              Ref: {unit.reference_number}
+            </div>
+          )}
         </td>
 
         {/* Unit ID */}
@@ -313,12 +323,16 @@ export default function DeptWorklist({ dept }) {
       const orderNum = (u.order_number || '').toLowerCase();
       const material = (u.material_description || '').toLowerCase();
       const company = (u.company_name || '').toLowerCase();
+      const refNum = (u.reference_number || '').toLowerCase();
+      const poNum = (u.po_number || '').toLowerCase();
       
       const matchesAllTokens = tokens.every(token => 
         serial.includes(token) || 
         orderNum.includes(token) || 
         material.includes(token) || 
-        company.includes(token)
+        company.includes(token) ||
+        refNum.includes(token) ||
+        poNum.includes(token)
       );
       if (!matchesAllTokens) return false;
     }

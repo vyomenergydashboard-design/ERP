@@ -1664,11 +1664,14 @@ app.get('/api/orders', authorize(), async (req, res) => {
 app.get('/api/board', authorize(), async (req, res) => {
   try {
     const ordersResult = await pool.query(
-      `SELECT o.id, o.order_number, o.po_number, o.delivery_date, o.priority, o.notes, c.name as company_name,
+      `SELECT o.id, o.order_number, o.po_number, o.delivery_date, o.priority, o.notes,
+              o.reference_number, o.end_client_name, o.classification, o.hold_status,
+              c.name AS company_name, l.city AS company_city,
+              (SELECT COUNT(*) FROM order_units ou WHERE ou.order_id = o.id) AS unit_count,
               COALESCE(
                 (SELECT MAX(s.created_at) FROM order_steps s WHERE s.order_id = o.id),
                 o.created_at
-              ) as updated_at
+              ) AS updated_at
        FROM orders o
        LEFT JOIN company_locations l ON o.company_location_id = l.id
        LEFT JOIN companies c ON l.company_id = c.id
@@ -1977,6 +1980,7 @@ app.get('/api/planning', authorize(['Admin', 'Manager', 'Production']), async (r
           o.priority,
           o.notes,
           o.end_client_name,
+          o.reference_number,
           oli.planned_dispatch_date,
           oli.wiring_assigned_date,
           oli.wiring_expected_date,
@@ -2502,6 +2506,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.current_dept,
         o.id           AS order_id,
         o.order_number,
+        o.po_number,
+        o.reference_number,
+        o.end_client_name,
         o.priority,
         o.delivery_date,
         cl.city        AS company_city,
