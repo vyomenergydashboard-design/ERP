@@ -2599,6 +2599,31 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
+// Auto-seed Admin User 'Saya' if not present
+const seedSayaUser = async () => {
+  try {
+    const userRes = await pool.query("SELECT id FROM users WHERE username = 'Saya' OR email = 'sayamumbaikar26@gmail.com' LIMIT 1");
+    if (userRes.rows.length === 0) {
+      console.log('Seeding user Saya as Admin...');
+      await pool.query(
+        `INSERT INTO users (username, email, password, role) 
+         VALUES ($1, $2, $3, $4)`,
+        [
+          'Saya', 
+          'sayamumbaikar26@gmail.com', 
+          '$2a$10$dTMz2obf/OXXRbCa.K.Jxeoj9/NTWRR4CjXohpCQzp.MBIl3keQ22', 
+          'Admin'
+        ]
+      );
+      console.log('User Saya successfully seeded.');
+    }
+  } catch (err) {
+    console.warn('Could not auto-seed user Saya (database may still be starting up):', err.message);
+  }
+};
+
+seedSayaUser().catch(console.error);
+
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
