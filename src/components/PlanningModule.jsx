@@ -7,6 +7,7 @@ const DEFAULT_COLUMNS = [
   'sr_no',
   'order_number',
   'po_number',
+  'reference_number',
   'part_number',
   'client_name',
   'end_client_name',
@@ -102,6 +103,7 @@ export default function PlanningModule() {
       case 'sr_no': return 'Sr. No.';
       case 'order_number': return 'Order Number';
       case 'po_number': return 'PO Number';
+      case 'reference_number': return 'Cust. Ref #';
       case 'part_number': return 'Part Number';
       case 'client_name': return 'Client Name';
       case 'end_client_name': return 'End Client Name';
@@ -221,6 +223,10 @@ export default function PlanningModule() {
         );
       case 'po_number':
         return order.po_number || <span className="dim text-xs">—</span>;
+      case 'reference_number':
+        return order.reference_number
+          ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>{order.reference_number}</span>
+          : <span className="dim text-xs">—</span>;
       case 'part_number':
         return order.part_number || <span className="dim text-xs">—</span>;
       case 'client_name':
@@ -766,7 +772,7 @@ export default function PlanningModule() {
           const isFirst = cIdx === 0;
           let tdClass = '';
 
-          const isMono = ['sr_no', 'order_number', 'po_number', 'part_number', 'planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date'].includes(colId);
+          const isMono = ['sr_no', 'order_number', 'po_number', 'reference_number', 'part_number', 'planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date'].includes(colId);
           if (isMono) {
             tdClass += ' mono';
           }

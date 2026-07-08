@@ -74,6 +74,7 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
         (o.order_number || '').toLowerCase().includes(q) ||
         (o.company_name || '').toLowerCase().includes(q) ||
         (o.po_number || '').toLowerCase().includes(q) ||
+        (o.reference_number || '').toLowerCase().includes(q) ||
         (o.end_client_name || '').toLowerCase().includes(q)
       );
     }
@@ -226,6 +227,7 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
               <Th label="#" col="order_number" />
               <Th label="Customer" col="company_name" />
               <Th label="PO Number" col="po_number" />
+              <Th label="Ref #" col="reference_number" />
               <Th label="End Client" />
               <Th label="Classification" col="classification" />
               <Th label="Units" col="units" style={{ textAlign: 'center' }} />
@@ -272,6 +274,14 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
                   {/* PO */}
                   <td style={{ padding: '10px 14px', fontFamily: 'var(--font-mono)', color: 'var(--text3)', fontSize: 12 }}>
                     {order.po_number || '—'}
+                  </td>
+
+                  {/* Ref # */}
+                  <td style={{ padding: '10px 14px', fontSize: 12, whiteSpace: 'nowrap' }}>
+                    {order.reference_number
+                      ? <span style={{ fontFamily: 'var(--font-mono)', color: '#f59e0b', fontWeight: 600 }}>{order.reference_number}</span>
+                      : <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+                    }
                   </td>
 
                   {/* End Client */}
