@@ -662,7 +662,7 @@ app.get('/api/users', authorize(), async (req, res) => {
 
 app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
   const { role } = req.body;
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -706,7 +706,7 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     return res.status(400).json({ error: 'Username, email, and role are required' });
   }
   
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -2602,6 +2602,14 @@ app.use((err, req, res, next) => {
 // Auto-seed Admin User 'Saya' if not present
 const seedSayaUser = async () => {
   try {
+    // Auto-migrate role constraints at boot to support the new Planning role
+    await pool.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+    await pool.query(`
+      ALTER TABLE users ADD CONSTRAINT users_role_check 
+      CHECK (role IN ('Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'))
+    `);
+    await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Planning'");
+
     const userRes = await pool.query("SELECT id FROM users WHERE username = 'Saya' OR email = 'sayamumbaikar26@gmail.com' LIMIT 1");
     if (userRes.rows.length === 0) {
       console.log('Seeding user Saya as Admin...');
