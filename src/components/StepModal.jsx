@@ -14,7 +14,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
   const [saveError, setSaveError] = useState(null);
 
   const canEditStructure = ['Admin', 'Manager'].includes(userRole);
-  const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) : false;
+  const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) && selectedOrder?.hold_status !== 'Approved' : false;
 
   useEffect(() => {
     if (step) {
@@ -150,6 +150,12 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
+
+        {selectedOrder?.hold_status === 'Approved' && (
+          <div style={{ background: 'rgba(239, 68, 68, 0.08)', borderBottom: '1px solid rgba(239, 68, 68, 0.15)', padding: '12px 24px', color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
+            ⛔ <strong>Order is on hold.</strong> Flow updates and document uploads are disabled.
+          </div>
+        )}
 
         {/* Tabs — only show Form Fields tab if there are fields */}
         <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border)', padding: '0 24px' }}>

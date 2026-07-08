@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS orders (
     packaging_type TEXT,
     notes TEXT,
     priority TEXT DEFAULT 'Medium',
+    gst_number TEXT,
+    reference_number TEXT,
+    hold_status TEXT DEFAULT 'None',
+    classification TEXT DEFAULT 'Standard',
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

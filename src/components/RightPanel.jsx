@@ -90,6 +90,18 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                     <span className="detail-val">{selectedOrder.po_number}</span>
                   </div>
                 )}
+                {selectedOrder.reference_number && (
+                  <div className="detail-row">
+                    <span className="detail-key">Cust. Ref #</span>
+                    <span className="detail-val">{selectedOrder.reference_number}</span>
+                  </div>
+                )}
+                <div className="detail-row">
+                  <span className="detail-key">Classification</span>
+                  <span className="detail-val" style={{ fontWeight: '600', color: selectedOrder.classification === 'Non-Standard' ? 'var(--blue)' : 'var(--text2)' }}>
+                    {selectedOrder.classification || 'Standard'}
+                  </span>
+                </div>
                 <div className="detail-row">
                   <span className="detail-key">Order Date</span>
                   <span className="detail-val">
