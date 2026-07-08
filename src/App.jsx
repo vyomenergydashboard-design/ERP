@@ -7,6 +7,7 @@ import StatsRow from './components/StatsRow';
 import FlowView from './components/FlowView';
 import BoardView from './components/BoardView';
 import TableView from './components/TableView';
+import AllOrdersTableView from './components/AllOrdersTableView';
 import RightPanel from './components/RightPanel';
 import StepModal from './components/StepModal';
 import Login from './components/Login';
@@ -138,7 +139,7 @@ function Dashboard() {
   useEffect(() => {
     const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
     if (targetUnitId && token) {
-      fetch(`http://localhost:5000/api/units/${targetUnitId}/steps`, {
+      fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
       .then(async res => {
@@ -159,7 +160,7 @@ function Dashboard() {
         
         const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
         if (targetUnitId && token) {
-          fetch(`http://localhost:5000/api/units/${targetUnitId}/steps`, {
+          fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
           .then(async res => {
@@ -176,7 +177,7 @@ function Dashboard() {
   const fetchOrderDetails = async (orderId) => {
     if (!token) return;
     try {
-      const res = await authFetch(`http://localhost:5000/api/orders/${orderId}`);
+      const res = await authFetch(`${window.API_BASE}/api/orders/${orderId}`);
       if (res?.ok) {
         setSelectedOrder(await res.json());
       }
@@ -188,7 +189,7 @@ function Dashboard() {
   const fetchOrderSteps = async (orderId) => {
     if (!token) return;
     try {
-      const res = await authFetch(`http://localhost:5000/api/orders/${orderId}/steps`);
+      const res = await authFetch(`${window.API_BASE}/api/orders/${orderId}/steps`);
       if (res?.ok) {
         setSteps(await res.json());
       }
@@ -200,7 +201,7 @@ function Dashboard() {
   const syncProfile = async () => {
     if (!token) return;
     try {
-      const res = await authFetch('http://localhost:5000/api/auth/profile');
+      const res = await authFetch(window.API_BASE + "/api/auth/profile");
       if (res?.ok) {
         const latestUser = await res.json();
         setUser(latestUser);
@@ -213,7 +214,7 @@ function Dashboard() {
 
   const fetchLogs = async () => {
     try {
-      const res = await authFetch('http://localhost:5000/api/logs');
+      const res = await authFetch(window.API_BASE + "/api/logs");
       if (res?.ok) {
         const data = await res.json();
         setActivityLog(data.map(l => ({ 
@@ -231,7 +232,7 @@ function Dashboard() {
   const logActivity = async (dept, text, orderId) => {
     const oid = orderId ?? selectedOrderIdRef.current;
     try {
-      const res = await authFetch('http://localhost:5000/api/logs', {
+      const res = await authFetch(window.API_BASE + "/api/logs", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dept, action_text: text, order_id: oid ? parseInt(oid) : null })
@@ -276,7 +277,7 @@ function Dashboard() {
 
   const handleSaveStep = async (data) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderId}/steps/${selectedStepId}`, {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/${selectedStepId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
@@ -310,7 +311,7 @@ function Dashboard() {
   const handleDeleteStep = async (stepId) => {
     if (!window.confirm("Are you sure you want to permanently delete this task from the order's flow?")) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderId}/steps/${stepId}`, {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/${stepId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
@@ -430,7 +431,11 @@ function Dashboard() {
               </div>
             )
           ) : currentView === 'table' ? (
-            <TableView steps={combinedSteps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
+            selectedOrderId ? (
+              <TableView steps={combinedSteps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
+            ) : (
+              <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} />
+            )
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
           ) : currentView === 'documents' ? (

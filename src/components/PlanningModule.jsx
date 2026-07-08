@@ -366,7 +366,7 @@ export default function PlanningModule() {
 
   const fetchPlanningData = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/planning', {
+      const res = await fetch(window.API_BASE + "/api/planning", {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -407,7 +407,7 @@ export default function PlanningModule() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`http://localhost:5000/api/planning/line-items/${editingOrder.line_item_id}`, {
+      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${editingOrder.line_item_id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -445,13 +445,23 @@ export default function PlanningModule() {
     if (searchTerm.trim() !== '') {
       const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
       const orderNum = (order.order_number || '').toLowerCase();
+      const lineItemNum = (order.line_item_number || '').toLowerCase();
+      const orderNumFull = `${order.order_number || ''} / ${order.line_item_number || ''}`.toLowerCase();
+      const orderNumSpaceless = `${order.order_number || ''}/${order.line_item_number || ''}`.toLowerCase();
+      const orderNumSpacelessOnly = `${order.order_number || ''}${order.line_item_number || ''}`.toLowerCase();
       const poNum = (order.po_number || '').toLowerCase();
+      const partNum = (order.part_number || '').toLowerCase();
       const compName = (order.company_name || '').toLowerCase();
       const endClient = (order.end_client_name || '').toLowerCase();
       
       matchesSearch = tokens.every(token => 
         orderNum.includes(token) ||
+        lineItemNum.includes(token) ||
+        orderNumFull.includes(token) ||
+        orderNumSpaceless.includes(token) ||
+        orderNumSpacelessOnly.includes(token) ||
         poNum.includes(token) ||
+        partNum.includes(token) ||
         compName.includes(token) ||
         endClient.includes(token)
       );
@@ -533,7 +543,7 @@ export default function PlanningModule() {
 
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/planning/line-items/bulk', {
+      const res = await fetch(window.API_BASE + "/api/planning/line-items/bulk", {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -654,7 +664,7 @@ export default function PlanningModule() {
 
       updateForm[fieldName] = value;
 
-      const res = await fetch(`http://localhost:5000/api/planning/line-items/${lineItemId}`, {
+      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${lineItemId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

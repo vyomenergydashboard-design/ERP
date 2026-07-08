@@ -76,7 +76,7 @@ export default function Masters() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/companies', {
+      const res = await fetch(window.API_BASE + "/api/companies", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setCompanies(await res.json());
@@ -85,7 +85,7 @@ export default function Masters() {
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/task_masters', {
+      const res = await fetch(window.API_BASE + "/api/task_masters", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) setTasks(await res.json());
@@ -108,7 +108,7 @@ export default function Masters() {
   const handleCompanySubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/companies', {
+      const res = await fetch(window.API_BASE + "/api/companies", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(companyFormData)
@@ -124,7 +124,7 @@ export default function Masters() {
   const handleTaskSubmit = async (e) => {
     e.preventDefault();
     const isEdit = !!editingTaskId;
-    const url = isEdit ? `http://localhost:5000/api/task_masters/${editingTaskId}` : 'http://localhost:5000/api/task_masters';
+    const url = isEdit ? `${window.API_BASE}/api/task_masters/${editingTaskId}` : window.API_BASE + "/api/task_masters";
     const method = isEdit ? 'PUT' : 'POST';
 
     // Strip values from field definitions before saving to template
@@ -187,7 +187,7 @@ export default function Masters() {
   const handleDeleteTaskClick = async (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/task_masters/${taskId}`, {
+      const res = await fetch(`${window.API_BASE}/api/task_masters/${taskId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

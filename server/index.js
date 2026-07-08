@@ -887,11 +887,15 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     }
 
     // 4. Save Uploaded Documents
+    let hasPO = false;
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         let docType = 'General';
         const field = file.fieldname.toLowerCase();
-        if (field.includes('po')) docType = 'PO';
+        if (field.includes('po')) {
+          docType = 'PO';
+          hasPO = true;
+        }
         else if (field.includes('quotation')) docType = 'Quotation';
         else if (field.includes('approved')) docType = 'Approved';
         
@@ -901,6 +905,18 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
           ['Order', order.id, docType, file.originalname, file.path, file.size, file.mimetype, req.user.id]
         );
       }
+    }
+
+    if (hasPO) {
+      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      await client.query(
+        `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
+        ['PO uploaded during order creation.', updatedStr, order.id]
+      );
+      await client.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+        [req.user.id, order.id, 'Sales', 'Completed: Upload PO (System Auto-Check)']
+      );
     }
 
     await client.query('COMMIT');
@@ -1396,6 +1412,12 @@ app.get('/api/orders/:id', authorize(), async (req, res) => {
 
 app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
   try {
+    // Self-healing: check if a PO document exists for this order
+    const poDocCheck = await pool.query(
+      `SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1`,
+      [req.params.id]
+    );
+
     // Join with task_masters to get the field definitions template
     const result = await pool.query(`
       SELECT s.*, tm.custom_fields as tm_custom_fields, tm.order_fields as tm_order_fields
@@ -1405,8 +1427,21 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
       ORDER BY s.step_order ASC, s.id ASC
     `, [req.params.id]);
 
+    const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
     // For each step, if its own custom_fields is empty, seed from task master definitions
-    const steps = result.rows.map(step => {
+    const steps = [];
+    for (const step of result.rows) {
+      if (step.name === 'Upload PO' && step.status !== 'done' && poDocCheck.rows.length > 0) {
+        await pool.query(
+          `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE id = $3`,
+          ['PO uploaded (Auto-resolved).', updatedStr, step.id]
+        );
+        step.status = 'done';
+        step.notes = 'PO uploaded (Auto-resolved).';
+        step.updated = updatedStr;
+      }
+
       let cf = [];
       try { cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]'); } catch { cf = []; }
       
@@ -1416,14 +1451,14 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
           cf = tmCf.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
         } catch { cf = []; }
       }
-      
+
       // Pass order_fields config from task master to step
       let orderFields = [];
       try { orderFields = Array.isArray(step.tm_order_fields) ? step.tm_order_fields : JSON.parse(step.tm_order_fields || '[]'); } catch { orderFields = []; }
 
       const { tm_custom_fields, tm_order_fields, ...rest } = step;
-      return { ...rest, custom_fields: cf, order_fields: orderFields };
-    });
+      steps.push({ ...rest, custom_fields: cf, order_fields: orderFields });
+    }
 
     res.json(steps);
   } catch (err) {
@@ -2198,6 +2233,7 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
     }
 
     const savedDocs = [];
+    let hasPO = false;
     for (const file of req.files) {
       const result = await pool.query(
         `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by) 
@@ -2205,6 +2241,21 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
         [entity_type, entity_id, doc_type || 'General', file.originalname, file.path, file.size, file.mimetype, req.user.id]
       );
       savedDocs.push(result.rows[0]);
+      if (doc_type === 'PO') {
+        hasPO = true;
+      }
+    }
+
+    if (hasPO && entity_type === 'Order') {
+      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      await pool.query(
+        `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
+        ['PO uploaded via Documents.', updatedStr, entity_id]
+      );
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+        [req.user.id, entity_id, 'Sales', 'Completed: Upload PO (System Auto-Check on Upload)']
+      );
     }
     res.status(201).json(savedDocs);
   } catch (err) {

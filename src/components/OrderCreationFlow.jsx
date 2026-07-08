@@ -34,7 +34,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/companies', {
+    fetch(window.API_BASE + "/api/companies", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
@@ -156,7 +156,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     }
 
     try {
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch(window.API_BASE + "/api/orders", {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

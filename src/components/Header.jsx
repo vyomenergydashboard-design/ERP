@@ -91,7 +91,7 @@ export default function Header({ onLogout }) {
   const fetchOrders = async () => {
     if (!token) return;
     try {
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch(window.API_BASE + "/api/orders", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -233,19 +233,23 @@ export default function Header({ onLogout }) {
         }
         .order-search-input {
           background: var(--bg3);
-          border: 1px solid var(--border2);
-          border-radius: 20px;
+          border: 1px solid var(--border);
+          border-radius: 30px;
           color: var(--text);
-          padding: 8px 30px 8px 32px;
+          padding: 8px 30px 8px 36px;
           font-size: 12px;
           width: 260px;
           outline: none;
-          transition: all 0.2s;
-          box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+        }
+        .order-search-input:hover {
+          border-color: var(--border2);
         }
         .order-search-input:focus {
           border-color: var(--accent);
-          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15), inset 0 2px 4px rgba(0, 0, 0, 0.15);
+          background: var(--bg2);
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12), 0 4px 12px rgba(245, 158, 11, 0.04);
         }
         .search-icon {
           position: absolute;
@@ -268,26 +272,28 @@ export default function Header({ onLogout }) {
         
         .search-dropdown-menu {
           position: absolute;
-          top: calc(100% + 4px);
+          top: calc(100% + 6px);
           left: 0;
           width: 100%;
           max-height: 300px;
           overflow-y: auto;
           background: var(--bg2);
           border: 1px solid var(--border2);
-          border-radius: 8px;
-          box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+          border-radius: 12px;
+          box-shadow: 0 12px 36px rgba(0,0,0,0.18);
           z-index: 1000;
+          padding: 6px;
         }
         .search-dropdown-item {
-          padding: 8px 12px;
+          padding: 10px 14px;
           cursor: pointer;
           font-size: 12px;
           color: var(--text2);
-          border-bottom: 1px solid var(--border);
-          transition: background 0.15s;
+          border-radius: 8px;
+          margin-bottom: 2px;
+          transition: background 0.15s, color 0.15s;
         }
-        .search-dropdown-item:last-child { border-bottom: none; }
+        .search-dropdown-item:last-child { margin-bottom: 0; }
         .search-dropdown-item:hover { background: var(--bg3); color: var(--text); }
         .search-dropdown-item.active { background: var(--blue-dim); color: var(--blue); }
         .search-dropdown-item.empty { color: var(--text3); text-align: center; font-style: italic; cursor: default; }

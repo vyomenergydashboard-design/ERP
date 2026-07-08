@@ -30,7 +30,7 @@ export default function OrderList({ initialSelectedId }) {
     if (!bulkDept || !bulkStatus) return;
     setBulkSubmitting(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/planning/line-items/${bulkUpdateLi.id}/bulk-units-status`, {
+      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${bulkUpdateLi.id}/bulk-units-status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -85,7 +85,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users', {
+      const res = await fetch(window.API_BASE + "/api/users", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -98,7 +98,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const fetchUnitSteps = async (unitId) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/units/${unitId}/steps`, {
+      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -111,7 +111,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const updateUnitStep = async (stepId, body) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/units/${selectedUnit.id}/steps/${stepId}`, {
+      const res = await fetch(`${window.API_BASE}/api/units/${selectedUnit.id}/steps/${stepId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/orders', {
+      const res = await fetch(window.API_BASE + "/api/orders", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -153,7 +153,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const fetchOrderDetails = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${id}`, {
+      const res = await fetch(`${window.API_BASE}/api/orders/${id}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -193,7 +193,7 @@ export default function OrderList({ initialSelectedId }) {
 
   const updateUnitStatus = async (unitId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/units/${unitId}/status`, {
+      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

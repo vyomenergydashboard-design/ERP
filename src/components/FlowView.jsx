@@ -46,7 +46,7 @@ export default function FlowView({
 
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/users', {
+    fetch(window.API_BASE + "/api/users", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(async res => {
@@ -62,7 +62,7 @@ export default function FlowView({
     if (!unitId) return;
 
     try {
-      const res = await fetch(`http://localhost:5000/api/units/${unitId}/steps/${stepId}`, {
+      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -71,7 +71,7 @@ export default function FlowView({
         body: JSON.stringify(body)
       });
       if (res.ok) {
-        const freshSteps = await fetch(`http://localhost:5000/api/units/${unitId}/steps`, {
+        const freshSteps = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json());
         setUnitSteps(freshSteps);
@@ -128,7 +128,7 @@ export default function FlowView({
   };
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/task_masters', {
+    fetch(window.API_BASE + "/api/task_masters", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(async res => {
@@ -143,7 +143,7 @@ export default function FlowView({
   const handleAddTask = async (taskId) => {
     if (!taskId || !selectedOrderId) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderId}/steps`, {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ taskId })
@@ -198,7 +198,7 @@ export default function FlowView({
     const orderedIds = newOrder.map(s => s.id);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/orders/${selectedOrderId}/steps/reorder`, {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/reorder`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ orderedIds })
@@ -297,18 +297,7 @@ export default function FlowView({
                           <div className="step-sub">{step.sub}</div>
                           <StatusBadge status={step.status} />
                           {step.notes && <div className="step-note">{step.notes}</div>}
-                          {step.special === 'sales' && userRole === 'Sales' && (
-                            <button 
-                              className="vbtn"
-                              style={{ marginTop: 8, fontSize: 10, width: '100%', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--teal)', border: '1px solid rgba(20, 184, 166, 0.4)' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onSetView('new-order');
-                              }}
-                            >
-                              Go to Order Creation
-                            </button>
-                          )}
+
                         </div>
                         {i < deptSteps.length - 1 && <div className="step-arrow">›</div>}
                       </div>
@@ -452,18 +441,7 @@ export default function FlowView({
                         <div className="step-sub">{step.sub}</div>
                         <StatusBadge status={step.status} />
                         {step.notes && <div className="step-note">{step.notes}</div>}
-                        {step.special === 'sales' && userRole === 'Sales' && (
-                          <button 
-                            className="vbtn"
-                            style={{ marginTop: 8, fontSize: 10, width: '100%', background: 'rgba(20, 184, 166, 0.2)', color: 'var(--teal)', border: '1px solid rgba(20, 184, 166, 0.4)' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSetView('new-order');
-                            }}
-                          >
-                            Go to Order Creation
-                          </button>
-                        )}
+
                       </div>
                     </div>
                   );
