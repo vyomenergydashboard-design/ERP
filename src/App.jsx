@@ -408,7 +408,13 @@ function Dashboard() {
           {currentView === 'board' ? (
             <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
           ) : currentView === 'planning' ? (
-            <PlanningModule />
+            ['Admin', 'Manager', 'Planning'].includes(user.role) ? (
+              <PlanningModule />
+            ) : (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
+                Unauthorized to view the Planning Module.
+              </div>
+            )
           ) : currentView === 'flow' ? (
             selectedOrderId ? (
               <FlowView 

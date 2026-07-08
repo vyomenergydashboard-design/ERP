@@ -6,7 +6,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newUser, setNewUser] = useState({ username: '', email: '', password: '', confirmPassword: '', role: 'Viewer' });
+  const [newUser, setNewUser] = useState({ username: '', email: '', password: '', confirmPassword: '', role: 'Planning' });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
   const [showAddPassword, setShowAddPassword] = useState(false);
@@ -27,7 +27,7 @@ export default function UserManagement() {
   
   const token = localStorage.getItem('token');
 
-  const ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const ROLES = ['Admin', 'Manager', 'Planning', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
 
   useEffect(() => {
     fetchUsers();
@@ -69,7 +69,7 @@ export default function UserManagement() {
       const data = await res.json();
       if (res.ok) {
         setShowAddForm(false);
-        setNewUser({ username: '', email: '', password: '', confirmPassword: '', role: 'Viewer' });
+        setNewUser({ username: '', email: '', password: '', confirmPassword: '', role: 'Planning' });
         setShowAddPassword(false);
         setShowAddConfirmPassword(false);
         fetchUsers();
