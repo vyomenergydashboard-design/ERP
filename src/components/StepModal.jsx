@@ -222,15 +222,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                 </div>
               )}
 
-              {step.special === 'sales' && userRole === 'Sales' && (
-                <div className="sales-action-box">
-                  <div className="action-label">Action Required:</div>
-                  <div className="action-text">Initialize the order to generate unique unit IDs and upload primary documents.</div>
-                  <button className="action-btn" onClick={() => { onClose(); window.dispatchEvent(new CustomEvent('setView', { detail: 'new-order' })); }}>
-                    Go to Order Creation
-                  </button>
-                </div>
-              )}
+
 
               <div className="modal-field">
                 <label>Status</label>

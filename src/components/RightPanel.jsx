@@ -143,7 +143,7 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                     {selectedOrder.documents.filter(d => d.doc_type !== 'TaskUpload').map((doc) => (
                       <div key={doc.id} style={{ fontSize: 11, marginBottom: 3 }}>
                         <a
-                          href={`http://localhost:5000/uploads/${doc.file_path.split(/[/\\]/).pop()}?token=${localStorage.getItem('token')}`}
+                          href={`${window.API_BASE}/uploads/${doc.file_path.split(/[/\\]/).pop()}?token=${localStorage.getItem('token')}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: 'var(--blue)', textDecoration: 'none' }}

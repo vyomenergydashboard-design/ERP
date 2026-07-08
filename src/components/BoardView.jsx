@@ -31,7 +31,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
 
   const fetchBoard = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/board', {
+      const res = await fetch(window.API_BASE + "/api/board", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -204,6 +204,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
                   <div 
                     key={dept.id} 
                     className="dept-flow-card" 
+                    style={{ borderTopColor: dept.color }}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
                       onSetView('flow');
@@ -283,11 +284,12 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           display: flex;
           align-items: center;
           gap: 20px;
-          background: var(--bg2);
+          background: var(--card-bg);
           padding: 12px 20px;
           border-radius: 8px;
-          border: 1px solid var(--border);
+          border: 1px solid var(--card-border);
           margin-bottom: -8px;
+          box-shadow: var(--card-shadow);
         }
         .filter-group {
           display: flex;
@@ -302,37 +304,53 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           color: var(--text3);
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          font-weight: 600;
         }
         .board-select {
-          background: var(--bg4);
-          border: 1px solid var(--border2);
+          background: var(--bg3);
+          border: 1px solid var(--border);
           color: var(--text);
           font-size: 12px;
-          padding: 4px 8px;
+          padding: 6px 12px;
           border-radius: 6px;
           outline: none;
           cursor: pointer;
+          transition: all 0.2s;
         }
         .board-select option {
           background: var(--bg3);
           color: var(--text);
         }
         .board-select:hover {
+          border-color: var(--border2);
+          background: var(--bg4);
+        }
+        .board-select:focus {
           border-color: var(--accent);
+          box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+        }
+        .board-order-row {
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          border-radius: 16px;
+          padding: 24px 28px;
+          margin-bottom: 32px;
+          box-shadow: var(--card-shadow);
         }
         .board-order-title {
           margin: 0 0 20px 0;
-          font-size: 20px;
-          font-weight: 700;
+          font-size: 18px;
+          font-weight: 800;
           color: var(--text);
           border-bottom: 1px solid var(--border);
           padding-bottom: 12px;
-          letter-spacing: 0.5px;
+          letter-spacing: -0.2px;
         }
         .board-order-company {
-          color: var(--text2);
-          font-size: 15px;
-          font-weight: normal;
+          color: var(--text3);
+          font-size: 14px;
+          font-weight: 500;
+          margin-left: 8px;
         }
         .board-dept-grid {
           display: grid;
@@ -341,19 +359,19 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           align-items: start;
         }
         .dept-flow-card {
-          background: var(--bg2);
+          background: var(--bg3);
           border: 1px solid var(--border);
-          border-top: 2px solid var(--border2);
+          border-top: 3px solid var(--border2);
           border-radius: 12px;
           padding: 20px;
           cursor: pointer;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-          transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+          transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.2s ease, background 0.2s ease;
         }
         .dept-flow-card:hover {
-          transform: translateY(-3px);
-          box-shadow: 0 10px 32px rgba(0, 0, 0, 0.15);
+          transform: translateY(-4px);
+          background: var(--bg2);
           border-color: var(--accent);
+          box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
         }
         .dept-card-header {
           margin-bottom: 20px;
@@ -382,7 +400,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          background: var(--bg4);
+          background: var(--bg3);
           padding: 8px 12px;
           border-radius: 8px;
           border: 1px solid var(--border);
@@ -440,21 +458,24 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           position: relative;
           display: flex;
           align-items: center;
-          background: var(--bg4);
-          border: 1px solid var(--border2);
+          background: var(--bg3);
+          border: 1px solid var(--border);
           border-radius: 6px;
-          padding: 4px 10px;
+          padding: 6px 12px;
           margin-left: auto;
           flex: 1 1 200px;
           max-width: 280px;
           min-width: 140px;
-          height: 28px;
+          height: 32px;
           box-sizing: border-box;
           transition: all 0.2s ease;
         }
+        .board-search-container:hover {
+          border-color: var(--border2);
+        }
         .board-search-container:focus-within {
-          border-color: var(--blue);
-          box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+          border-color: var(--accent);
+          box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
         }
         .board-search-icon {
           color: var(--text3);
@@ -493,17 +514,21 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
           background: var(--red-dim);
         }
         .completed-order-row {
-          background: var(--green-dim);
-          border: 1px solid rgba(22, 163, 74, 0.25);
-          border-radius: 12px;
-          padding: 24px;
+          background: var(--card-bg);
+          border: 1px solid var(--card-border);
+          border-left: 4px solid var(--green);
+          border-radius: 16px;
+          padding: 24px 28px;
+          margin-bottom: 32px;
+          box-shadow: var(--card-shadow);
           transition: all 0.25s ease;
           cursor: pointer;
         }
         .completed-order-row:hover {
-          border-color: var(--green);
+          border-color: rgba(22, 163, 74, 0.4);
+          border-left-color: var(--green);
           transform: translateY(-2px);
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 12px 24px rgba(22, 163, 74, 0.05);
         }
         .completed-order-header {
           display: flex;

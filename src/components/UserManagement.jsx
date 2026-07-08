@@ -35,7 +35,7 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/users', {
+      const res = await fetch(window.API_BASE + "/api/users", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -58,7 +58,7 @@ export default function UserManagement() {
     }
     try {
       const { confirmPassword, ...signupData } = newUser;
-      const res = await fetch('http://localhost:5000/api/auth/signup', {
+      const res = await fetch(window.API_BASE + "/api/auth/signup", {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export default function UserManagement() {
   const handleUpdateRole = async (userId, newRole) => {
     setUpdatingId(userId);
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${userId}/role`, {
+      const res = await fetch(`${window.API_BASE}/api/users/${userId}/role`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ export default function UserManagement() {
     }
     try {
       const { confirmPassword, ...updateData } = editUserForm;
-      const res = await fetch(`http://localhost:5000/api/users/${editingUser.id}`, {
+      const res = await fetch(`${window.API_BASE}/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ export default function UserManagement() {
     setDeletingUser(true);
     setDeleteError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/users/${userToDelete.id}`, {
+      const res = await fetch(`${window.API_BASE}/api/users/${userToDelete.id}`, {
         method: 'DELETE',
         headers: { 
           'Authorization': `Bearer ${token}`

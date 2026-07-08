@@ -16,7 +16,7 @@ export default function LogsView() {
   const fetchLogs = async (currentLimit = limit) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/logs?limit=${currentLimit}`, {
+      const res = await fetch(`${window.API_BASE}/api/logs?limit=${currentLimit}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {

@@ -35,7 +35,7 @@ export default function OrderImport({ onImportComplete }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch('http://localhost:5000/api/orders/import', {
+      const res = await fetch(window.API_BASE + "/api/orders/import", {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
         body: fd,
@@ -59,7 +59,7 @@ export default function OrderImport({ onImportComplete }) {
 
   const handleDownloadTemplate = (e) => {
     e.preventDefault();
-    window.location.href = 'http://localhost:5000/api/template/order_import_template.xlsx';
+    window.location.href = window.API_BASE + "/api/template/order_import_template.xlsx";
   };
 
   const reset = () => { setFile(null); setResult(null); if (inputRef.current) inputRef.current.value = ''; };

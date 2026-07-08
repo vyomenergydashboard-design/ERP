@@ -25,25 +25,25 @@ function OrderStats({ steps, currentFilter, selectedOrder }) {
 
   return (
     <div className="stats-row">
-      <div className="stat-card">
+      <div className="stat-card stat-status">
         <div className="stat-label">Order Status</div>
         <div className="stat-value" style={{ color: statusColor, fontSize: 13, fontWeight: 700, marginTop: 4 }}>{orderStatus}</div>
         <div className="stat-sub">{selectedOrder?.order_number || 'no order selected'}</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-progress">
         <div className="stat-label">In Progress</div>
         <div className="stat-value" style={{ color: ip > 0 ? 'var(--blue)' : 'var(--text3)' }}>{ip}</div>
         <div className="stat-sub">active steps</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-blocked">
         <div className="stat-label">Blocked</div>
         <div className="stat-value" style={{ color: blocked > 0 ? 'var(--red)' : 'var(--text3)' }}>{blocked}</div>
         <div className="stat-sub">{blocked > 0 ? 'need attention' : 'all clear'}</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-delivery">
         <div className="stat-label">Delivery</div>
         <div style={{ marginTop: 4 }}><DaysChip deliveryDate={selectedOrder?.delivery_date} /></div>
         <div className="stat-sub">
@@ -60,7 +60,7 @@ function AggregateStats() {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch('http://localhost:5000/api/board', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(window.API_BASE + "/api/board", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => (r.ok ? r.json() : []))
       .then((orders) => {
         const today = new Date();
@@ -100,31 +100,31 @@ function AggregateStats() {
 
   return (
     <div className="stats-row">
-      <div className="stat-card">
+      <div className="stat-card stat-active">
         <div className="stat-label">Active Orders</div>
         <div className="stat-value" style={{ color: 'var(--text)' }}>{data.total}</div>
         <div className="stat-sub">in pipeline</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-urgent">
         <div className="stat-label">Urgent / High</div>
         <div className="stat-value" style={{ color: data.urgentHigh > 0 ? 'var(--accent)' : 'var(--text3)' }}>{data.urgentHigh}</div>
         <div className="stat-sub">priority orders</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-progress">
         <div className="stat-label">In Progress</div>
         <div className="stat-value" style={{ color: data.totalIP > 0 ? 'var(--blue)' : 'var(--text3)' }}>{data.totalIP}</div>
         <div className="stat-sub">steps across orders</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-blocked">
         <div className="stat-label">Blocked</div>
         <div className="stat-value" style={{ color: data.totalBlocked > 0 ? 'var(--red)' : 'var(--text3)' }}>{data.totalBlocked}</div>
         <div className="stat-sub">{data.totalBlocked > 0 ? 'need attention' : 'all clear'}</div>
       </div>
 
-      <div className="stat-card">
+      <div className="stat-card stat-due">
         <div className="stat-label">Due This Week</div>
         <div className="stat-value" style={{ color: data.dueThisWeek > 0 ? 'var(--accent)' : 'var(--text3)' }}>{data.dueThisWeek}</div>
         <div className="stat-sub">orders</div>

@@ -23,7 +23,7 @@ export default function DocumentDirectory() {
   const fetchDirectory = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/documents/directory', {
+      const res = await fetch(window.API_BASE + "/api/documents/directory", {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
@@ -41,7 +41,7 @@ export default function DocumentDirectory() {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/documents/${docId}`, {
+      const res = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -473,7 +473,7 @@ export default function DocumentDirectory() {
                             {order.docs.map(doc => {
                               const canDelete = doc.uploaded_by === user.id || user.role === 'Admin' || user.role === 'Manager';
                               const fileNameOnDisk = doc.file_path.split(/[\/\\]/).pop();
-                              const downloadUrl = `http://localhost:5000/uploads/${fileNameOnDisk}?token=${token}`;
+                              const downloadUrl = `${window.API_BASE}/uploads/${fileNameOnDisk}?token=${token}`;
 
                               return (
                                 <tr key={doc.id} className="doc-row" style={{ borderBottom: '1px solid var(--border)' }}>

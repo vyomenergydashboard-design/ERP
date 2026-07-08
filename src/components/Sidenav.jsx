@@ -90,49 +90,10 @@ export default function Sidenav({
         );
       })}
 
-      {/* ── BOM Status ── */}
-      <div className="sidenav-section" style={{ marginTop: 8 }}>BOM Status</div>
-      <div style={{ padding: '0 12px 12px' }}>
-        {BOM_STATES.map((bs) => {
-          const canEdit = ['Admin', 'Manager', 'Accounts', 'Production'].includes(userRole);
-          return (
-            <div
-              key={bs.key}
-              className={`bom-state${bomState === bs.key ? ' active-state' : ''}${!canEdit ? ' read-only' : ''}`}
-              onClick={() => canEdit && onSetBomState(bs.key)}
-            >
-              {bs.label}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Design Type ── */}
-      <div className="sidenav-section">Design Type</div>
-      <div style={{ padding: '0 12px 14px' }}>
-        <div className={designType === 'Standard' ? 'tag-standard' : 'tag-nonstandard'}>
-          ◆ {designType === 'Standard' ? 'STANDARD' : 'NON-STANDARD'}
-        </div>
-        <div style={{ marginTop: 6, display: 'flex', gap: 6 }}>
-          {['Standard', 'Non-Standard'].map((type) => {
-            const canEdit = ['Admin', 'Manager', 'Design'].includes(userRole);
-            return (
-              <button
-                key={type}
-                className={`vbtn${designType === type ? ' active' : ''}${!canEdit ? ' read-only' : ''}`}
-                style={{ flex: 1, fontSize: 10 }}
-                onClick={() => canEdit && onSetDesignType(type)}
-              >
-                {type === 'Standard' ? 'Standard' : 'Non-Std'}
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {/* ── Admin Section ── */}
       {userRole === 'Admin' && (
-        <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border)', padding: '8px 0 4px' }}>
+        <div style={{ marginTop: 'auto', borderTop: '1px solid var(--sidebar-border)', padding: '8px 0 4px' }}>
           <div className="sidenav-section">Administration</div>
           {ADMIN_NAV.map((item) => {
             const Icon = item.icon;

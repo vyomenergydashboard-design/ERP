@@ -256,10 +256,10 @@ export default function DeptWorklist({ dept }) {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
       const [wRes, uRes] = await Promise.all([
-        fetch(`http://localhost:5000/api/dept-worklist/${encodeURIComponent(dept)}`, {
+        fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(dept)}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:5000/api/users', {
+        fetch(window.API_BASE + "/api/users", {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
       ]);
@@ -282,7 +282,7 @@ export default function DeptWorklist({ dept }) {
 
   const handleStepStatusChange = async (unitId, stepId, newStatus) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/units/${unitId}/steps/${stepId}`, {
+      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ status: newStatus }),

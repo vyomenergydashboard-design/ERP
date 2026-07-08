@@ -23,7 +23,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/documents/${entityType}/${entityId}`, {
+        const res = await fetch(`${window.API_BASE}/api/documents/${entityType}/${entityId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -68,7 +68,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
     formData.append('doc_type', selectedType);
     files.forEach(file => formData.append('files', file));
     try {
-      const res = await fetch('http://localhost:5000/api/documents/upload', {
+      const res = await fetch(window.API_BASE + "/api/documents/upload", {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData
@@ -93,7 +93,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   const handleDeleteDoc = async (docId) => {
     if (!window.confirm('Delete this document?')) return;
     try {
-      const res = await fetch(`http://localhost:5000/api/documents/${docId}`, {
+      const res = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -181,7 +181,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
                 <div className="doc-meta">
                   <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
                   <a
-                    href={`http://localhost:5000/uploads/${doc.file_path.split(/[\/\\]/).pop()}?token=${token}`}
+                    href={`${window.API_BASE}/uploads/${doc.file_path.split(/[\/\\]/).pop()}?token=${token}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="doc-link"
