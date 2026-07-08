@@ -1609,7 +1609,7 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
   }
 });
 
-app.get('/api/planning', authorize(), async (req, res) => {
+app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
@@ -1674,7 +1674,7 @@ app.get('/api/planning', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { lineItemIds, fields } = req.body;
   if (!lineItemIds || !Array.isArray(lineItemIds) || lineItemIds.length === 0) {
     return res.status(400).json({ error: 'lineItemIds array required' });
@@ -1778,7 +1778,7 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Product
   }
 });
 
-app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { 
     end_client_name, 
     planned_dispatch_date, 
@@ -1853,7 +1853,7 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
   }
 });
 
-app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Production', 'Sales']), async (req, res) => {
+app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { 
     end_client_name, 
     planned_dispatch_date, 
@@ -2069,7 +2069,7 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(), async (req, res) => {
+app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { dept, status } = req.body;
   if (!dept || !status) return res.status(400).json({ error: 'dept and status are required' });
 
