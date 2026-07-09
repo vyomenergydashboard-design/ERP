@@ -594,7 +594,7 @@ export default function OrderList({ initialSelectedId }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border2)', paddingBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <strong>Line {li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
-                        {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts'].includes(currentUser.role) && (
+                        {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts', 'Planning'].includes(currentUser.role) && (
                           <button 
                             className="vbtn" 
                             style={{ padding: '2px 8px', fontSize: '10px', background: '#2563eb', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', height: '22px' }} 

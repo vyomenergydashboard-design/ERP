@@ -27,7 +27,7 @@ export default function UserManagement() {
   
   const token = localStorage.getItem('token');
 
-  const ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Planning', 'Viewer'];
 
   useEffect(() => {
     fetchUsers();

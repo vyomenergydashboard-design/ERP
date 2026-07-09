@@ -408,7 +408,7 @@ function Dashboard() {
           {currentView === 'board' ? (
             <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
           ) : currentView === 'planning' ? (
-            ['Admin', 'Manager', 'Production'].includes(user.role) ? (
+            ['Admin', 'Manager', 'Planning'].includes(user.role) ? (
               <PlanningModule />
             ) : (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>

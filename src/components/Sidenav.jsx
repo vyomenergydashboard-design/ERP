@@ -10,7 +10,7 @@ const BOM_STATES = [
 
 const PRIMARY_NAV = [
   { id: 'board',     icon: LayoutDashboard, label: 'Board',     roles: null },
-  { id: 'planning',  icon: Calendar,        label: 'Planning',  roles: ['Admin', 'Manager', 'Production'] },
+  { id: 'planning',  icon: Calendar,        label: 'Planning',  roles: ['Admin', 'Manager', 'Planning'] },
   { id: 'orders',    icon: ClipboardList,   label: 'Orders',    roles: null },
   { id: 'documents', icon: FileText,        label: 'Documents', roles: null },
   { id: 'new-order', icon: PlusCircle,      label: 'New Order', roles: ['Admin', 'Manager', 'Sales'] },

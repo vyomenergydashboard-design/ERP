@@ -824,7 +824,7 @@ app.get('/api/users', authorize(), async (req, res) => {
 
 app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
   const { role } = req.body;
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -868,7 +868,7 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     return res.status(400).json({ error: 'Username, email, and role are required' });
   }
   
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'];
+  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -1968,7 +1968,7 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
   }
 });
 
-app.get('/api/planning', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
@@ -2034,7 +2034,7 @@ app.get('/api/planning', authorize(['Admin', 'Manager', 'Production']), async (r
   }
 });
 
-app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { lineItemIds, fields } = req.body;
   if (!lineItemIds || !Array.isArray(lineItemIds) || lineItemIds.length === 0) {
     return res.status(400).json({ error: 'lineItemIds array required' });
@@ -2145,7 +2145,7 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Product
   }
 });
 
-app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   if (await isLineItemOnHold(req.params.lineItemId)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
@@ -2223,7 +2223,7 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
   }
 });
 
-app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
+app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   if (await isOrderOnHold(req.params.id)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
@@ -3009,7 +3009,7 @@ const seedSayaUser = async () => {
     await pool.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
     await pool.query(`
       ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer'))
+      CHECK (role IN ('Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'))
     `);
     await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Viewer'");
 
