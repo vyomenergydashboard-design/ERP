@@ -28,7 +28,7 @@ const DEFAULT_COLUMNS = [
 export default function PlanningModule() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEdit = ['Admin', 'Manager', 'Production', 'Sales'].includes(user.role);
+  const canEdit = ['Admin', 'Manager', 'Planning'].includes(user.role);
 
   const [orders, setOrders] = useState([]);
   const [columnOrder, setColumnOrder] = useState(() => {

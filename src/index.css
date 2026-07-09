@@ -1106,6 +1106,7 @@ option { background-color: var(--bg3); color: var(--text); }
 .role-design { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(249, 115, 22, 0.3); }
 .role-production { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34, 197, 94, 0.3); }
 .role-sales { background: var(--teal-dim); color: var(--teal); border: 1px solid rgba(45, 212, 191, 0.3); }
+.role-planning { background: rgba(99, 102, 241, 0.12); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); }
 .role-accounts { background: var(--accent2); color: #000; }
 .role-viewer { background: var(--gray-dim); color: var(--text3); border: 1px solid var(--border); }
 
