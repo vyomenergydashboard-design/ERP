@@ -13,6 +13,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   const [isUploading, setIsUploading] = useState(false);
   const [selectedType, setSelectedType] = useState(defaultDocType);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [dragging, setDragging] = useState(false);
 
   const token = localStorage.getItem('token');
 
@@ -41,24 +42,19 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
     if (onDocsUpdate) onDocsUpdate(docs);
   }, [docs, onDocsUpdate]);
 
-  const handleFileChange = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+  const uploadFiles = async (files) => {
     if (selectedType === 'PO' || selectedType === 'Quotation') {
       if (files.length > 1) {
         alert(`${selectedType} can only be a single file.`);
-        e.target.value = '';
         return;
       }
       if (docs.some(d => d.doc_type === selectedType)) {
         alert(`A ${selectedType} already exists. Please delete it first.`);
-        e.target.value = '';
         return;
       }
     }
     if (docs.length + files.length > 20) {
       alert('Maximum 20 files allowed per entity.');
-      e.target.value = '';
       return;
     }
     setIsUploading(true);
@@ -86,8 +82,33 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
       alert('Network error during upload');
     } finally {
       setIsUploading(false);
-      e.target.value = '';
     }
+  };
+
+  const handleFileChange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    await uploadFiles(files);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e) => {
+    if (readOnly) return;
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    if (readOnly) return;
+    e.preventDefault();
+    setDragging(false);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length === 0) return;
+    await uploadFiles(files);
   };
 
   const handleDeleteDoc = async (docId) => {
@@ -112,7 +133,12 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   };
 
   return (
-    <div className="doc-manager">
+    <div 
+      className={`doc-manager${dragging ? ' doc-manager--dragging' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {/* Clickable header — toggles collapsed */}
       <div
         className="doc-header"
@@ -170,7 +196,9 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
       {!isCollapsed && (
         <div className="doc-list">
           {docs.length === 0 ? (
-            <div className="no-docs">No documents uploaded yet.</div>
+            <div className="no-docs">
+              {dragging ? 'Drop files here to upload' : 'No documents uploaded yet. Drag & drop files here to upload.'}
+            </div>
           ) : (
             docs.map((doc) => (
               <div key={doc.id} className="doc-item">
@@ -211,6 +239,11 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
           border-radius: 10px;
           padding: 12px 14px;
           margin-top: 14px;
+          transition: border-color 0.2s, background-color 0.2s;
+        }
+        .doc-manager--dragging {
+          border: 1.5px dashed var(--blue) !important;
+          background: var(--blue-dim) !important;
         }
         .doc-header {
           display: flex;
@@ -247,6 +280,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
           max-height: 280px;
           overflow-y: auto;
           padding-right: 2px;
+          margin-top: 8px;
         }
         .doc-item {
           background: var(--bg4);
@@ -281,7 +315,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
         .doc-meta { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text3); flex-shrink: 0; }
         .doc-link { color: var(--blue); text-decoration: none; font-weight: 500; }
         .doc-link:hover { text-decoration: underline; }
-        .no-docs { text-align: center; color: var(--text3); font-size: 12px; padding: 16px 0; }
+        .no-docs { text-align: center; color: var(--text3); font-size: 12px; padding: 16px 0; border: 1px dashed transparent; }
       `}} />
     </div>
   );

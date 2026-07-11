@@ -1,116 +1,111 @@
 import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText } from 'lucide-react';
 import { DEPTS } from '../data/planningData';
 
-const BOM_STATES = [
-  { key: 'Stock Check',       label: '① Stock Check' },
-  { key: 'Material Allotted', label: '② Material Allotted' },
-  { key: 'Acceptance',        label: '③ Acceptance' },
-  { key: 'Accept-Complete',   label: '④ Accept-Complete' },
-];
-
 const PRIMARY_NAV = [
-  { id: 'board',     icon: LayoutDashboard, label: 'Board',     roles: null },
-  { id: 'planning',  icon: Calendar,        label: 'Planning',  roles: ['Admin', 'Manager', 'Planning'] },
-  { id: 'orders',    icon: ClipboardList,   label: 'Orders',    roles: null },
-  { id: 'documents', icon: FileText,        label: 'Documents', roles: null },
-  { id: 'new-order', icon: PlusCircle,      label: 'New Order', roles: ['Admin', 'Manager', 'Sales'] },
-  { id: 'masters',   icon: Database,        label: 'Masters',   roles: ['Admin', 'Manager', 'Sales'] },
-  { id: 'import',    icon: Upload,          label: 'Import',    roles: ['Admin', 'Manager', 'Sales'] },
+  { id: 'board',     icon: LayoutDashboard, label: 'Board',       roles: null },
+  { id: 'planning',  icon: Calendar,        label: 'Planning',    roles: ['Admin', 'Manager', 'Planning'] },
+  { id: 'orders',    icon: ClipboardList,   label: 'Orders',      roles: null },
+  { id: 'documents', icon: FileText,        label: 'Documents',   roles: null },
+  { id: 'new-order', icon: PlusCircle,      label: 'New Order',   roles: ['Admin', 'Manager', 'Sales'] },
+  { id: 'masters',   icon: Database,        label: 'Masters',     roles: ['Admin', 'Manager', 'Sales'] },
+  { id: 'import',    icon: Upload,          label: 'Import',      roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'worklist',  icon: ListTodo,        label: 'My Worklist', roles: ['Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Sales'] },
 ];
 
 const ADMIN_NAV = [
-  { id: 'users', icon: Users,      label: 'User Directory' },
-  { id: 'logs',  icon: ScrollText, label: 'System Logs' },
-  { id: 'settings', icon: Settings, label: 'System Settings' },
+  { id: 'users',    icon: Users,      label: 'User Directory' },
+  { id: 'logs',     icon: ScrollText, label: 'System Logs' },
+  { id: 'settings', icon: Settings,   label: 'System Settings' },
 ];
+
+function NavItem({ item, isActive, onClick }) {
+  const Icon = item.icon;
+  return (
+    <button
+      className={`dept-btn${isActive ? ' active' : ''}`}
+      onClick={onClick}
+      title={item.label}
+    >
+      <Icon size={16} className="nav-icon" />
+      <span className="nav-label">{item.label}</span>
+    </button>
+  );
+}
 
 export default function Sidenav({
   steps,
   currentFilter,
   onFilterDept,
-  bomState,
-  onSetBomState,
-  designType,
-  onSetDesignType,
   currentView,
   onSetView,
   userRole,
+  collapsed = false,
 }) {
   return (
-    <div className="sidenav">
+    <aside className={`sidenav${collapsed ? ' sidenav--collapsed' : ''}`}>
+      <div className="sidenav-inner">
+        {/* ── Primary Navigation ── */}
+        <div className="sidenav-group">
+          <p className="sidenav-label">Workspace</p>
+          {PRIMARY_NAV.map((item) => {
+            if (item.roles && !item.roles.includes(userRole)) return null;
+            return (
+              <NavItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onSetView(item.id)}
+              />
+            );
+          })}
+        </div>
 
-      {/* ── Primary Navigation ── */}
-      <div className="sidenav-section">Workspace</div>
-      {PRIMARY_NAV.map((item) => {
-        if (item.roles && !item.roles.includes(userRole)) return null;
-        const Icon = item.icon;
-        return (
+        {/* ── Departments ── */}
+        <div className="sidenav-group">
+          <p className="sidenav-label">Departments</p>
           <button
-            key={item.id}
-            className={`dept-btn${currentView === item.id ? ' active' : ''}`}
-            onClick={() => onSetView(item.id)}
+            className={`dept-btn${currentFilter === 'all' ? ' active' : ''}`}
+            onClick={() => onFilterDept('all')}
+            title="All Departments"
           >
-            <Icon size={14} className="nav-icon" />
-            {item.label}
+            <span className="dept-dot" style={{ background: 'var(--accent)' }} />
+            <span className="nav-label">All Departments</span>
           </button>
-        );
-      })}
-
-      {/* ── Departments (filter for Flow view) ── */}
-      <div className="sidenav-section" style={{ marginTop: 8 }}>Departments</div>
-
-      <button
-        className={`dept-btn${currentFilter === 'all' ? ' active' : ''}`}
-        onClick={() => onFilterDept('all')}
-      >
-        <span className="dept-dot" style={{ background: 'var(--accent)' }} />
-        All Departments
-      </button>
-
-      {DEPTS.map((dept) => {
-        const done  = steps.filter((s) => s.dept === dept.id && s.status === 'done').length;
-        const total = steps.filter((s) => s.dept === dept.id).length;
-        return (
-          <button
-            key={dept.id}
-            className={`dept-btn${currentFilter === dept.id ? ' active' : ''}`}
-            onClick={() => {
-              onFilterDept(dept.id);
-              onSetView('flow');
-            }}
-          >
-            <span className="dept-dot" style={{ background: dept.color }} />
-            {dept.label}
-            {total > 0
-              ? <span className="dept-count">{done}/{total}</span>
-              : <span className="dept-count" style={{ opacity: 0.3 }}>—</span>
-            }
-          </button>
-        );
-      })}
-
-
-      {/* ── Admin Section ── */}
-      {userRole === 'Admin' && (
-        <div style={{ marginTop: 'auto', borderTop: '1px solid var(--sidebar-border)', padding: '8px 0 4px' }}>
-          <div className="sidenav-section">Administration</div>
-          {ADMIN_NAV.map((item) => {
-            const Icon = item.icon;
+          {DEPTS.map((dept) => {
+            const done  = steps.filter((s) => s.dept === dept.id && s.status === 'done').length;
+            const total = steps.filter((s) => s.dept === dept.id).length;
             return (
               <button
-                key={item.id}
-                className={`dept-btn${currentView === item.id ? ' active' : ''}`}
-                onClick={() => onSetView(item.id)}
-                style={{ width: '100%', justifyContent: 'flex-start' }}
+                key={dept.id}
+                className={`dept-btn${currentFilter === dept.id ? ' active' : ''}`}
+                onClick={() => { onFilterDept(dept.id); onSetView('flow'); }}
+                title={dept.label}
               >
-                <Icon size={14} className="nav-icon" />
-                {item.label}
+                <span className="dept-dot" style={{ background: dept.color }} />
+                <span className="nav-label">{dept.label}</span>
+                <span className="dept-count nav-count">
+                  {total > 0 ? `${done}/${total}` : '—'}
+                </span>
               </button>
             );
           })}
         </div>
-      )}
-    </div>
+
+        {/* ── Admin ── */}
+        {userRole === 'Admin' && (
+          <div className="sidenav-group sidenav-group--admin">
+            <p className="sidenav-label">Admin</p>
+            {ADMIN_NAV.map((item) => (
+              <NavItem
+                key={item.id}
+                item={item}
+                isActive={currentView === item.id}
+                onClick={() => onSetView(item.id)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

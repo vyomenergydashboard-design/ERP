@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { LogOut, User, Search, Sun, Moon } from 'lucide-react';
+import { LogOut, User, Search, Sun, Moon, Menu } from 'lucide-react';
 
-export default function Header({ onLogout }) {
+export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
@@ -137,13 +137,21 @@ export default function Header({ onLogout }) {
   return (
     <div className="header">
       <div className="header-left">
+        <button 
+          className="sidebar-toggle-btn"
+          onClick={onToggleSidebar}
+          title={sidenavCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+          aria-label={sidenavCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+        >
+          <Menu size={16} />
+        </button>
         <div className="logo">{logoName}</div>
         <div className="header-title">{headerTitle}</div>
       </div>
       <div className="header-right">
-        <div className="user-info" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px', color: 'var(--text2)', fontSize: '12px' }}>
-          <User size={14} />
-          <span>{user.username || 'User'}</span>
+        <div className="user-info">
+          <User size={14} className="user-icon" />
+          <span className="user-name">{user.username || 'User'}</span>
           <span className={`role-badge role-${user.role?.toLowerCase()}`}>{user.role || 'Viewer'}</span>
         </div>
 
@@ -194,37 +202,41 @@ export default function Header({ onLogout }) {
           )}
         </div>
 
-        <div className="clock" style={{ marginRight: '16px' }}>{time}</div>
+        <div className="clock-wrapper">{time}</div>
         <button
           onClick={toggleTheme}
           title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          style={{
-            background: 'var(--bg4)',
-            border: '1px solid var(--border2)',
-            borderRadius: '6px',
-            color: 'var(--text2)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            padding: '5px 10px',
-            marginRight: '8px',
-            transition: 'all 0.2s',
-            gap: '5px',
-            fontSize: '12px',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text2)'; e.currentTarget.style.borderColor = 'var(--border2)'; }}
+          className="theme-toggle-btn"
         >
           {isDark ? <Sun size={13} /> : <Moon size={13} />}
-          {isDark ? 'Light' : 'Dark'}
+          <span className="theme-toggle-text">{isDark ? 'Light' : 'Dark'}</span>
         </button>
         <button onClick={onLogout} className="logout-btn">
-          <LogOut size={14} />
-          Logout
+          <LogOut size={14} className="logout-icon" />
+          <span className="logout-text">Logout</span>
         </button>
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        .sidebar-toggle-btn {
+          background: transparent;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+          color: var(--text2);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          transition: all 0.2s;
+          margin-right: 4px;
+        }
+        .sidebar-toggle-btn:hover {
+          background: var(--bg4);
+          color: var(--accent);
+          border-color: var(--accent);
+        }
         .order-selector {
           position: relative;
           display: flex;
@@ -298,6 +310,85 @@ export default function Header({ onLogout }) {
         .search-dropdown-item.active { background: var(--blue-dim); color: var(--blue); }
         .search-dropdown-item.empty { color: var(--text3); text-align: center; font-style: italic; cursor: default; }
         .search-dropdown-item.empty:hover { background: transparent; }
+        
+        .user-info {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-right: 16px;
+          color: var(--text2);
+          font-size: 12px;
+        }
+        .clock-wrapper {
+          margin-right: 16px;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--text3);
+        }
+        .theme-toggle-btn {
+          background: var(--bg4);
+          border: 1px solid var(--border2);
+          border-radius: 6px;
+          color: var(--text2);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          padding: 5px 10px;
+          margin-right: 8px;
+          transition: all 0.2s;
+          gap: 5px;
+          font-size: 12px;
+        }
+        .theme-toggle-btn:hover {
+          color: var(--accent);
+          border-color: var(--accent);
+        }
+        .logout-btn {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        /* Responsive styling for small laptops / tablets */
+        @media (max-width: 1200px) {
+          .header-title {
+            display: none;
+          }
+        }
+        @media (max-width: 1024px) {
+          .order-search-input {
+            width: 180px;
+          }
+        }
+        @media (max-width: 900px) {
+          .user-name {
+            display: none;
+          }
+          .clock-wrapper {
+            display: none;
+          }
+          .order-search-input {
+            width: 140px;
+          }
+        }
+        @media (max-width: 768px) {
+          .role-badge {
+            display: none;
+          }
+          .theme-toggle-text, .logout-text {
+            display: none;
+          }
+          .theme-toggle-btn, .logout-btn {
+            padding: 6px;
+            margin-right: 4px;
+          }
+          .user-info {
+            margin-right: 8px;
+          }
+          .order-selector {
+            margin-right: 8px;
+          }
+        }
       `}} />
     </div>
   );

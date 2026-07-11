@@ -14,7 +14,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     reference_number: '',
     classification: 'Standard',
     lineItems: [{
-      line_item_number: '0001',
       material_description: '',
       part_number: '',
       panel_type_size: '',
@@ -33,6 +32,9 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     approved_docs: []
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draggingPo, setDraggingPo] = useState(false);
+  const [draggingQuotation, setDraggingQuotation] = useState(false);
+  const [draggingDocs, setDraggingDocs] = useState(false);
   const token = localStorage.getItem('token');
 
   useEffect(() => {
@@ -66,31 +68,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   };
 
   const addLineItem = () => {
-    setFormData(prev => {
-      const lastNumber = prev.lineItems.length > 0 
-        ? parseInt(prev.lineItems[prev.lineItems.length - 1].line_item_number)
-        : 0;
-      const nextNumber = String(lastNumber + 1).padStart(4, '0');
-      
-      return {
-        ...prev,
-        lineItems: [
-          ...prev.lineItems,
-          {
-            line_item_number: nextNumber,
-            material_description: '',
-            part_number: '',
-            panel_type_size: '',
-            delivery_date: '',
-            quantity: 1,
-            unit: 'Nos',
-            unit_price: '',
-            total_price: '',
-            notes: ''
-          }
-        ]
-      };
-    });
+    setFormData(prev => ({
+      ...prev,
+      lineItems: [
+        ...prev.lineItems,
+        {
+          material_description: '',
+          part_number: '',
+          panel_type_size: '',
+          delivery_date: '',
+          quantity: 1,
+          unit: 'Nos',
+          unit_price: '',
+          total_price: '',
+          notes: ''
+        }
+      ]
+    }));
   };
 
   const removeLineItem = (index) => {
@@ -100,9 +94,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     }));
   };
 
-  const handleFileChange = (e, type) => {
+  const handleFiles = (selectedFiles, type) => {
     if (type === 'approved_docs') {
-      const selectedFiles = Array.from(e.target.files);
       setFiles(prev => {
         const existing = prev.approved_docs || [];
         const newFiles = [...existing, ...selectedFiles];
@@ -112,10 +105,33 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         }
         return { ...prev, [type]: newFiles };
       });
-      e.target.value = '';
     } else {
-      setFiles(prev => ({ ...prev, [type]: e.target.files[0] }));
+      setFiles(prev => ({ ...prev, [type]: selectedFiles[0] }));
     }
+  };
+
+  const handleFileChange = (e, type) => {
+    const selectedFiles = Array.from(e.target.files);
+    if (selectedFiles.length === 0) return;
+    handleFiles(selectedFiles, type);
+    e.target.value = '';
+  };
+
+  const handleDragOver = (e, setDragging) => {
+    e.preventDefault();
+    setDragging(true);
+  };
+
+  const handleDragLeave = (setDragging) => {
+    setDragging(false);
+  };
+
+  const handleDrop = (e, type, setDragging) => {
+    e.preventDefault();
+    setDragging(false);
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length === 0) return;
+    handleFiles(droppedFiles, type);
   };
 
   const removeFile = (indexToRemove) => {
@@ -127,7 +143,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
   const removeSingleFile = (type) => {
     setFiles(prev => ({ ...prev, [type]: null }));
-    // Also reset the actual file input element by clearing its value
     const input = document.getElementById(`file-input-${type}`);
     if (input) input.value = '';
   };
@@ -186,7 +201,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           reference_number: '',
           classification: 'Standard',
           lineItems: [{
-            line_item_number: '0001',
             material_description: '',
             part_number: '',
             panel_type_size: '',
@@ -369,8 +383,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 )}
                 <div className="line-item-grid-1">
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item #</label>
-                    <input type="text" className="form-input" value={li.line_item_number} onChange={e => handleLineItemChange(idx, 'line_item_number', e.target.value)} required />
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item # <span style={{ color: '#888', fontStyle: 'italic' }}>(auto-assigned)</span></label>
+                    <input type="text" className="form-input" value={`Item ${idx + 1}`} readOnly style={{ background: 'var(--bg4)', opacity: 0.6, cursor: 'not-allowed' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Material Description</label>
@@ -427,10 +441,15 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             <div className="file-grid">
 
               {/* Customer PO Copy — single file only */}
-              <div className="file-input-wrapper">
+              <div 
+                className={`file-input-wrapper${draggingPo ? ' dragging' : ''}`}
+                onDragOver={(e) => handleDragOver(e, setDraggingPo)}
+                onDragLeave={() => handleDragLeave(setDraggingPo)}
+                onDrop={(e) => handleDrop(e, 'po', setDraggingPo)}
+              >
                 <label>Customer PO Copy</label>
                 {files.po ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
                     <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.po.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -440,18 +459,24 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <button type="button" onClick={() => removeSingleFile('po')} className="remove-file-btn" title="Remove">✕</button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px' }}>
-                    📎 Choose file…
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <span>📁 Drag file here or</span>
+                    <span style={{ color: 'var(--blue)' }}>browse files</span>
                     <input id="file-input-po" type="file" hidden onChange={(e) => handleFileChange(e, 'po')} />
                   </label>
                 )}
               </div>
 
               {/* Quotation — single file only */}
-              <div className="file-input-wrapper">
+              <div 
+                className={`file-input-wrapper${draggingQuotation ? ' dragging' : ''}`}
+                onDragOver={(e) => handleDragOver(e, setDraggingQuotation)}
+                onDragLeave={() => handleDragLeave(setDraggingQuotation)}
+                onDrop={(e) => handleDrop(e, 'quotation', setDraggingQuotation)}
+              >
                 <label>Quotation</label>
                 {files.quotation ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
                     <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.quotation.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -461,16 +486,28 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <button type="button" onClick={() => removeSingleFile('quotation')} className="remove-file-btn" title="Remove">✕</button>
                   </div>
                 ) : (
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '10px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px' }}>
-                    📎 Choose file…
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <span>📁 Drag file here or</span>
+                    <span style={{ color: 'var(--blue)' }}>browse files</span>
                     <input id="file-input-quotation" type="file" hidden onChange={(e) => handleFileChange(e, 'quotation')} />
                   </label>
                 )}
               </div>
 
-              <div className="file-input-wrapper" style={{ alignItems: 'flex-start' }}>
+              {/* Approved Documents — multiple files */}
+              <div 
+                className={`file-input-wrapper${draggingDocs ? ' dragging' : ''}`}
+                onDragOver={(e) => handleDragOver(e, setDraggingDocs)}
+                onDragLeave={() => handleDragLeave(setDraggingDocs)}
+                onDrop={(e) => handleDrop(e, 'approved_docs', setDraggingDocs)}
+                style={{ alignItems: 'center' }}
+              >
                 <label>Approved Documents (Up to 20)</label>
-                <input type="file" multiple onChange={(e) => handleFileChange(e, 'approved_docs')} />
+                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
+                  <span>📁 Drag files here or</span>
+                  <span style={{ color: 'var(--blue)' }}>browse files</span>
+                  <input type="file" multiple hidden onChange={(e) => handleFileChange(e, 'approved_docs')} />
+                </label>
                 {files.approved_docs && files.approved_docs.length > 0 && (
                   <div className="selected-files-list">
                     {files.approved_docs.map((file, idx) => (
@@ -545,6 +582,10 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           transition: border-color 0.2s, background 0.2s;
         }
         .file-input-wrapper:hover { border-color: var(--blue); background: var(--bg4); }
+        .file-input-wrapper.dragging {
+          border-color: var(--blue) !important;
+          background: var(--blue-dim) !important;
+        }
         .file-input-wrapper label { color: var(--text2); font-size: 13px; font-weight: 600; }
         .file-input-wrapper input[type="file"] {
           font-size: 12px; color: var(--text3); max-width: 100%;

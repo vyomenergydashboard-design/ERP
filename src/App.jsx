@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Maximize2, Minimize2 } from 'lucide-react';
+import { Maximize2, Minimize2, PanelLeftClose } from 'lucide-react';
 import Header from './components/Header';
 import Sidenav from './components/Sidenav';
 import StatsRow from './components/StatsRow';
@@ -47,7 +47,8 @@ function Dashboard() {
   const selectedOrderIdRef = useRef(null); // ref so closures always see latest value
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [sidenavCollapsed, setSidenavCollapsed] = useState(() => window.innerWidth < 1200);
 
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitSteps, setUnitSteps] = useState([]);
@@ -350,7 +351,11 @@ function Dashboard() {
 
   return (
     <div className="app-container">
-      <Header onLogout={handleLogout} />
+      <Header 
+        onLogout={handleLogout} 
+        onToggleSidebar={() => setSidenavCollapsed(c => !c)}
+        sidenavCollapsed={sidenavCollapsed}
+      />
       <div className="app">
         {(!isPlanningFullscreen || currentView !== 'planning') && (
           <Sidenav
@@ -364,6 +369,7 @@ function Dashboard() {
             currentView={currentView}
             onSetView={navigateToView}
             userRole={user.role}
+            collapsed={sidenavCollapsed}
           />
         )}
         <main className="main">
@@ -468,7 +474,7 @@ function Dashboard() {
             <UserManagement />
           )}
         </main>
-        {currentView !== 'planning' && (
+        {currentView !== 'planning' && user.role === 'Admin' && (
           <RightPanel
             selectedStep={selectedStep}
             activityLog={activityLog}

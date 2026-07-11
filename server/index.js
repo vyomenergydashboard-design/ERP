@@ -657,26 +657,31 @@ const upload = multer({
 });
 
 // Helper for Order ID Generation
-const generateOrderNumber = async () => {
+// Helper: extract numeric counter from a line_item_number (stored as ORD-YYYY-NNNN or plain NNNN)
+const parseLiCounter = (li_number) => {
+  if (!li_number) return 0;
+  const s = String(li_number);
+  // Full format: ORD-2026-0001 → take the last segment
+  const parts = s.split('-');
+  return parseInt(parts[parts.length - 1]) || 0;
+};
+
+const generateOrderNumber = async (client) => {
+  // The order number equals the global line-item sequence number of its FIRST line item.
+  // line_item_numbers are stored as full ORD-YYYY-NNNN strings.
   const year = new Date().getFullYear();
   const prefix = `ORD-${year}-`;
-  const result = await pool.query(
-    "SELECT order_number FROM orders WHERE order_number LIKE $1 ORDER BY id DESC LIMIT 1",
-    [`${prefix}%`]
+
+  const db = client || pool;
+  const liResult = await db.query(
+    "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
   );
 
   let nextNum;
-  if (result.rows.length > 0) {
-    // Continue from the last order number in the system
-    const parts = result.rows[0].order_number.split('-');
-    if (parts.length === 3) {
-      nextNum = parseInt(parts[2]) + 1;
-    } else {
-      nextNum = 1;
-    }
+  if (liResult.rows.length > 0) {
+    nextNum = parseLiCounter(liResult.rows[0].line_item_number) + 1;
   } else {
-    // No orders yet — use the admin-configured starting number
-    const setting = await pool.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+    const setting = await db.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
     nextNum = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
   }
 
@@ -991,24 +996,46 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       // Ignore
     }
 
-    // 1. Create Order
-    const order_number = await generateOrderNumber();
+    // 1. Determine the global line-item counter start.
+    //    The order number = the global sequence number of its first line item.
+    //    line_item_numbers are stored as full ORD-YYYY-NNNN strings.
+    const liCountRes = await client.query(
+      "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
+    );
+    let globalLineItemCounter;
+    if (liCountRes.rows.length > 0) {
+      globalLineItemCounter = parseLiCounter(liCountRes.rows[0].line_item_number) + 1;
+    } else {
+      const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+      globalLineItemCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
+    }
+
+    // The order number is ORD-<year>-<firstLineItemGlobalNum>
+    const year = new Date().getFullYear();
+    const order_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+
     const orderResult = await client.query(
       `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
       [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard']
     );
-    const order = orderResult.rows[0];    // 2. Insert Line Items and Generate Unit IDs sequentially
+    const order = orderResult.rows[0];
+
+    // 2. Insert Line Items — stored as full ORD-YYYY-NNNN format
     const maxSerialRes = await client.query('SELECT MAX(CAST(short_serial AS INTEGER)) as max_serial FROM order_units');
     let globalUnitCounter = (maxSerialRes.rows[0]?.max_serial || 0) + 1;
     let totalUnits = 0;
     const createdUnits = [];
 
     for (const li of parsedLineItems) {
+      // Full ORD-YYYY-NNNN format for line item number
+      const assigned_li_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+      globalLineItemCounter++;
+
       const liResult = await client.query(
         `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-        [order.id, li.line_item_number, li.material_description, li.part_number, li.panel_type_size, li.delivery_date || null, li.quantity, li.unit, li.unit_price, li.total_price, li.notes]
+        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, li.delivery_date || null, li.quantity, li.unit, li.unit_price, li.total_price, li.notes]
       );
       const lineItem = liResult.rows[0];
       const qty = parseInt(li.quantity);
@@ -1476,18 +1503,28 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         order = existingOrderRes.rows[0];
         isAppended = true;
 
-        // Find current max line item number to continue the line sequence
+        // Continue from the GLOBAL last line item number (global sequence across all orders)
         const maxLiRes = await client.query(
-          "SELECT line_item_number FROM order_line_items WHERE order_id = $1 ORDER BY id DESC LIMIT 1",
-          [order.id]
+          "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
         );
         if (maxLiRes.rows.length > 0) {
-          const lastLiNum = parseInt(maxLiRes.rows[0].line_item_number) || 0;
-          lineNum = lastLiNum + 1;
+          lineNum = parseLiCounter(maxLiRes.rows[0].line_item_number) + 1;
         }
       } else {
-        // Create order
-        const order_number = await generateOrderNumber();
+        // Create new order — determine global line item counter for this order
+        const liCountRes = await client.query(
+          "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
+        );
+        if (liCountRes.rows.length > 0) {
+          lineNum = parseLiCounter(liCountRes.rows[0].line_item_number) + 1;
+        } else {
+          const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+          lineNum = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
+        }
+
+        // Order number = global sequence number of its first line item (full ORD-YYYY-NNNN)
+        const importYear = new Date().getFullYear();
+        const order_number = `ORD-${importYear}-${lineNum.toString().padStart(4, '0')}`;
         const VALID_CLASSIFICATIONS = ['Standard', 'Non-Standard'];
         const classification = VALID_CLASSIFICATIONS.includes(header['classification']) ? header['classification'] : 'Standard';
         const orderResult = await client.query(
@@ -1504,14 +1541,15 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       }
 
       const order_number = order.order_number;
+      const importYear = new Date().getFullYear();
 
-      // Insert line items & units
+      // Insert line items & units (line_item_number stored as full ORD-YYYY-NNNN)
       let totalUnits = 0;
       const createdUnits = [];
 
       for (const li of lineItems) {
-        const li_number = String(li['line_item_number'] || '').trim() ||
-                          String(lineNum).padStart(4, '0');
+        // Full ORD-YYYY-NNNN format for line item number
+        const li_number = `ORD-${importYear}-${lineNum.toString().padStart(4, '0')}`;
         lineNum += 1;
 
         // Smart Deduplication: Check if this line item already exists (by number OR by matching description)
@@ -1766,6 +1804,151 @@ app.get('/api/orders/:id', authorize(), async (req, res) => {
   }
 });
 
+const resolveCustomFieldValues = async (customFields, orderId, unitId = null) => {
+  if (!customFields || !Array.isArray(customFields) || customFields.length === 0) {
+    return customFields;
+  }
+
+  let dbRow = null;
+  if (unitId) {
+    const res = await pool.query(
+      `SELECT 
+        o.order_number, o.po_number, o.delivery_date, o.order_date,
+        o.notes as order_notes, o.priority, o.packaging_type,
+        o.end_client_name, o.gst_number, o.reference_number, o.classification,
+        o.hold_status, o.status as order_status, o.qc_status, o.qc_date,
+        o.planned_dispatch_date, o.wiring_assigned_date, o.wiring_expected_date, o.expected_qc_date,
+        c.name as company_name,
+        cl.city as company_city, cl.person_in_charge, cl.contact_number, cl.email as company_email,
+        li.material_description, li.part_number, li.panel_type_size,
+        li.delivery_date as line_item_delivery_date, li.quantity, li.unit,
+        li.unit_price, li.total_price, li.notes as line_item_notes,
+        u.unit_id as unit_serial, u.short_serial, u.current_dept, u.status as unit_status
+      FROM order_units u
+      JOIN orders o ON u.order_id = o.id
+      LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+      LEFT JOIN companies c ON cl.company_id = c.id
+      LEFT JOIN order_line_items li ON u.line_item_id = li.id
+      WHERE u.id = $1`,
+      [unitId]
+    );
+    if (res.rows.length > 0) dbRow = res.rows[0];
+  } else if (orderId) {
+    const res = await pool.query(
+      `SELECT 
+        o.order_number, o.po_number, o.delivery_date, o.order_date,
+        o.notes as order_notes, o.priority, o.packaging_type,
+        o.end_client_name, o.gst_number, o.reference_number, o.classification,
+        o.hold_status, o.status as order_status, o.qc_status, o.qc_date,
+        o.planned_dispatch_date, o.wiring_assigned_date, o.wiring_expected_date, o.expected_qc_date,
+        c.name as company_name,
+        cl.city as company_city, cl.person_in_charge, cl.contact_number, cl.email as company_email
+      FROM orders o
+      LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+      LEFT JOIN companies c ON cl.company_id = c.id
+      WHERE o.id = $1`,
+      [orderId]
+    );
+    if (res.rows.length > 0) dbRow = res.rows[0];
+  }
+
+  // Resolve each custom field
+  const results = [];
+  for (const f of customFields) {
+    if (!f.datakey) { results.push(f); continue; }
+
+    const rawKey = f.datakey.trim();
+
+    // ── Document count datakeys (docs.any, docs.PO, docs.Drawing, etc.) ──
+    if (rawKey.startsWith('docs.')) {
+      const docType = rawKey.slice(5); // e.g. "PO", "any", "Drawing"
+      try {
+        let count = 0;
+        
+        // 1. Resolve order id from context
+        let resolvedOrderId = orderId;
+        if (!resolvedOrderId && unitId && dbRow) {
+          const oRes = await pool.query(`SELECT order_id FROM order_units WHERE id = $1`, [unitId]);
+          if (oRes.rows.length > 0) resolvedOrderId = oRes.rows[0].order_id;
+        }
+
+        // 2. Query order-level documents + order-step documents
+        if (resolvedOrderId) {
+          let docRes;
+          if (docType === 'any') {
+            docRes = await pool.query(
+              `SELECT COUNT(*) as cnt FROM documents 
+               WHERE (entity_type = 'Order' AND entity_id = $1)
+                  OR (entity_type = 'Step' AND entity_id IN (SELECT id FROM order_steps WHERE order_id = $1))`,
+              [resolvedOrderId]
+            );
+          } else {
+            docRes = await pool.query(
+              `SELECT COUNT(*) as cnt FROM documents 
+               WHERE (entity_type = 'Order' AND entity_id = $1 AND doc_type = $2)
+                  OR (entity_type = 'Step' AND entity_id IN (SELECT id FROM order_steps WHERE order_id = $1) AND doc_type = $2)`,
+              [resolvedOrderId, docType]
+            );
+          }
+          count += parseInt(docRes.rows[0]?.cnt || '0', 10);
+        }
+
+        // 3. Query unit-level documents + unit-step documents
+        if (unitId) {
+          let unitDocRes;
+          if (docType === 'any') {
+            unitDocRes = await pool.query(
+              `SELECT COUNT(*) as cnt FROM documents 
+               WHERE (entity_type = 'Unit' AND entity_id = $1)
+                  OR (entity_type = 'Step' AND entity_id IN (SELECT id FROM unit_steps WHERE order_unit_id = $1))`,
+              [unitId]
+            );
+          } else {
+            unitDocRes = await pool.query(
+              `SELECT COUNT(*) as cnt FROM documents 
+               WHERE (entity_type = 'Unit' AND entity_id = $1 AND doc_type = $2)
+                  OR (entity_type = 'Step' AND entity_id IN (SELECT id FROM unit_steps WHERE order_unit_id = $1) AND doc_type = $2)`,
+              [unitId, docType]
+            );
+          }
+          count += parseInt(unitDocRes.rows[0]?.cnt || '0', 10);
+        }
+
+        // Return count as value; 0 → empty string so "any non-empty" check correctly fails
+        results.push({ ...f, value: count > 0 ? count : '' });
+      } catch (err) {
+        console.error('Failed resolving docs datakey:', rawKey, err);
+        results.push(f);
+      }
+      continue;
+    }
+
+    // ── Regular DB column datakeys ──
+    if (!dbRow) { results.push(f); continue; }
+    const key = rawKey.includes('.') ? rawKey.split('.').slice(-1)[0] : rawKey;
+    const matchedKey = Object.keys(dbRow).find(k => k.toLowerCase() === key.toLowerCase());
+    if (matchedKey && dbRow[matchedKey] !== null && dbRow[matchedKey] !== undefined) {
+      const val = dbRow[matchedKey];
+      let resolvedValue = val;
+      if (f.type === 'Date' || val instanceof Date) {
+        try {
+          const d = new Date(val);
+          if (!isNaN(d.getTime())) resolvedValue = d.toISOString().split('T')[0];
+        } catch {}
+      } else if (f.type === 'Yes/No') {
+        resolvedValue = val === true || String(val).toLowerCase() === 'yes';
+      } else {
+        resolvedValue = String(val);
+      }
+      results.push({ ...f, value: resolvedValue });
+    } else {
+      results.push(f);
+    }
+  }
+  return results;
+};
+
+
 app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
   try {
     // Self-healing: check if a PO document exists for this order
@@ -1806,6 +1989,50 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
           const tmCf = Array.isArray(step.tm_custom_fields) ? step.tm_custom_fields : JSON.parse(step.tm_custom_fields);
           cf = tmCf.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
         } catch { cf = []; }
+      }
+
+      // Resolve datakeys dynamically
+      cf = await resolveCustomFieldValues(cf, req.params.id, null);
+
+      let autoDone = false;
+      if (step.status !== 'done') {
+        const hasResolvedVal = cf.some(f => {
+          if (!f.datakey) return false;
+          const val = f.value;
+          const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
+          if (!isValPresent) return false;
+          
+          if (f.condition) {
+            try {
+              const fn = new Function('$val', `return (${f.condition});`);
+              return !!fn(val);
+            } catch (err) {
+              console.error('Failed evaluating condition:', f.condition, err);
+              return false;
+            }
+          }
+          return isValPresent;
+        });
+
+        if (hasResolvedVal) {
+          autoDone = true;
+        }
+      }
+
+      if (autoDone) {
+        const deliveryField = cf.find(f => f.datakey && f.datakey.includes('delivery_date'));
+        let dispatchDateVal = step.dispatch_date;
+        if (deliveryField && deliveryField.value) {
+          dispatchDateVal = deliveryField.value;
+        }
+
+        await pool.query(
+          `UPDATE order_steps SET status = 'done', custom_fields = $1, dispatch_date = COALESCE($2, dispatch_date), updated = $3 WHERE id = $4`,
+          [JSON.stringify(cf), dispatchDateVal || null, updatedStr, step.id]
+        );
+        step.status = 'done';
+        step.dispatch_date = dispatchDateVal;
+        step.updated = updatedStr;
       }
 
       // Pass order_fields config from task master to step
@@ -1992,6 +2219,7 @@ app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req
           oli.mounting_complete_date,
           oli.part_number,
           oli.line_item_number,
+          oli.quantity,
           c.name as company_name,
           l.city as company_city,
           (
@@ -2301,7 +2529,8 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
       [req.params.unitId]
     );
 
-    const steps = result.rows.map(step => {
+    const steps = [];
+    for (const step of result.rows) {
       let cf = [];
       try { cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]'); } catch { cf = []; }
       
@@ -2312,12 +2541,65 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
         } catch { cf = []; }
       }
       
+      // Resolve datakeys dynamically
+      cf = await resolveCustomFieldValues(cf, null, req.params.unitId);
+      
+      let autoDone = false;
+      if (step.status !== 'done') {
+        const hasResolvedVal = cf.some(f => {
+          if (!f.datakey) return false;
+          const val = f.value;
+          const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
+          if (!isValPresent) return false;
+          
+          if (f.condition) {
+            try {
+              const fn = new Function('$val', `return (${f.condition});`);
+              return !!fn(val);
+            } catch (err) {
+              console.error('Failed evaluating condition:', f.condition, err);
+              return false;
+            }
+          }
+          return isValPresent;
+        });
+
+        if (hasResolvedVal) {
+          autoDone = true;
+        }
+      }
+
+      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+      if (autoDone) {
+        const deliveryField = cf.find(f => f.datakey && f.datakey.includes('delivery_date'));
+        let dispatchDateVal = step.dispatch_date;
+        if (deliveryField && deliveryField.value) {
+          dispatchDateVal = deliveryField.value;
+        }
+
+        await pool.query(
+          `UPDATE unit_steps SET status = 'done', custom_fields = $1, dispatch_date = COALESCE($2, dispatch_date), updated = $3 WHERE id = $4`,
+          [JSON.stringify(cf), dispatchDateVal || null, updatedStr, step.id]
+        );
+        step.status = 'done';
+        step.dispatch_date = dispatchDateVal;
+        step.updated = updatedStr;
+
+        // Recalculate derived status and QC status
+        await deriveUnitStatus(req.params.unitId, pool);
+        const unitRes = await pool.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
+        if (unitRes.rows.length > 0) {
+          await updateOrderQCStatusFromSteps(unitRes.rows[0].order_id, pool);
+        }
+      }
+
       let orderFields = [];
       try { orderFields = Array.isArray(step.tm_order_fields) ? step.tm_order_fields : JSON.parse(step.tm_order_fields || '[]'); } catch { orderFields = []; }
 
       const { tm_custom_fields, tm_order_fields, ...rest } = step;
-      return { ...rest, custom_fields: cf, order_fields: orderFields };
-    });
+      steps.push({ ...rest, custom_fields: cf, order_fields: orderFields });
+    }
 
     res.json(steps);
   } catch (err) {
