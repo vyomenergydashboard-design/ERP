@@ -593,7 +593,7 @@ export default function OrderList({ initialSelectedId }) {
                   <div key={li.id} style={{ background: 'var(--bg3)', borderRadius: '8px', padding: '16px', marginBottom: '16px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border2)', paddingBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <strong>Line {li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
+                        <strong>{li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
                         {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts', 'Planning'].includes(currentUser.role) && (
                           <button 
                             className="vbtn" 
@@ -924,6 +924,16 @@ export default function OrderList({ initialSelectedId }) {
           grid-template-columns: 300px 1fr;
           gap: 24px;
           height: calc(100vh - 200px);
+        }
+        @media (max-width: 1024px) {
+          .order-list-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            gap: 16px;
+          }
+          .orders-sidebar {
+            max-height: 250px;
+          }
         }
         .orders-sidebar {
           background: var(--bg2);

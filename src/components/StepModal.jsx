@@ -2,6 +2,17 @@ import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 
+// Ensure dates are always in yyyy-MM-dd format for <input type="date">
+const toDateInput = (val) => {
+  if (!val) return '';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  } catch {}
+  return '';
+};
+
 export default function StepModal({ step, isOpen, onClose, onSave, onDelete, userRole, selectedOrder }) {
   const [status, setStatus] = useState('pending');
   const [notes, setNotes] = useState('');
@@ -20,7 +31,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
     if (step) {
       setStatus(step.status);
       setNotes(step.notes || '');
-      setDispatchDate(step.dispatch_date || '');
+      setDispatchDate(toDateInput(step.dispatch_date));
       setQcFailTarget(null);
       setChecklist({ layout: false, electrical: false, bom: false });
       setDocCount(0);
@@ -84,7 +95,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           <input
             type="date"
             className="form-input"
-            value={field.value || ''}
+            value={toDateInput(field.value)}
             onChange={e => updateFieldValue(idx, e.target.value)}
             disabled={!canEditStep}
           />
@@ -333,7 +344,6 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   <div key={idx} style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px 16px' }}>
                     <div style={{ marginBottom: '8px' }}>
                       <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: '600' }}>{field.label}</span>
-                      <span style={{ marginLeft: '8px', fontSize: '10px', color: 'var(--text3)', textTransform: 'uppercase', background: 'var(--bg4)', padding: '1px 5px', borderRadius: '3px' }}>{field.type}</span>
                     </div>
                     {!canEditStep ? (
                       <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500', marginTop: '4px' }}>

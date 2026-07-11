@@ -3,6 +3,124 @@ import { DEPTS } from '../data/planningData';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Yes/No', 'Dropdown'];
 
+// Known DB fields admins can pick from (grouped by category)
+const DATAKEY_OPTIONS = [
+  // ── Order ──────────────────────────────────────────────
+  { key: 'orders.order_number',           label: 'Order #' },
+  { key: 'orders.po_number',              label: 'PO Number' },
+  { key: 'orders.order_date',             label: 'Order Date' },
+  { key: 'orders.delivery_date',          label: 'Delivery Date' },
+  { key: 'orders.planned_dispatch_date',  label: 'Planned Dispatch Date' },
+  { key: 'orders.priority',               label: 'Priority' },
+  { key: 'orders.classification',         label: 'Classification' },
+  { key: 'orders.packaging_type',         label: 'Packaging Type' },
+  { key: 'orders.end_client_name',        label: 'End Client Name' },
+  { key: 'orders.reference_number',       label: 'Reference Number' },
+  { key: 'orders.gst_number',             label: 'GST Number' },
+  { key: 'orders.hold_status',            label: 'Hold Status' },
+  { key: 'orders.order_status',           label: 'Order Status' },
+  { key: 'orders.notes',                  label: 'Order Notes' },
+  // ── Company ────────────────────────────────────────────
+  { key: 'company_name',                  label: 'Company Name' },
+  { key: 'company_city',                  label: 'Company City' },
+  { key: 'person_in_charge',              label: 'Person In Charge' },
+  { key: 'contact_number',               label: 'Contact Number' },
+  { key: 'company_email',                 label: 'Company Email' },
+  // ── Planning Dates ─────────────────────────────────────
+  { key: 'orders.wiring_assigned_date',   label: 'Wiring Assigned Date' },
+  { key: 'orders.wiring_expected_date',   label: 'Wiring Expected Date' },
+  { key: 'orders.expected_qc_date',       label: 'Expected QC Date' },
+  { key: 'orders.qc_date',               label: 'QC Date' },
+  { key: 'orders.qc_status',             label: 'QC Status' },
+  // ── Line Item ──────────────────────────────────────────
+  { key: 'li.material_description',       label: 'Material Description' },
+  { key: 'li.part_number',               label: 'Part Number' },
+  { key: 'li.panel_type_size',           label: 'Panel Type / Size' },
+  { key: 'li.delivery_date',             label: 'Line Item Delivery Date' },
+  { key: 'li.quantity',                  label: 'Quantity' },
+  { key: 'li.unit',                      label: 'Unit' },
+  { key: 'li.unit_price',               label: 'Unit Price' },
+  { key: 'li.total_price',              label: 'Total Price' },
+  // ── Documents ──────────────────────────────────────────
+  { key: 'docs.any',                    label: '📄 Any document uploaded' },
+  { key: 'docs.PO',                     label: '📄 PO document uploaded' },
+  { key: 'docs.Drawing',                label: '📄 Drawing uploaded' },
+  { key: 'docs.BOM',                    label: '📄 BOM uploaded' },
+  { key: 'docs.QC',                     label: '📄 QC document uploaded' },
+  { key: 'docs.Dispatch',               label: '📄 Dispatch document uploaded' },
+  { key: 'docs.Quotation',              label: '📄 Quotation uploaded' },
+  { key: 'docs.General',                label: '📄 General document uploaded' },
+  { key: 'docs.TaskUpload',             label: '📄 Task upload present' },
+  // ── Unit (unit-level tasks only) ───────────────────────
+  { key: 'unit_serial',                  label: 'Unit Serial' },
+  { key: 'short_serial',                 label: 'Short Serial' },
+  { key: 'current_dept',                 label: 'Current Department' },
+  { key: 'unit_status',                  label: 'Unit Status' },
+  // ── Custom ─────────────────────────────────────────────
+  { key: '__custom__',                   label: '✏️ Custom key…' },
+];
+
+// Condition operators for the visual if-statement builder
+const OPERATORS = [
+  { value: '',                           label: '— No condition (any non-empty) —', needsValue: false },
+  { value: 'IS_NOT_EMPTY',               label: 'is not empty',                     needsValue: false },
+  { value: 'IS_EMPTY',                   label: 'is empty',                         needsValue: false },
+  { value: 'HAS_DOCS',                   label: '📄 has documents (count > 0)',      needsValue: false },
+  { value: 'NO_DOCS',                    label: '📄 has no documents (count = 0)',   needsValue: false },
+  { value: 'EQUALS',                     label: '= equals',                         needsValue: true  },
+  { value: 'NOT_EQUALS',                 label: '≠ not equals',                     needsValue: true  },
+  { value: 'CONTAINS',                   label: 'contains',                         needsValue: true  },
+  { value: 'GT',                         label: '> greater than',                   needsValue: true  },
+  { value: 'GTE',                        label: '≥ greater than or equal',          needsValue: true  },
+  { value: 'LT',                         label: '< less than',                      needsValue: true  },
+  { value: 'LTE',                        label: '≤ less than or equal',             needsValue: true  },
+  { value: 'DATE_FUTURE',                label: 'date is in the future',            needsValue: false },
+  { value: 'DATE_PAST',                  label: 'date is today or past',            needsValue: false },
+];
+
+// Build a JS condition string from visual builder inputs
+const buildCondition = (operator, conditionValue) => {
+  switch (operator) {
+    case '':             return '';
+    case 'IS_NOT_EMPTY': return '$val !== "" && $val !== null && $val !== undefined';
+    case 'IS_EMPTY':     return '$val === "" || $val === null || $val === undefined';
+    case 'HAS_DOCS':     return 'Number($val) > 0';
+    case 'NO_DOCS':      return 'Number($val) === 0 || $val === ""';
+    case 'EQUALS':       return `String($val).toLowerCase() === ${JSON.stringify(String(conditionValue).toLowerCase())}`;
+    case 'NOT_EQUALS':   return `String($val).toLowerCase() !== ${JSON.stringify(String(conditionValue).toLowerCase())}`;
+    case 'CONTAINS':     return `String($val).toLowerCase().includes(${JSON.stringify(String(conditionValue).toLowerCase())})`;
+    case 'GT':           return `Number($val) > ${Number(conditionValue) || 0}`;
+    case 'GTE':          return `Number($val) >= ${Number(conditionValue) || 0}`;
+    case 'LT':           return `Number($val) < ${Number(conditionValue) || 0}`;
+    case 'LTE':          return `Number($val) <= ${Number(conditionValue) || 0}`;
+    case 'DATE_FUTURE':  return 'new Date($val) > new Date()';
+    case 'DATE_PAST':    return 'new Date($val) <= new Date()';
+    default:             return '';
+  }
+};
+
+// Human-readable description of a saved condition
+const describeCondition = (condition, datakey) => {
+  if (!condition) return 'auto-done when not empty';
+  const fieldLabel = DATAKEY_OPTIONS.find(o => o.key === datakey)?.label || datakey;
+  // Document checks
+  if (condition === 'Number($val) > 0')                      return `${fieldLabel} → at least 1 document`;
+  if (condition.includes('Number($val) === 0'))              return `${fieldLabel} → no documents`;
+  // Standard checks
+  if (condition.includes('!== ""'))   return `${fieldLabel} is not empty`;
+  if (condition.includes('=== ""'))   return `${fieldLabel} is empty`;
+  if (condition.includes('.includes('))return `${fieldLabel} contains value`;
+  if (condition.includes('new Date($val) > new Date()'))  return `${fieldLabel} is in the future`;
+  if (condition.includes('new Date($val) <= new Date()')) return `${fieldLabel} is today or past`;
+  if (condition.includes('=== '))  return `${fieldLabel} equals value`;
+  if (condition.includes('!== '))  return `${fieldLabel} does not equal value`;
+  if (condition.includes('> '))    return `${fieldLabel} > value`;
+  if (condition.includes('>= '))   return `${fieldLabel} >= value`;
+  if (condition.includes('< '))    return `${fieldLabel} < value`;
+  if (condition.includes('<= '))   return `${fieldLabel} <= value`;
+  return condition;
+};
+
 const ORDER_FIELDS = [
   { key: 'order_number',   label: 'Order Number' },
   { key: 'company_name',   label: 'Company Name' },
@@ -40,7 +158,7 @@ export default function Masters() {
   });
   const [taskCustomFields, setTaskCustomFields] = useState([]);
   const [showFieldBuilder, setShowFieldBuilder] = useState(false);
-  const [newField, setNewField] = useState({ label: '', type: 'Text', options: '' });
+  const [newField, setNewField] = useState({ label: '', type: 'Text', options: '', datakeyPreset: '', customDatakey: '', operator: '', conditionValue: '' });
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -128,7 +246,14 @@ export default function Masters() {
     const method = isEdit ? 'PUT' : 'POST';
 
     // Strip values from field definitions before saving to template
-    const fieldDefs = taskCustomFields.map(({ id, label, type, options }) => ({ id, label, type, options: options || [] }));
+    const fieldDefs = taskCustomFields.map(({ id, label, type, options, datakey, condition }) => ({ 
+      id, 
+      label, 
+      type, 
+      options: options || [], 
+      datakey: datakey || '', 
+      condition: condition || '' 
+    }));
 
     try {
       const res = await fetch(url, {
@@ -171,14 +296,20 @@ export default function Masters() {
 
   const addTaskField = () => {
     if (!newField.label.trim()) { alert('Label is required.'); return; }
+    const effectiveDatakey = newField.datakeyPreset === '__custom__'
+      ? (newField.customDatakey || '').trim()
+      : (newField.datakeyPreset || '').trim();
+    const effectiveCondition = buildCondition(newField.operator, newField.conditionValue);
     const field = {
       id: Date.now(),
       label: newField.label.trim(),
       type: newField.type,
       options: newField.type === 'Dropdown' ? newField.options.split(',').map(o => o.trim()).filter(Boolean) : [],
+      datakey: effectiveDatakey,
+      condition: effectiveCondition,
     };
     setTaskCustomFields(prev => [...prev, field]);
-    setNewField({ label: '', type: 'Text', options: '' });
+    setNewField({ label: '', type: 'Text', options: '', datakeyPreset: '', customDatakey: '', operator: '', conditionValue: '' });
     setShowFieldBuilder(false);
   };
 
@@ -440,24 +571,71 @@ export default function Masters() {
 
                   {showFieldBuilder && (
                     <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                        <div>
-                          <label style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', marginBottom: '4px' }}>Label *</label>
-                          <input type="text" className="form-input" value={newField.label} onChange={e => setNewField(p => ({ ...p, label: e.target.value }))} placeholder="e.g. Test Voltage" />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', marginBottom: '4px' }}>Type</label>
-                          <select className="form-select" value={newField.type} onChange={e => setNewField(p => ({ ...p, type: e.target.value }))}>
-                            {FIELD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                          </select>
-                        </div>
+                      <div style={{ marginBottom: '8px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', marginBottom: '4px' }}>Label *</label>
+                        <input type="text" className="form-input" value={newField.label} onChange={e => setNewField(p => ({ ...p, label: e.target.value }))} placeholder="e.g. Test Voltage" />
                       </div>
-                      {newField.type === 'Dropdown' && (
-                        <div style={{ marginBottom: '8px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', marginBottom: '4px' }}>Options (comma-separated)</label>
-                          <input type="text" className="form-input" value={newField.options} onChange={e => setNewField(p => ({ ...p, options: e.target.value }))} placeholder="Option A, Option B" />
+                      {/* ── IF-STATEMENT BUILDER ── */}
+                      <div style={{ background: 'var(--bg4)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>⚡ Auto-Done Trigger (optional)</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px' }}>If the selected DB field matches this condition, the task is automatically marked Done.</div>
+                        {/* Row: IF [field] [operator] [value] */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#a78bfa', minWidth: '18px' }}>IF</span>
+                          {/* Data Key picker */}
+                          <div style={{ flex: '1 1 160px' }}>
+                            <select
+                              className="form-select"
+                              value={newField.datakeyPreset || ''}
+                              onChange={e => setNewField(p => ({ ...p, datakeyPreset: e.target.value, customDatakey: '', operator: '', conditionValue: '' }))}
+                            >
+                              <option value="">— pick a field —</option>
+                              {DATAKEY_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                            </select>
+                            {newField.datakeyPreset === '__custom__' && (
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ marginTop: '6px', fontFamily: 'monospace', fontSize: '12px' }}
+                                value={newField.customDatakey || ''}
+                                onChange={e => setNewField(p => ({ ...p, customDatakey: e.target.value }))}
+                                placeholder="table.column_name"
+                              />
+                            )}
+                          </div>
+                          {/* Operator picker */}
+                          <div style={{ flex: '1 1 160px' }}>
+                            <select
+                              className="form-select"
+                              value={newField.operator || ''}
+                              onChange={e => setNewField(p => ({ ...p, operator: e.target.value, conditionValue: '' }))}
+                              disabled={!newField.datakeyPreset || newField.datakeyPreset === ''}
+                            >
+                              {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </div>
+                          {/* Value input — only shown when operator needs it */}
+                          {OPERATORS.find(o => o.value === newField.operator)?.needsValue && (
+                            <div style={{ flex: '1 1 120px' }}>
+                              <input
+                                type="text"
+                                className="form-input"
+                                value={newField.conditionValue || ''}
+                                onChange={e => setNewField(p => ({ ...p, conditionValue: e.target.value }))}
+                                placeholder="value…"
+                              />
+                            </div>
+                          )}
                         </div>
-                      )}
+                        {/* Preview */}
+                        {newField.datakeyPreset && newField.datakeyPreset !== '' && (
+                          <div style={{ marginTop: '8px', fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace', background: 'var(--bg3)', padding: '6px 10px', borderRadius: '4px' }}>
+                            {buildCondition(newField.operator, newField.conditionValue)
+                              ? `⚡ ${buildCondition(newField.operator, newField.conditionValue)}`
+                              : '⚡ auto-done when field has any value'}
+                          </div>
+                        )}
+                      </div>
                       <button type="button" onClick={addTaskField} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
                         Add Field
                       </button>
@@ -470,10 +648,18 @@ export default function Masters() {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {taskCustomFields.map(f => (
                         <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                          <div>
-                            <span style={{ color: 'var(--text)', fontSize: '13px' }}>{f.label}</span>
-                            <span style={{ marginLeft: '8px', fontSize: '10px', color: 'var(--text3)', background: 'var(--bg4)', padding: '1px 5px', borderRadius: '3px', textTransform: 'uppercase' }}>{f.type}</span>
-                            {f.options?.length > 0 && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--text3)' }}>({f.options.join(', ')})</span>}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div>
+                              <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: '600' }}>{f.label}</span>
+                              {f.options?.length > 0 && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--text3)' }}>({f.options.join(', ')})</span>}
+                            </div>
+                            {(f.datakey || f.condition) && (
+                              <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '3px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '4px', padding: '1px 6px' }}>
+                                  ⚡ IF {describeCondition(f.condition, f.datakey)}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <button type="button" onClick={() => removeTaskField(f.id)} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', fontSize: '14px' }}>✕</button>
                         </div>

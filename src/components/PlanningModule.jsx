@@ -218,7 +218,12 @@ export default function PlanningModule() {
       case 'order_number':
         return (
           <>
-            {order.order_number} <span style={{ opacity: 0.5 }}>/ {order.line_item_number}</span>
+            {order.line_item_number}
+            {order.total_qty > 1 && (
+              <span style={{ opacity: 0.5, marginLeft: '8px' }}>
+                ({order.unit_index}/{order.total_qty})
+              </span>
+            )}
           </>
         );
       case 'po_number':
@@ -445,8 +450,22 @@ export default function PlanningModule() {
     return date.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
+  // ── Repeated rows based on quantity ──
+  const repeatedOrders = [];
+  orders.forEach(order => {
+    const qty = parseInt(order.quantity) || 1;
+    for (let i = 0; i < qty; i++) {
+      repeatedOrders.push({
+        ...order,
+        unit_index: i + 1,
+        total_qty: qty,
+        row_key: `${order.line_item_id}-${i}`
+      });
+    }
+  });
+
   // ── Filtered rows ──
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = repeatedOrders.filter(order => {
     let matchesSearch = true;
     if (searchTerm.trim() !== '') {
       const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
@@ -758,7 +777,7 @@ export default function PlanningModule() {
     const isRowSelected = selectedRowIds.includes(order.line_item_id);
 
     return (
-      <tr key={order.line_item_id} className={`planning-row ${isRowSelected ? 'selected-row' : ''}`}>
+      <tr key={order.row_key} className={`planning-row ${isRowSelected ? 'selected-row' : ''}`}>
         {canEdit && (
           <td className="col-sticky-checkbox" style={{ width: '40px', minWidth: '40px', textAlign: 'center', left: 0 }}>
             <input
@@ -1180,7 +1199,7 @@ export default function PlanningModule() {
             <div className="modal-header">
               <div>
                 <div className="modal-title">Edit Planning Parameters</div>
-                <div className="modal-sub">Order: {editingOrder.order_number} / Line: {editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
+                <div className="modal-sub">Order: {editingOrder.order_number} — Line: {editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
               </div>
               <button className="modal-close" onClick={() => setEditingOrder(null)}><X size={18} /></button>
             </div>
