@@ -505,7 +505,7 @@ export default function OrderList({ initialSelectedId }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0 }}>{selectedOrder.order_number}</h2>
-                  {currentUser.role === 'Admin' && (
+                  {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
                     <button 
                       className="vbtn" 
                       style={{ padding: '4px 12px', fontSize: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
