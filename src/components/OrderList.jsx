@@ -1091,6 +1091,41 @@ export default function OrderList({ initialSelectedId }) {
         .priority-badge.medium { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59, 130, 246, 0.4); }
         .priority-badge.high { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(245, 158, 11, 0.4); }
         .priority-badge.urgent { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.4); }
+
+        @media (max-width: 768px) {
+          .order-list-container {
+            grid-template-columns: 1fr;
+            height: auto;
+            gap: 12px;
+          }
+          .orders-sidebar { max-height: 220px; }
+          .order-details-pane { padding: 14px; }
+          .details-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+          }
+          .details-header > div:last-child {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+          .details-grid {
+            grid-template-columns: 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+          }
+          .unit-badge { min-width: 120px; }
+        }
+
+        @media (max-width: 480px) {
+          .order-card { padding: 10px 12px; }
+          .order-num { font-size: 13px; }
+          .order-details-pane { padding: 10px; border-radius: 8px; }
+          .details-grid { gap: 8px; }
+          .unit-badge { min-width: 100px; }
+          .line-items-section { margin-top: 16px !important; }
+        }
       `}} />
 
       {/* Bulk Import Modal */}
