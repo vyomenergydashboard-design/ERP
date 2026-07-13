@@ -1234,7 +1234,7 @@ app.put('/api/orders/:id', authorize(['Admin']), async (req, res) => {
 });
 
 // Amend a single line item's core details
-app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager']), async (req, res) => {
+app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { orderId, liId } = req.params;
   const {
     material_description,
