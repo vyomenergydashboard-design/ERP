@@ -1752,6 +1752,7 @@ app.get('/api/orders', authorize(), async (req, res) => {
       `SELECT o.*, COALESCE(u.username, 'System') as creator_name, 
        (SELECT count(*) FROM order_units WHERE order_id = o.id) as unit_count,
        (SELECT count(*) FROM order_units WHERE order_id = o.id AND status = 'Dispatched') as dispatched_unit_count,
+       (SELECT count(*) FROM order_line_items WHERE order_id = o.id) as line_item_count,
        c.name as company_name, l.city as company_city
        FROM orders o 
        LEFT JOIN users u ON o.created_by = u.id 
@@ -1774,6 +1775,7 @@ app.get('/api/board', authorize(), async (req, res) => {
               o.reference_number, o.end_client_name, o.classification, o.hold_status,
               c.name AS company_name, l.city AS company_city,
               (SELECT COUNT(*) FROM order_units ou WHERE ou.order_id = o.id) AS unit_count,
+              (SELECT COUNT(*) FROM order_line_items oli WHERE oli.order_id = o.id) AS line_item_count,
               COALESCE(
                 (SELECT MAX(s.created_at) FROM order_steps s WHERE s.order_id = o.id),
                 o.created_at

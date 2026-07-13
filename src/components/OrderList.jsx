@@ -391,6 +391,9 @@ export default function OrderList({ initialSelectedId }) {
   const completedOrders  = orders.filter(o => isCompleted(o));
   const visibleOrders    = orderTab === 'completed' ? completedOrders : inProgressOrders;
 
+  const inProgressLineItems = inProgressOrders.reduce((sum, o) => sum + parseInt(o.line_item_count || 0), 0);
+  const completedLineItems = completedOrders.reduce((sum, o) => sum + parseInt(o.line_item_count || 0), 0);
+
   return (
     <div className="order-list-container">
       <div className="orders-sidebar">

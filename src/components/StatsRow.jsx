@@ -66,8 +66,10 @@ function AggregateStats() {
         const today = new Date();
         const in7   = new Date(today); in7.setDate(today.getDate() + 7);
         let totalBlocked = 0, totalIP = 0, urgentHigh = 0, dueThisWeek = 0;
+        let totalLineItems = 0;
 
         orders.forEach((o) => {
+          totalLineItems += parseInt(o.line_item_count || 0);
           const p = (o.priority || 'Medium').toLowerCase();
           if (p === 'urgent' || p === 'high') urgentHigh++;
           if (o.delivery_date) {
@@ -80,7 +82,7 @@ function AggregateStats() {
           });
         });
 
-        setData({ total: orders.length, urgentHigh, totalBlocked, totalIP, dueThisWeek });
+        setData({ total: orders.length, totalLineItems, urgentHigh, totalBlocked, totalIP, dueThisWeek });
       })
       .catch(() => setData(null));
   }, [token]);
@@ -101,8 +103,13 @@ function AggregateStats() {
   return (
     <div className="stats-row">
       <div className="stat-card stat-active">
-        <div className="stat-label">Active Orders</div>
-        <div className="stat-value" style={{ color: 'var(--text)' }}>{data.total}</div>
+        <div className="stat-label">Active Orders & Items</div>
+        <div className="stat-value" style={{ color: 'var(--text)' }}>
+          {data.totalLineItems}
+          <span style={{ fontSize: '13px', color: 'var(--text3)', fontWeight: 'normal', marginLeft: '6px' }}>
+            ({data.total} Orders)
+          </span>
+        </div>
         <div className="stat-sub">in pipeline</div>
       </div>
 
