@@ -1233,6 +1233,74 @@ app.put('/api/orders/:id', authorize(['Admin']), async (req, res) => {
   }
 });
 
+// Amend a single line item's core details
+app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager']), async (req, res) => {
+  const { orderId, liId } = req.params;
+  const {
+    material_description,
+    part_number,
+    panel_type_size,
+    quantity,
+    unit,
+    unit_price,
+    delivery_date,
+    notes,
+  } = req.body;
+
+  try {
+    // Verify the order exists
+    const orderCheck = await pool.query('SELECT order_number, hold_status FROM orders WHERE id = $1', [orderId]);
+    if (orderCheck.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const { order_number, hold_status } = orderCheck.rows[0];
+    if (hold_status === 'Approved') return res.status(403).json({ error: 'Order is on hold. Amendments are disabled.' });
+
+    // Verify the line item belongs to this order
+    const liCheck = await pool.query('SELECT id FROM order_line_items WHERE id = $1 AND order_id = $2', [liId, orderId]);
+    if (liCheck.rows.length === 0) return res.status(404).json({ error: 'Line item not found for this order' });
+
+    const qty = quantity ? parseInt(quantity) : null;
+    const price = unit_price ? parseFloat(unit_price) : null;
+    const total = qty != null && price != null ? qty * price : null;
+
+    const result = await pool.query(
+      `UPDATE order_line_items
+       SET material_description = COALESCE($1, material_description),
+           part_number           = $2,
+           panel_type_size       = $3,
+           quantity              = COALESCE($4, quantity),
+           unit                  = COALESCE($5, unit),
+           unit_price            = COALESCE($6, unit_price),
+           total_price           = COALESCE($7, total_price),
+           delivery_date         = $8,
+           notes                 = $9
+       WHERE id = $10
+       RETURNING *`,
+      [
+        material_description || null,
+        part_number !== undefined ? (part_number || null) : undefined,
+        panel_type_size !== undefined ? (panel_type_size || null) : undefined,
+        qty,
+        unit || null,
+        price,
+        total,
+        delivery_date || null,
+        notes !== undefined ? (notes || null) : undefined,
+        liId,
+      ]
+    );
+
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Amended line item ${result.rows[0].line_item_number} on order ${order_number}`, orderId]
+    );
+
+    res.json({ success: true, line_item: result.rows[0] });
+  } catch (err) {
+    console.error('Failed to amend line item:', err);
+    res.status(500).json({ error: 'Failed to amend line item' });
+  }
+});
+
 app.post('/api/orders/:id/hold/request', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   try {
     const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);

@@ -41,6 +41,20 @@ export default function OrderList({ initialSelectedId }) {
   const [companiesList, setCompaniesList] = useState([]);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
+  // Amend Line Item states
+  const [editingLineItem, setEditingLineItem] = useState(null);
+  const [editLineItemForm, setEditLineItemForm] = useState({
+    material_description: '',
+    part_number: '',
+    panel_type_size: '',
+    quantity: '',
+    unit: 'Nos',
+    unit_price: '',
+    delivery_date: '',
+    notes: '',
+  });
+  const [isSubmittingLineItemEdit, setIsSubmittingLineItemEdit] = useState(false);
+
   const fetchCompanies = async () => {
     try {
       const res = await fetch(window.API_BASE + "/api/companies", {
@@ -100,6 +114,57 @@ export default function OrderList({ initialSelectedId }) {
     } finally {
       setIsSubmittingEdit(false);
     }
+  };
+
+  const handleStartEditLineItem = (li) => {
+    setEditLineItemForm({
+      material_description: li.material_description || '',
+      part_number: li.part_number || '',
+      panel_type_size: li.panel_type_size || '',
+      quantity: li.quantity || '',
+      unit: li.unit || 'Nos',
+      unit_price: li.unit_price || '',
+      delivery_date: li.delivery_date ? li.delivery_date.split('T')[0] : '',
+      notes: li.notes || '',
+    });
+    setEditingLineItem(li);
+  };
+
+  const handleEditLineItemSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingLineItemEdit(true);
+    try {
+      const res = await fetch(
+        `${window.API_BASE}/api/orders/${selectedOrder.id}/line-items/${editingLineItem.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(editLineItemForm),
+        }
+      );
+      if (res.ok) {
+        setEditingLineItem(null);
+        await fetchOrderDetails(selectedOrder.id);
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to amend line item.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error, please try again.');
+    } finally {
+      setIsSubmittingLineItemEdit(false);
+    }
+  };
+
+  const handleEditLineItemChange = (field, value) => {
+    setEditLineItemForm(prev => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'quantity' || field === 'unit_price') {
+        // keep total_price in sync visually (backend recalculates)
+      }
+      return updated;
+    });
   };
 
   const handleHoldAction = async (action) => {
@@ -592,7 +657,7 @@ export default function OrderList({ initialSelectedId }) {
                 return (
                   <div key={li.id} style={{ background: 'var(--bg3)', borderRadius: '8px', padding: '16px', marginBottom: '16px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border2)', paddingBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                         <strong>{li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
                         {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts', 'Planning'].includes(currentUser.role) && (
                           <button 
@@ -609,6 +674,22 @@ export default function OrderList({ initialSelectedId }) {
                             }}
                           >
                             Bulk Update Batch
+                          </button>
+                        )}
+                        {['Admin', 'Manager'].includes(currentUser.role) && (
+                          <button
+                            className="vbtn"
+                            title="Amend Line Item"
+                            style={{ padding: '2px 8px', fontSize: '10px', background: '#7c3aed', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', height: '22px' }}
+                            onClick={() => {
+                              if (selectedOrder.hold_status === 'Approved') {
+                                alert('Order is currently on hold. Amendments are disabled.');
+                                return;
+                              }
+                              handleStartEditLineItem(li);
+                            }}
+                          >
+                            ✏ Amend
                           </button>
                         )}
                       </div>
@@ -1176,6 +1257,131 @@ export default function OrderList({ initialSelectedId }) {
                 <button type="button" className="vbtn" style={{ background: '#64748b', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setEditingOrderDetails(null)}>Cancel</button>
                 <button type="submit" className="vbtn" style={{ background: '#10b981', border: 'none', color: '#fff', padding: '8px 16px', borderRadius: '4px', cursor: 'pointer' }} disabled={isSubmittingEdit}>
                   {isSubmittingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Amend Line Item Modal */}
+      {editingLineItem && (
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setEditingLineItem(null); }}>
+          <div className="modal" style={{ maxWidth: '640px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Amend Line Item</div>
+                <div className="modal-sub">Item {editingLineItem.line_item_number} — {selectedOrder?.order_number}</div>
+              </div>
+              <button className="modal-close" onClick={() => setEditingLineItem(null)}>✕</button>
+            </div>
+            <form onSubmit={handleEditLineItemSubmit}>
+              <div className="modal-body">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Material Description</label>
+                    <input
+                      type="text"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.material_description}
+                      onChange={(e) => handleEditLineItemChange('material_description', e.target.value)}
+                      placeholder="e.g. VFD Control Panel 22kW"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Part Number</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.part_number}
+                      onChange={(e) => handleEditLineItemChange('part_number', e.target.value)}
+                      placeholder="e.g. VFD-22K-STD"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Panel Type / Size</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.panel_type_size}
+                      onChange={(e) => handleEditLineItemChange('panel_type_size', e.target.value)}
+                      placeholder="e.g. 800x600"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.quantity}
+                      onChange={(e) => handleEditLineItemChange('quantity', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Unit</label>
+                    <select
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.unit}
+                      onChange={(e) => handleEditLineItemChange('unit', e.target.value)}
+                    >
+                      {['Nos', 'Sets', 'Pcs', 'Units', 'Lot'].map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Unit Price (₹)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.unit_price}
+                      onChange={(e) => handleEditLineItemChange('unit_price', e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2', padding: '8px 12px', background: 'var(--bg2)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '13px', color: 'var(--text3)' }}>
+                    Total Price: <strong style={{ color: 'var(--text)', fontSize: '15px' }}>
+                      ₹{((parseFloat(editLineItemForm.unit_price) || 0) * (parseInt(editLineItemForm.quantity) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </strong>
+                    <span style={{ marginLeft: '8px', fontSize: '11px' }}>(auto-calculated)</span>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Line Item Delivery Date</label>
+                    <input
+                      type="date"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.delivery_date}
+                      onChange={(e) => handleEditLineItemChange('delivery_date', e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Notes</label>
+                    <textarea
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', height: '72px', resize: 'vertical', boxSizing: 'border-box' }}
+                      value={editLineItemForm.notes}
+                      onChange={(e) => handleEditLineItemChange('notes', e.target.value)}
+                      placeholder="Item-specific notes..."
+                    />
+                  </div>
+
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px', borderTop: '1px solid var(--border)' }}>
+                <button type="button" className="vbtn" style={{ background: '#64748b', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setEditingLineItem(null)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: '#7c3aed', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} disabled={isSubmittingLineItemEdit}>
+                  {isSubmittingLineItemEdit ? 'Saving...' : 'Save Line Item'}
                 </button>
               </div>
             </form>
