@@ -676,7 +676,7 @@ export default function OrderList({ initialSelectedId }) {
                             Bulk Update Batch
                           </button>
                         )}
-                        {['Admin', 'Manager'].includes(currentUser.role) && (
+                        {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
                           <button
                             className="vbtn"
                             title="Amend Line Item"
