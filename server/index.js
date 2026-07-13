@@ -1163,7 +1163,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
   }
 });
 
-app.put('/api/orders/:id', authorize(['Admin']), async (req, res) => {
+app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { 
     company_location_id, 
     order_date, 
