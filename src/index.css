@@ -949,6 +949,12 @@ input::placeholder, textarea::placeholder {
   transition: transform 0.2s;
 }
 .modal-overlay.open .modal { transform: translateY(0); }
+.modal form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -1643,8 +1649,13 @@ option { background-color: var(--bg3); color: var(--text); }
   background: #eff6ff !important;
 }
 
-/* ── Small Laptop and Responsive Layout Fixes ── */
+/* ══════════════════════════════════════════════
+   RESPONSIVE LAYOUT — all breakpoints
+   ══════════════════════════════════════════════ */
+
+/* ── 1024px: tablets / small laptops ── */
 @media (max-width: 1024px) {
+  /* Right panel: float over content instead of pushing it */
   .right-panel {
     position: absolute;
     right: 0;
@@ -1655,4 +1666,240 @@ option { background-color: var(--bg3); color: var(--text); }
   .right-panel:not(.right-panel--collapsed) {
     box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
   }
+
+  /* Sidenav auto-collapses */
+  .sidenav {
+    width: 64px;
+    min-width: 64px;
+  }
+  .sidenav-inner {
+    width: 64px;
+  }
+  .sidenav:hover .sidenav-inner {
+    width: 240px;
+    position: absolute;
+    top: 0; left: 0;
+    height: 100%;
+    z-index: 1000;
+    box-shadow: 12px 0 36px rgba(0, 0, 0, 0.35);
+  }
+
+  /* Main area gets full width */
+  .main { padding: 16px; }
+
+  /* Stats: 3 cols */
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+
+  /* Order list two-pane: stack vertically */
+  .order-list-container {
+    flex-direction: column !important;
+  }
+  .order-list-sidebar {
+    width: 100% !important;
+    max-height: 280px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+  }
+  .order-detail-panel {
+    width: 100% !important;
+  }
+
+  /* Detail boxes: 2 col */
+  .detail-boxes-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
 }
+
+/* ── 900px ── */
+@media (max-width: 900px) {
+  .main { padding: 12px; }
+
+  .stats-row { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+  /* flow header: wrap if needed */
+  .flow-header { flex-wrap: wrap; gap: 8px; }
+  .flow-title { font-size: 14px; }
+
+  /* Lane label narrower */
+  .lane-label { width: 90px; min-width: 90px; padding: 8px 10px; }
+  .lane-name { font-size: 11px; }
+}
+
+/* ── 768px: large phones / small tablets ── */
+@media (max-width: 768px) {
+  /* Header already handled in Header.jsx inline styles */
+
+  /* App layout: no sidenav, main is full width */
+  .app { overflow-x: hidden; }
+  .sidenav {
+    position: fixed;
+    left: 0; top: 56px;
+    height: calc(100vh - 56px);
+    z-index: 1100;
+    width: 64px;
+    min-width: 64px;
+  }
+  .sidenav:hover .sidenav-inner {
+    width: 240px;
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
+  }
+  .main { padding: 10px 12px; }
+
+  /* Stats: 2 cols */
+  .stats-row { grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-card { padding: 14px 14px; }
+  .stat-value { font-size: 22px; }
+
+  /* Flow header */
+  .flow-header { margin-bottom: 12px; padding-bottom: 10px; }
+  .view-toggle { gap: 2px; }
+  .vbtn { padding: 5px 9px; font-size: 11px; }
+
+  /* Lane: stack label above steps */
+  .lane { flex-direction: column; min-height: unset; }
+  .lane-label {
+    width: 100% !important;
+    min-width: unset !important;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 12px;
+    align-items: center;
+  }
+  .lane-steps { padding: 8px; }
+
+  /* Step cards: slightly smaller */
+  .step { min-width: 130px; max-width: 130px; padding: 8px 10px; }
+  .step-name { font-size: 11px; }
+
+  /* Modals: full-width centered on mobile, NO bottom-sheet hack */
+  .modal {
+    width: 95vw !important;
+    max-width: 95vw !important;
+    max-height: 88vh !important;
+    padding: 14px !important;
+  }
+  .modal-overlay {
+    align-items: center !important;
+    padding: 0 8px !important;
+  }
+
+  /* Form grids in modals: single column */
+  .modal .form-grid,
+  .modal [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+  }
+  .modal [style*="gridColumn: 'span 2'"],
+  .modal [style*="grid-column: span 2"] {
+    grid-column: span 1 !important;
+  }
+
+  /* Order list */
+  .order-list-container { flex-direction: column !important; }
+  .order-list-sidebar {
+    width: 100% !important;
+    max-height: 240px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border);
+    overflow-y: auto;
+  }
+  .order-detail-panel {
+    width: 100% !important;
+    padding: 12px !important;
+  }
+
+  /* Order detail boxes: single column */
+  .detail-boxes-grid,
+  .details-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Units grid: 2 cols */
+  .units-grid { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Line items section */
+  .line-items-section h3 { font-size: 13px; }
+
+  /* Details header: wrap */
+  .details-header { flex-wrap: wrap !important; gap: 8px !important; }
+
+  /* Board view cards: single column */
+  .board-columns { flex-direction: column !important; }
+  .board-col { min-width: unset !important; width: 100% !important; }
+
+  /* Planning module full screen still ok — it has its own scroll */
+
+  /* User management table: make scrollable */
+  .user-table-container { overflow-x: auto; }
+  .user-mgmt { padding: 14px; }
+  .mgmt-header { flex-wrap: wrap; gap: 8px; }
+
+  /* Auth card: smaller padding */
+  .auth-card { padding: 28px 20px; }
+
+  /* Right panel: hidden overlay on mobile */
+  .right-panel {
+    position: fixed !important;
+    right: 0; top: 56px;
+    height: calc(100vh - 56px);
+    z-index: 1100;
+  }
+  .right-panel--collapsed { width: 0 !important; }
+}
+
+/* ── 480px: phones ── */
+@media (max-width: 480px) {
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-card { padding: 12px; }
+  .stat-value { font-size: 20px; }
+  .stat-label { font-size: 8px; }
+
+  /* Main: tight padding */
+  .main { padding: 8px; }
+
+  .flow-header { gap: 6px; margin-bottom: 10px; }
+  .flow-title { font-size: 13px; }
+
+  /* Steps: even smaller */
+  .step { min-width: 110px; max-width: 110px; padding: 7px 9px; }
+  .step-name { font-size: 10px; }
+
+  /* Units: 2 per row */
+  .units-grid { grid-template-columns: 1fr 1fr !important; }
+
+  /* Buttons in line items: wrap gracefully */
+  .line-items-section [style*="display: flex"][style*="alignItems: center"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Stats row: single column on very small */
+  .stats-row { grid-template-columns: 1fr; }
+
+  /* Auth */
+  .auth-card { padding: 20px 14px; border-radius: 10px; }
+  .auth-header h1 { font-size: 22px; }
+
+  /* Order list sidebar: small max-height */
+  .order-list-sidebar { max-height: 200px !important; }
+
+  /* Remove fixed-width order number header */
+  .order-list-sidebar .order-item { padding: 8px 10px !important; }
+
+  /* Modal footer: stack buttons */
+  .modal-footer { flex-direction: column !important; }
+  .modal-footer button { width: 100% !important; }
+}
+
+/* ── 360px: very small phones ── */
+@media (max-width: 360px) {
+  .stats-row { grid-template-columns: 1fr; }
+  .header { padding: 0 10px; }
+  .logo { font-size: 9px; letter-spacing: 1px; }
+  .main { padding: 6px; }
+  .modal { padding: 12px !important; }
+}
+
+/* ── Utility: prevent horizontal scroll on body ── */
+body { overflow-x: hidden; }
+.app-container { overflow-x: hidden; }
