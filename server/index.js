@@ -53,7 +53,7 @@ const DEFAULT_STEPS = [
     default_doc_type: 'General', 
     level: 'unit',
     custom_fields: [
-      { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'] }
+      { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'], datakey: 'classification' }
     ]
   },
   { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, default_doc_type: 'Drawing', level: 'unit' },
@@ -62,7 +62,7 @@ const DEFAULT_STEPS = [
   { dept: 'Stores', name: 'Stock Check vs BOM', sub: 'Verify availability', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'Stores', name: 'Material Status', sub: 'Allotted → Acceptance → Accept-complete', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'Stores', name: 'Inform Purchase', sub: 'Send shortfall list', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Production', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
+  { dept: 'Planning', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'Production', name: 'Manufacture', sub: 'Fitter (mechanical) + Wireman (electrical)', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, default_doc_type: 'QC Report', level: 'unit' },
@@ -298,6 +298,8 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
       mappedStatus = 'In Progress';
     } else if (depts.includes('Purchase') || depts.includes('Stores')) {
       mappedStatus = 'Waiting for Material';
+    } else if (depts.includes('Planning')) {
+      mappedStatus = 'In Progress';
     } else if (depts.includes('Production')) {
       mappedStatus = 'In Progress';
     } else if (depts.includes('QC')) {
@@ -316,22 +318,45 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 };
 
 const deriveUnitStatus = async (unitId, clientOrPool) => {
+  const prevUnitRes = await clientOrPool.query(
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, o.classification
+     FROM order_units ou
+     JOIN orders o ON ou.order_id = o.id
+     WHERE ou.id = $1`,
+    [unitId]
+  );
+  if (prevUnitRes.rows.length === 0) return;
+
+  const oldDept = prevUnitRes.rows[0].current_dept;
+  const unit_id_str = prevUnitRes.rows[0].unit_id || '';
+  const short_serial = prevUnitRes.rows[0].short_serial || '';
+  const classification = prevUnitRes.rows[0].classification || 'Standard';
+
+  if (classification === 'Standard') {
+    // Auto-complete Design, Purchase, and Stores steps for this unit
+    await clientOrPool.query(
+      `UPDATE unit_steps 
+       SET status = 'done', notes = 'Auto-completed for Standard order' 
+       WHERE order_unit_id = $1 AND dept IN ('Design', 'Purchase', 'Stores') AND status != 'done'`,
+      [unitId]
+    );
+  } else {
+    // Reset auto-completed steps back to pending/default state if changed to Non-Standard
+    await clientOrPool.query(
+      `UPDATE unit_steps 
+       SET status = 'pending', notes = NULL 
+       WHERE order_unit_id = $1 AND dept IN ('Design', 'Purchase', 'Stores') AND status = 'done' AND notes = 'Auto-completed for Standard order'`,
+      [unitId]
+    );
+  }
+
   const stepsRes = await clientOrPool.query(
     `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
     [unitId]
   );
-  
   if (stepsRes.rows.length === 0) return;
 
   const steps = stepsRes.rows;
-
-  const prevUnitRes = await clientOrPool.query(
-    `SELECT current_dept, unit_id, short_serial FROM order_units WHERE id = $1`,
-    [unitId]
-  );
-  const oldDept = prevUnitRes.rows[0]?.current_dept;
-  const unit_id_str = prevUnitRes.rows[0]?.unit_id || '';
-  const short_serial = prevUnitRes.rows[0]?.short_serial || '';
   
   let newStatus = 'Pending';
   let newDept = 'Planning';
@@ -364,6 +389,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
           'Design': 'Design',
           'Purchase': 'Material Waiting',
           'Stores': 'Material Waiting',
+          'Planning': 'Planning',
           'Production': 'Production',
           'QC': 'QC Testing',
           'Dispatch': 'Ready for Dispatch',
@@ -503,7 +529,7 @@ const initDB = async () => {
     
     // Force sync if the Design 'Review & Classify' step doesn't have the classification custom field template yet
     const reviewTask = await pool.query("SELECT custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify'");
-    const hasDropdown = reviewTask.rows.length > 0 && reviewTask.rows[0].custom_fields?.some(f => f.label === 'Classification');
+    const hasDropdown = reviewTask.rows.length > 0 && reviewTask.rows[0].custom_fields?.some(f => f.label === 'Classification' && f.datakey === 'classification');
 
     if (!isMatching || !hasDropdown) {
       console.log('Syncing task_masters to new defaults...');
@@ -549,11 +575,12 @@ const initDB = async () => {
           WHEN 'Design' THEN 2
           WHEN 'Purchase' THEN 3
           WHEN 'Stores' THEN 4
-          WHEN 'Production' THEN 5
-          WHEN 'QC' THEN 6
-          WHEN 'Dispatch' THEN 7
-          WHEN 'Accounts' THEN 8
-          ELSE 9
+          WHEN 'Planning' THEN 5
+          WHEN 'Production' THEN 6
+          WHEN 'QC' THEN 7
+          WHEN 'Dispatch' THEN 8
+          WHEN 'Accounts' THEN 9
+          ELSE 10
         END ASC,
         id ASC
     `);
@@ -1063,11 +1090,12 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
           WHEN 'Design' THEN 2
           WHEN 'Purchase' THEN 3
           WHEN 'Stores' THEN 4
-          WHEN 'Production' THEN 5
-          WHEN 'QC' THEN 6
-          WHEN 'Dispatch' THEN 7
-          WHEN 'Accounts' THEN 8
-          ELSE 9
+          WHEN 'Planning' THEN 5
+          WHEN 'Production' THEN 6
+          WHEN 'QC' THEN 7
+          WHEN 'Dispatch' THEN 8
+          WHEN 'Accounts' THEN 9
+          ELSE 10
         END ASC,
         id ASC
     `);
@@ -1225,6 +1253,12 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req,
         req.params.id
       ]
     );
+
+    // Sync units' deriveUnitStatus after order details change
+    const unitsRes = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [req.params.id]);
+    for (const unit of unitsRes.rows) {
+      await deriveUnitStatus(unit.id, pool);
+    }
 
     res.json({ success: true, order: result.rows[0] });
   } catch (err) {
@@ -1673,11 +1707,12 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
             WHEN 'Design' THEN 2
             WHEN 'Purchase' THEN 3
             WHEN 'Stores' THEN 4
-            WHEN 'Production' THEN 5
-            WHEN 'QC' THEN 6
-            WHEN 'Dispatch' THEN 7
-            WHEN 'Accounts' THEN 8
-            ELSE 9
+            WHEN 'Planning' THEN 5
+            WHEN 'Production' THEN 6
+            WHEN 'QC' THEN 7
+            WHEN 'Dispatch' THEN 8
+            WHEN 'Accounts' THEN 9
+            ELSE 10
           END ASC,
           id ASC
       `);
@@ -2018,6 +2053,86 @@ const resolveCustomFieldValues = async (customFields, orderId, unitId = null) =>
   return results;
 };
 
+const propagateCustomFieldsToDB = async (customFields, orderId, unitId = null, client = pool) => {
+  if (!customFields || !Array.isArray(customFields) || customFields.length === 0) {
+    return;
+  }
+  
+  // Get order_id if only unitId is provided
+  let resolvedOrderId = orderId;
+  let lineItemId = null;
+  if (unitId) {
+    const unitRes = await client.query(
+      `SELECT order_id, line_item_id FROM order_units WHERE id = $1`,
+      [unitId]
+    );
+    if (unitRes.rows.length > 0) {
+      resolvedOrderId = unitRes.rows[0].order_id;
+      lineItemId = unitRes.rows[0].line_item_id;
+    }
+  }
+
+  for (const f of customFields) {
+    if (!f.datakey || f.value === undefined || f.value === null) continue;
+    const rawKey = f.datakey.trim();
+    if (rawKey.startsWith('docs.')) continue;
+
+    const key = rawKey.includes('.') ? rawKey.split('.').slice(-1)[0] : rawKey;
+    const value = f.value;
+
+    // Check if key is a column in orders table
+    const orderColsRes = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = $1`,
+      [key.toLowerCase()]
+    );
+    if (orderColsRes.rows.length > 0 && resolvedOrderId) {
+      let valToSave = value;
+      if (f.type === 'Yes/No') {
+        valToSave = value === true || String(value).toLowerCase() === 'yes';
+      }
+      await client.query(
+        `UPDATE orders SET ${key.toLowerCase()} = $1 WHERE id = $2`,
+        [valToSave, resolvedOrderId]
+      );
+      continue;
+    }
+
+    // Check if key is a column in order_line_items table
+    const liColsRes = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'order_line_items' AND column_name = $1`,
+      [key.toLowerCase()]
+    );
+    if (liColsRes.rows.length > 0 && lineItemId) {
+      let valToSave = value;
+      if (f.type === 'Yes/No') {
+        valToSave = value === true || String(value).toLowerCase() === 'yes';
+      }
+      await client.query(
+        `UPDATE order_line_items SET ${key.toLowerCase()} = $1 WHERE id = $2`,
+        [valToSave, lineItemId]
+      );
+      continue;
+    }
+
+    // Check if key is a column in order_units table
+    const unitColsRes = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'order_units' AND column_name = $1`,
+      [key.toLowerCase()]
+    );
+    if (unitColsRes.rows.length > 0 && unitId) {
+      let valToSave = value;
+      if (f.type === 'Yes/No') {
+        valToSave = value === true || String(value).toLowerCase() === 'yes';
+      }
+      await client.query(
+        `UPDATE order_units SET ${key.toLowerCase()} = $1 WHERE id = $2`,
+        [valToSave, unitId]
+      );
+      continue;
+    }
+  }
+};
+
 
 app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
   try {
@@ -2189,7 +2304,7 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
 
     // Upstream validation: block marking 'done' if upstream depts are incomplete
     if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts'];
+      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
       const myIndex = PIPELINE.indexOf(step.dept);
       if (myIndex > 0) {
         const upstreamDepts = PIPELINE.slice(0, myIndex);
@@ -2202,6 +2317,10 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
           return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
         }
       }
+    }
+
+    if (custom_fields) {
+      await propagateCustomFieldsToDB(custom_fields, req.params.orderId, null, pool);
     }
 
     let cfJson = null;
@@ -2705,7 +2824,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
     // Upstream validation: block marking 'done' if upstream depts are incomplete
     if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts'];
+      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
       const myIndex = PIPELINE.indexOf(step.dept);
       if (myIndex > 0) {
         const upstreamDepts = PIPELINE.slice(0, myIndex);
@@ -2721,6 +2840,10 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       }
     }
     
+    if (custom_fields) {
+      await propagateCustomFieldsToDB(custom_fields, null, req.params.unitId, client);
+    }
+
     let cfJson = null;
     if (custom_fields) {
       cfJson = JSON.stringify(custom_fields);
@@ -2740,19 +2863,23 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
     }
 
     if (step.dept === 'QC' && status === 'blocked') {
+      const { qcFailTarget } = req.body;
+      const target = qcFailTarget === 'design' ? 'Design' : 'Production';
+      const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
+
       await client.query(
         `UPDATE unit_steps 
-         SET status = 'inprogress', notes = 'Returned from QC — rework required', updated = $1 
-         WHERE order_unit_id = $2 AND dept = 'Production'`,
-        [updated, req.params.unitId]
+         SET status = 'inprogress', notes = $1, updated = $2 
+         WHERE order_unit_id = $3 AND dept = $4`,
+        [remark, updated, req.params.unitId, target]
       );
 
       const unitResForLog = await client.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
       const orderIdForLog = unitResForLog.rows[0]?.order_id || null;
       await client.query(
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
-         VALUES ($1, $2, 'QC', 'QC FAIL → returned to Production for rework')`,
-        [req.user.id, orderIdForLog]
+         VALUES ($1, $2, 'QC', $3)`,
+        [req.user.id, orderIdForLog, `QC FAIL → returned to ${target} for ${target === 'Design' ? 're-check' : 'rework'}`]
       );
     }
 
