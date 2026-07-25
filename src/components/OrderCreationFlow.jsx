@@ -46,6 +46,29 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     .catch(err => console.error(err));
   }, [token]);
 
+  useEffect(() => {
+    if (formData.order_date) {
+      const d = new Date(formData.order_date);
+      d.setDate(d.getDate() + 28);
+      const calculated = d.toISOString().split('T')[0];
+      if (formData.delivery_date !== calculated) {
+        setFormData(prev => ({ 
+          ...prev, 
+          delivery_date: calculated,
+          lineItems: prev.lineItems.map(li => ({ ...li, delivery_date: calculated }))
+        }));
+      }
+    } else {
+      if (formData.delivery_date !== '') {
+        setFormData(prev => ({ 
+          ...prev, 
+          delivery_date: '',
+          lineItems: prev.lineItems.map(li => ({ ...li, delivery_date: '' }))
+        }));
+      }
+    }
+  }, [formData.order_date]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -76,7 +99,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           material_description: '',
           part_number: '',
           panel_type_size: '',
-          delivery_date: '',
+          delivery_date: prev.delivery_date || '',
           quantity: 1,
           unit: 'Nos',
           unit_price: '',
@@ -265,12 +288,13 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
-              <label>Overall Delivery Date</label>
+              <label>Overall Delivery Date <span style={{ fontSize: '11px', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
               <input 
                 type="date" 
                 name="delivery_date" 
                 value={formData.delivery_date} 
-                onChange={handleInputChange} 
+                disabled
+                style={{ opacity: 0.7, cursor: 'not-allowed' }}
               />
             </div>
 
@@ -419,7 +443,13 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Delivery Date</label>
-                    <input type="date" className="form-input" value={li.delivery_date} onChange={e => handleLineItemChange(idx, 'delivery_date', e.target.value)} />
+                    <input 
+                      type="date" 
+                      className="form-input" 
+                      value={li.delivery_date} 
+                      disabled
+                      style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                    />
                   </div>
                 </div>
 
