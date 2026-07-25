@@ -1183,17 +1183,30 @@ export default function OrderList({ initialSelectedId }) {
                       type="date" 
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
                       value={editOrderForm.order_date} 
-                      onChange={(e) => setEditOrderForm({...editOrderForm, order_date: e.target.value})}
+                      onChange={(e) => {
+                        const newOrderDate = e.target.value;
+                        let newDeliveryDate = editOrderForm.delivery_date;
+                        if (newOrderDate) {
+                          const d = new Date(newOrderDate);
+                          d.setDate(d.getDate() + 28);
+                          newDeliveryDate = d.toISOString().split('T')[0];
+                        }
+                        setEditOrderForm({
+                          ...editOrderForm, 
+                          order_date: newOrderDate,
+                          delivery_date: newDeliveryDate
+                        });
+                      }}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Delivery Date</label>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Delivery Date <span style={{ textTransform: 'none', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
                     <input 
                       type="date" 
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', opacity: 0.7, cursor: 'not-allowed' }}
                       value={editOrderForm.delivery_date} 
-                      onChange={(e) => setEditOrderForm({...editOrderForm, delivery_date: e.target.value})}
+                      disabled
                     />
                   </div>
 
@@ -1395,12 +1408,12 @@ export default function OrderList({ initialSelectedId }) {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Line Item Delivery Date</label>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Line Item Delivery Date <span style={{ textTransform: 'none', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
                     <input
                       type="date"
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box', opacity: 0.7, cursor: 'not-allowed' }}
                       value={editLineItemForm.delivery_date}
-                      onChange={(e) => handleEditLineItemChange('delivery_date', e.target.value)}
+                      disabled
                     />
                   </div>
 

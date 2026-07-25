@@ -1041,10 +1041,17 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     const year = new Date().getFullYear();
     const order_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
 
+    // Automatically calculate delivery_date = order_date + 4 weeks (28 days)
+    const resolved_order_date = order_date || new Date().toISOString().split('T')[0];
+    const orderDateObj = new Date(resolved_order_date);
+    const deliveryDateObj = new Date(orderDateObj);
+    deliveryDateObj.setDate(orderDateObj.getDate() + 28);
+    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+
     const orderResult = await client.query(
       `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [order_number, company_location_id || null, order_date || null, delivery_date || null, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard']
+      [order_number, company_location_id || null, resolved_order_date, calculated_delivery_date, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard']
     );
     const order = orderResult.rows[0];
 
@@ -1055,17 +1062,17 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     const createdUnits = [];
 
     for (const li of parsedLineItems) {
+      const qty = parseInt(li.quantity) || 1;
       // Full ORD-YYYY-NNNN format for line item number
       const assigned_li_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
-      globalLineItemCounter++;
+      globalLineItemCounter += qty;
 
       const liResult = await client.query(
         `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, li.delivery_date || null, li.quantity, li.unit, li.unit_price, li.total_price, li.notes]
+        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, calculated_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes]
       );
       const lineItem = liResult.rows[0];
-      const qty = parseInt(li.quantity);
       totalUnits += qty;
 
       for (let i = 0; i < qty; i++) {
@@ -1207,11 +1214,23 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req,
   } = req.body;
   
   try {
-    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    const checkOrder = await pool.query('SELECT order_number, order_date FROM orders WHERE id = $1', [req.params.id]);
     if (checkOrder.rows.length === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
-    const order_number = checkOrder.rows[0].order_number;
+    const { order_number, order_date: existing_order_date } = checkOrder.rows[0];
+
+    const resolved_order_date = order_date || (existing_order_date ? (existing_order_date instanceof Date ? existing_order_date.toISOString().split('T')[0] : String(existing_order_date).split('T')[0]) : new Date().toISOString().split('T')[0]);
+    const orderDateObj = new Date(resolved_order_date);
+    const deliveryDateObj = new Date(orderDateObj);
+    deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
+    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+
+    // Auto-update all line items' delivery dates to match
+    await pool.query(
+      'UPDATE order_line_items SET delivery_date = $1 WHERE order_id = $2',
+      [calculated_delivery_date, req.params.id]
+    );
 
     const result = await pool.query(
       `UPDATE orders 
@@ -1230,8 +1249,8 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req,
        RETURNING *`,
       [
         company_location_id ? parseInt(company_location_id) : null, 
-        order_date || null, 
-        delivery_date || null, 
+        resolved_order_date, 
+        calculated_delivery_date, 
         notes || null, 
         priority || 'Medium', 
         po_number || null, 
@@ -1282,15 +1301,22 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
   } = req.body;
 
   try {
-    // Verify the order exists
-    const orderCheck = await pool.query('SELECT order_number, hold_status FROM orders WHERE id = $1', [orderId]);
+    // Verify the order exists and fetch order_date
+    const orderCheck = await pool.query('SELECT order_number, hold_status, order_date FROM orders WHERE id = $1', [orderId]);
     if (orderCheck.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    const { order_number, hold_status } = orderCheck.rows[0];
+    const { order_number, hold_status, order_date } = orderCheck.rows[0];
     if (hold_status === 'Approved') return res.status(403).json({ error: 'Order is on hold. Amendments are disabled.' });
 
     // Verify the line item belongs to this order
     const liCheck = await pool.query('SELECT id FROM order_line_items WHERE id = $1 AND order_id = $2', [liId, orderId]);
     if (liCheck.rows.length === 0) return res.status(404).json({ error: 'Line item not found for this order' });
+
+    // Calculate delivery_date as 4 weeks from the order's order_date
+    const resolved_order_date = order_date ? (order_date instanceof Date ? order_date.toISOString().split('T')[0] : String(order_date).split('T')[0]) : new Date().toISOString().split('T')[0];
+    const orderDateObj = new Date(resolved_order_date);
+    const deliveryDateObj = new Date(orderDateObj);
+    deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
+    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
 
     const qty = quantity ? parseInt(quantity) : null;
     const price = unit_price ? parseFloat(unit_price) : null;
@@ -1317,7 +1343,7 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
         unit || null,
         price,
         total,
-        delivery_date || null,
+        calculated_delivery_date,
         notes !== undefined ? (notes || null) : undefined,
         liId,
       ]
@@ -1586,8 +1612,11 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         return s || null;
       };
 
-      const order_date    = parseDate(header['order_date']);
-      const delivery_date = parseDate(header['delivery_date']);
+      const order_date    = parseDate(header['order_date']) || new Date().toISOString().split('T')[0];
+      const orderDateObj  = new Date(order_date);
+      const deliveryDateObj = new Date(orderDateObj);
+      deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
+      const delivery_date = deliveryDateObj.toISOString().split('T')[0];
 
       // Check if order already exists with this po_number
       const existingOrderRes = await client.query(
@@ -1650,9 +1679,10 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       const createdUnits = [];
 
       for (const li of lineItems) {
+        const qty = parseInt(li['quantity']) || 1;
         // Full ORD-YYYY-NNNN format for line item number
         const li_number = `ORD-${importYear}-${lineNum.toString().padStart(4, '0')}`;
-        lineNum += 1;
+        lineNum += qty;
 
         // Smart Deduplication: Check if this line item already exists (by number OR by matching description)
         if (isAppended) {
@@ -1669,8 +1699,6 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
             continue;
           }
         }
-
-        const qty = parseInt(li['quantity']) || 1;
         const unit_price = parseFloat(li['unit_price']) || 0;
         const total_price = parseFloat(li['total_price']) || (qty * unit_price);
 
@@ -1679,7 +1707,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
             panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
           [order.id, li_number, li['material_description'] || '', li['part_number'] || '',
-           li['panel_type_size'] || '', parseDate(li['line_item_delivery_date']) || delivery_date,
+           li['panel_type_size'] || '', delivery_date,
            qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null]
         );
         const lineItem = liResult.rows[0];
