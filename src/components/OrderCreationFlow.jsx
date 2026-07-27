@@ -435,7 +435,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Unit Price *</label>
-                    <input type="number" step="0.01" className="form-input" value={li.unit_price} onChange={e => handleLineItemChange(idx, 'unit_price', e.target.value)} required />
+                    <input type="number" step="0.01" min="0" max="9999999999999.99" className="form-input" value={li.unit_price} onChange={e => handleLineItemChange(idx, 'unit_price', e.target.value)} required />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Total Price</label>
