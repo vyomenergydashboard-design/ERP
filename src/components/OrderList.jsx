@@ -1392,6 +1392,7 @@ export default function OrderList({ initialSelectedId }) {
                     <input
                       type="number"
                       min="0"
+                      max="9999999999999.99"
                       step="0.01"
                       required
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}

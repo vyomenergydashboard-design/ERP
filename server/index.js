@@ -1023,6 +1023,24 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       // Ignore
     }
 
+    // Validate line item price values to prevent Postgres numeric field overflow
+    for (const li of parsedLineItems) {
+      const qty = parseInt(li.quantity) || 1;
+      const uPrice = parseFloat(li.unit_price) || 0;
+      const tPrice = parseFloat(li.total_price) || (qty * uPrice);
+
+      if (isNaN(uPrice) || uPrice < 0 || uPrice > 9999999999999.99) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({ error: "Unit price must be a valid number between 0 and 9,999,999,999,999.99." });
+      }
+      if (isNaN(tPrice) || tPrice < 0 || tPrice > 9999999999999.99) {
+        await client.query('ROLLBACK');
+        client.release();
+        return res.status(400).json({ error: "Total price must be a valid number between 0 and 9,999,999,999,999.99." });
+      }
+    }
+
     // 1. Determine the global line-item counter start.
     //    The order number = the global sequence number of its first line item.
     //    line_item_numbers are stored as full ORD-YYYY-NNNN strings.
@@ -1321,6 +1339,17 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
     const qty = quantity ? parseInt(quantity) : null;
     const price = unit_price ? parseFloat(unit_price) : null;
     const total = qty != null && price != null ? qty * price : null;
+
+    if (price !== null) {
+      if (isNaN(price) || price < 0 || price > 9999999999999.99) {
+        return res.status(400).json({ error: "Unit price must be a valid number between 0 and 9,999,999,999,999.99." });
+      }
+    }
+    if (total !== null) {
+      if (isNaN(total) || total < 0 || total > 9999999999999.99) {
+        return res.status(400).json({ error: "Total price must be a valid number between 0 and 9,999,999,999,999.99." });
+      }
+    }
 
     const result = await pool.query(
       `UPDATE order_line_items
@@ -1701,6 +1730,13 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         }
         const unit_price = parseFloat(li['unit_price']) || 0;
         const total_price = parseFloat(li['total_price']) || (qty * unit_price);
+
+        if (isNaN(unit_price) || unit_price < 0 || unit_price > 9999999999999.99) {
+          throw new Error(`Unit price for line item must be a valid number between 0 and 9,999,999,999,999.99.`);
+        }
+        if (isNaN(total_price) || total_price < 0 || total_price > 9999999999999.99) {
+          throw new Error(`Total price for line item must be a valid number between 0 and 9,999,999,999,999.99.`);
+        }
 
         const liResult = await client.query(
           `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number,
