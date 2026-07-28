@@ -1045,11 +1045,11 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     //    The order number = the global sequence number of its first line item.
     //    line_item_numbers are stored as full ORD-YYYY-NNNN strings.
     const liCountRes = await client.query(
-      "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
+      "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
     );
     let globalLineItemCounter;
     if (liCountRes.rows.length > 0) {
-      globalLineItemCounter = parseLiCounter(liCountRes.rows[0].line_item_number) + 1;
+      globalLineItemCounter = parseLiCounter(liCountRes.rows[0].line_item_number) + parseInt(liCountRes.rows[0].quantity || 1);
     } else {
       const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
       globalLineItemCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
@@ -1762,18 +1762,18 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
         // Continue from the GLOBAL last line item number (global sequence across all orders)
         const maxLiRes = await client.query(
-          "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
+          "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
         );
         if (maxLiRes.rows.length > 0) {
-          lineNum = parseLiCounter(maxLiRes.rows[0].line_item_number) + 1;
+          lineNum = parseLiCounter(maxLiRes.rows[0].line_item_number) + parseInt(maxLiRes.rows[0].quantity || 1);
         }
       } else {
         // Create new order — determine global line item counter for this order
         const liCountRes = await client.query(
-          "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
+          "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
         );
         if (liCountRes.rows.length > 0) {
-          lineNum = parseLiCounter(liCountRes.rows[0].line_item_number) + 1;
+          lineNum = parseLiCounter(liCountRes.rows[0].line_item_number) + parseInt(liCountRes.rows[0].quantity || 1);
         } else {
           const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
           lineNum = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
