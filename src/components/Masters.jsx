@@ -162,7 +162,7 @@ export default function Masters() {
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditMasters = user.role === 'Admin';
+  const canEditMasters = user.role?.toLowerCase() === 'admin';
 
   useEffect(() => {
     fetchCompanies();
