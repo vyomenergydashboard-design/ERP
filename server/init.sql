@@ -190,4 +190,5 @@ CREATE TABLE IF NOT EXISTS system_settings (
 );
 -- Seed default order number start
 INSERT INTO system_settings (key, value) VALUES ('order_number_start', '1') ON CONFLICT (key) DO NOTHING;
+INSERT INTO system_settings (key, value) VALUES ('unit_number_start', '1') ON CONFLICT (key) DO NOTHING;
 
