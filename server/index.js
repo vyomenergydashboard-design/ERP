@@ -1080,8 +1080,8 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     if (max_serial > 0) {
       globalUnitCounter = max_serial + 1;
     } else {
-      const unitSetting = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
-      globalUnitCounter = unitSetting.rows.length > 0 ? parseInt(unitSetting.rows[0].value) || 1 : 1;
+      const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+      globalUnitCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
     }
     let totalUnits = 0;
     const createdUnits = [];
@@ -1254,8 +1254,7 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
     // B. Determine starting counter from system settings
     const settingRes = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
     let globalLineItemCounter = settingRes.rows.length > 0 ? parseInt(settingRes.rows[0].value) || 1 : 1;
-    const unitSettingRes = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
-    let globalUnitCounter = unitSettingRes.rows.length > 0 ? parseInt(unitSettingRes.rows[0].value) || 1 : 1;
+    let globalUnitCounter = globalLineItemCounter;
 
     // C. Get all remaining orders in ascending order of creation (by ID)
     const remainingOrdersRes = await client.query("SELECT id, order_number, order_date, created_at FROM orders ORDER BY id ASC");
@@ -1765,8 +1764,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       if (max_serial > 0) {
         globalUnitCounter = max_serial + 1;
       } else {
-        const unitSetting = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
-        globalUnitCounter = unitSetting.rows.length > 0 ? parseInt(unitSetting.rows[0].value) || 1 : 1;
+        const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+        globalUnitCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
       }
       let lineNum = 1;
       let isAppended = false;

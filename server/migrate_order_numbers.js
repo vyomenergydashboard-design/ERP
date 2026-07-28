@@ -8,8 +8,7 @@ async function migrate() {
     // 1. Determine starting global counter
     const settingRes = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
     let globalLineItemCounter = settingRes.rows.length > 0 ? parseInt(settingRes.rows[0].value) || 1 : 1;
-    const unitSettingRes = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
-    let globalUnitCounter = unitSettingRes.rows.length > 0 ? parseInt(unitSettingRes.rows[0].value) || 1 : 1;
+    let globalUnitCounter = globalLineItemCounter;
 
     console.log(`Starting migration with global counter: ${globalLineItemCounter}`);
 
