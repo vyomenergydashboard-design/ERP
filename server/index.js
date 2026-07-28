@@ -1216,6 +1216,103 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
   }
 });
 
+app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Check if the order exists
+    const orderCheck = await client.query('SELECT order_number FROM orders WHERE id = $1', [id]);
+    if (orderCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const orderNumberToDelete = orderCheck.rows[0].order_number;
+
+    // Log action to activity logs
+    await client.query(
+      `INSERT INTO activity_logs (user_id, action_text, dept) VALUES ($1, $2, $3)`,
+      [req.user.id, `Deleted order: ${orderNumberToDelete} (ID: ${id})`, 'Admin']
+    );
+
+    // 2. Delete the order (Foreign key cascades delete line items, units, steps)
+    await client.query('DELETE FROM orders WHERE id = $1', [id]);
+
+    // 3. Resequence remaining orders
+    // A. Temporarily prefix remaining orders and units to avoid unique key violations during sequential updates
+    await client.query("UPDATE orders SET order_number = 'TEMP-' || order_number");
+    await client.query("UPDATE order_units SET unit_id = 'TEMP-' || unit_id");
+
+    // B. Determine starting counter from system settings
+    const settingRes = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
+    let globalLineItemCounter = settingRes.rows.length > 0 ? parseInt(settingRes.rows[0].value) || 1 : 1;
+    let globalUnitCounter = 1;
+
+    // C. Get all remaining orders in ascending order of creation (by ID)
+    const remainingOrdersRes = await client.query("SELECT id, order_number, order_date, created_at FROM orders ORDER BY id ASC");
+    const remainingOrders = remainingOrdersRes.rows;
+
+    for (const order of remainingOrders) {
+      // Extract year, handling the TEMP- prefix
+      let year = new Date().getFullYear();
+      let cleanNum = order.order_number;
+      if (cleanNum.startsWith('TEMP-')) {
+        cleanNum = cleanNum.substring(5);
+      }
+
+      if (cleanNum.startsWith('ORD-')) {
+        const parts = cleanNum.split('-');
+        if (parts.length >= 2 && parts[1].length === 4) {
+          const yr = parseInt(parts[1]);
+          if (!isNaN(yr)) year = yr;
+        }
+      } else if (order.order_date) {
+        year = new Date(order.order_date).getFullYear();
+      } else if (order.created_at) {
+        year = new Date(order.created_at).getFullYear();
+      }
+
+      const newOrderNumber = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+
+      // Update Order Number
+      await client.query("UPDATE orders SET order_number = $1 WHERE id = $2", [newOrderNumber, order.id]);
+
+      // Update Line Items for this Order
+      const liRes = await client.query("SELECT id, quantity FROM order_line_items WHERE order_id = $1 ORDER BY id ASC", [order.id]);
+      for (const li of liRes.rows) {
+        const assignedLiNumber = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+        await client.query(
+          "UPDATE order_line_items SET line_item_number = $1 WHERE id = $2",
+          [assignedLiNumber, li.id]
+        );
+        globalLineItemCounter += li.quantity;
+      }
+
+      // Update Units for this Order
+      const unitsRes = await client.query("SELECT id FROM order_units WHERE order_id = $1 ORDER BY id ASC", [order.id]);
+      for (const unit of unitsRes.rows) {
+        const newShortSerial = globalUnitCounter.toString().padStart(4, '0');
+        const newUnitId = `${newOrderNumber}-${newShortSerial}`;
+        await client.query(
+          "UPDATE order_units SET short_serial = $1, unit_id = $2 WHERE id = $3",
+          [newShortSerial, newUnitId, unit.id]
+        );
+        globalUnitCounter += 1;
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Order deleted and remaining orders resequenced successfully' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Order deletion/resequencing error:', err);
+    res.status(500).json({ error: 'Failed to delete and resequence orders' });
+  } finally {
+    client.release();
+  }
+});
+
 app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { 
     company_location_id, 

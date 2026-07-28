@@ -116,6 +116,32 @@ export default function OrderList({ initialSelectedId }) {
     }
   };
 
+  const handleDeleteOrder = async (orderId) => {
+    if (!window.confirm('Are you sure you want to delete this order? This will permanently delete the order, all its line items, all unit serial numbers, steps, and resequence all remaining orders!')) {
+      return;
+    }
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${orderId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        alert('Order deleted and remaining orders resequenced successfully!');
+        setSelectedOrder(null);
+        await fetchOrders();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: null } }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to delete order.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error, please try again.');
+    }
+  };
+
   const handleStartEditLineItem = (li) => {
     setEditLineItemForm({
       material_description: li.material_description || '',
@@ -515,6 +541,16 @@ export default function OrderList({ initialSelectedId }) {
                       onClick={() => handleStartEditOrder(selectedOrder)}
                     >
                       Amend Order
+                    </button>
+                  )}
+
+                  {currentUser.role === 'Admin' && (
+                    <button 
+                      className="vbtn" 
+                      style={{ padding: '4px 12px', fontSize: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                      onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    >
+                      Delete Order
                     </button>
                   )}
 
