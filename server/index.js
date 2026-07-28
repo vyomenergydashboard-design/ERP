@@ -1075,7 +1075,14 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
 
     // 2. Insert Line Items — stored as full ORD-YYYY-NNNN format
     const maxSerialRes = await client.query('SELECT MAX(CAST(short_serial AS INTEGER)) as max_serial FROM order_units');
-    let globalUnitCounter = (maxSerialRes.rows[0]?.max_serial || 0) + 1;
+    let max_serial = parseInt(maxSerialRes.rows[0]?.max_serial) || 0;
+    let globalUnitCounter;
+    if (max_serial > 0) {
+      globalUnitCounter = max_serial + 1;
+    } else {
+      const unitSetting = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
+      globalUnitCounter = unitSetting.rows.length > 0 ? parseInt(unitSetting.rows[0].value) || 1 : 1;
+    }
     let totalUnits = 0;
     const createdUnits = [];
 
@@ -1247,7 +1254,8 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
     // B. Determine starting counter from system settings
     const settingRes = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
     let globalLineItemCounter = settingRes.rows.length > 0 ? parseInt(settingRes.rows[0].value) || 1 : 1;
-    let globalUnitCounter = 1;
+    const unitSettingRes = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
+    let globalUnitCounter = unitSettingRes.rows.length > 0 ? parseInt(unitSettingRes.rows[0].value) || 1 : 1;
 
     // C. Get all remaining orders in ascending order of creation (by ID)
     const remainingOrdersRes = await client.query("SELECT id, order_number, order_date, created_at FROM orders ORDER BY id ASC");
@@ -1752,7 +1760,14 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
       let order;
       const maxGlobalSerialRes = await client.query('SELECT COALESCE(MAX(short_serial::integer), 0) as max_serial FROM order_units');
-      let globalUnitCounter = parseInt(maxGlobalSerialRes.rows[0].max_serial) + 1;
+      let max_serial = parseInt(maxGlobalSerialRes.rows[0].max_serial) || 0;
+      let globalUnitCounter;
+      if (max_serial > 0) {
+        globalUnitCounter = max_serial + 1;
+      } else {
+        const unitSetting = await client.query("SELECT value FROM system_settings WHERE key = 'unit_number_start' LIMIT 1");
+        globalUnitCounter = unitSetting.rows.length > 0 ? parseInt(unitSetting.rows[0].value) || 1 : 1;
+      }
       let lineNum = 1;
       let isAppended = false;
 
