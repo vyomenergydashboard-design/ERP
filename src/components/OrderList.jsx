@@ -215,7 +215,7 @@ export default function OrderList({ initialSelectedId }) {
     }
   };
 
-  const isAdmin = ['Admin', 'Manager', 'Sales'].includes(currentUser.role);
+  const isAdmin = ['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase());
 
   const handleBulkUpdateSubmit = async (e) => {
     e.preventDefault();
@@ -534,7 +534,7 @@ export default function OrderList({ initialSelectedId }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
                   <h2 style={{ margin: 0 }}>{selectedOrder.order_number}</h2>
-                  {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                  {['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
                     <button 
                       className="vbtn" 
                       style={{ padding: '4px 12px', fontSize: '12px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -544,7 +544,7 @@ export default function OrderList({ initialSelectedId }) {
                     </button>
                   )}
 
-                  {currentUser.role === 'Admin' && (
+                  {currentUser.role?.toLowerCase() === 'admin' && (
                     <button 
                       className="vbtn" 
                       style={{ padding: '4px 12px', fontSize: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
@@ -560,7 +560,7 @@ export default function OrderList({ initialSelectedId }) {
                       <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontWeight: '600' }}>
                         Hold Requested
                       </span>
-                      {['Admin', 'Manager'].includes(currentUser.role) && (
+                      {['admin', 'manager'].includes(currentUser.role?.toLowerCase()) && (
                         <>
                           <button 
                             type="button"
@@ -588,7 +588,7 @@ export default function OrderList({ initialSelectedId }) {
                       <span style={{ fontSize: '11px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
                         ⛔ ON HOLD
                       </span>
-                      {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                      {['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
                         <button 
                           type="button"
                           className="vbtn" 
@@ -601,7 +601,7 @@ export default function OrderList({ initialSelectedId }) {
                     </div>
                   )}
 
-                  {(selectedOrder.hold_status === 'None' || !selectedOrder.hold_status) && ['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                  {(selectedOrder.hold_status === 'None' || !selectedOrder.hold_status) && ['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
                     <button 
                       type="button"
                       className="vbtn" 
@@ -698,7 +698,7 @@ export default function OrderList({ initialSelectedId }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border2)', paddingBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                         <strong>{li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
-                        {['Admin', 'Manager', 'Production', 'Sales', 'Design', 'Purchase', 'Stores', 'QC', 'Dispatch', 'Accounts', 'Planning'].includes(currentUser.role) && (
+                        {['admin', 'manager', 'production', 'sales', 'design', 'purchase', 'stores', 'qc', 'dispatch', 'accounts', 'planning'].includes(currentUser.role?.toLowerCase()) && (
                           <button 
                             className="vbtn" 
                             style={{ padding: '2px 8px', fontSize: '10px', background: '#2563eb', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', height: '22px' }} 
@@ -715,7 +715,7 @@ export default function OrderList({ initialSelectedId }) {
                             Bulk Update Batch
                           </button>
                         )}
-                        {['Admin', 'Manager', 'Sales'].includes(currentUser.role) && (
+                        {['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
                           <button
                             className="vbtn"
                             title="Amend Line Item"
@@ -791,13 +791,13 @@ export default function OrderList({ initialSelectedId }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {[...unitSteps].sort((a, b) => {
-                      if (['Admin', 'Manager'].includes(currentUser.role)) return 0;
-                      if (a.dept === currentUser.role && b.dept !== currentUser.role) return -1;
-                      if (b.dept === currentUser.role && a.dept !== currentUser.role) return 1;
+                      if (['admin', 'manager'].includes(currentUser.role?.toLowerCase())) return 0;
+                      if (a.dept?.toLowerCase() === currentUser.role?.toLowerCase() && b.dept?.toLowerCase() !== currentUser.role?.toLowerCase()) return -1;
+                      if (b.dept?.toLowerCase() === currentUser.role?.toLowerCase() && a.dept?.toLowerCase() !== currentUser.role?.toLowerCase()) return 1;
                       return 0;
                     }).map(step => {
                       const isExpanded = expandedStepId === step.id;
-                      const canEditStep = (['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role || step.assigned_user_id === currentUser.id) && selectedOrder?.hold_status !== 'Approved';
+                      const canEditStep = (['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase() || step.assigned_user_id === currentUser.id) && selectedOrder?.hold_status !== 'Approved';
                       const assignedUser = users.find(u => u.id === step.assigned_user_id);
                       
                       let stepCustomFields = [];
@@ -807,7 +807,7 @@ export default function OrderList({ initialSelectedId }) {
                         stepCustomFields = [];
                       }
 
-                      const matchingUsers = users.filter(u => u.role === step.dept);
+                      const matchingUsers = users.filter(u => u.role?.toLowerCase() === step.dept?.toLowerCase());
 
                       return (
                         <div key={step.id} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px' }}>
