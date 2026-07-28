@@ -471,7 +471,7 @@ export default function DocumentDirectory() {
                           </thead>
                           <tbody>
                             {order.docs.map(doc => {
-                              const canDelete = doc.uploaded_by === user.id || user.role === 'Admin' || user.role === 'Manager';
+                              const canDelete = doc.uploaded_by === user.id || ['admin', 'manager'].includes(user.role?.toLowerCase());
                               const fileNameOnDisk = doc.file_path.split(/[\/\\]/).pop();
                               const downloadUrl = `${window.API_BASE}/uploads/${fileNameOnDisk}?token=${token}`;
 

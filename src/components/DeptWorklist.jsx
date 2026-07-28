@@ -69,7 +69,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   const hasBlocked = steps.some(s => s.status === 'blocked');
 
   const getCanEditStep = (step) => {
-    return ['Admin', 'Manager'].includes(currentUser.role) || step.dept === currentUser.role;
+    return ['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
   };
 
   const rowBorder = hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
@@ -259,7 +259,7 @@ export default function DeptWorklist({ dept }) {
   const [search, setSearch]     = useState('');
   const token = localStorage.getItem('token');
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEdit = ['Admin', 'Manager', dept].includes(currentUser.role);
+  const canEdit = ['admin', 'manager', dept?.toLowerCase()].includes(currentUser.role?.toLowerCase());
   const deptColor = DEPT_COLORS[dept] || '#6366f1';
 
   const fetchWorklist = useCallback(async (silent = false) => {
