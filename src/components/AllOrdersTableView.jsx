@@ -18,7 +18,7 @@ const STATUS_STYLES = {
   'On Hold':   { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
 };
 
-export default function AllOrdersTableView({ currentFilter, onSetView, selectedOrderId }) {
+export default function AllOrdersTableView({ currentFilter, onSetView }) {
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
 
@@ -86,12 +86,12 @@ export default function AllOrdersTableView({ currentFilter, onSetView, selectedO
     };
     window.addEventListener('orderUpdated', handleUpdate);
     return () => window.removeEventListener('orderUpdated', handleUpdate);
-  }, [currentFilter, selectedOrderId]);
+  }, [currentFilter]);
 
   const fetchUnits = async () => {
     setIsLoading(true);
     try {
-      const deptParam = (selectedOrderId || currentFilter === 'all') ? 'Sales' : currentFilter;
+      const deptParam = currentFilter === 'all' ? 'Sales' : currentFilter;
       const res = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(deptParam)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -124,7 +124,6 @@ export default function AllOrdersTableView({ currentFilter, onSetView, selectedO
   };
 
   const filtered = units.filter(u => {
-    if (selectedOrderId && u.order_id !== selectedOrderId) return false;
     const status = getUnitStatus(u);
     if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
     if (statusFilter === 'incomplete' && status === 'Completed') return false;
