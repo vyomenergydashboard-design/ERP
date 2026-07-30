@@ -93,7 +93,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
           </div>
           {unit.company_name && (
             <div style={{ color: 'var(--text3)', fontSize: 11, marginTop: 2 }}>
-              🏢 {unit.company_name}{unit.company_city ? ` · ${unit.company_city}` : ''}
+              {unit.company_name}{unit.company_city ? ` · ${unit.company_city}` : ''}
             </div>
           )}
           {unit.po_number && (
@@ -261,6 +261,56 @@ export default function DeptWorklist({ dept }) {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const canEdit = ['admin', 'manager', dept?.toLowerCase()].includes(currentUser.role?.toLowerCase());
   const deptColor = DEPT_COLORS[dept] || '#6366f1';
+  const tableContainerRef = React.useRef(null);
+
+  useEffect(() => {
+    const slider = tableContainerRef.current;
+    if (!slider) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    const handleMouseDown = (e) => {
+      if (['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'TH'].includes(e.target.tagName) || e.target.closest('th') || e.target.closest('button')) {
+        return;
+      }
+      isDown = true;
+      slider.classList.add('active-drag');
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    };
+
+    const handleMouseLeave = () => {
+      isDown = false;
+      slider.classList.remove('active-drag');
+    };
+
+    const handleMouseUp = () => {
+      isDown = false;
+      slider.classList.remove('active-drag');
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      slider.scrollLeft = scrollLeft - walk;
+    };
+
+    slider.addEventListener('mousedown', handleMouseDown);
+    slider.addEventListener('mouseleave', handleMouseLeave);
+    slider.addEventListener('mouseup', handleMouseUp);
+    slider.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      slider.removeEventListener('mousedown', handleMouseDown);
+      slider.removeEventListener('mouseleave', handleMouseLeave);
+      slider.removeEventListener('mouseup', handleMouseUp);
+      slider.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
   const fetchWorklist = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
@@ -379,16 +429,6 @@ export default function DeptWorklist({ dept }) {
         marginBottom: 20, flexWrap: 'wrap', gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `${deptColor}22`, border: `1px solid ${deptColor}55`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18,
-          }}>
-            {dept === 'Design' ? '✏️' : dept === 'QC' ? '🔬' : dept === 'Production' ? '🔧' :
-             dept === 'Purchase' ? '📦' : dept === 'Stores' ? '🏪' :
-             dept === 'Dispatch' ? '🚚' : dept === 'Accounts' ? '💼' : '📋'}
-          </div>
           <div>
             <h2 style={{ margin: 0, color: 'var(--text)', fontSize: 20, fontWeight: 800 }}>
               {dept} Worklist
@@ -475,7 +515,6 @@ export default function DeptWorklist({ dept }) {
           textAlign: 'center', padding: '60px 20px',
           background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border)',
         }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
           <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
             {search || filter !== 'all' 
               ? 'No matching units' 
@@ -492,10 +531,14 @@ export default function DeptWorklist({ dept }) {
 
       {/* Worklist Table */}
       {filteredUnits.length > 0 && (
-        <div style={{
-          background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
-          overflow: 'hidden', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        }}>
+        <div 
+          ref={tableContainerRef}
+          className="worklist-table-container"
+          style={{
+            background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
+            overflowX: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          }}
+        >
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
@@ -528,6 +571,13 @@ export default function DeptWorklist({ dept }) {
       <style>{`
         .worklist-row:hover { background: rgba(255,255,255,0.03) !important; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .worklist-table-container {
+          cursor: grab;
+        }
+        .worklist-table-container.active-drag {
+          cursor: grabbing;
+          user-select: none;
+        }
       `}</style>
     </div>
   );

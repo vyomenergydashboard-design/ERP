@@ -75,7 +75,7 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                 <h4 style={{ marginBottom: 4, fontFamily: 'var(--font-mono)', fontSize: 13 }}>{selectedOrder.order_number}</h4>
                 {selectedOrder.company_name && (
                   <div style={{ color: 'var(--text2)', fontSize: 11, marginBottom: 12 }}>
-                    🏢 {selectedOrder.company_name}
+                    {selectedOrder.company_name}
                   </div>
                 )}
                 <div className="detail-row">
@@ -160,7 +160,7 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                           rel="noopener noreferrer"
                           style={{ color: 'var(--blue)', textDecoration: 'none' }}
                         >
-                          📄 {doc.file_name}
+                          {doc.file_name}
                         </a>
                       </div>
                     ))}

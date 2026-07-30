@@ -57,7 +57,7 @@
   --modal-overlay-bg: rgba(0, 0, 0, 0.75);
 
   /* Theme toggle icon */
-  --theme-icon: '☀️';
+  --theme-icon: '️';
 
   /* Stat card gradient end */
   --stat-card-gradient-end: rgba(30, 35, 50, 0.4);
@@ -118,7 +118,7 @@
   --modal-overlay-bg: rgba(0, 0, 0, 0.45);
 
   /* Theme toggle icon */
-  --theme-icon: '🌙';
+  --theme-icon: '';
 
   /* Stat card gradient end */
   --stat-card-gradient-end: rgba(220, 225, 235, 0.4);

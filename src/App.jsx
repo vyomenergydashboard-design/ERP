@@ -38,7 +38,7 @@ function Dashboard() {
   const [steps, setSteps] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
   const [currentFilter, setCurrentFilter] = useState('all');
-  const [currentView, setCurrentView] = useState('board'); // default to board
+  const [currentView, setCurrentView] = useState('table'); // default to table
   const [bomState, setBomState] = useState('Accept-Complete');
   const [designType, setDesignType] = useState('Standard');
   const [selectedStepId, setSelectedStepId] = useState(null);
@@ -53,6 +53,7 @@ function Dashboard() {
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitSteps, setUnitSteps] = useState([]);
   const lastInitializedOrderIdRef = useRef(null);
+  const requestedUnitIdRef = useRef(null);
   const navigate = useNavigate();
 
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
@@ -92,6 +93,13 @@ function Dashboard() {
           setSelectedOrderId(null);
           selectedOrderIdRef.current = null;
         }
+        if (e.detail.unitId) {
+          requestedUnitIdRef.current = e.detail.unitId;
+          setSelectedUnitId(String(e.detail.unitId));
+        } else {
+          requestedUnitIdRef.current = null;
+          setSelectedUnitId('');
+        }
       }
     };
     window.addEventListener('setView', handleSetViewEvent);
@@ -118,11 +126,14 @@ function Dashboard() {
 
     if (lastInitializedOrderIdRef.current !== selectedOrder.id) {
       const units = selectedOrder.units || [];
-      if (units.length > 0) {
+      if (requestedUnitIdRef.current && units.some(u => u.id.toString() === requestedUnitIdRef.current.toString())) {
+        setSelectedUnitId(requestedUnitIdRef.current.toString());
+      } else if (units.length > 0) {
         setSelectedUnitId(units[0].id.toString());
       } else {
         setSelectedUnitId('');
       }
+      requestedUnitIdRef.current = null;
       lastInitializedOrderIdRef.current = selectedOrder.id;
     } else {
       const units = selectedOrder.units || [];
@@ -253,15 +264,16 @@ function Dashboard() {
   // Navigating to Board clears the selected order — Board shows all orders,
   // so having one "selected" is confusing and pollutes the stats + right panel.
   const navigateToView = (view) => {
-    setCurrentView(view);
     if (view === 'board') {
+      setCurrentView('table'); // Default to table view
       setSelectedOrderId(null);
       selectedOrderIdRef.current = null;
       setSelectedOrder(null);
       setSteps([]);
       setCurrentFilter('all'); // board always shows all departments
-      // Also tell the Header to clear its search input
       window.dispatchEvent(new CustomEvent('setView', { detail: { orderId: null } }));
+    } else {
+      setCurrentView(view);
     }
   };
 
@@ -394,7 +406,7 @@ function Dashboard() {
             </div>
             {['board', 'flow', 'table'].includes(currentView) && (
               <div className="view-toggle">
-                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => navigateToView('board')}>Board</button>
+                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => setCurrentView('board')}>Board</button>
                 <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
                 <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => setCurrentView('table')}>Table</button>
               </div>
@@ -443,11 +455,7 @@ function Dashboard() {
               </div>
             )
           ) : currentView === 'table' ? (
-            selectedOrderId ? (
-              <TableView steps={combinedSteps} currentFilter={currentFilter} onOpenModal={handleOpenModal} userRole={user.role} />
-            ) : (
-              <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} />
-            )
+            <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} selectedOrderId={selectedOrderId} />
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
           ) : currentView === 'documents' ? (
