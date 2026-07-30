@@ -151,7 +151,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
                 <div className="completed-badges-row">
                   {order.delivery_date && (
                     <div className="delivery-badge">
-                      <span className="icon">🚚</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      <span className="icon">Delivery:</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                     </div>
                   )}
                   <span className="completed-global-badge">COMPLETED</span>
@@ -225,7 +225,7 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
                         )}
                         {order.delivery_date && (
                           <div className="delivery-badge">
-                            <span className="icon">🚚</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            <span className="icon">Delivery:</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </div>
                         )}
                       </div>

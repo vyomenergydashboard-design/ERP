@@ -448,7 +448,7 @@ export default function OrderList({ initialSelectedId }) {
                 onMouseOver={e => e.currentTarget.style.opacity = '0.8'}
                 onMouseOut={e => e.currentTarget.style.opacity = '1'}
               >
-                📥 Import
+                Import
               </button>
             )}
             <select
@@ -519,7 +519,7 @@ export default function OrderList({ initialSelectedId }) {
               </div>
               {order.company_name && (
                 <div className="order-company">
-                  🏢 {order.company_name} - {order.company_city}
+                  {order.company_name} - {order.company_city}
                 </div>
               )}
             </div>
@@ -586,7 +586,7 @@ export default function OrderList({ initialSelectedId }) {
                   {selectedOrder.hold_status === 'Approved' && (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       <span style={{ fontSize: '11px', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontWeight: '700', textTransform: 'uppercase' }}>
-                        ⛔ ON HOLD
+                         ON HOLD
                       </span>
                       {['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
                         <button 
@@ -614,7 +614,7 @@ export default function OrderList({ initialSelectedId }) {
                 </div>
                 {selectedOrder.company_name && (
                   <div className="order-company-lg" style={{ marginTop: '4px' }}>
-                    🏢 {selectedOrder.company_name} ({selectedOrder.company_city})
+                    {selectedOrder.company_name} ({selectedOrder.company_city})
                   </div>
                 )}
               </div>
@@ -623,7 +623,7 @@ export default function OrderList({ initialSelectedId }) {
 
             {selectedOrder.hold_status === 'Approved' && (
               <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', color: '#ef4444', fontWeight: '500', fontSize: '13px' }}>
-                ⚠️ <strong>ORDER IS CURRENTLY ON HOLD</strong> — All production updates, step changes, and document uploads for this order and its units are currently locked.
+                 <strong>ORDER IS CURRENTLY ON HOLD</strong> — All production updates, step changes, and document uploads for this order and its units are currently locked.
               </div>
             )}
 
@@ -728,7 +728,7 @@ export default function OrderList({ initialSelectedId }) {
                               handleStartEditLineItem(li);
                             }}
                           >
-                            ✏ Amend
+                            Amend
                           </button>
                         )}
                       </div>
@@ -780,7 +780,7 @@ export default function OrderList({ initialSelectedId }) {
             <div className="modal-body">
               {selectedOrder?.hold_status === 'Approved' && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.15)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', color: '#ef4444', fontSize: '11px', fontWeight: '500' }}>
-                  ⛔ <strong>Order is on hold.</strong> Production flow step updates are locked until the hold is released.
+                   <strong>Order is on hold.</strong> Production flow step updates are locked until the hold is released.
                 </div>
               )}
               <div style={{ marginBottom: 20 }}>
@@ -841,7 +841,7 @@ export default function OrderList({ initialSelectedId }) {
                               {/* Read-Only Banner */}
                               {!canEditStep && (
                                 <div style={{ background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.15)', borderRadius: '6px', padding: '8px 12px', marginBottom: '12px', color: '#60a5fa', fontSize: '11px' }}>
-                                  ℹ️ <strong>View-Only Mode</strong> — managed by the <strong>{step.dept}</strong> department.
+                                   <strong>View-Only Mode</strong> — managed by the <strong>{step.dept}</strong> department.
                                 </div>
                               )}
                               
@@ -923,7 +923,7 @@ export default function OrderList({ initialSelectedId }) {
                                         <label style={{ fontSize: '11px', color: 'var(--text2)', display: 'block', marginBottom: '2px' }}>{field.label}</label>
                                         {!canEditStep ? (
                                           <div style={{ fontSize: '12px', color: 'var(--text)', fontWeight: '500', marginTop: '2px' }}>
-                                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? 'Yes' : 'No') : (field.value || '—')}
                                           </div>
                                         ) : field.type === 'Yes/No' ? (
                                           <input 

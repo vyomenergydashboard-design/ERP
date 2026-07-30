@@ -82,7 +82,7 @@ export default function OrderImport({ onImportComplete }) {
             className="oi-download-btn"
             title="Download the sample template"
           >
-            ⬇ Download Template
+            Download Template
           </a>
         </div>
 
@@ -104,7 +104,7 @@ export default function OrderImport({ onImportComplete }) {
             />
             {file ? (
               <div className="oi-file-preview">
-                <span className="oi-file-icon">📊</span>
+                <span className="oi-file-icon"></span>
                 <div className="oi-file-info">
                   <span className="oi-file-name">{file.name}</span>
                   <span className="oi-file-size">{(file.size / 1024).toFixed(1)} KB</span>
@@ -113,7 +113,7 @@ export default function OrderImport({ onImportComplete }) {
               </div>
             ) : (
               <div className="oi-drop-prompt">
-                <div className="oi-drop-icon">📂</div>
+                <div className="oi-drop-icon"></div>
                 <div className="oi-drop-text">Drag &amp; drop your <strong>.xlsx</strong> file here</div>
                 <div className="oi-drop-sub">or click to browse</div>
               </div>
@@ -186,7 +186,7 @@ export default function OrderImport({ onImportComplete }) {
         {result && (
           <div className="oi-result">
             <p className={`oi-result-msg ${result.created?.length > 0 ? 'success' : 'fail'}`}>
-              {result.created?.length > 0 ? '✅' : '⚠️'} {result.message}
+              {result.message}
             </p>
 
             {result.created?.length > 0 && (

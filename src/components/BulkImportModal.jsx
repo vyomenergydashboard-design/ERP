@@ -21,7 +21,6 @@ export default function BulkImportModal({ isOpen, onClose, onImportComplete }) {
         {/* Modal header bar */}
         <div className="bim-modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '18px' }}>📥</span>
             <span style={{ fontWeight: '700', fontSize: '16px', color: 'var(--text)' }}>
               Bulk Order Import
             </span>

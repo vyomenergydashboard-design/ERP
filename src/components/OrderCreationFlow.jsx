@@ -466,7 +466,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           <div className="file-upload-section">
             <h3 className="section-title">Required Documents</h3>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '16px' }}>
-              ⚠️ Only <strong style={{ color: 'var(--text2)' }}>one</strong> PO copy and one Quotation allowed. To replace after submission, delete the existing file first.
+              Only <strong style={{ color: 'var(--text2)' }}>one</strong> PO copy and one Quotation allowed. To replace after submission, delete the existing file first.
             </div>
             <div className="file-grid">
 
@@ -480,7 +480,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 <label>Customer PO Copy</label>
                 {files.po ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>Done</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.po.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       Replace
@@ -490,7 +490,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
-                    <span>📁 Drag file here or</span>
+                    <span>Drag file here or</span>
                     <span style={{ color: 'var(--blue)' }}>browse files</span>
                     <input id="file-input-po" type="file" hidden onChange={(e) => handleFileChange(e, 'po')} />
                   </label>
@@ -507,7 +507,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 <label>Quotation</label>
                 {files.quotation ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#10b981' }}>✔</span>
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>Done</span>
                     <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.quotation.name}</span>
                     <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                       Replace
@@ -517,7 +517,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
-                    <span>📁 Drag file here or</span>
+                    <span>Drag file here or</span>
                     <span style={{ color: 'var(--blue)' }}>browse files</span>
                     <input id="file-input-quotation" type="file" hidden onChange={(e) => handleFileChange(e, 'quotation')} />
                   </label>
@@ -534,7 +534,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               >
                 <label>Approved Documents (Up to 20)</label>
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
-                  <span>📁 Drag files here or</span>
+                  <span>Drag files here or</span>
                   <span style={{ color: 'var(--blue)' }}>browse files</span>
                   <input type="file" multiple hidden onChange={(e) => handleFileChange(e, 'approved_docs')} />
                 </label>

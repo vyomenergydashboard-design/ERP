@@ -164,7 +164,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
         {selectedOrder?.hold_status === 'Approved' && (
           <div style={{ background: 'rgba(239, 68, 68, 0.08)', borderBottom: '1px solid rgba(239, 68, 68, 0.15)', padding: '12px 24px', color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
-            ⛔ <strong>Order is on hold.</strong> Flow updates and document uploads are disabled.
+             <strong>Order is on hold.</strong> Flow updates and document uploads are disabled.
           </div>
         )}
 
@@ -205,7 +205,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               {/* Read-Only Banner */}
               {!canEditStep && (
                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#60a5fa', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '15px' }}>ℹ️</span>
+                  <span style={{ fontSize: '15px' }}></span>
                   <span><strong>View-Only Mode</strong> — This task is managed by the <strong>{step.dept}</strong> department.</span>
                 </div>
               )}
@@ -213,7 +213,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               {/* Upstream Validation Error */}
               {saveError && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#f87171', fontSize: '13px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <span style={{ fontSize: '15px', flexShrink: 0 }}>⛔</span>
+                  <span style={{ fontSize: '15px', flexShrink: 0 }}></span>
                   <span style={{ flex: 1 }}>{saveError}</span>
                   <button onClick={() => setSaveError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '16px', padding: '0', lineHeight: 1 }}>✕</button>
                 </div>
@@ -270,19 +270,19 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                         onClick={() => canEditStep && setQcFailTarget('production')}
                         style={{ cursor: canEditStep ? 'pointer' : 'default' }}
                       >
-                        ↩ Production<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Rework</span>
+                        Production<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Rework</span>
                       </div>
                       <div 
                         className={`qc-opt${qcFailTarget === 'design' ? ' selected' : ''}`} 
                         onClick={() => canEditStep && setQcFailTarget('design')}
                         style={{ cursor: canEditStep ? 'pointer' : 'default' }}
                       >
-                        ↩ Design<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Re-check</span>
+                        Design<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Re-check</span>
                       </div>
                     </div>
                   ) : (
                     <div style={{ fontSize: '13px', color: 'var(--text)', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px' }}>
-                      {qcFailTarget ? `↩ Returned to ${qcFailTarget.charAt(0).toUpperCase() + qcFailTarget.slice(1)}` : 'No fail action selected'}
+                      {qcFailTarget ? `Returned to ${qcFailTarget.charAt(0).toUpperCase() + qcFailTarget.slice(1)}` : 'No fail action selected'}
                     </div>
                   )}
                 </div>
@@ -299,9 +299,9 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                     </>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
-                      <div>{checklist.layout ? '✅' : '❌'} Panel Layout (for Fitter)</div>
-                      <div>{checklist.electrical ? '✅' : '❌'} Panel Design (for Wireman)</div>
-                      <div>{checklist.bom ? '✅' : '❌'} BOM Released to Purchase &amp; Stores</div>
+                      <div>{checklist.layout ? 'Yes' : 'No'} Panel Layout (for Fitter)</div>
+                      <div>{checklist.electrical ? 'Yes' : 'No'} Panel Design (for Wireman)</div>
+                      <div>{checklist.bom ? 'Yes' : 'No'} BOM Released to Purchase &amp; Stores</div>
                     </div>
                   )}
                 </div>
@@ -347,7 +347,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                     </div>
                     {!canEditStep ? (
                       <div style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500', marginTop: '4px' }}>
-                        {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                        {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? 'Yes' : 'No') : (field.value || '—')}
                       </div>
                     ) : (
                       renderFieldInput(field, idx)
@@ -363,7 +363,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
             <div>
               {step.requires_upload && (
                 <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, color: '#fbbf24', fontSize: 13 }}>
-                  ⚠️ This task requires at least one document to be marked as Done.
+                   This task requires at least one document to be marked as Done.
                 </div>
               )}
               <DocumentManager

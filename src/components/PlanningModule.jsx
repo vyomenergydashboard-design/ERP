@@ -29,6 +29,56 @@ export default function PlanningModule() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canEdit = ['admin', 'manager', 'planning'].includes(user.role?.toLowerCase());
+  const tableContainerRef = React.useRef(null);
+
+  useEffect(() => {
+    const slider = tableContainerRef.current;
+    if (!slider) return;
+
+    let isDown = false;
+    let startX;
+    let scrollLeft;
+
+    const handleMouseDown = (e) => {
+      if (['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'TH'].includes(e.target.tagName) || e.target.closest('th') || e.target.closest('button')) {
+        return;
+      }
+      isDown = true;
+      slider.classList.add('active-drag');
+      startX = e.pageX - slider.offsetLeft;
+      scrollLeft = slider.scrollLeft;
+    };
+
+    const handleMouseLeave = () => {
+      isDown = false;
+      slider.classList.remove('active-drag');
+    };
+
+    const handleMouseUp = () => {
+      isDown = false;
+      slider.classList.remove('active-drag');
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - slider.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      slider.scrollLeft = scrollLeft - walk;
+    };
+
+    slider.addEventListener('mousedown', handleMouseDown);
+    slider.addEventListener('mouseleave', handleMouseLeave);
+    slider.addEventListener('mouseup', handleMouseUp);
+    slider.addEventListener('mousemove', handleMouseMove);
+
+    return () => {
+      slider.removeEventListener('mousedown', handleMouseDown);
+      slider.removeEventListener('mouseleave', handleMouseLeave);
+      slider.removeEventListener('mouseup', handleMouseUp);
+      slider.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
 
   const [orders, setOrders] = useState([]);
   const [columnOrder, setColumnOrder] = useState(() => {
@@ -264,7 +314,7 @@ export default function PlanningModule() {
             </span>
             {order.active_dept && (
               <span className={`dept-badge dept-${(order.active_dept || '').toLowerCase()}`}>
-                ⚙ {order.active_dept}
+                {order.active_dept}
               </span>
             )}
           </div>
@@ -948,20 +998,24 @@ export default function PlanningModule() {
           </div>
 
           <button
-            className="reset-columns-btn"
+            className="reset-filters-btn"
             onClick={() => {
-              setColumnOrder(DEFAULT_COLUMNS);
-              localStorage.removeItem('planning_column_order');
+              setSearchTerm('');
+              setStatusFilter('all');
+              setPriorityFilter('all');
+              setGroupByPrimary('none');
+              setGroupBySecondary('none');
+              setCurrentPage(1);
             }}
-            title="Reset columns to default order"
+            title="Reset all filters and grouping to default"
           >
-            Reset Columns
+            Reset Filters
           </button>
         </div>
       </div>
 
       {/* ── Data Table ── */}
-      <div className="table-responsive">
+      <div className="table-responsive" ref={tableContainerRef}>
         <table className="planning-table">
           <thead>
             <tr>
@@ -1590,6 +1644,11 @@ export default function PlanningModule() {
           border-radius: var(--radius-lg, 10px);
           overflow-x: auto;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+          cursor: grab;
+        }
+        .table-responsive.active-drag {
+          cursor: grabbing;
+          user-select: none;
         }
 
         .planning-table {
@@ -1672,7 +1731,7 @@ export default function PlanningModule() {
           box-shadow: inset -3px 0 0 0 var(--accent, #f59e0b) !important;
         }
 
-        .reset-columns-btn {
+        .reset-filters-btn {
           align-self: flex-end;
           background: none;
           border: 1px solid var(--border2, #363d4a);
@@ -1690,7 +1749,7 @@ export default function PlanningModule() {
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
-        .reset-columns-btn:hover {
+        .reset-filters-btn:hover {
           border-color: var(--accent, #f59e0b);
           color: var(--text, #e8eaf0);
           background: rgba(245,158,11,0.05);
@@ -2014,7 +2073,7 @@ export default function PlanningModule() {
         }
 
         .planning-table td.editable-cell::after {
-          content: '✎';
+          content: '';
           position: absolute;
           right: 6px;
           top: 50%;

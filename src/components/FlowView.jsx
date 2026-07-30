@@ -292,7 +292,7 @@ export default function FlowView({
                           <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
                           <div className="step-name">
                             {step.name} 
-                            {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4 }}>📎</span>}
+                            {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4, fontSize: 10, color: 'var(--accent)' }}>(Upload Required)</span>}
                           </div>
                           <div className="step-sub">{step.sub}</div>
                           <StatusBadge status={step.status} />
@@ -355,7 +355,7 @@ export default function FlowView({
                     )}
                     {selectedOrder.delivery_date && (
                       <div className="delivery-badge">
-                        <span className="icon">🚚</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        <span className="icon">Delivery:</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </div>
                     )}
                   </div>
@@ -436,7 +436,7 @@ export default function FlowView({
                         <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
                         <div className="step-name">
                           {step.name} 
-                          {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4 }}>📎</span>}
+                          {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4, fontSize: 10, color: 'var(--accent)' }}>(Upload Required)</span>}
                         </div>
                         <div className="step-sub">{step.sub}</div>
                         <StatusBadge status={step.status} />
@@ -501,14 +501,14 @@ export default function FlowView({
               {/* Read-Only Banner */}
               {!canEditUnitStep && (
                 <div style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#60a5fa', fontSize: '12px' }}>
-                  ℹ️ <strong>View-Only Mode</strong> — This task is managed by the <strong>{editingUnitStep.dept}</strong> department.
+                  <strong>View-Only Mode</strong> — This task is managed by the <strong>{editingUnitStep.dept}</strong> department.
                 </div>
               )}
 
               {/* Upstream Validation Error Banner */}
               {unitStepError && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                  <span style={{ fontSize: '14px', flexShrink: 0 }}>⛔</span>
+                  <span style={{ fontSize: '12px', flexShrink: 0, fontWeight: 700 }}>Error:</span>
                   <span style={{ flex: 1 }}>{unitStepError}</span>
                   <button onClick={() => setUnitStepError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '14px', padding: '0', lineHeight: 1 }}>✕</button>
                 </div>
@@ -607,7 +607,7 @@ export default function FlowView({
                         </div>
                         {!canEditUnitStep ? (
                           <div style={{ fontSize: '12px', color: '#ddd', fontWeight: '500', marginTop: '2px' }}>
-                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? '✅ Yes' : '❌ No') : (field.value || '—')}
+                            {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? 'Yes' : 'No') : (field.value || '—')}
                           </div>
                         ) : field.type === 'Yes/No' ? (
                           <input 
@@ -646,7 +646,7 @@ export default function FlowView({
                 <div>
                   {editingUnitStep.requires_upload && (
                     <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, color: '#fbbf24', fontSize: 13 }}>
-                      ⚠️ This task requires at least one document to be marked as Done.
+                      This task requires at least one document to be marked as Done.
                     </div>
                   )}
                   <DocumentManager

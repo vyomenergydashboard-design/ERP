@@ -42,22 +42,22 @@ const DATAKEY_OPTIONS = [
   { key: 'li.unit_price',               label: 'Unit Price' },
   { key: 'li.total_price',              label: 'Total Price' },
   // ── Documents ──────────────────────────────────────────
-  { key: 'docs.any',                    label: '📄 Any document uploaded' },
-  { key: 'docs.PO',                     label: '📄 PO document uploaded' },
-  { key: 'docs.Drawing',                label: '📄 Drawing uploaded' },
-  { key: 'docs.BOM',                    label: '📄 BOM uploaded' },
-  { key: 'docs.QC',                     label: '📄 QC document uploaded' },
-  { key: 'docs.Dispatch',               label: '📄 Dispatch document uploaded' },
-  { key: 'docs.Quotation',              label: '📄 Quotation uploaded' },
-  { key: 'docs.General',                label: '📄 General document uploaded' },
-  { key: 'docs.TaskUpload',             label: '📄 Task upload present' },
+  { key: 'docs.any',                    label: 'Any document uploaded' },
+  { key: 'docs.PO',                     label: 'PO document uploaded' },
+  { key: 'docs.Drawing',                label: 'Drawing uploaded' },
+  { key: 'docs.BOM',                    label: 'BOM uploaded' },
+  { key: 'docs.QC',                     label: 'QC document uploaded' },
+  { key: 'docs.Dispatch',               label: 'Dispatch document uploaded' },
+  { key: 'docs.Quotation',              label: 'Quotation uploaded' },
+  { key: 'docs.General',                label: 'General document uploaded' },
+  { key: 'docs.TaskUpload',             label: 'Task upload present' },
   // ── Unit (unit-level tasks only) ───────────────────────
   { key: 'unit_serial',                  label: 'Unit Serial' },
   { key: 'short_serial',                 label: 'Short Serial' },
   { key: 'current_dept',                 label: 'Current Department' },
   { key: 'unit_status',                  label: 'Unit Status' },
   // ── Custom ─────────────────────────────────────────────
-  { key: '__custom__',                   label: '✏️ Custom key…' },
+  { key: '__custom__',                   label: 'Custom key…' },
 ];
 
 // Condition operators for the visual if-statement builder
@@ -65,8 +65,8 @@ const OPERATORS = [
   { value: '',                           label: '— No condition (any non-empty) —', needsValue: false },
   { value: 'IS_NOT_EMPTY',               label: 'is not empty',                     needsValue: false },
   { value: 'IS_EMPTY',                   label: 'is empty',                         needsValue: false },
-  { value: 'HAS_DOCS',                   label: '📄 has documents (count > 0)',      needsValue: false },
-  { value: 'NO_DOCS',                    label: '📄 has no documents (count = 0)',   needsValue: false },
+  { value: 'HAS_DOCS',                   label: 'has documents (count > 0)',      needsValue: false },
+  { value: 'NO_DOCS',                    label: 'has no documents (count = 0)',   needsValue: false },
   { value: 'EQUALS',                     label: '= equals',                         needsValue: true  },
   { value: 'NOT_EQUALS',                 label: '≠ not equals',                     needsValue: true  },
   { value: 'CONTAINS',                   label: 'contains',                         needsValue: true  },
@@ -577,7 +577,7 @@ export default function Masters() {
                       </div>
                       {/* ── IF-STATEMENT BUILDER ── */}
                       <div style={{ background: 'var(--bg4)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                        <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>⚡ Auto-Done Trigger (optional)</div>
+                        <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Auto-Done Trigger (optional)</div>
                         <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px' }}>If the selected DB field matches this condition, the task is automatically marked Done.</div>
                         {/* Row: IF [field] [operator] [value] */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -631,8 +631,8 @@ export default function Masters() {
                         {newField.datakeyPreset && newField.datakeyPreset !== '' && (
                           <div style={{ marginTop: '8px', fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace', background: 'var(--bg3)', padding: '6px 10px', borderRadius: '4px' }}>
                             {buildCondition(newField.operator, newField.conditionValue)
-                              ? `⚡ ${buildCondition(newField.operator, newField.conditionValue)}`
-                              : '⚡ auto-done when field has any value'}
+                              ? `Auto-done: ${buildCondition(newField.operator, newField.conditionValue)}`
+                              : 'Auto-done when field has any value'}
                           </div>
                         )}
                       </div>
@@ -656,7 +656,7 @@ export default function Masters() {
                             {(f.datakey || f.condition) && (
                               <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '3px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
                                 <span style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '4px', padding: '1px 6px' }}>
-                                  ⚡ IF {describeCondition(f.condition, f.datakey)}
+                                  IF {describeCondition(f.condition, f.datakey)}
                                 </span>
                               </div>
                             )}
