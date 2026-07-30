@@ -455,7 +455,7 @@ function Dashboard() {
               </div>
             )
           ) : currentView === 'table' ? (
-            <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} selectedOrderId={selectedOrderId} />
+            <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} />
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
           ) : currentView === 'documents' ? (
