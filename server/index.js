@@ -1212,6 +1212,11 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       );
     }
 
+    await client.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, 'Sales', $3)`,
+      [req.user.id, order.id, `Created order ${order_number} with ${totalUnits} units`]
+    );
+
     await client.query('COMMIT');
     res.status(201).json({ order, message: `Order ${order_number} created with ${totalUnits} units.` });
   } catch (err) {
@@ -2508,6 +2513,11 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
       [status, notes, dispatchDate || null, updated, cfJson, req.params.stepId, req.params.orderId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+      [req.user.id, req.params.orderId, step.dept, `Updated step "${result.rows[0].name}" (Status: ${status})`]
+    );
     
     if (step.dept === 'QC' && status === 'blocked') {
       const { qcFailTarget } = req.body;
@@ -3037,6 +3047,13 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       return res.status(404).json({ error: 'Unit step not found' });
     }
 
+    const unitInfoRes = await client.query('SELECT order_id, short_serial FROM order_units WHERE id = $1', [req.params.unitId]);
+    const unitInfo = unitInfoRes.rows[0] || {};
+    await client.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+      [req.user.id, unitInfo.order_id || null, step.dept, `Unit ${unitInfo.short_serial}: Updated step "${result.rows[0].name}" (Status: ${status})`]
+    );
+
     if (step.dept === 'QC' && status === 'blocked') {
       const { qcFailTarget } = req.body;
       const target = qcFailTarget === 'design' ? 'Design' : 'Production';
@@ -3134,6 +3151,10 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Ad
     const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [req.params.lineItemId]);
     if (checkLi.rows.length > 0) {
       await updateOrderQCStatusFromSteps(checkLi.rows[0].order_id, client);
+      await client.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+        [req.user.id, checkLi.rows[0].order_id, dept, `Bulk updated all unit steps in ${dept} to ${status}`]
+      );
     }
 
     await client.query('COMMIT');
@@ -3282,6 +3303,14 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
 
     const savedDocs = [];
     let hasPO = false;
+    let orderIdForLog = null;
+    if (entity_type === 'Order') {
+      orderIdForLog = entity_id;
+    } else if (entity_type === 'Unit') {
+      const unitRes = await pool.query('SELECT order_id FROM order_units WHERE id = $1', [entity_id]);
+      orderIdForLog = unitRes.rows[0]?.order_id || null;
+    }
+
     for (const file of req.files) {
       const result = await pool.query(
         `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by) 
@@ -3292,6 +3321,10 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
       if (doc_type === 'PO') {
         hasPO = true;
       }
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+        [req.user.id, orderIdForLog, req.user.role, `Uploaded document "${file.originalname}" (${doc_type || 'General'})`]
+      );
     }
 
     if (hasPO && entity_type === 'Order') {
@@ -3419,6 +3452,20 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
     }
     
     await pool.query('DELETE FROM documents WHERE id = $1', [req.params.id]);
+
+    let orderIdForLog = null;
+    if (doc.entity_type === 'Order') {
+      orderIdForLog = doc.entity_id;
+    } else if (doc.entity_type === 'Unit') {
+      const unitRes = await pool.query('SELECT order_id FROM order_units WHERE id = $1', [doc.entity_id]);
+      orderIdForLog = unitRes.rows[0]?.order_id || null;
+    }
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+      [req.user.id, orderIdForLog, req.user.role, `Deleted document "${doc.file_name}"`]
+    );
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -3459,6 +3506,10 @@ app.post('/api/task_masters', authorize(['Admin']), async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || [])]
     );
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Created task master "${result.rows[0].name}" for department "${result.rows[0].dept}"`]
+    );
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -3475,6 +3526,10 @@ app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
       [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Updated task master "${result.rows[0].name}" (Department: ${result.rows[0].dept})`]
+    );
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -3486,6 +3541,10 @@ app.delete('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Deleted task master "${result.rows[0].name}" (Department: ${result.rows[0].dept})`]
+    );
     res.json({ message: 'Task deleted successfully' });
   } catch (err) {
     console.error(err);
