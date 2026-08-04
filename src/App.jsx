@@ -149,7 +149,7 @@ function Dashboard() {
 
   // Fetch unit steps when selectedUnitId or selectedOrder changes
   useEffect(() => {
-    const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
+    const targetUnitId = selectedUnitId;
     if (targetUnitId && token) {
       fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -170,7 +170,7 @@ function Dashboard() {
         fetchOrderSteps(selectedOrderId);
         fetchOrderDetails(selectedOrderId);
         
-        const targetUnitId = selectedUnitId || (selectedOrder?.units?.[0]?.id);
+        const targetUnitId = selectedUnitId;
         if (targetUnitId && token) {
           fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
             headers: { 'Authorization': `Bearer ${token}` }
