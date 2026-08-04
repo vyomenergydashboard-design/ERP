@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle, Hash, Lock } from 'lucide-react';
 
 export default function SettingsView() {
-  const [companyName, setCompanyName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom ERP');
+  const [companyName, setCompanyName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom Process Flow');
   const [systemTitle, setSystemTitle] = useState(() => localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
   const [timezone, setTimezone] = useState(() => localStorage.getItem('erp_timezone') || 'IST (UTC+05:30)');
   const [defaultPageSize, setDefaultPageSize] = useState(() => localStorage.getItem('erp_default_page_size') || '20');

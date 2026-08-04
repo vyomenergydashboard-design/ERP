@@ -15,7 +15,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     return saved ? saved === 'dark' : true; // default dark
   });
 
-  const [logoName, setLogoName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom ERP');
+  const [logoName, setLogoName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom Process Flow');
   const [headerTitle, setHeaderTitle] = useState(() => localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
 
   // Apply theme to document root
