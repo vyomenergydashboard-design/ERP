@@ -37,7 +37,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     const id = setInterval(() => {
       setTime(new Date().toLocaleTimeString('en-IN'));
     }, 1000);
-
+    
     // Fetch orders for everyone
     fetchOrders();
 
@@ -54,7 +54,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       fetchOrders();
     };
     window.addEventListener('orderUpdated', handleUpdate);
-
+    
     // Click outside to close dropdown
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -68,7 +68,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       setHeaderTitle(localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
     };
     window.addEventListener('erpSettingsUpdated', handleSettingsUpdate);
-
+    
     return () => {
       clearInterval(id);
       window.removeEventListener('setView', handleSetView);
@@ -107,14 +107,14 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     setSelectedOrderId(orderId);
     setSearchQuery(orderNum || '');
     setIsDropdownOpen(false);
-
+    
     if (orderId) {
-      window.dispatchEvent(new CustomEvent('setView', {
-        detail: { view: 'flow', orderId: parseInt(orderId) }
+      window.dispatchEvent(new CustomEvent('setView', { 
+        detail: { view: 'flow', orderId: parseInt(orderId) } 
       }));
     } else {
-      window.dispatchEvent(new CustomEvent('setView', {
-        detail: { view: 'board', orderId: null }
+      window.dispatchEvent(new CustomEvent('setView', { 
+        detail: { view: 'board', orderId: null } 
       }));
     }
   };
@@ -127,9 +127,9 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     const orderNum = (o.order_number || '').toLowerCase();
     const compName = (o.company_name || '').toLowerCase();
     const poNum = (o.po_number || '').toLowerCase();
-    return tokens.every(token =>
-      orderNum.includes(token) ||
-      compName.includes(token) ||
+    return tokens.every(token => 
+      orderNum.includes(token) || 
+      compName.includes(token) || 
       poNum.includes(token)
     );
   });
@@ -137,7 +137,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   return (
     <div className="header">
       <div className="header-left">
-        <button
+        <button 
           className="sidebar-toggle-btn"
           onClick={onToggleSidebar}
           title={sidenavCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -157,7 +157,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
 
         <div className="order-selector" ref={searchRef}>
           <Search size={14} className="search-icon" />
-          <input
+          <input 
             type="text"
             className="order-search-input"
             placeholder="Search Order..."
@@ -169,26 +169,26 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
             }}
           />
           {selectedOrderId && (
-            <button
-              className="clear-search"
+            <button 
+              className="clear-search" 
               onClick={(e) => { e.stopPropagation(); handleSelectOrder('', ''); }}
               title="Clear Selection"
             >
               ×
             </button>
           )}
-
+          
           {isDropdownOpen && (
             <div className="search-dropdown-menu">
-              <div
+              <div 
                 className={`search-dropdown-item ${!selectedOrderId ? 'active' : ''}`}
                 onClick={() => handleSelectOrder('', '')}
               >
                 View All Orders (Board)
               </div>
               {filteredOrders.length > 0 ? filteredOrders.map(order => (
-                <div
-                  key={order.id}
+                <div 
+                  key={order.id} 
                   className={`search-dropdown-item ${selectedOrderId == order.id ? 'active' : ''}`}
                   onClick={() => handleSelectOrder(order.id, order.order_number)}
                 >
@@ -217,8 +217,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         </button>
       </div>
 
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style dangerouslySetInnerHTML={{ __html: `
         .sidebar-toggle-btn {
           background: transparent;
           border: 1px solid var(--border);
