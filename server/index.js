@@ -3558,8 +3558,23 @@ app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
 
 app.delete('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   try {
+    // Delete step instances linked to this task master from active flows
+    await pool.query('DELETE FROM order_steps WHERE task_id = $1', [req.params.id]);
+    await pool.query('DELETE FROM unit_steps WHERE task_id = $1', [req.params.id]);
+
     const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+
+    // Clean up orphaned steps whose master task was deleted previously
+    await pool.query('DELETE FROM order_steps WHERE task_id IS NULL');
+    await pool.query('DELETE FROM unit_steps WHERE task_id IS NULL');
+
+    // Re-derive unit status for all units
+    const units = await pool.query('SELECT id FROM order_units');
+    for (const u of units.rows) {
+      await deriveUnitStatus(u.id, pool);
+    }
+
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
       [req.user.id, `Deleted task master "${result.rows[0].name}" (Department: ${result.rows[0].dept})`]
@@ -3783,6 +3798,10 @@ const seedSayaUser = async () => {
       FROM task_masters tm
       WHERE s.task_id = tm.id
     `);
+
+    // Clean up any orphaned steps from previously deleted task masters
+    await pool.query('DELETE FROM order_steps WHERE task_id IS NULL');
+    await pool.query('DELETE FROM unit_steps WHERE task_id IS NULL');
 
     // Re-derive unit status for all units so upstream gating (Sales Upload PO) is strictly enforced
     const allUnits = await pool.query('SELECT id FROM order_units');
