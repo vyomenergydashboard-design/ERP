@@ -332,23 +332,13 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   const short_serial = prevUnitRes.rows[0].short_serial || '';
   const classification = prevUnitRes.rows[0].classification || 'Standard';
 
-  if (classification === 'Standard') {
-    // Auto-complete Design, Purchase, and Stores steps for this unit
-    await clientOrPool.query(
-      `UPDATE unit_steps 
-       SET status = 'done', notes = 'Auto-completed for Standard order' 
-       WHERE order_unit_id = $1 AND dept IN ('Design', 'Purchase', 'Stores') AND status != 'done'`,
-      [unitId]
-    );
-  } else {
-    // Reset auto-completed steps back to pending/default state if changed to Non-Standard
-    await clientOrPool.query(
-      `UPDATE unit_steps 
-       SET status = 'pending', notes = NULL 
-       WHERE order_unit_id = $1 AND dept IN ('Design', 'Purchase', 'Stores') AND status = 'done' AND notes = 'Auto-completed for Standard order'`,
-      [unitId]
-    );
-  }
+  // Clean up any legacy bulk auto-completed notes and reset them back to pending
+  await clientOrPool.query(
+    `UPDATE unit_steps 
+     SET status = 'pending', notes = NULL 
+     WHERE order_unit_id = $1 AND notes = 'Auto-completed for Standard order'`,
+    [unitId]
+  );
 
   const stepsRes = await clientOrPool.query(
     `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
@@ -2367,7 +2357,12 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
           const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
           if (!isValPresent) return false;
           
-          if (f.condition) {
+          // Auto-complete ONLY IF explicitly marked for auto-complete OR has an IF statement (condition)
+          if (f.auto_complete === true || f.auto_complete === 'true' || step.auto_complete === true) {
+            return true;
+          }
+
+          if (f.condition && String(f.condition).trim() !== '') {
             try {
               const fn = new Function('$val', `return (${f.condition});`);
               return !!fn(val);
@@ -2376,7 +2371,7 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
               return false;
             }
           }
-          return isValPresent;
+          return false;
         });
 
         if (hasResolvedVal) {
@@ -2539,6 +2534,12 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
     }
 
     await updateOrderQCStatusFromSteps(req.params.orderId, pool);
+
+    // Re-evaluate unit statuses for all units in this order (e.g. when Sales completes Upload PO)
+    const unitsForOrder = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [req.params.orderId]);
+    for (const u of unitsForOrder.rows) {
+      await deriveUnitStatus(u.id, pool);
+    }
     
     res.json(result.rows[0]);
   } catch (err) {
@@ -2926,7 +2927,12 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
           const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
           if (!isValPresent) return false;
           
-          if (f.condition) {
+          // Auto-complete ONLY IF explicitly marked for auto-complete OR has an IF statement (condition)
+          if (f.auto_complete === true || f.auto_complete === 'true' || step.auto_complete === true) {
+            return true;
+          }
+
+          if (f.condition && String(f.condition).trim() !== '') {
             try {
               const fn = new Function('$val', `return (${f.condition});`);
               return !!fn(val);
@@ -2935,7 +2941,7 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
               return false;
             }
           }
-          return isValPresent;
+          return false;
         });
 
         if (hasResolvedVal) {
@@ -3526,6 +3532,22 @@ app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
       [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+
+    // Sync updated properties to existing order_steps and unit_steps
+    await pool.query(
+      `UPDATE order_steps 
+       SET dept = $1, name = $2, sub = $3, special = $4, requires_upload = $5, default_doc_type = $6 
+       WHERE task_id = $7`,
+      [dept, name, sub, special || null, requires_upload === true, default_doc_type || 'General', req.params.id]
+    );
+
+    await pool.query(
+      `UPDATE unit_steps 
+       SET dept = $1, name = $2, sub = $3, requires_upload = $4, default_doc_type = $5 
+       WHERE task_id = $6`,
+      [dept, name, sub, requires_upload === true, default_doc_type || 'General', req.params.id]
+    );
+
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
       [req.user.id, `Updated task master "${result.rows[0].name}" (Department: ${result.rows[0].dept})`]
@@ -3740,6 +3762,35 @@ const seedSayaUser = async () => {
         ]
       );
       console.log('User Saya successfully seeded.');
+    }
+
+    // Sync task_masters changes to existing order_steps and unit_steps
+    await pool.query(`
+      UPDATE order_steps s
+      SET dept = tm.dept,
+          name = tm.name,
+          sub = tm.sub,
+          special = tm.special,
+          requires_upload = tm.requires_upload,
+          default_doc_type = tm.default_doc_type
+      FROM task_masters tm
+      WHERE s.task_id = tm.id
+    `);
+    await pool.query(`
+      UPDATE unit_steps s
+      SET dept = tm.dept,
+          name = tm.name,
+          sub = tm.sub,
+          requires_upload = tm.requires_upload,
+          default_doc_type = tm.default_doc_type
+      FROM task_masters tm
+      WHERE s.task_id = tm.id
+    `);
+
+    // Re-derive unit status for all units so upstream gating (Sales Upload PO) is strictly enforced
+    const allUnits = await pool.query('SELECT id FROM order_units');
+    for (const u of allUnits.rows) {
+      await deriveUnitStatus(u.id, pool);
     }
   } catch (err) {
     console.warn('Could not auto-seed user Saya (database may still be starting up):', err.message);
