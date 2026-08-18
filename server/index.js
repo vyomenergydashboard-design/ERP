@@ -149,16 +149,6 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
     html: htmlContent
   };
 
-  console.log('\n┌────────────────────────────────────────────────────────┐');
-  console.log('│                  SIMULATED OUTGOING EMAIL              │');
-  console.log('├────────────────────────────────────────────────────────┤');
-  console.log(`│ From:    ${mailOptions.from}`);
-  console.log(`│ To:      ${mailOptions.to}`);
-  console.log(`│ Subject: ${mailOptions.subject}`);
-  console.log('├────────────────────────────────────────────────────────┤');
-  console.log(`│ handover: ${prevDept} -> ${nextDept} for unit ${unitIdStr}`);
-  console.log('└────────────────────────────────────────────────────────┘\n');
-
   try {
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) 
@@ -243,16 +233,6 @@ const sendHoldRequestEmail = async (orderId, orderNumber, requestedByUsername) =
     html: htmlContent
   };
 
-  console.log('\n┌────────────────────────────────────────────────────────┐');
-  console.log('│             SIMULATED OUTGOING HOLD EMAIL              │');
-  console.log('├────────────────────────────────────────────────────────┤');
-  console.log(`│ From:    ${mailOptions.from}`);
-  console.log(`│ To:      ${mailOptions.to}`);
-  console.log(`│ Subject: ${mailOptions.subject}`);
-  console.log('├────────────────────────────────────────────────────────┤');
-  console.log(`│ Hold requested for order ${orderNumber} by ${requestedByUsername}`);
-  console.log('└────────────────────────────────────────────────────────┘\n');
-
   try {
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text, order_id) 
@@ -319,7 +299,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, o.classification
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, o.classification
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -330,7 +310,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   const oldDept = prevUnitRes.rows[0].current_dept;
   const unit_id_str = prevUnitRes.rows[0].unit_id || '';
   const short_serial = prevUnitRes.rows[0].short_serial || '';
-  const classification = prevUnitRes.rows[0].classification || 'Standard';
+  const orderId = prevUnitRes.rows[0].order_id;
 
   // Clean up any legacy bulk auto-completed notes and reset them back to pending
   await clientOrPool.query(
@@ -340,53 +320,70 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
     [unitId]
   );
 
-  const stepsRes = await clientOrPool.query(
-    `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
-    [unitId]
+  // Check if Sales order-level steps (like Upload PO) are completed (non-mandatory tasks do not block pipeline)
+  const salesOrderStepsRes = await clientOrPool.query(
+    `SELECT os.status, tm.is_mandatory 
+     FROM order_steps os
+     LEFT JOIN task_masters tm ON os.task_id = tm.id
+     WHERE os.order_id = $1 AND os.dept = 'Sales'`,
+    [orderId]
   );
-  if (stepsRes.rows.length === 0) return;
+  const isSalesDone = salesOrderStepsRes.rows.length === 0 || salesOrderStepsRes.rows.every(s => 
+    s.status === 'done' || s.is_mandatory === false
+  );
 
-  const steps = stepsRes.rows;
-  
   let newStatus = 'Pending';
-  let newDept = 'Planning';
+  let newDept = 'Sales';
 
-  const blockedStep = steps.find(s => s.status === 'blocked');
-  if (blockedStep) {
-    if (blockedStep.dept === 'QC') {
-      newDept = 'Production';
-      newStatus = 'Rework';
-    } else {
-      newDept = blockedStep.dept;
-      if (blockedStep.dept === 'Production') {
-        newStatus = 'Rework';
-      } else {
-        newStatus = 'Blocked';
-      }
-    }
+  if (!isSalesDone) {
+    newDept = 'Sales';
+    newStatus = 'Pending';
   } else {
-    const allDone = steps.every(s => s.status === 'done');
-    if (allDone) {
-      newStatus = 'Dispatched';
-      newDept = 'Accounts';
-    } else {
-      const firstIncomplete = steps.find(s => s.status !== 'done');
-      if (firstIncomplete) {
-        newDept = firstIncomplete.dept;
-        
-        const statusMap = {
-          'Sales': 'Pending',
-          'Design': 'Design',
-          'Purchase': 'Material Waiting',
-          'Stores': 'Material Waiting',
-          'Planning': 'Planning',
-          'Production': 'Production',
-          'QC': 'QC Testing',
-          'Dispatch': 'Ready for Dispatch',
-          'Accounts': 'Dispatched'
-        };
-        
-        newStatus = statusMap[firstIncomplete.dept] || 'Production';
+    const stepsRes = await clientOrPool.query(
+      `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
+      [unitId]
+    );
+
+    if (stepsRes.rows.length > 0) {
+      const steps = stepsRes.rows;
+      const blockedStep = steps.find(s => s.status === 'blocked');
+      if (blockedStep) {
+        if (blockedStep.dept === 'QC') {
+          newDept = 'Production';
+          newStatus = 'Rework';
+        } else {
+          newDept = blockedStep.dept;
+          if (blockedStep.dept === 'Production') {
+            newStatus = 'Rework';
+          } else {
+            newStatus = 'Blocked';
+          }
+        }
+      } else {
+        const allDone = steps.every(s => s.status === 'done');
+        if (allDone) {
+          newStatus = 'Dispatched';
+          newDept = 'Accounts';
+        } else {
+          const firstIncomplete = steps.find(s => s.status !== 'done');
+          if (firstIncomplete) {
+            newDept = firstIncomplete.dept;
+            
+            const statusMap = {
+              'Sales': 'Pending',
+              'Design': 'Design',
+              'Purchase': 'Material Waiting',
+              'Stores': 'Material Waiting',
+              'Planning': 'Planning',
+              'Production': 'Production',
+              'QC': 'QC Testing',
+              'Dispatch': 'Ready for Dispatch',
+              'Accounts': 'Dispatched'
+            };
+            
+            newStatus = statusMap[firstIncomplete.dept] || 'Production';
+          }
+        }
       }
     }
   }
