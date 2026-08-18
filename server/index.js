@@ -164,7 +164,7 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
       await transporter.sendMail(mailOptions);
       console.log('Email sent successfully via SMTP');
     } catch (smtpErr) {
-      console.error('SMTP Delivery failed:', smtpErr);
+      console.warn('[SMTP Warning] Email delivery failed:', smtpErr.message || smtpErr.code);
     }
   }
 };
@@ -248,7 +248,7 @@ const sendHoldRequestEmail = async (orderId, orderNumber, requestedByUsername) =
       await transporter.sendMail(mailOptions);
       console.log('Hold alert email sent successfully via SMTP');
     } catch (smtpErr) {
-      console.error('SMTP Delivery failed for hold alert:', smtpErr);
+      console.warn('[SMTP Warning] Hold alert email delivery failed:', smtpErr.message || smtpErr.code);
     }
   }
 };
