@@ -10,6 +10,7 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
+import { realignUnitSerials } from './realign_unit_serials_to_orders.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -509,8 +510,10 @@ const initDB = async () => {
     await pool.query(sql);
     console.log('Database initialized successfully (Tables checked/created)');
     
-    // Auto-run deployment migrations safely
     await runDeploymentMigrations();
+
+    // Force sync unit serial alignment
+    await realignUnitSerials();
 
     // Synchronize default task_masters to match tasks
     const currentTasks = await pool.query('SELECT name, level FROM task_masters WHERE is_mandatory = true');
@@ -1064,8 +1067,10 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     const order = orderResult.rows[0];
 
     // 2. Insert Line Items
-    const countUnitsRes = await client.query('SELECT COUNT(*) as count FROM order_units');
-    let globalUnitCounter = (parseInt(countUnitsRes.rows[0]?.count) || 0) + 1;
+    const maxUnitRes = await client.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
+    let max_unit_seq = parseOrderCounter(maxUnitRes.rows[0]?.max_unit);
+    let order_seq = parseOrderCounter(order_number);
+    let globalUnitCounter = Math.max(max_unit_seq > 0 ? max_unit_seq + 1 : 1, order_seq);
     let totalUnits = 0;
     const createdUnits = [];
 
@@ -1756,15 +1761,6 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       );
 
       let order;
-      const maxGlobalSerialRes = await client.query('SELECT COALESCE(MAX(short_serial::integer), 0) as max_serial FROM order_units');
-      let max_serial = parseInt(maxGlobalSerialRes.rows[0].max_serial) || 0;
-      let globalUnitCounter;
-      if (max_serial > 0) {
-        globalUnitCounter = max_serial + 1;
-      } else {
-        const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
-        globalUnitCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
-      }
       let lineNum = 1;
       let isAppended = false;
 
@@ -1789,6 +1785,11 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       }
 
       const order_number = order.order_number;
+      const order_seq = parseOrderCounter(order_number);
+
+      const maxGlobalUnitRes = await client.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
+      let max_unit_seq = parseOrderCounter(maxGlobalUnitRes.rows[0]?.max_unit);
+      let globalUnitCounter = Math.max(max_unit_seq > 0 ? max_unit_seq + 1 : 1, order_seq);
 
       const countRes = await client.query('SELECT COUNT(*) FROM order_line_items WHERE order_id = $1', [order.id]);
       let itemIdx = parseInt(countRes.rows[0].count, 10) + 1;
