@@ -221,7 +221,9 @@ export default function SettingsView() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg3)', border: `1px solid ${ordersExist ? 'var(--border)' : '#f59e0b'}`, borderRadius: '8px', padding: '8px 14px' }}>
-                  <span style={{ color: 'var(--text3)', fontSize: '13px', whiteSpace: 'nowrap' }}>ORD-{new Date().getFullYear()}-</span>
+                  <span style={{ color: 'var(--text3)', fontSize: '13px', whiteSpace: 'nowrap' }}>
+                    {`${String(new Date().getFullYear() % 100).padStart(2, '0')}${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`}
+                  </span>
                   <input
                     type="number"
                     min="1"
@@ -260,7 +262,7 @@ export default function SettingsView() {
 
                 {orderSettingSuccess && (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontSize: '13px' }}>
-                    <CheckCircle size={14} /> Saved! Next order will be ORD-{new Date().getFullYear()}-{String(orderNumberStart).padStart(4, '0')}
+                    <CheckCircle size={14} /> Saved! Next order will be {`${String(new Date().getFullYear() % 100).padStart(2, '0')}${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`}{String(orderNumberStart).padStart(4, '0')}
                   </span>
                 )}
               </div>

@@ -736,6 +736,14 @@ export default function OrderList({ initialSelectedId }) {
                         {li.quantity} {li.unit || 'Nos'} @ ₹{li.unit_price}
                       </div>
                     </div>
+
+                    <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', fontSize: '12px', color: 'var(--text2)', marginBottom: '12px', background: 'var(--bg2)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                      <div><strong style={{ color: 'var(--text3)' }}>Status:</strong> <span style={{ color: li.status === 'Completed' ? '#10b981' : '#60a5fa', fontWeight: '600' }}>{li.status || 'Not Started'}</span></div>
+                      {li.qc_status && <div><strong style={{ color: 'var(--text3)' }}>QC:</strong> <span style={{ color: li.qc_status === 'Pass' ? '#10b981' : li.qc_status === 'Fail' ? '#ef4444' : '#f59e0b', fontWeight: '600' }}>{li.qc_status}</span></div>}
+                      {li.planned_dispatch_date && <div><strong style={{ color: 'var(--text3)' }}>Dispatch Date:</strong> {new Date(li.planned_dispatch_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
+                      {li.wiring_expected_date && <div><strong style={{ color: 'var(--text3)' }}>Wiring Exp:</strong> {new Date(li.wiring_expected_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
+                      {li.qc_date && <div><strong style={{ color: 'var(--text3)' }}>QC Date:</strong> {new Date(li.qc_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</div>}
+                    </div>
                     
                     <div className="units-grid">
                       {liUnits.map(unit => (

@@ -6,6 +6,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 const DEFAULT_COLUMNS = [
   'sr_no',
   'order_number',
+  'unit_number',
   'po_number',
   'reference_number',
   'part_number',
@@ -152,6 +153,7 @@ export default function PlanningModule() {
     switch (colId) {
       case 'sr_no': return 'Sr. No.';
       case 'order_number': return 'Order Number';
+      case 'unit_number': return 'Unit Serial #';
       case 'po_number': return 'PO Number';
       case 'reference_number': return 'Cust. Ref #';
       case 'part_number': return 'Part Number';
@@ -267,14 +269,19 @@ export default function PlanningModule() {
         return globalIdx;
       case 'order_number':
         return (
-          <>
-            {order.line_item_number}
-            {order.total_qty > 1 && (
-              <span style={{ opacity: 0.5, marginLeft: '8px' }}>
-                ({order.unit_index}/{order.total_qty})
-              </span>
-            )}
-          </>
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+            {order.order_number}
+          </span>
+        );
+      case 'unit_number':
+        return order.specific_unit_serial ? (
+          <span 
+            style={{ fontFamily: 'var(--font-mono)', color: 'var(--blue)', fontWeight: 600, fontSize: '13px' }}
+          >
+            {order.specific_unit_serial}
+          </span>
+        ) : (
+          <span className="dim text-xs">—</span>
         );
       case 'po_number':
         return order.po_number || <span className="dim text-xs">—</span>;
@@ -468,7 +475,11 @@ export default function PlanningModule() {
   const handleSave = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${editingOrder.line_item_id}`, {
+      const endpoint = editingOrder.specific_unit_id
+        ? `${window.API_BASE}/api/planning/units/${editingOrder.specific_unit_id}`
+        : `${window.API_BASE}/api/planning/line-items/${editingOrder.line_item_id}`;
+
+      const res = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -504,11 +515,29 @@ export default function PlanningModule() {
   const repeatedOrders = [];
   orders.forEach(order => {
     const qty = parseInt(order.quantity) || 1;
+    const unitsList = Array.isArray(order.units) ? order.units : [];
+    const parsedUnitNumbers = order.unit_numbers ? order.unit_numbers.split(', ') : [];
+
     for (let i = 0; i < qty; i++) {
+      const unitObj = unitsList[i] || null;
+      const specificUnitSerial = unitObj?.unit_id || unitObj?.short_serial || parsedUnitNumbers[i] || '';
+
       repeatedOrders.push({
         ...order,
         unit_index: i + 1,
         total_qty: qty,
+        specific_unit_id: unitObj?.id || null,
+        specific_unit_serial: specificUnitSerial,
+        specific_active_dept: unitObj?.current_dept || order.active_dept,
+        status: unitObj?.status || order.status || 'Not Started',
+        qc_status: unitObj?.qc_status || order.qc_status || 'Pending',
+        planned_dispatch_date: unitObj?.planned_dispatch_date || order.planned_dispatch_date,
+        wiring_assigned_date: unitObj?.wiring_assigned_date || order.wiring_assigned_date,
+        wiring_expected_date: unitObj?.wiring_expected_date || order.wiring_expected_date,
+        expected_qc_date: unitObj?.expected_qc_date || order.expected_qc_date,
+        qc_date: unitObj?.qc_date || order.qc_date,
+        mounting_start_date: unitObj?.mounting_start_date || order.mounting_start_date,
+        mounting_complete_date: unitObj?.mounting_complete_date || order.mounting_complete_date,
         row_key: `${order.line_item_id}-${i}`
       });
     }
@@ -528,6 +557,7 @@ export default function PlanningModule() {
       const partNum = (order.part_number || '').toLowerCase();
       const compName = (order.company_name || '').toLowerCase();
       const endClient = (order.end_client_name || '').toLowerCase();
+      const unitSerial = (order.specific_unit_serial || order.unit_numbers || '').toLowerCase();
       
       matchesSearch = tokens.every(token => 
         orderNum.includes(token) ||
@@ -538,7 +568,8 @@ export default function PlanningModule() {
         poNum.includes(token) ||
         partNum.includes(token) ||
         compName.includes(token) ||
-        endClient.includes(token)
+        endClient.includes(token) ||
+        unitSerial.includes(token)
       );
     }
 
@@ -664,42 +695,11 @@ export default function PlanningModule() {
   };
 
   const handleCellClick = (e, colId, order) => {
-    if (!canEdit) return;
-    if (['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'svg', 'path'].includes(e.target.tagName)) {
+    if (!canEdit || !order) return;
+    if (['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'LABEL'].includes(e.target.tagName?.toUpperCase()) || e.target.closest('button') || e.target.closest('input[type="checkbox"]')) {
       return;
     }
-
-    let rawValue = '';
-    if (colId === 'end_client_name') {
-      rawValue = order.end_client_name || '';
-    } else if (colId === 'planned_dispatch') {
-      rawValue = order.planned_dispatch_date ? order.planned_dispatch_date.split('T')[0] : '';
-    } else if (colId === 'mounting_start') {
-      rawValue = order.mounting_start_date ? order.mounting_start_date.split('T')[0] : '';
-    } else if (colId === 'mounting_complete') {
-      rawValue = order.mounting_complete_date ? order.mounting_complete_date.split('T')[0] : '';
-    } else if (colId === 'wiring_assigned') {
-      rawValue = order.wiring_assigned_date ? order.wiring_assigned_date.split('T')[0] : '';
-    } else if (colId === 'wiring_expected') {
-      rawValue = order.wiring_expected_date ? order.wiring_expected_date.split('T')[0] : '';
-    } else if (colId === 'expected_qc') {
-      rawValue = order.expected_qc_date ? order.expected_qc_date.split('T')[0] : '';
-    } else if (colId === 'priority') {
-      rawValue = order.priority || 'Medium';
-    } else if (colId === 'status') {
-      rawValue = order.status || 'Not Started';
-    } else if (colId === 'qc_status') {
-      rawValue = order.qc_status || 'Pending';
-    } else if (colId === 'qc_date') {
-      rawValue = order.qc_date ? order.qc_date.split('T')[0] : '';
-    }
-
-    setEditingCell({
-      lineItemId: order.line_item_id,
-      colId,
-      value: rawValue,
-      oldValue: rawValue
-    });
+    handleEditClick(order);
   };
 
   const saveInlineField = async (lineItemId, colId, value, oldValue) => {
@@ -827,9 +827,14 @@ export default function PlanningModule() {
     const isRowSelected = selectedRowIds.includes(order.line_item_id);
 
     return (
-      <tr key={order.row_key} className={`planning-row ${isRowSelected ? 'selected-row' : ''}`}>
+      <tr 
+        key={order.row_key} 
+        className={`planning-row ${isRowSelected ? 'selected-row' : ''}`}
+        onClick={(e) => handleCellClick(e, 'row', order)}
+        style={{ cursor: canEdit ? 'pointer' : 'default' }}
+      >
         {canEdit && (
-          <td className="col-sticky-checkbox" style={{ width: '40px', minWidth: '40px', textAlign: 'center', left: 0 }}>
+          <td className="col-sticky-checkbox" style={{ width: '40px', minWidth: '40px', textAlign: 'center', left: 0 }} onClick={(e) => e.stopPropagation()}>
             <input
               type="checkbox"
               checked={isRowSelected}
@@ -841,12 +846,12 @@ export default function PlanningModule() {
           const isFirst = cIdx === 0;
           let tdClass = '';
 
-          const isMono = ['sr_no', 'order_number', 'po_number', 'reference_number', 'part_number', 'planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date'].includes(colId);
+          const isMono = ['sr_no', 'order_number', 'unit_number', 'po_number', 'reference_number', 'part_number', 'planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date'].includes(colId);
           if (isMono) {
             tdClass += ' mono';
           }
 
-          if (colId === 'order_number') {
+          if (colId === 'order_number' || colId === 'unit_number') {
             tdClass += ' font-semibold text-accent';
           }
 
@@ -860,37 +865,13 @@ export default function PlanningModule() {
             tdStyle = { ...tdStyle, left: canEdit ? '40px' : 0 };
           }
 
-          const isEditable = [
-            'planned_dispatch',
-            'mounting_start',
-            'mounting_complete',
-            'wiring_assigned',
-            'wiring_expected',
-            'expected_qc',
-            'status',
-            'qc_date'
-          ].includes(colId);
-
-          const isEditing = editingCell && editingCell.lineItemId === order.line_item_id && editingCell.colId === colId;
-          const isSaving = savingCell && savingCell.lineItemId === order.line_item_id && savingCell.colId === colId;
-
-          if (canEdit && isEditable) {
-            tdClass += ' editable-cell';
-          }
-          if (isEditing) {
-            tdClass += ' is-editing';
-          }
-          if (isSaving) {
-            tdClass += ' is-saving';
-          }
-
           return (
             <td
               key={colId}
               className={tdClass.trim()}
               style={tdStyle}
               title={colId === 'part_number' ? order.part_number : undefined}
-              onClick={(e) => isEditable && handleCellClick(e, colId, order)}
+              onClick={(e) => handleCellClick(e, colId, order)}
             >
               {renderCell(colId, order, globalIdx, progressPct)}
             </td>
@@ -1253,7 +1234,7 @@ export default function PlanningModule() {
             <div className="modal-header">
               <div>
                 <div className="modal-title">Edit Planning Parameters</div>
-                <div className="modal-sub">Order: {editingOrder.order_number} — Line: {editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
+                <div className="modal-sub">Order: {editingOrder.order_number} — Unit Serial: {editingOrder.specific_unit_serial || editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
               </div>
               <button className="modal-close" onClick={() => setEditingOrder(null)}><X size={18} /></button>
             </div>

@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
+import { runDeploymentMigrations } from './run_deployment_migrations.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -507,6 +508,9 @@ const initDB = async () => {
     const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
     await pool.query(sql);
     console.log('Database initialized successfully (Tables checked/created)');
+    
+    // Auto-run deployment migrations safely
+    await runDeploymentMigrations();
 
     // Synchronize default task_masters to match tasks
     const currentTasks = await pool.query('SELECT name, level FROM task_masters WHERE is_mandatory = true');
@@ -670,36 +674,49 @@ const upload = multer({
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB total limit
 });
 
-// Helper for Order ID Generation
-// Helper: extract numeric counter from a line_item_number (stored as ORD-YYYY-NNNN or plain NNNN)
-const parseLiCounter = (li_number) => {
-  if (!li_number) return 0;
-  const s = String(li_number);
-  // Full format: ORD-2026-0001 → take the last segment
-  const parts = s.split('-');
-  return parseInt(parts[parts.length - 1]) || 0;
+// Helper for Order ID Generation (FY format: YY(YY+1)XXXX, e.g. 26270001)
+const formatOrderNumber = (year, counter) => {
+  const yr = year || new Date().getFullYear();
+  const startYr = String(yr % 100).padStart(2, '0');
+  const endYr = String((yr + 1) % 100).padStart(2, '0');
+  return `${startYr}${endYr}${String(counter).padStart(4, '0')}`;
 };
 
+const parseOrderCounter = (numStr) => {
+  if (!numStr) return 0;
+  const clean = String(numStr).replace(/^TEMP-/, '');
+  if (clean.startsWith('ORD-')) {
+    const parts = clean.split('-');
+    return parseInt(parts[parts.length - 1], 10) || 0;
+  }
+  if (/^\d{8,}$/.test(clean)) {
+    return parseInt(clean.slice(-4), 10) || 0;
+  }
+  const digitsOnly = clean.replace(/\D/g, '');
+  return parseInt(digitsOnly.slice(-4), 10) || 0;
+};
+
+const parseLiCounter = parseOrderCounter;
+
 const generateOrderNumber = async (client) => {
-  // The order number equals the global line-item sequence number of its FIRST line item.
-  // line_item_numbers are stored as full ORD-YYYY-NNNN strings.
   const year = new Date().getFullYear();
-  const prefix = `ORD-${year}-`;
-
   const db = client || pool;
-  const liResult = await db.query(
-    "SELECT line_item_number FROM order_line_items ORDER BY id DESC LIMIT 1"
-  );
 
-  let nextNum;
-  if (liResult.rows.length > 0) {
-    nextNum = parseLiCounter(liResult.rows[0].line_item_number) + 1;
-  } else {
+  const orderRes = await db.query("SELECT MAX(order_number) as max_ord FROM orders WHERE order_number NOT LIKE 'TEMP-%'");
+  const unitRes = await db.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
+
+  const ordNum = parseOrderCounter(orderRes.rows[0]?.max_ord);
+  const unitNum = parseOrderCounter(unitRes.rows[0]?.max_unit);
+
+  const highest = Math.max(ordNum, unitNum);
+  let nextNum = highest > 0 ? highest + 1 : 1;
+
+  if (highest === 0) {
     const setting = await db.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
     nextNum = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
   }
 
-  return `${prefix}${nextNum.toString().padStart(4, '0')}`;
+  return formatOrderNumber(year, nextNum);
 };
 
 // Middleware for RBAC
@@ -1028,27 +1045,13 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       }
     }
 
-    // 1. Determine the global line-item counter start.
-    //    The order number = the global sequence number of its first line item.
-    //    line_item_numbers are stored as full ORD-YYYY-NNNN strings.
-    const liCountRes = await client.query(
-      "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
-    );
-    let globalLineItemCounter;
-    if (liCountRes.rows.length > 0) {
-      globalLineItemCounter = parseLiCounter(liCountRes.rows[0].line_item_number) + parseInt(liCountRes.rows[0].quantity || 1);
-    } else {
-      const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
-      globalLineItemCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
-    }
-
-    // The order number is ORD-<year>-<firstLineItemGlobalNum>
-    const year = new Date().getFullYear();
-    const order_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+    // 1. Generate Order Number
+    const order_number = await generateOrderNumber(client);
 
     // Automatically calculate delivery_date = order_date + 4 weeks (28 days)
     const resolved_order_date = order_date || new Date().toISOString().split('T')[0];
     const orderDateObj = new Date(resolved_order_date);
+    const year = orderDateObj.getFullYear();
     const deliveryDateObj = new Date(orderDateObj);
     deliveryDateObj.setDate(orderDateObj.getDate() + 28);
     const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
@@ -1060,24 +1063,17 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     );
     const order = orderResult.rows[0];
 
-    // 2. Insert Line Items — stored as full ORD-YYYY-NNNN format
-    const maxSerialRes = await client.query('SELECT MAX(CAST(short_serial AS INTEGER)) as max_serial FROM order_units');
-    let max_serial = parseInt(maxSerialRes.rows[0]?.max_serial) || 0;
-    let globalUnitCounter;
-    if (max_serial > 0) {
-      globalUnitCounter = max_serial + 1;
-    } else {
-      const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
-      globalUnitCounter = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
-    }
+    // 2. Insert Line Items
+    const countUnitsRes = await client.query('SELECT COUNT(*) as count FROM order_units');
+    let globalUnitCounter = (parseInt(countUnitsRes.rows[0]?.count) || 0) + 1;
     let totalUnits = 0;
     const createdUnits = [];
 
+    let itemIdx = 1;
     for (const li of parsedLineItems) {
       const qty = parseInt(li.quantity) || 1;
-      // Full ORD-YYYY-NNNN format for line item number
-      const assigned_li_number = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
-      globalLineItemCounter += qty;
+      const assigned_li_number = `${order_number}-${String(itemIdx).padStart(2, '0')}`;
+      itemIdx++;
 
       const liResult = await client.query(
         `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
@@ -1088,8 +1084,8 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       totalUnits += qty;
 
       for (let i = 0; i < qty; i++) {
-        const short_serial = globalUnitCounter.toString().padStart(4, '0');
-        const unit_id = `${order_number}-${short_serial}`;
+        const unit_id = formatOrderNumber(year, globalUnitCounter);
+        const short_serial = unit_id;
         const unitResult = await client.query(
           `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1, $2, $3, $4) RETURNING id`,
           [order.id, lineItem.id, unit_id, short_serial]
@@ -1252,13 +1248,13 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
     const remainingOrdersRes = await client.query("SELECT id, order_number, order_date, created_at FROM orders ORDER BY id ASC");
     const remainingOrders = remainingOrdersRes.rows;
 
+    let currentOrderSeq = 1;
+    let lastFYYear = null;
+    let globalUnitSeq = 1;
+
     for (const order of remainingOrders) {
-      // Extract year, handling the TEMP- prefix
       let year = new Date().getFullYear();
-      let cleanNum = order.order_number;
-      if (cleanNum.startsWith('TEMP-')) {
-        cleanNum = cleanNum.substring(5);
-      }
+      let cleanNum = String(order.order_number).replace(/^TEMP-/, '');
 
       if (cleanNum.startsWith('ORD-')) {
         const parts = cleanNum.split('-');
@@ -1266,39 +1262,49 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
           const yr = parseInt(parts[1]);
           if (!isNaN(yr)) year = yr;
         }
+      } else if (/^\d{8,}$/.test(cleanNum)) {
+        const yy = parseInt(cleanNum.substring(0, 2), 10);
+        if (!isNaN(yy)) year = 2000 + yy;
       } else if (order.order_date) {
         year = new Date(order.order_date).getFullYear();
       } else if (order.created_at) {
         year = new Date(order.created_at).getFullYear();
       }
 
-      const newOrderNumber = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+      if (lastFYYear !== null && lastFYYear !== year) {
+        currentOrderSeq = 1;
+      }
+      lastFYYear = year;
+
+      const newOrderNumber = formatOrderNumber(year, currentOrderSeq);
 
       // Update Order Number
       await client.query("UPDATE orders SET order_number = $1 WHERE id = $2", [newOrderNumber, order.id]);
 
       // Update Line Items for this Order
       const liRes = await client.query("SELECT id, quantity FROM order_line_items WHERE order_id = $1 ORDER BY id ASC", [order.id]);
+      let itemIdx = 1;
       for (const li of liRes.rows) {
-        const assignedLiNumber = `ORD-${year}-${globalLineItemCounter.toString().padStart(4, '0')}`;
+        const assignedLiNumber = `${newOrderNumber}-${String(itemIdx).padStart(2, '0')}`;
         await client.query(
           "UPDATE order_line_items SET line_item_number = $1 WHERE id = $2",
           [assignedLiNumber, li.id]
         );
-        globalLineItemCounter += li.quantity;
+        itemIdx++;
       }
 
       // Update Units for this Order
       const unitsRes = await client.query("SELECT id FROM order_units WHERE order_id = $1 ORDER BY id ASC", [order.id]);
       for (const unit of unitsRes.rows) {
-        const newShortSerial = globalUnitCounter.toString().padStart(4, '0');
-        const newUnitId = `${newOrderNumber}-${newShortSerial}`;
+        const newUnitSerial = formatOrderNumber(year, globalUnitSeq);
         await client.query(
-          "UPDATE order_units SET short_serial = $1, unit_id = $2 WHERE id = $3",
-          [newShortSerial, newUnitId, unit.id]
+          "UPDATE order_units SET unit_id = $1, short_serial = $1 WHERE id = $2",
+          [newUnitSerial, unit.id]
         );
-        globalUnitCounter += 1;
+        globalUnitSeq++;
       }
+
+      currentOrderSeq++;
     }
 
     await client.query('COMMIT');
@@ -1765,29 +1771,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       if (existingOrderRes.rows.length > 0) {
         order = existingOrderRes.rows[0];
         isAppended = true;
-
-        // Continue from the GLOBAL last line item number (global sequence across all orders)
-        const maxLiRes = await client.query(
-          "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
-        );
-        if (maxLiRes.rows.length > 0) {
-          lineNum = parseLiCounter(maxLiRes.rows[0].line_item_number) + parseInt(maxLiRes.rows[0].quantity || 1);
-        }
       } else {
-        // Create new order — determine global line item counter for this order
-        const liCountRes = await client.query(
-          "SELECT line_item_number, quantity FROM order_line_items ORDER BY id DESC LIMIT 1"
-        );
-        if (liCountRes.rows.length > 0) {
-          lineNum = parseLiCounter(liCountRes.rows[0].line_item_number) + parseInt(liCountRes.rows[0].quantity || 1);
-        } else {
-          const setting = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
-          lineNum = setting.rows.length > 0 ? parseInt(setting.rows[0].value) || 1 : 1;
-        }
-
-        // Order number = global sequence number of its first line item (full ORD-YYYY-NNNN)
-        const importYear = new Date().getFullYear();
-        const order_number = `ORD-${importYear}-${lineNum.toString().padStart(4, '0')}`;
+        const order_number = await generateOrderNumber(client);
         const VALID_CLASSIFICATIONS = ['Standard', 'Non-Standard'];
         const classification = VALID_CLASSIFICATIONS.includes(header['classification']) ? header['classification'] : 'Standard';
         const orderResult = await client.query(
@@ -1804,17 +1789,18 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       }
 
       const order_number = order.order_number;
-      const importYear = new Date().getFullYear();
 
-      // Insert line items & units (line_item_number stored as full ORD-YYYY-NNNN)
+      const countRes = await client.query('SELECT COUNT(*) FROM order_line_items WHERE order_id = $1', [order.id]);
+      let itemIdx = parseInt(countRes.rows[0].count, 10) + 1;
+
+      // Insert line items & units
       let totalUnits = 0;
       const createdUnits = [];
 
       for (const li of lineItems) {
         const qty = parseInt(li['quantity']) || 1;
-        // Full ORD-YYYY-NNNN format for line item number
-        const li_number = `ORD-${importYear}-${lineNum.toString().padStart(4, '0')}`;
-        lineNum += qty;
+        const li_number = `${order_number}-${String(itemIdx).padStart(2, '0')}`;
+        itemIdx++;
 
         // Smart Deduplication: Check if this line item already exists (by number OR by matching description)
         if (isAppended) {
@@ -1853,8 +1839,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         totalUnits += qty;
 
         for (let i = 0; i < qty; i++) {
-          const short_serial = globalUnitCounter.toString().padStart(4, '0');
-          const unit_id = `${order_number}-${short_serial}`;
+          const unit_id = formatOrderNumber(new Date().getFullYear(), globalUnitCounter);
+          const short_serial = unit_id;
           const unitResult = await client.query(
             `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1,$2,$3,$4) RETURNING id`,
             [order.id, lineItem.id, unit_id, short_serial]
@@ -2592,6 +2578,35 @@ app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req
           oli.part_number,
           oli.line_item_number,
           oli.quantity,
+          (
+              SELECT STRING_AGG(ou.unit_id, ', ' ORDER BY ou.id ASC)
+              FROM order_units ou
+              WHERE ou.line_item_id = oli.id
+          ) as unit_numbers,
+          (
+              SELECT MIN(ou.unit_id) || CASE WHEN COUNT(ou.id) > 1 THEN ' – ' || MAX(ou.unit_id) ELSE '' END
+              FROM order_units ou
+              WHERE ou.line_item_id = oli.id
+          ) as unit_range,
+          (
+              SELECT json_agg(json_build_object(
+                'id', ou.id, 
+                'unit_id', ou.unit_id, 
+                'short_serial', ou.short_serial, 
+                'current_dept', ou.current_dept, 
+                'status', COALESCE(ou.status, oli.status, 'Not Started'),
+                'planned_dispatch_date', COALESCE(ou.planned_dispatch_date, oli.planned_dispatch_date),
+                'wiring_assigned_date', COALESCE(ou.wiring_assigned_date, oli.wiring_assigned_date),
+                'wiring_expected_date', COALESCE(ou.wiring_expected_date, oli.wiring_expected_date),
+                'expected_qc_date', COALESCE(ou.expected_qc_date, oli.expected_qc_date),
+                'qc_status', COALESCE(ou.qc_status, oli.qc_status, 'Pending'),
+                'qc_date', COALESCE(ou.qc_date, oli.qc_date),
+                'mounting_start_date', COALESCE(ou.mounting_start_date, oli.mounting_start_date),
+                'mounting_complete_date', COALESCE(ou.mounting_complete_date, oli.mounting_complete_date)
+              ) ORDER BY ou.id ASC)
+              FROM order_units ou
+              WHERE ou.line_item_id = oli.id
+          ) as units,
           c.name as company_name,
           l.city as company_city,
           (
@@ -2740,6 +2755,89 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
     await client.query('ROLLBACK');
     console.error('Failed to bulk update planning details:', err);
     res.status(500).json({ error: 'Failed to bulk update planning details' });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+  const { unitId } = req.params;
+  const { 
+    end_client_name, 
+    planned_dispatch_date, 
+    wiring_assigned_date, 
+    wiring_expected_date, 
+    expected_qc_date, 
+    priority, 
+    status, 
+    qc_status, 
+    qc_date,
+    mounting_start_date,
+    mounting_complete_date
+  } = req.body;
+  
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const checkUnit = await client.query('SELECT id, order_id, line_item_id, unit_id FROM order_units WHERE id = $1', [unitId]);
+    if (checkUnit.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = checkUnit.rows[0];
+
+    if (await isLineItemOnHold(unit.line_item_id)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+    }
+
+    // Update order level fields if provided
+    if (end_client_name || priority) {
+      await client.query(
+        `UPDATE orders SET end_client_name = COALESCE($1, end_client_name), priority = COALESCE($2, priority) WHERE id = $3`,
+        [end_client_name || null, priority, unit.order_id]
+      );
+    }
+
+    // Update unit level planning fields directly
+    const result = await client.query(
+      `UPDATE order_units 
+       SET planned_dispatch_date = $1, 
+           wiring_assigned_date = $2, 
+           wiring_expected_date = $3, 
+           expected_qc_date = $4, 
+           status = COALESCE($5, status), 
+           qc_status = COALESCE($6, qc_status), 
+           qc_date = $7,
+           mounting_start_date = $8,
+           mounting_complete_date = $9
+       WHERE id = $10 
+       RETURNING *`,
+      [
+        planned_dispatch_date || null, 
+        wiring_assigned_date || null, 
+        wiring_expected_date || null, 
+        expected_qc_date || null, 
+        status, 
+        qc_status, 
+        qc_date || null, 
+        mounting_start_date || null,
+        mounting_complete_date || null,
+        unitId
+      ]
+    );
+
+    await client.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Updated planning details for unit ${unit.unit_id}`, unit.order_id]
+    );
+
+    await client.query('COMMIT');
+    res.json(result.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to update unit planning details:', err);
+    res.status(500).json({ error: 'Failed to update unit planning details' });
   } finally {
     client.release();
   }
