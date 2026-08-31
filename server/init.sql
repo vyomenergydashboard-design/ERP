@@ -182,6 +182,17 @@ ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
 
+-- Planning Module columns for order_units (Unit Planning)
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS planned_dispatch_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_assigned_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_expected_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+
 -- System Settings (key-value store for admin-configurable DB-backed settings)
 CREATE TABLE IF NOT EXISTS system_settings (
     key TEXT PRIMARY KEY,
