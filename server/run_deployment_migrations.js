@@ -1,4 +1,5 @@
 import pool from './db.js';
+import { realignUnitSerials } from './realign_unit_serials_to_orders.js';
 
 export async function runDeploymentMigrations(clientParam) {
   const client = clientParam || await pool.connect();
@@ -35,6 +36,9 @@ export async function runDeploymentMigrations(clientParam) {
       WHERE ou.line_item_id = oli.id 
         AND ou.planned_dispatch_date IS NULL;
     `);
+
+    // 2. Re-align orders and unit serials so Order Number = Starting Unit Serial
+    await realignUnitSerials(client);
 
     // 2. Check if old ORD- order numbers exist
     const oldOrdersRes = await client.query("SELECT COUNT(*) FROM orders WHERE order_number LIKE 'ORD-%'");
@@ -77,30 +81,46 @@ export async function runDeploymentMigrations(clientParam) {
       console.log('[Deployment Migration] Order number migration completed.');
     }
 
-    // 3. Check if hyphenated unit serials exist (e.g. 26270001-0001)
-    const oldUnitsRes = await client.query("SELECT COUNT(*) FROM order_units WHERE unit_id LIKE '%-%'");
-    const oldUnitsCount = parseInt(oldUnitsRes.rows[0].count, 10);
+    // 3. Align Unit Serials with Starting Order Number Counter
+    const minOrderRes = await client.query("SELECT MIN(order_number) as min_ord FROM orders WHERE order_number NOT LIKE 'TEMP-%'");
+    let targetStartSeq = 1;
+    if (minOrderRes.rows.length > 0 && minOrderRes.rows[0].min_ord) {
+      const cleanMin = minOrderRes.rows[0].min_ord.replace(/\D/g, '');
+      const parsedMin = parseInt(cleanMin.slice(-4), 10);
+      if (!isNaN(parsedMin) && parsedMin > 0) {
+        targetStartSeq = parsedMin;
+      }
+    }
 
-    if (oldUnitsCount > 0) {
-      console.log(`[Deployment Migration] Found ${oldUnitsCount} hyphenated unit serials to migrate...`);
+    const minUnitRes = await client.query("SELECT MIN(unit_id) as min_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
+    let currentMinUnitSeq = 0;
+    if (minUnitRes.rows.length > 0 && minUnitRes.rows[0].min_unit) {
+      const cleanMinU = minUnitRes.rows[0].min_unit.replace(/\D/g, '');
+      currentMinUnitSeq = parseInt(cleanMinU.slice(-4), 10) || 0;
+    }
+
+    const hasHyphenatedUnits = await client.query("SELECT COUNT(*) FROM order_units WHERE unit_id LIKE '%-%'");
+    const hyphenatedCount = parseInt(hasHyphenatedUnits.rows[0].count, 10);
+
+    if (hyphenatedCount > 0 || (currentMinUnitSeq > 0 && currentMinUnitSeq !== targetStartSeq)) {
+      console.log(`[Deployment Migration] Re-aligning unit serials starting from FY counter ${targetStartSeq}...`);
       await client.query('BEGIN');
 
-      await client.query("UPDATE order_units SET unit_id = 'TEMP-' || unit_id WHERE unit_id LIKE '%-%'");
+      await client.query("UPDATE order_units SET unit_id = 'TEMP-' || unit_id");
       const unitsToMigrate = await client.query(`
         SELECT ou.id, o.order_date, o.created_at 
         FROM order_units ou 
         JOIN orders o ON ou.order_id = o.id 
-        WHERE ou.unit_id LIKE 'TEMP-%'
         ORDER BY ou.id ASC
       `);
 
-      let uSeq = 1;
+      let uSeq = targetStartSeq;
       let lastYr = null;
 
       for (const unit of unitsToMigrate.rows) {
         const yr = unit.order_date ? new Date(unit.order_date).getFullYear() : (unit.created_at ? new Date(unit.created_at).getFullYear() : new Date().getFullYear());
         if (lastYr !== null && lastYr !== yr) {
-          uSeq = 1;
+          uSeq = targetStartSeq;
         }
         lastYr = yr;
 
@@ -113,7 +133,7 @@ export async function runDeploymentMigrations(clientParam) {
       }
 
       await client.query('COMMIT');
-      console.log('[Deployment Migration] Unit serial migration completed.');
+      console.log('[Deployment Migration] Unit serials re-aligned successfully.');
     }
 
   } catch (err) {
