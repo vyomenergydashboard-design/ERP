@@ -107,22 +107,81 @@ export default function FlowView({
   const orderLevelSteps = steps.filter(s => !s.order_unit_id);
   const activeSteps = [...unitSteps, ...orderLevelSteps];
 
+  const handleUpdateClassification = async (newClassification) => {
+    if (!selectedOrder?.id) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/classification`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ classification: newClassification })
+      });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to update classification');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const renderUnitSelector = () => {
     const units = selectedOrder?.units || [];
+    const canChangeClassification = ['Admin', 'Manager', 'Design', 'Sales'].includes(userRole);
+    const currentClassification = selectedOrder?.classification || 'Standard';
+
     return (
-      <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
-        <select 
-          className="form-select"
-          value={selectedUnitId}
-          onChange={(e) => setSelectedUnitId(e.target.value)}
-          style={{ width: 'auto', background: 'var(--bg3)', fontSize: '13px', padding: '6px 12px', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer' }}
-        >
-          <option value="">Order Milestones</option>
-          {units.map(u => (
-            <option key={u.id} value={u.id}>Unit: {u.unit_id} ({u.status})</option>
-          ))}
-        </select>
+      <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
+          <select 
+            className="form-select"
+            value={selectedUnitId}
+            onChange={(e) => setSelectedUnitId(e.target.value)}
+            style={{ width: 'auto', background: 'var(--bg3)', fontSize: '13px', padding: '6px 12px', border: '1px solid var(--border2)', color: 'var(--text)', borderRadius: '6px', cursor: 'pointer' }}
+          >
+            <option value="">Order Milestones</option>
+            {units.map(u => (
+              <option key={u.id} value={u.id}>Unit: {u.unit_id} ({u.status})</option>
+            ))}
+          </select>
+        </div>
+
+        {selectedOrder && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg3)', padding: '6px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 'bold' }}>Classification:</span>
+            {canChangeClassification ? (
+              <select
+                className="form-select"
+                value={currentClassification}
+                onChange={(e) => handleUpdateClassification(e.target.value)}
+                style={{
+                  fontSize: '12px', padding: '4px 10px', borderRadius: '6px',
+                  background: currentClassification === 'Standard' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
+                  color: currentClassification === 'Standard' ? '#60a5fa' : '#fbbf24',
+                  border: `1px solid ${currentClassification === 'Standard' ? 'rgba(59,130,246,0.4)' : 'rgba(245,158,11,0.4)'}`,
+                  fontWeight: 'bold', cursor: 'pointer'
+                }}
+              >
+                <option value="Standard">Standard Order</option>
+                <option value="Non-Standard">Non-Standard (Custom)</option>
+              </select>
+            ) : (
+              <span style={{
+                fontSize: '12px', fontWeight: 'bold', padding: '4px 10px', borderRadius: '6px',
+                background: currentClassification === 'Standard' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
+                color: currentClassification === 'Standard' ? '#60a5fa' : '#fbbf24',
+                border: `1px solid ${currentClassification === 'Standard' ? 'rgba(59,130,246,0.4)' : 'rgba(245,158,11,0.4)'}`
+              }}>
+                {currentClassification}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     );
   };

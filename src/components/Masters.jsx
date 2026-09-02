@@ -160,14 +160,299 @@ export default function Masters() {
   const [showFieldBuilder, setShowFieldBuilder] = useState(false);
   const [newField, setNewField] = useState({ label: '', type: 'Text', options: '', datakeyPreset: '', customDatakey: '', operator: '', conditionValue: '' });
 
+  // Column Masters State
+  const [columns, setColumns] = useState([]);
+  const [visibilityByDept, setVisibilityByDept] = useState({});
+  const [showColModal, setShowColModal] = useState(false);
+  const [colFormData, setColFormData] = useState({ label: '', col_key: '', category: 'Order', field_type: 'Text' });
+  const [savingVisibility, setSavingVisibility] = useState(false);
+  const [colSaveSuccess, setColSaveSuccess] = useState('');
+
+  // Part Number Masters State
+  const [partMasters, setPartMasters] = useState([]);
+  const [showPartModal, setShowPartModal] = useState(false);
+  const [editingPartId, setEditingPartId] = useState(null);
+  const [partFormData, setPartFormData] = useState({ part_number: '', description: '', category: 'Standard' });
+  const [showPartDocModal, setShowPartDocModal] = useState(false);
+  const [selectedPartMaster, setSelectedPartMaster] = useState(null);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
+  const [partSearch, setPartSearch] = useState('');
+
+  // Panel Size Masters State
+  const [panelSizes, setPanelSizes] = useState([]);
+  const [showPanelSizeModal, setShowPanelSizeModal] = useState(false);
+  const [editingPanelSizeId, setEditingPanelSizeId] = useState(null);
+  const [panelSizeForm, setPanelSizeForm] = useState({ size_name: '', description: '' });
+  const [panelSizeSearch, setPanelSizeSearch] = useState('');
+
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditMasters = user.role?.toLowerCase() === 'admin';
+  const canEditMasters = !user.role || ['admin', 'manager'].includes(user.role?.toLowerCase());
+
+  const getDocUrl = (doc) => {
+    if (!doc) return '#';
+    let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
+    if (!pathStr) return '#';
+    pathStr = pathStr.replace(/\\/g, '/');
+    const uploadsIdx = pathStr.indexOf('uploads/');
+    let relPath = uploadsIdx !== -1 ? pathStr.substring(uploadsIdx + 8) : pathStr.split('/').pop();
+    relPath = relPath.replace(/^\/+/, '');
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const baseUrl = window.API_BASE || '';
+    return `${baseUrl}/uploads/${relPath}${tokenParam}`;
+  };
 
   useEffect(() => {
     fetchCompanies();
     fetchTasks();
+    fetchColumnMasters();
+    fetchPartNumberMasters();
+    fetchPanelSizes();
   }, []);
+
+  const fetchPanelSizes = async () => {
+    try {
+      const res = await fetch(window.API_BASE + "/api/panel-size-masters", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPanelSizes(await res.json());
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSavePanelSize = async (e) => {
+    e.preventDefault();
+    if (!panelSizeForm.size_name.trim()) return alert('Panel Size is required');
+    try {
+      const url = editingPanelSizeId
+        ? `${window.API_BASE}/api/panel-size-masters/${editingPanelSizeId}`
+        : `${window.API_BASE}/api/panel-size-masters`;
+      const method = editingPanelSizeId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(panelSizeForm)
+      });
+      if (res.ok) {
+        setShowPanelSizeModal(false);
+        setEditingPanelSizeId(null);
+        setPanelSizeForm({ size_name: '', description: '' });
+        fetchPanelSizes();
+      } else {
+        const errData = await safeJsonError(res);
+        alert(errData.error || 'Failed to save Panel Size Master');
+      }
+    } catch (err) { console.error(err); alert('Network error'); }
+  };
+
+  const handleDeletePanelSize = async (id) => {
+    if (!window.confirm('Delete this Panel Size Master?')) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/panel-size-masters/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) fetchPanelSizes();
+      else alert('Failed to delete Panel Size Master');
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchPartNumberMasters = async () => {
+    try {
+      const res = await fetch(window.API_BASE + "/api/part-number-masters", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        setPartMasters(await res.json());
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSavePartMaster = async (e) => {
+    e.preventDefault();
+    if (!partFormData.part_number.trim()) return alert('Part Number is required');
+    try {
+      const url = editingPartId 
+        ? `${window.API_BASE}/api/part-number-masters/${editingPartId}`
+        : `${window.API_BASE}/api/part-number-masters`;
+      const method = editingPartId ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(partFormData)
+      });
+      if (res.ok) {
+        setShowPartModal(false);
+        setEditingPartId(null);
+        setPartFormData({ part_number: '', description: '', category: 'Standard' });
+        fetchPartNumberMasters();
+      } else {
+        const errMsg = await safeJsonError(res, 'Failed to save Part Number Master');
+        alert(errMsg);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeletePartMaster = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this Part Number Master? All associated drawings will also be deleted.')) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) fetchPartNumberMasters();
+      else {
+        const errMsg = await safeJsonError(res, 'Failed to delete Part Number Master');
+        alert(errMsg);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleUploadPartDocs = async (partId, files) => {
+    if (!files || files.length === 0) return;
+    setUploadingDocs(true);
+    const body = new FormData();
+    for (const f of files) body.append('files', f);
+    try {
+      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body
+      });
+      if (res.ok) {
+        const updatedRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (updatedRes.ok) {
+          const all = await updatedRes.json();
+          setPartMasters(all);
+          const found = all.find(p => p.id === partId);
+          if (found) setSelectedPartMaster(found);
+        }
+      }
+    } catch (err) { console.error(err); }
+    finally { setUploadingDocs(false); }
+  };
+
+  const handleDeletePartDoc = async (partId, docId) => {
+    if (!window.confirm('Delete this drawing from Master?')) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents/${docId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        await fetchPartNumberMasters();
+        setSelectedPartMaster(prev => prev ? {
+          ...prev,
+          documents: prev.documents.filter(d => d.id !== docId)
+        } : null);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const fetchColumnMasters = async () => {
+    try {
+      const res = await fetch(window.API_BASE + "/api/column-masters", {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setColumns(data.columns || []);
+        setVisibilityByDept(data.visibilityByDept || {});
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleToggleVisibility = (deptId, colKey) => {
+    setVisibilityByDept(prev => {
+      const deptCols = prev[deptId] || {};
+      const currentVal = deptCols[colKey] !== false;
+      return {
+        ...prev,
+        [deptId]: {
+          ...deptCols,
+          [colKey]: !currentVal
+        }
+      };
+    });
+  };
+
+  const handleSelectAllForDept = (deptId, val) => {
+    setVisibilityByDept(prev => {
+      const newDept = {};
+      columns.forEach(c => {
+        newDept[c.col_key] = val;
+      });
+      return {
+        ...prev,
+        [deptId]: newDept
+      };
+    });
+  };
+
+  const safeJsonError = async (res, defaultMsg) => {
+    try {
+      const err = await res.json();
+      return err.error || defaultMsg;
+    } catch (e) {
+      return `${defaultMsg} (${res.status} ${res.statusText})`;
+    }
+  };
+
+  const handleCreateColumn = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(window.API_BASE + "/api/column-masters", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(colFormData)
+      });
+      if (res.ok) {
+        setShowColModal(false);
+        setColFormData({ label: '', col_key: '', category: 'Order', field_type: 'Text' });
+        fetchColumnMasters();
+      } else {
+        const errMsg = await safeJsonError(res, 'Failed to create column master');
+        alert(errMsg);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleDeleteColumn = async (colId) => {
+    if (!window.confirm('Delete this custom column master?')) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/column-masters/${colId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) fetchColumnMasters();
+      else {
+        const errMsg = await safeJsonError(res, 'Failed to delete column master');
+        alert(errMsg);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSaveVisibility = async () => {
+    setSavingVisibility(true);
+    try {
+      const res = await fetch(window.API_BASE + "/api/column-masters/visibility", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ visibilityByDept })
+      });
+      if (res.ok) {
+        setColSaveSuccess('Department column visibility matrix saved!');
+        setTimeout(() => setColSaveSuccess(''), 3000);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingVisibility(false);
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -334,7 +619,10 @@ export default function Masters() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
         <button className={`vbtn ${activeTab === 'companies' ? 'active' : ''}`} onClick={() => setActiveTab('companies')}>Companies</button>
+        <button className={`vbtn ${activeTab === 'part_masters' ? 'active' : ''}`} onClick={() => setActiveTab('part_masters')}>Part Number Masters</button>
+        <button className={`vbtn ${activeTab === 'panel_sizes' ? 'active' : ''}`} onClick={() => setActiveTab('panel_sizes')}>Panel Size Masters</button>
         <button className={`vbtn ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>Task Masters</button>
+        <button className={`vbtn ${activeTab === 'columns' ? 'active' : ''}`} onClick={() => setActiveTab('columns')}>Column Masters & Visibility</button>
       </div>
 
       {activeTab === 'companies' && (
@@ -430,6 +718,358 @@ export default function Masters() {
                 </div>
               );
             })}
+          </div>
+        </>
+      )}
+
+      {activeTab === 'columns' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div>
+              <h2 style={{ margin: 0, color: 'var(--text)' }}>Column Master & Department Visibility</h2>
+              <div style={{ color: 'var(--text3)', fontSize: '13px', marginTop: '4px' }}>
+                Control which columns are visible to each department across Table View and Planning Module, and manage custom data columns.
+              </div>
+            </div>
+            {canEditMasters && (
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button className="vbtn" onClick={() => setShowColModal(true)}>+ Add Custom Column</button>
+                <button
+                  className="vbtn"
+                  style={{ background: 'var(--accent)', color: '#fff' }}
+                  onClick={handleSaveVisibility}
+                  disabled={savingVisibility}
+                >
+                  {savingVisibility ? 'Saving Matrix...' : 'Save Visibility Matrix'}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {colSaveSuccess && (
+            <div style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', padding: '10px 16px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px' }}>
+              ✓ {colSaveSuccess}
+            </div>
+          )}
+
+          {/* Department Visibility Matrix Table */}
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '20px', marginBottom: '32px' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '16px' }}>Department Column Visibility Matrix</h3>
+            
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', minWidth: '220px', color: 'var(--text2)' }}>Column Name / Key</th>
+                    <th style={{ padding: '12px', textAlign: 'left', width: '100px', color: 'var(--text3)' }}>Category</th>
+                    {DEPTS.map(dept => (
+                      <th key={dept.id} style={{ padding: '12px 8px', textAlign: 'center', minWidth: '80px', color: dept.color }}>
+                        {dept.label}
+                        {canEditMasters && (
+                          <div style={{ fontSize: '10px', fontWeight: 'normal', marginTop: '4px', display: 'flex', gap: '4px', justifyContent: 'center' }}>
+                            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => handleSelectAllForDept(dept.id, true)}>All</span>
+                            <span>/</span>
+                            <span style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={() => handleSelectAllForDept(dept.id, false)}>None</span>
+                          </div>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {columns.map(col => (
+                    <tr key={col.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '10px 12px' }}>
+                        <div style={{ fontWeight: '600', color: 'var(--text)' }}>{col.label}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>{col.col_key}</div>
+                      </td>
+                      <td style={{ padding: '10px 12px', color: 'var(--text3)', fontSize: '12px' }}>{col.category}</td>
+                      {DEPTS.map(dept => {
+                        const isVisible = (visibilityByDept[dept.id] && visibilityByDept[dept.id][col.col_key] !== undefined)
+                          ? visibilityByDept[dept.id][col.col_key]
+                          : true;
+                        return (
+                          <td
+                            key={dept.id}
+                            onClick={() => canEditMasters && handleToggleVisibility(dept.id, col.col_key)}
+                            style={{ padding: '10px 8px', textAlign: 'center', cursor: canEditMasters ? 'pointer' : 'default' }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isVisible}
+                              disabled={!canEditMasters}
+                              readOnly
+                              style={{ width: '16px', height: '16px', cursor: canEditMasters ? 'pointer' : 'default', pointerEvents: 'none' }}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Column Master Registry List */}
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '20px' }}>
+            <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '16px' }}>Column Registry & Custom Fields</h3>
+            
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text2)' }}>Label</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text2)' }}>Column Key</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text2)' }}>Category</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text2)' }}>Type</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'left', color: 'var(--text2)' }}>System / Custom</th>
+                  <th style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text2)' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {columns.map(col => (
+                  <tr key={col.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 12px', fontWeight: '500', color: 'var(--text)' }}>{col.label}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text2)', fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{col.col_key}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text3)' }}>{col.category}</td>
+                    <td style={{ padding: '10px 12px', color: 'var(--text3)' }}>{col.field_type}</td>
+                    <td style={{ padding: '10px 12px' }}>
+                      <span style={{
+                        fontSize: '10px', padding: '2px 6px', borderRadius: '4px',
+                        background: col.is_system ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)',
+                        color: col.is_system ? '#3b82f6' : '#10b981',
+                        border: `1px solid ${col.is_system ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`
+                      }}>
+                        {col.is_system ? 'SYSTEM' : 'CUSTOM'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>
+                      {!col.is_system && canEditMasters && (
+                        <button
+                          onClick={() => handleDeleteColumn(col.id)}
+                          style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '3px 8px', fontSize: '11px' }}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'part_masters' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ margin: '0 0 4px 0', color: 'var(--text)' }}>Part Number Masters</h2>
+              <div style={{ color: 'var(--text3)', fontSize: '13px' }}>
+                Store standardized part numbers with technical drawings and specifications for standard sales orders.
+              </div>
+            </div>
+            {canEditMasters && (
+              <button className="vbtn" onClick={() => {
+                setEditingPartId(null);
+                setPartFormData({ part_number: '', description: '', category: 'Standard' });
+                setShowPartModal(true);
+              }}>+ Add Master Part Number</button>
+            )}
+          </div>
+
+          <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
+            <input
+              type="text"
+              placeholder="Search Part Number or Description..."
+              value={partSearch}
+              onChange={(e) => setPartSearch(e.target.value)}
+              style={{
+                background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px',
+                color: 'var(--text)', fontSize: '13px', padding: '8px 14px', width: '320px'
+              }}
+            />
+          </div>
+
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Part Number</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Description</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '120px' }}>Category</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Master Drawings / Docs</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text2)', width: '180px' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {partMasters.filter(p => {
+                  if (!partSearch.trim()) return true;
+                  const q = partSearch.toLowerCase();
+                  return p.part_number.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+                }).map(part => (
+                  <tr key={part.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>
+                      {part.part_number}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
+                      {part.description || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>No description</span>}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <span style={{
+                        fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px',
+                        background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)'
+                      }}>
+                        {part.category || 'Standard'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12px', color: part.documents.length > 0 ? 'var(--text)' : 'var(--text3)' }}>
+                          📁 {part.documents.length} drawing{part.documents.length === 1 ? '' : 's'}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSelectedPartMaster(part);
+                            setShowPartDocModal(true);
+                          }}
+                          style={{
+                            background: 'var(--bg3)', border: '1px solid var(--border)',
+                            color: 'var(--text2)', borderRadius: '6px', cursor: 'pointer',
+                            padding: '4px 10px', fontSize: '11px'
+                          }}
+                        >
+                          Manage Drawings
+                        </button>
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                      {canEditMasters && (
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                          <button
+                            onClick={() => {
+                              setEditingPartId(part.id);
+                              setPartFormData({ part_number: part.part_number, description: part.description || '', category: part.category || 'Standard' });
+                              setShowPartModal(true);
+                            }}
+                            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePartMaster(part.id)}
+                            style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {partMasters.length === 0 && (
+                  <tr>
+                    <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>
+                      No Master Part Numbers registered yet. Click "+ Add Master Part Number" to create one.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'panel_sizes' && (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h2 style={{ margin: 0, color: 'var(--text)' }}>Panel Size Masters</h2>
+              <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: 'var(--text3)' }}>
+                Pre-defined standard panel dimensions for Design and Sales order entry.
+              </p>
+            </div>
+            {canEditMasters && (
+              <button
+                className="vbtn"
+                onClick={() => {
+                  setEditingPanelSizeId(null);
+                  setPanelSizeForm({ size_name: '', description: '' });
+                  setShowPanelSizeModal(true);
+                }}
+              >
+                + Add Panel Size (Alt+N)
+              </button>
+            )}
+          </div>
+
+          <div style={{ marginBottom: '16px', maxWidth: '360px' }}>
+            <input
+              type="text"
+              placeholder="Search panel sizes or description..."
+              className="form-input"
+              value={panelSizeSearch}
+              onChange={e => setPanelSizeSearch(e.target.value)}
+              style={{ width: '100%', padding: '8px 12px', background: 'var(--bg2)' }}
+            />
+          </div>
+
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text3)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
+                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>#</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>Panel Size / Dimensions</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>Description</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {panelSizes
+                  .filter(p => !panelSizeSearch || p.size_name.toLowerCase().includes(panelSizeSearch.toLowerCase()) || (p.description || '').toLowerCase().includes(panelSizeSearch.toLowerCase()))
+                  .map((ps, idx) => (
+                    <tr key={ps.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 16px', color: 'var(--text3)', width: '40px' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
+                        {ps.size_name}
+                      </td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
+                        {ps.description || <span style={{ opacity: 0.4 }}>—</span>}
+                      </td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                        {canEditMasters && (
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                            <button
+                              onClick={() => {
+                                setEditingPanelSizeId(ps.id);
+                                setPanelSizeForm({ size_name: ps.size_name, description: ps.description || '' });
+                                setShowPanelSizeModal(true);
+                              }}
+                              style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeletePanelSize(ps.id)}
+                              style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                {panelSizes.length === 0 && (
+                  <tr>
+                    <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>
+                      No Master Panel Sizes registered yet. Click "+ Add Panel Size" to create one.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </>
       )}
@@ -674,6 +1314,257 @@ export default function Masters() {
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Custom Column Modal */}
+      {showColModal && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowColModal(false); }}>
+          <div className="modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div className="modal-title">Add Custom Column Master</div>
+              <button className="modal-close" onClick={() => setShowColModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleCreateColumn}>
+                <div className="modal-field">
+                  <label>Column Display Label</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    placeholder="e.g. Special Tag, Inspector Name"
+                    value={colFormData.label}
+                    onChange={(e) => {
+                      const labelVal = e.target.value;
+                      const autoKey = labelVal.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                      setColFormData(p => ({
+                        ...p,
+                        label: labelVal,
+                        col_key: p.col_key ? p.col_key : autoKey
+                      }));
+                    }}
+                  />
+                </div>
+                <div className="modal-field">
+                  <label>Column Key (unique database key)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    placeholder="e.g. special_tag"
+                    value={colFormData.col_key}
+                    onChange={(e) => setColFormData({ ...colFormData, col_key: e.target.value })}
+                  />
+                </div>
+                <div className="modal-field">
+                  <label>Category</label>
+                  <select
+                    className="form-select"
+                    value={colFormData.category}
+                    onChange={(e) => setColFormData({ ...colFormData, category: e.target.value })}
+                  >
+                    <option value="Order">Order</option>
+                    <option value="LineItem">Line Item</option>
+                    <option value="Unit">Unit</option>
+                    <option value="Planning">Planning</option>
+                    <option value="Custom">Custom</option>
+                  </select>
+                </div>
+                <div className="modal-field">
+                  <label>Field Type</label>
+                  <select
+                    className="form-select"
+                    value={colFormData.field_type}
+                    onChange={(e) => setColFormData({ ...colFormData, field_type: e.target.value })}
+                  >
+                    <option value="Text">Text</option>
+                    <option value="Number">Number</option>
+                    <option value="Date">Date</option>
+                    <option value="Dropdown">Dropdown</option>
+                    <option value="Yes/No">Yes/No</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                  <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowColModal(false)}>Cancel</button>
+                  <button type="submit" className="vbtn">Create Column</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Part Number Master Modal */}
+      {showPartModal && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPartModal(false); }}>
+          <div className="modal" style={{ maxWidth: '480px' }}>
+            <div className="modal-header">
+              <div className="modal-title">{editingPartId ? 'Edit Master Part Number' : 'Add Master Part Number'}</div>
+              <button className="modal-close" onClick={() => setShowPartModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <form onSubmit={handleSavePartMaster}>
+                <div className="modal-field">
+                  <label>Part Number (Code / Model)</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    placeholder="e.g. PLC-1200, VFD-15KW, MCC-250A"
+                    value={partFormData.part_number}
+                    onChange={(e) => setPartFormData({ ...partFormData, part_number: e.target.value })}
+                  />
+                </div>
+                <div className="modal-field">
+                  <label>Description / Technical Specification</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder="e.g. 1200mm PLC Control Panel with Dual Circuit Breakers"
+                    value={partFormData.description}
+                    onChange={(e) => setPartFormData({ ...partFormData, description: e.target.value })}
+                  />
+                </div>
+                <div className="modal-field">
+                  <label>Category</label>
+                  <select
+                    className="form-select"
+                    value={partFormData.category}
+                    onChange={(e) => setPartFormData({ ...partFormData, category: e.target.value })}
+                  >
+                    <option value="Standard">Standard Product</option>
+                    <option value="Custom">Custom Component</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+                  <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowPartModal(false)}>Cancel</button>
+                  <button type="submit" className="vbtn">{editingPartId ? 'Update Part Number' : 'Save Part Number'}</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Part Number Master Drawings & Documents Modal */}
+      {showPartDocModal && selectedPartMaster && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPartDocModal(false); }}>
+          <div className="modal" style={{ maxWidth: '640px' }}>
+            <div className="modal-header">
+              <div className="modal-title">
+                Master Drawings: <span style={{ color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{selectedPartMaster.part_number}</span>
+              </div>
+              <button className="modal-close" onClick={() => setShowPartDocModal(false)}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text2)', display: 'block', marginBottom: '8px' }}>
+                  Upload Standard Technical Drawings / PDF / CAD Files
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  disabled={uploadingDocs}
+                  onChange={(e) => handleUploadPartDocs(selectedPartMaster.id, e.target.files)}
+                  style={{
+                    background: 'var(--bg3)', border: '1px border var(--border)', borderRadius: '8px',
+                    padding: '8px', width: '100%', color: 'var(--text)'
+                  }}
+                />
+                {uploadingDocs && <div style={{ fontSize: '12px', color: 'var(--blue)', marginTop: '4px' }}>Uploading drawings...</div>}
+              </div>
+
+              <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text)', marginBottom: '10px' }}>
+                Attached Technical Drawings ({selectedPartMaster.documents.length}):
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {selectedPartMaster.documents.map(doc => (
+                  <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg3)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                      <span style={{ fontSize: '16px' }}>📄</span>
+                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <a
+                          href={getDocUrl(doc)}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ color: 'var(--blue)', fontWeight: '600', textDecoration: 'underline' }}
+                        >
+                          {doc.file_name}
+                        </a>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                          Uploaded {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {canEditMasters && (
+                      <button
+                        onClick={() => handleDeletePartDoc(selectedPartMaster.id, doc.id)}
+                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '4px 8px' }}
+                        title="Delete Drawing"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {selectedPartMaster.documents.length === 0 && (
+                  <div style={{ color: 'var(--text3)', fontStyle: 'italic', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+                    No technical drawings uploaded for this part number master yet.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
+                <button type="button" className="vbtn" onClick={() => setShowPartDocModal(false)}>Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel Size Master Modal */}
+      {showPanelSizeModal && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPanelSizeModal(false); }}>
+          <div className="modal" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <div className="modal-title">{editingPanelSizeId ? 'Edit Panel Size Master' : 'New Panel Size Master'}</div>
+              <button className="modal-close" onClick={() => setShowPanelSizeModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleSavePanelSize}>
+              <div className="modal-body">
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Size / Dimensions *</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. 1200x800x400 mm"
+                    value={panelSizeForm.size_name}
+                    onChange={e => setPanelSizeForm({ ...panelSizeForm, size_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Description / Notes</label>
+                  <textarea
+                    className="form-input"
+                    placeholder="e.g. Standard Wall Mount Single Door Enclosure"
+                    value={panelSizeForm.description}
+                    onChange={e => setPanelSizeForm({ ...panelSizeForm, description: e.target.value })}
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="vbtn" onClick={() => setShowPanelSizeModal(false)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: '#3b82f6' }}>
+                  {editingPanelSizeId ? 'Save Changes' : 'Create Panel Size'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,7 +1,8 @@
-import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText, Table } from 'lucide-react';
 import { DEPTS } from '../data/planningData';
 
 const PRIMARY_NAV = [
+  { id: 'table',     icon: Table,           label: 'Table View',  roles: null },
   { id: 'board',     icon: LayoutDashboard, label: 'Board',       roles: null },
   { id: 'planning',  icon: Calendar,        label: 'Planning',    roles: ['Admin', 'Manager', 'Planning'] },
   { id: 'orders',    icon: ClipboardList,   label: 'Orders',      roles: null },
@@ -65,7 +66,7 @@ export default function Sidenav({
           <p className="sidenav-label">Departments</p>
           <button
             className={`dept-btn${currentFilter === 'all' ? ' active' : ''}`}
-            onClick={() => onFilterDept('all')}
+            onClick={() => { onFilterDept('all'); onSetView('table'); }}
             title="All Departments"
           >
             <span className="dept-dot" style={{ background: 'var(--accent)' }} />
@@ -78,7 +79,7 @@ export default function Sidenav({
               <button
                 key={dept.id}
                 className={`dept-btn${currentFilter === dept.id ? ' active' : ''}`}
-                onClick={() => { onFilterDept(dept.id); onSetView('flow'); }}
+                onClick={() => { onFilterDept(dept.id); onSetView('table'); }}
                 title={dept.label}
               >
                 <span className="dept-dot" style={{ background: dept.color }} />

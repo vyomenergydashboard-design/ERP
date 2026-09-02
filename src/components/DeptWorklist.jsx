@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User, ArrowUpDown, ChevronUp } from 'lucide-react';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
@@ -255,13 +255,32 @@ export default function DeptWorklist({ dept }) {
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter]     = useState('all'); // 'all' | 'pending' | 'inprogress' | 'done'
+  const [filter, setFilter]     = useState(() => localStorage.getItem('erp_dept_filter') || 'all'); // 'all' | 'pending' | 'inprogress' | 'done'
   const [search, setSearch]     = useState('');
+  const [sortKey, setSortKey]   = useState(() => localStorage.getItem('erp_dept_sortKey') || 'order_number');
+  const [sortDir, setSortDir]   = useState(() => localStorage.getItem('erp_dept_sortDir') || 'asc');
+
+  useEffect(() => {
+    localStorage.setItem('erp_dept_filter', filter);
+  }, [filter]);
+
+  useEffect(() => {
+    localStorage.setItem('erp_dept_sortKey', sortKey);
+  }, [sortKey]);
+
+  useEffect(() => {
+    localStorage.setItem('erp_dept_sortDir', sortDir);
+  }, [sortDir]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
   const token = localStorage.getItem('token');
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const canEdit = ['admin', 'manager', dept?.toLowerCase()].includes(currentUser.role?.toLowerCase());
   const deptColor = DEPT_COLORS[dept] || '#6366f1';
-  const tableContainerRef = React.useRef(null);
+  const tableContainerRef = useRef(null);
 
   useEffect(() => {
     const slider = tableContainerRef.current;
@@ -400,6 +419,61 @@ export default function DeptWorklist({ dept }) {
     }
     return true;
   });
+
+  const PRIORITY_RANK = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+
+  const sortedUnits = [...filteredUnits].sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'priority') {
+      av = PRIORITY_RANK[a.priority] ?? 2;
+      bv = PRIORITY_RANK[b.priority] ?? 2;
+    } else if (sortKey === 'delivery_date') {
+      av = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
+      bv = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+    } else if (sortKey === 'progress') {
+      const aSteps = a.dept_steps || [];
+      const bSteps = b.dept_steps || [];
+      av = aSteps.length ? aSteps.filter(s => s.status === 'done').length / aSteps.length : 0;
+      bv = bSteps.length ? bSteps.filter(s => s.status === 'done').length / bSteps.length : 0;
+    } else if (sortKey === 'unit_serial') {
+      av = (a.unit_serial || '').toString().toLowerCase();
+      bv = (b.unit_serial || '').toString().toLowerCase();
+    } else if (sortKey === 'material_description') {
+      av = (a.material_description || '').toString().toLowerCase();
+      bv = (b.material_description || '').toString().toLowerCase();
+    } else {
+      av = (a[sortKey] || '').toString().toLowerCase();
+      bv = (b[sortKey] || '').toString().toLowerCase();
+    }
+
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const SortIcon = ({ col }) => {
+    if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: 4 }} />;
+    return sortDir === 'asc'
+      ? <ChevronUp size={11} style={{ color: deptColor, marginLeft: 4 }} />
+      : <ChevronDown size={11} style={{ color: deptColor, marginLeft: 4 }} />;
+  };
+
+  const Th = ({ label, col, style }) => (
+    <th
+      onClick={() => col && handleSort(col)}
+      style={{
+        padding: '12px 14px', textAlign: 'left',
+        color: sortKey === col ? deptColor : 'var(--text3)',
+        fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+        cursor: col ? 'pointer' : 'default', userSelect: 'none',
+        ...style
+      }}
+    >
+      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+        {label}{col && <SortIcon col={col} />}
+      </span>
+    </th>
+  );
 
 
   const totalUnits = units.length;
@@ -542,18 +616,18 @@ export default function DeptWorklist({ dept }) {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Order Info</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Unit ID</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Item Details</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Priority</th>
-                <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Delivery Date</th>
+                <Th label="Order Info" col="order_number" />
+                <Th label="Unit Serial" col="unit_serial" />
+                <Th label="Item Details" col="material_description" />
+                <Th label="Priority" col="priority" />
+                <Th label="Delivery Date" col="delivery_date" />
                 <th style={{ padding: '12px 14px', textAlign: 'left', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Tasks</th>
-                <th style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Progress</th>
+                <Th label="Progress" col="progress" style={{ textAlign: 'center' }} />
                 <th style={{ padding: '12px 14px', textAlign: 'center', color: 'var(--text3)', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>Expand</th>
               </tr>
             </thead>
             <tbody>
-              {filteredUnits.map(unit => (
+              {sortedUnits.map(unit => (
                 <UnitRow
                   key={unit.unit_id}
                   unit={unit}

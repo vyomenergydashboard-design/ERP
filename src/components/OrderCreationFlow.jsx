@@ -37,12 +37,29 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   const [draggingDocs, setDraggingDocs] = useState(false);
   const token = localStorage.getItem('token');
 
+  const [partMasters, setPartMasters] = useState([]);
+  const [panelSizeMasters, setPanelSizeMasters] = useState([]);
+
   useEffect(() => {
     fetch(window.API_BASE + "/api/companies", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(res => res.json())
     .then(data => setCompanies(data))
+    .catch(err => console.error(err));
+
+    fetch(window.API_BASE + "/api/part-number-masters", {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => setPartMasters(Array.isArray(data) ? data : []))
+    .catch(err => console.error(err));
+
+    fetch(window.API_BASE + "/api/panel-size-masters", {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => res.json())
+    .then(data => setPanelSizeMasters(Array.isArray(data) ? data : []))
     .catch(err => console.error(err));
   }, [token]);
 
@@ -75,17 +92,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   };
 
   const handleLineItemChange = (index, field, value) => {
+    handleLineItemChanges(index, { [field]: value });
+  };
+
+  const handleLineItemChanges = (index, updatesObj) => {
     setFormData(prev => {
-      const newLineItems = [...prev.lineItems];
-      newLineItems[index][field] = value;
-      
-      // Auto-calculate total price
-      if (field === 'quantity' || field === 'unit_price') {
-        const q = parseFloat(newLineItems[index].quantity) || 0;
-        const p = parseFloat(newLineItems[index].unit_price) || 0;
-        newLineItems[index].total_price = (q * p).toFixed(2);
-      }
-      
+      const newLineItems = prev.lineItems.map((item, i) => {
+        if (i === index) {
+          const updated = { ...item, ...updatesObj };
+          if ('quantity' in updatesObj || 'unit_price' in updatesObj) {
+            const q = parseFloat(updated.quantity) || 0;
+            const p = parseFloat(updated.unit_price) || 0;
+            updated.total_price = (q * p).toFixed(2);
+          }
+          return updated;
+        }
+        return item;
+      });
       return { ...prev, lineItems: newLineItems };
     });
   };
@@ -414,13 +437,92 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Material Description</label>
                     <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} />
                   </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Part Number *</label>
-                    <input type="text" className="form-input" value={li.part_number} onChange={e => handleLineItemChange(idx, 'part_number', e.target.value)} required />
-                  </div>
+                  {formData.classification === 'Standard' ? (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
+                        Part Number Master *
+                      </label>
+                      <select
+                        className="form-select"
+                        value={li.part_number}
+                        required
+                        onChange={(e) => {
+                          const selectedVal = e.target.value;
+                          const found = partMasters.find(p => p.part_number === selectedVal);
+                          if (found) {
+                            handleLineItemChanges(idx, {
+                              part_number: found.part_number,
+                              material_description: found.description || li.material_description
+                            });
+                          } else {
+                            handleLineItemChange(idx, 'part_number', selectedVal);
+                          }
+                        }}
+                      >
+                        <option value="">-- Choose Master Part Number --</option>
+                        {partMasters.map(pm => (
+                          <option key={pm.id} value={pm.part_number}>
+                            {pm.part_number} {pm.description ? `(${pm.description})` : ''} — [{pm.documents?.length || 0} drawings]
+                          </option>
+                        ))}
+                      </select>
+                      {(() => {
+                        const match = partMasters.find(p => p.part_number === li.part_number);
+                        if (match && match.documents && match.documents.length > 0) {
+                          return (
+                            <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              ✓ Inherits {match.documents.length} Master Drawing{match.documents.length === 1 ? '' : 's'}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  ) : (
+                    <div>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
+                        Custom Part Number * <span style={{ fontSize: '11px', color: '#f59e0b' }}>(Custom Drawing)</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. CUSTOM-PANEL-001"
+                        value={li.part_number}
+                        onChange={e => handleLineItemChange(idx, 'part_number', e.target.value)}
+                        required
+                      />
+                    </div>
+                  )}
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Type / Size</label>
-                    <input type="text" className="form-input" value={li.panel_type_size} onChange={e => handleLineItemChange(idx, 'panel_type_size', e.target.value)} />
+                    <select
+                      className="form-select"
+                      value={panelSizeMasters.some(ps => ps.size_name === li.panel_type_size) ? li.panel_type_size : (li.panel_type_size ? '__custom__' : '')}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val === '__custom__') {
+                          handleLineItemChange(idx, 'panel_type_size', '');
+                        } else {
+                          handleLineItemChange(idx, 'panel_type_size', val);
+                        }
+                      }}
+                    >
+                      <option value="">-- Select Master Panel Size --</option>
+                      {panelSizeMasters.map(ps => (
+                        <option key={ps.id} value={ps.size_name}>{ps.size_name} {ps.description ? `(${ps.description})` : ''}</option>
+                      ))}
+                      <option value="__custom__">Custom Panel Dimensions…</option>
+                    </select>
+                    {(!panelSizeMasters.some(ps => ps.size_name === li.panel_type_size) || li.panel_type_size === '') && (
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Enter custom panel size (e.g. 1500x900x500 mm)"
+                        value={li.panel_type_size}
+                        onChange={e => handleLineItemChange(idx, 'panel_type_size', e.target.value)}
+                        style={{ marginTop: '6px' }}
+                      />
+                    )}
                   </div>
                 </div>
 
