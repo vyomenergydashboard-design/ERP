@@ -5,6 +5,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [selectedUnitId, setSelectedUnitId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const searchRef = useRef(null);
@@ -42,10 +43,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     fetchOrders();
 
     const handleSetView = (e) => {
-      if (e.detail && e.detail.orderId !== undefined) {
-        setSelectedOrderId(e.detail.orderId || '');
-      } else if (e.detail && e.detail.orderId === null) {
-        setSelectedOrderId('');
+      if (e.detail) {
+        if (e.detail.orderId !== undefined) {
+          setSelectedOrderId(e.detail.orderId || '');
+        } else if (e.detail.orderId === null) {
+          setSelectedOrderId('');
+        }
+        if (e.detail.unitId !== undefined) {
+          setSelectedUnitId(e.detail.unitId || '');
+        } else if (e.detail.unitId === null) {
+          setSelectedUnitId('');
+        }
       }
     };
     window.addEventListener('setView', handleSetView);
@@ -78,15 +86,24 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     };
   }, []);
 
-  // Sync searchQuery with selectedOrderId when it changes externally
+  // Sync searchQuery with selectedOrderId/selectedUnitId when it changes externally
   useEffect(() => {
     if (selectedOrderId && orders.length > 0) {
       const order = orders.find(o => o.id == selectedOrderId);
-      if (order) setSearchQuery(order.order_number);
+      if (order) {
+        if (selectedUnitId) {
+          const unit = (order.units || []).find(u => u.id == selectedUnitId);
+          if (unit) {
+            setSearchQuery(unit.unit_serial || unit.short_serial || order.order_number);
+            return;
+          }
+        }
+        setSearchQuery(order.order_number);
+      }
     } else if (!selectedOrderId) {
       setSearchQuery('');
     }
-  }, [selectedOrderId, orders]);
+  }, [selectedOrderId, selectedUnitId, orders]);
 
   const fetchOrders = async () => {
     if (!token) return;
@@ -114,23 +131,65 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       }));
     } else {
       window.dispatchEvent(new CustomEvent('setView', { 
-        detail: { view: 'board', orderId: null } 
+        detail: { view: 'table', orderId: null, unitId: null } 
       }));
     }
   };
 
-  const isQueryingSelected = selectedOrderId && searchQuery.trim() === (orders.find(o => o.id == selectedOrderId)?.order_number || '');
-  const filteredOrders = orders.filter(o => {
-    const q = isQueryingSelected ? '' : searchQuery.trim().toLowerCase();
+  const handleSelectUnit = (unitId, unitSerial, orderId, orderNum) => {
+    setSelectedOrderId(orderId);
+    setSearchQuery(unitSerial || orderNum || '');
+    setIsDropdownOpen(false);
+    
+    if (unitId && orderId) {
+      window.dispatchEvent(new CustomEvent('setView', { 
+        detail: { view: 'flow', orderId: parseInt(orderId), unitId: parseInt(unitId) } 
+      }));
+    } else {
+      window.dispatchEvent(new CustomEvent('setView', { 
+        detail: { view: 'table', orderId: null, unitId: null } 
+      }));
+    }
+  };
+
+  const allUnitItems = [];
+  orders.forEach(order => {
+    const units = Array.isArray(order.units) && order.units.length > 0 
+      ? order.units 
+      : [{ id: order.id, unit_serial: order.order_number, material_description: '', part_number: '' }];
+    
+    units.forEach(u => {
+      allUnitItems.push({
+        unitId: u.id,
+        unitSerial: u.unit_serial || u.short_serial || order.order_number,
+        orderId: order.id,
+        orderNumber: order.order_number,
+        companyName: order.company_name,
+        poNumber: order.po_number,
+        materialDescription: u.material_description || '',
+        partNumber: u.part_number || ''
+      });
+    });
+  });
+
+  const isQueryingSelected = selectedOrderId && searchQuery.trim();
+  const filteredUnits = allUnitItems.filter(item => {
+    const q = isQueryingSelected && searchQuery.trim() === item.unitSerial ? '' : searchQuery.trim().toLowerCase();
     if (!q) return true;
     const tokens = q.split(/\s+/);
-    const orderNum = (o.order_number || '').toLowerCase();
-    const compName = (o.company_name || '').toLowerCase();
-    const poNum = (o.po_number || '').toLowerCase();
+    const serial = (item.unitSerial || '').toLowerCase();
+    const orderNum = (item.orderNumber || '').toLowerCase();
+    const compName = (item.companyName || '').toLowerCase();
+    const poNum = (item.poNumber || '').toLowerCase();
+    const desc = (item.materialDescription || '').toLowerCase();
+    const part = (item.partNumber || '').toLowerCase();
     return tokens.every(token => 
+      serial.includes(token) || 
       orderNum.includes(token) || 
       compName.includes(token) || 
-      poNum.includes(token)
+      poNum.includes(token) ||
+      desc.includes(token) ||
+      part.includes(token)
     );
   });
 
@@ -160,7 +219,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           <input 
             type="text"
             className="order-search-input"
-            placeholder="Search Order..."
+            placeholder="Search Unit Serial, Order #, PO, Customer..."
             value={searchQuery}
             onFocus={() => setIsDropdownOpen(true)}
             onChange={(e) => {
@@ -184,19 +243,30 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
                 className={`search-dropdown-item ${!selectedOrderId ? 'active' : ''}`}
                 onClick={() => handleSelectOrder('', '')}
               >
-                View All Orders (Board)
+                View All Units (Table View)
               </div>
-              {filteredOrders.length > 0 ? filteredOrders.map(order => (
+              {filteredUnits.length > 0 ? filteredUnits.map(item => (
                 <div 
-                  key={order.id} 
-                  className={`search-dropdown-item ${selectedOrderId == order.id ? 'active' : ''}`}
-                  onClick={() => handleSelectOrder(order.id, order.order_number)}
+                  key={`${item.orderId}-${item.unitId}`} 
+                  className={`search-dropdown-item ${selectedOrderId == item.orderId ? 'active' : ''}`}
+                  onClick={() => handleSelectUnit(item.unitId, item.unitSerial, item.orderId, item.orderNumber)}
+                  style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                 >
-                  <div style={{ fontWeight: 600 }}>{order.order_number}</div>
-                  {order.company_name && <div style={{ fontSize: '10px', color: '#888' }}>{order.company_name}</div>}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 700, color: 'var(--blue)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                      {item.unitSerial}
+                    </span>
+                    <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
+                      Order #{item.orderNumber}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text2)', marginTop: 2, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {item.companyName && <span>{item.companyName}</span>}
+                    {item.materialDescription && <span style={{ color: 'var(--text3)' }}>· {item.materialDescription}</span>}
+                  </div>
                 </div>
               )) : (
-                <div className="search-dropdown-item empty">No orders found</div>
+                <div className="search-dropdown-item empty">No unit serials found</div>
               )}
             </div>
           )}

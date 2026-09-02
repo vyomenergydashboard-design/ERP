@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin } from 'lucide-react';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -30,7 +30,7 @@ export default function PlanningModule() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canEdit = ['admin', 'manager', 'planning'].includes(user.role?.toLowerCase());
-  const tableContainerRef = React.useRef(null);
+  const tableContainerRef = useRef(null);
 
   useEffect(() => {
     const slider = tableContainerRef.current;
@@ -98,6 +98,79 @@ export default function PlanningModule() {
     }
     return DEFAULT_COLUMNS;
   });
+
+  const [pinnedCols, setPinnedCols] = useState(() => {
+    const saved = localStorage.getItem('planning_pinned_cols');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (err) { console.error(err); }
+    }
+    return ['sr_no', 'order_number', 'unit_number'];
+  });
+
+  const togglePin = (colId, e) => {
+    e?.stopPropagation();
+    setPinnedCols(prev => {
+      let next;
+      if (prev.includes(colId)) {
+        next = prev.filter(k => k !== colId);
+      } else {
+        next = [...prev, colId];
+      }
+      localStorage.setItem('planning_pinned_cols', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  const COL_WIDTHS = {
+    sr_no: 70,
+    order_number: 130,
+    unit_number: 140,
+    po_number: 130,
+    reference_number: 140,
+    part_number: 140,
+    client_name: 150,
+    end_client_name: 150,
+    planned_dispatch: 130,
+    mounting_start: 130,
+    mounting_complete: 130,
+    wiring_assigned: 130,
+    wiring_expected: 130,
+    expected_qc: 120,
+    priority: 100,
+    status: 120,
+    qc_status: 120,
+    qc_date: 120,
+    progress: 140,
+    action: 90
+  };
+
+  const getColStyle = (colId, isHeader = false, isAltRow = false) => {
+    const isPinned = pinnedCols.includes(colId);
+    if (!isPinned) return {};
+
+    const visiblePinned = activeColumns.filter(k => pinnedCols.includes(k));
+    const idxInPinned = visiblePinned.indexOf(colId);
+    if (idxInPinned === -1) return {};
+
+    let leftOffset = canEdit ? 40 : 0;
+    for (let i = 0; i < idxInPinned; i++) {
+      const k = visiblePinned[i];
+      leftOffset += COL_WIDTHS[k] || 120;
+    }
+
+    const isLastPinned = idxInPinned === visiblePinned.length - 1;
+
+    return {
+      position: 'sticky',
+      left: `${leftOffset}px`,
+      zIndex: isHeader ? 30 : 5,
+      background: isHeader ? 'var(--bg3, #1e222d)' : isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)',
+      boxShadow: isLastPinned ? '4px 0 8px -2px rgba(0,0,0,0.4)' : 'none'
+    };
+  };
 
   const [draggedColId, setDraggedColId] = useState(null);
   const [dragOverColId, setDragOverColId] = useState(null);
@@ -359,10 +432,41 @@ export default function PlanningModule() {
         return null;
     }
   };
+  const searchInputRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('planning_statusFilter') || 'all');
+  const [priorityFilter, setPriorityFilter] = useState(() => localStorage.getItem('planning_priorityFilter') || 'all');
+
+  useEffect(() => {
+    if (!loading && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [loading]);
+
+  useEffect(() => {
+    localStorage.setItem('planning_statusFilter', statusFilter);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    localStorage.setItem('planning_priorityFilter', priorityFilter);
+  }, [priorityFilter]);
+
+  const [sortKey, setSortKey] = useState(() => localStorage.getItem('planning_sortKey') || 'order_number');
+  const [sortDir, setSortDir] = useState(() => localStorage.getItem('planning_sortDir') || 'asc');
+
+  useEffect(() => {
+    localStorage.setItem('planning_sortKey', sortKey);
+  }, [sortKey]);
+
+  useEffect(() => {
+    localStorage.setItem('planning_sortDir', sortDir);
+  }, [sortDir]);
+
+  const handleSort = (key) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
+  };
   const [editingOrder, setEditingOrder] = useState(null);
   const [editForm, setEditForm] = useState({
     end_client_name: '',
@@ -413,10 +517,22 @@ export default function PlanningModule() {
 
   // ── Pagination state ──
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(() => Number(localStorage.getItem('planning_pageSize')) || 20);
 
-  const [groupByPrimary, setGroupByPrimary] = useState('none');
-  const [groupBySecondary, setGroupBySecondary] = useState('none');
+  useEffect(() => {
+    localStorage.setItem('planning_pageSize', String(pageSize));
+  }, [pageSize]);
+
+  const [groupByPrimary, setGroupByPrimary] = useState(() => localStorage.getItem('planning_groupByPrimary') || 'none');
+  const [groupBySecondary, setGroupBySecondary] = useState(() => localStorage.getItem('planning_groupBySecondary') || 'none');
+
+  useEffect(() => {
+    localStorage.setItem('planning_groupByPrimary', groupByPrimary);
+  }, [groupByPrimary]);
+
+  useEffect(() => {
+    localStorage.setItem('planning_groupBySecondary', groupBySecondary);
+  }, [groupBySecondary]);
   const [expandedGroups, setExpandedGroups] = useState({});
 
   const toggleGroupExpand = (path) => {
@@ -579,6 +695,54 @@ export default function PlanningModule() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
+  const PRIORITY_RANK = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
+
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    let av, bv;
+    if (sortKey === 'priority') {
+      av = PRIORITY_RANK[a.priority] ?? 2;
+      bv = PRIORITY_RANK[b.priority] ?? 2;
+    } else if (sortKey.includes('date') || ['planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date', 'delivery_date'].includes(sortKey)) {
+      let dateField = sortKey;
+      if (sortKey === 'planned_dispatch') dateField = 'planned_dispatch_date';
+      else if (sortKey === 'mounting_start') dateField = 'mounting_start_date';
+      else if (sortKey === 'mounting_complete') dateField = 'mounting_complete_date';
+      else if (sortKey === 'wiring_assigned') dateField = 'wiring_assigned_date';
+      else if (sortKey === 'wiring_expected') dateField = 'wiring_expected_date';
+      else if (sortKey === 'expected_qc') dateField = 'expected_qc_date';
+
+      av = a[dateField] ? new Date(a[dateField]).getTime() : Infinity;
+      bv = b[dateField] ? new Date(b[dateField]).getTime() : Infinity;
+    } else if (sortKey === 'unit_number') {
+      av = (a.specific_unit_serial || a.unit_numbers || '').toString().toLowerCase();
+      bv = (b.specific_unit_serial || b.unit_numbers || '').toString().toLowerCase();
+    } else if (sortKey === 'client_name') {
+      av = (a.company_name || '').toString().toLowerCase();
+      bv = (b.company_name || '').toString().toLowerCase();
+    } else if (sortKey === 'progress') {
+      const aTotal = parseInt(a.total_steps || 0);
+      const aDone = parseInt(a.done_steps || 0);
+      av = aTotal > 0 ? aDone / aTotal : 0;
+      const bTotal = parseInt(b.total_steps || 0);
+      const bDone = parseInt(b.done_steps || 0);
+      bv = bTotal > 0 ? bDone / bTotal : 0;
+    } else {
+      av = (a[sortKey] || '').toString().toLowerCase();
+      bv = (b[sortKey] || '').toString().toLowerCase();
+    }
+
+    if (av < bv) return sortDir === 'asc' ? -1 : 1;
+    if (av > bv) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const SortIcon = ({ col }) => {
+    if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: 4 }} />;
+    return sortDir === 'asc'
+      ? <ChevronUp size={11} style={{ color: 'var(--blue)', marginLeft: 4 }} />
+      : <ChevronDown size={11} style={{ color: 'var(--blue)', marginLeft: 4 }} />;
+  };
+
   // ── Reset to page 1 when filters change ──
   const handleSearchChange = (v) => { setSearchTerm(v); setCurrentPage(1); };
   const handleStatusChange = (v) => { setStatusFilter(v); setCurrentPage(1); };
@@ -586,12 +750,12 @@ export default function PlanningModule() {
   const handlePageSizeChange = (v) => { setPageSize(Number(v)); setCurrentPage(1); };
 
   // ── Pagination calculations ──
-  const totalRows = filteredOrders.length;
+  const totalRows = sortedOrders.length;
   const totalPages = Math.max(1, Math.ceil(totalRows / pageSize));
   const safePage = Math.min(currentPage, totalPages);
   const startIdx = (safePage - 1) * pageSize;
   const endIdx = Math.min(startIdx + pageSize, totalRows);
-  const pageRows = filteredOrders.slice(startIdx, endIdx);
+  const pageRows = sortedOrders.slice(startIdx, endIdx);
 
   const getProgressColor = (pct) => {
     if (pct < 30) return '#ef4444';
@@ -842,8 +1006,7 @@ export default function PlanningModule() {
             />
           </td>
         )}
-        {activeColumns.map((colId, cIdx) => {
-          const isFirst = cIdx === 0;
+        {activeColumns.map((colId) => {
           let tdClass = '';
 
           const isMono = ['sr_no', 'order_number', 'unit_number', 'po_number', 'reference_number', 'part_number', 'planned_dispatch', 'mounting_start', 'mounting_complete', 'wiring_assigned', 'wiring_expected', 'expected_qc', 'qc_date'].includes(colId);
@@ -860,16 +1023,13 @@ export default function PlanningModule() {
             tdStyle = { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
           }
 
-          if (isFirst) {
-            tdClass += ' col-sticky-first';
-            tdStyle = { ...tdStyle, left: canEdit ? '40px' : 0 };
-          }
+          const stickyStyle = getColStyle(colId, false, globalIdx % 2 === 1);
 
           return (
             <td
               key={colId}
               className={tdClass.trim()}
-              style={tdStyle}
+              style={{ ...tdStyle, ...stickyStyle }}
               title={colId === 'part_number' ? order.part_number : undefined}
               onClick={(e) => handleCellClick(e, colId, order)}
             >
@@ -896,6 +1056,7 @@ export default function PlanningModule() {
         <div className="search-box">
           <Search size={16} className="search-icon" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search by PO, Client, End Client, or Order Number..."
             value={searchTerm}
@@ -1009,9 +1170,9 @@ export default function PlanningModule() {
                   />
                 </th>
               )}
-              {activeColumns.map((colId, idx) => {
-                const isFirst = idx === 0;
+              {activeColumns.map((colId) => {
                 const columnLabel = getColumnLabel(colId);
+                const isPinned = pinnedCols.includes(colId);
                 const isOver = dragOverColId === colId;
                 const draggedIdx = columnOrder.indexOf(draggedColId);
                 const targetIdx = columnOrder.indexOf(colId);
@@ -1021,28 +1182,56 @@ export default function PlanningModule() {
                   dragOverClass = draggedIdx < targetIdx ? ' drag-over-right' : ' drag-over-left';
                 }
 
-                let thStyle = {};
-                let thClass = `${draggedColId === colId ? ' dragging' : ''}${dragOverClass}`;
-                if (isFirst) {
-                  thClass += ' col-sticky-first';
-                  thStyle = { left: canEdit ? '40px' : 0 };
-                }
+                const stickyStyle = getColStyle(colId, true);
+                const thClass = `${draggedColId === colId ? ' dragging' : ''}${dragOverClass}`;
+                const isSortable = !['sr_no', 'action'].includes(colId);
 
                 return (
                   <th
                     key={colId}
                     className={thClass.trim()}
-                    style={thStyle}
+                    style={{
+                      ...stickyStyle,
+                      cursor: 'grab',
+                      userSelect: 'none',
+                      padding: '10px 12px'
+                    }}
                     draggable
                     onDragStart={(e) => handleDragStart(e, colId)}
                     onDragOver={(e) => handleDragOver(e, colId)}
                     onDragLeave={(e) => handleDragLeave(e, colId)}
                     onDrop={(e) => handleDrop(e, colId)}
                     onDragEnd={handleDragEnd}
+                    title="Drag to reorder column. Click pin to freeze."
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <GripVertical size={12} className="drag-handle" />
-                      <span>{columnLabel}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
+                      <div 
+                        onClick={() => isSortable && handleSort(colId)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isSortable ? 'pointer' : 'default', overflow: 'hidden', flex: 1 }}
+                      >
+                        <GripVertical size={12} className="drag-handle" style={{ cursor: 'grab' }} />
+                        <span style={{ color: sortKey === colId ? 'var(--blue)' : 'inherit', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{columnLabel}</span>
+                        {isSortable && <SortIcon col={colId} />}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => togglePin(colId, e)}
+                        title={isPinned ? "Unfreeze Column" : "Freeze Column to left"}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '2px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          color: isPinned ? 'var(--blue, #3b82f6)' : 'var(--text3, #5a6070)',
+                          opacity: isPinned ? 1 : 0.4,
+                          flexShrink: 0
+                        }}
+                      >
+                        <Pin size={11} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
+                      </button>
                     </div>
                   </th>
                 );

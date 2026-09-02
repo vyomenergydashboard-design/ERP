@@ -1188,6 +1188,24 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       }
     }
 
+    // Auto-inherit master technical drawings from Part Number Masters
+    for (const item of parsedLineItems) {
+      if (item.part_number && item.part_number.trim()) {
+        const pCheck = await client.query('SELECT id FROM part_number_masters WHERE LOWER(part_number) = LOWER($1)', [item.part_number.trim()]);
+        if (pCheck.rows.length > 0) {
+          const masterId = pCheck.rows[0].id;
+          const pDocs = await client.query('SELECT * FROM part_number_documents WHERE part_number_id = $1', [masterId]);
+          for (const doc of pDocs.rows) {
+            await client.query(
+              `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
+               VALUES ('Order', $1, 'Drawing', $2, $3, $4)`,
+              [order.id, `[Master Drawing] ${doc.file_name}`, doc.file_path, req.user.id]
+            );
+          }
+        }
+      }
+    }
+
     if (hasPO) {
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       await client.query(
@@ -1213,6 +1231,32 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     res.status(500).json({ error: 'Failed to create order' });
   } finally {
     client.release();
+  }
+});
+
+app.put('/api/orders/:id/classification', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
+  try {
+    const { classification } = req.body;
+    if (!['Standard', 'Non-Standard'].includes(classification)) {
+      return res.status(400).json({ error: 'Classification must be Standard or Non-Standard' });
+    }
+
+    const checkOrder = await pool.query('SELECT order_number, classification FROM orders WHERE id = $1', [req.params.id]);
+    if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const oldClass = checkOrder.rows[0].classification || 'Standard';
+    const order_number = checkOrder.rows[0].order_number;
+
+    await pool.query('UPDATE orders SET classification = $1 WHERE id = $2', [classification, req.params.id]);
+
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Changed classification of order ${order_number} from "${oldClass}" to "${classification}"`, req.params.id]
+    );
+
+    res.json({ success: true, classification, message: `Order ${order_number} classification updated to ${classification}` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update order classification' });
   }
 });
 
@@ -1323,7 +1367,7 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
   }
 });
 
-app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   const { 
     company_location_id, 
     order_date, 
@@ -2554,7 +2598,7 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
   }
 });
 
-app.get('/api/planning', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
+app.get('/api/planning', authorize(), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT 
@@ -3682,6 +3726,341 @@ app.delete('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to delete task master' });
+  }
+});
+
+// ── Column Masters & Department Column Visibility Endpoints ──────────
+
+app.get('/api/column-masters', authorize(), async (req, res) => {
+  try {
+    const colsResult = await pool.query('SELECT * FROM column_masters ORDER BY sort_order ASC, id ASC');
+    const visResult = await pool.query('SELECT * FROM department_column_visibility');
+    
+    // Group visibility by department
+    const visibilityByDept = {};
+    for (const v of visResult.rows) {
+      if (!visibilityByDept[v.dept]) visibilityByDept[v.dept] = {};
+      visibilityByDept[v.dept][v.col_key] = v.is_visible;
+    }
+
+    res.json({
+      columns: colsResult.rows,
+      visibilityByDept
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch column masters' });
+  }
+});
+
+app.post('/api/column-masters', authorize(['Admin']), async (req, res) => {
+  try {
+    const { label, col_key, category, field_type } = req.body;
+    if (!label || !col_key) {
+      return res.status(400).json({ error: 'Label and Column Key are required' });
+    }
+
+    const cleanKey = col_key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    
+    // Get max sort_order
+    const maxOrderRes = await pool.query('SELECT MAX(sort_order) as max_order FROM column_masters');
+    const nextOrder = (maxOrderRes.rows[0]?.max_order || 0) + 1;
+
+    const result = await pool.query(
+      `INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order)
+       VALUES ($1, $2, $3, $4, false, $5) RETURNING *`,
+      [cleanKey, label.trim(), category || 'Custom', field_type || 'Text', nextOrder]
+    );
+
+    const newCol = result.rows[0];
+
+    // Seed default visibility (true) for all departments
+    const depts = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Planning'];
+    for (const d of depts) {
+      await pool.query(
+        `INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES ($1, $2, true) ON CONFLICT DO NOTHING`,
+        [d, cleanKey]
+      );
+    }
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Added custom column master "${label}" (${cleanKey})`]
+    );
+
+    res.status(201).json(newCol);
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Column Key already exists' });
+    }
+    res.status(500).json({ error: 'Failed to create column master' });
+  }
+});
+
+app.put('/api/column-masters/:id', authorize(['Admin']), async (req, res) => {
+  try {
+    const { label, category, field_type, sort_order } = req.body;
+    const result = await pool.query(
+      `UPDATE column_masters
+       SET label = COALESCE($1, label),
+           category = COALESCE($2, category),
+           field_type = COALESCE($3, field_type),
+           sort_order = COALESCE($4, sort_order)
+       WHERE id = $5 RETURNING *`,
+      [label, category, field_type, sort_order, req.params.id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Column master not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update column master' });
+  }
+});
+
+app.delete('/api/column-masters/:id', authorize(['Admin']), async (req, res) => {
+  try {
+    const colCheck = await pool.query('SELECT * FROM column_masters WHERE id = $1', [req.params.id]);
+    if (colCheck.rows.length === 0) return res.status(404).json({ error: 'Column master not found' });
+    if (colCheck.rows[0].is_system) {
+      return res.status(400).json({ error: 'System columns cannot be deleted. You can hide them in department visibility settings.' });
+    }
+
+    const deleted = await pool.query('DELETE FROM column_masters WHERE id = $1 RETURNING *', [req.params.id]);
+    
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Deleted custom column master "${deleted.rows[0].label}"`]
+    );
+
+    res.json(deleted.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete column master' });
+  }
+});
+
+app.post('/api/column-masters/visibility', authorize(['Admin', 'Manager']), async (req, res) => {
+  try {
+    const { visibilityByDept } = req.body;
+    if (!visibilityByDept || typeof visibilityByDept !== 'object') {
+      return res.status(400).json({ error: 'Invalid visibility payload' });
+    }
+
+    for (const [dept, cols] of Object.entries(visibilityByDept)) {
+      for (const [col_key, is_visible] of Object.entries(cols)) {
+        await pool.query(
+          `INSERT INTO department_column_visibility (dept, col_key, is_visible)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = $3`,
+          [dept, col_key, !!is_visible]
+        );
+      }
+    }
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Updated department column visibility matrix`]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to save column visibility' });
+  }
+});
+
+// ── Part Number Masters Endpoints ─────────────────────────────────────────────
+app.get('/api/part-number-masters', authorize(), async (req, res) => {
+  try {
+    const mastersRes = await pool.query('SELECT * FROM part_number_masters ORDER BY part_number ASC');
+    const docsRes = await pool.query('SELECT * FROM part_number_documents ORDER BY uploaded_at ASC');
+
+    const docsByPart = {};
+    for (const doc of docsRes.rows) {
+      if (!docsByPart[doc.part_number_id]) docsByPart[doc.part_number_id] = [];
+      docsByPart[doc.part_number_id].push(doc);
+    }
+
+    const masters = mastersRes.rows.map(m => ({
+      ...m,
+      documents: docsByPart[m.id] || []
+    }));
+
+    res.json(masters);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch Part Number Masters' });
+  }
+});
+
+app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  try {
+    const { part_number, description, category } = req.body;
+    if (!part_number || !part_number.trim()) {
+      return res.status(400).json({ error: 'Part Number is required' });
+    }
+
+    const check = await pool.query('SELECT id FROM part_number_masters WHERE LOWER(part_number) = LOWER($1)', [part_number.trim()]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ error: `Part Number "${part_number.trim()}" already exists` });
+    }
+
+    const newPart = await pool.query(
+      `INSERT INTO part_number_masters (part_number, description, category)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [part_number.trim(), description || '', category || 'Standard']
+    );
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, $2, $3)`,
+      [req.user.id, req.user.role, `Created Part Number Master "${part_number.trim()}"`]
+    );
+
+    res.status(201).json({ ...newPart.rows[0], documents: [] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create Part Number Master' });
+  }
+});
+
+app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  try {
+    const { part_number, description, category } = req.body;
+    if (!part_number || !part_number.trim()) {
+      return res.status(400).json({ error: 'Part Number is required' });
+    }
+
+    const check = await pool.query('SELECT id FROM part_number_masters WHERE LOWER(part_number) = LOWER($1) AND id != $2', [part_number.trim(), req.params.id]);
+    if (check.rows.length > 0) {
+      return res.status(400).json({ error: `Part Number "${part_number.trim()}" already exists` });
+    }
+
+    const updated = await pool.query(
+      `UPDATE part_number_masters
+       SET part_number = $1, description = $2, category = $3
+       WHERE id = $4 RETURNING *`,
+      [part_number.trim(), description || '', category || 'Standard', req.params.id]
+    );
+
+    if (updated.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
+    res.json(updated.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update Part Number Master' });
+  }
+});
+
+app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+  try {
+    const deleted = await pool.query('DELETE FROM part_number_masters WHERE id = $1 RETURNING *', [req.params.id]);
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
+    
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
+      [req.user.id, `Deleted Part Number Master "${deleted.rows[0].part_number}"`]
+    );
+
+    res.json(deleted.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete Part Number Master' });
+  }
+});
+
+// ── PANEL SIZE MASTERS API ──
+app.get('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Production', 'Planning', 'Viewer']), async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM panel_size_masters ORDER BY id ASC');
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch Panel Size Masters' });
+  }
+});
+
+app.post('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
+  const { size_name, description } = req.body;
+  if (!size_name || !size_name.trim()) {
+    return res.status(400).json({ error: 'Panel size name is required' });
+  }
+  try {
+    const result = await pool.query(
+      'INSERT INTO panel_size_masters (size_name, description) VALUES ($1, $2) RETURNING *',
+      [size_name.trim(), description || '']
+    );
+    res.json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'Panel size already exists' });
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create Panel Size Master' });
+  }
+});
+
+app.put('/api/panel-size-masters/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
+  const { size_name, description } = req.body;
+  if (!size_name || !size_name.trim()) {
+    return res.status(400).json({ error: 'Panel size name is required' });
+  }
+  try {
+    const result = await pool.query(
+      'UPDATE panel_size_masters SET size_name = $1, description = $2 WHERE id = $3 RETURNING *',
+      [size_name.trim(), description || '', req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Panel Size Master not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update Panel Size Master' });
+  }
+});
+
+app.delete('/api/panel-size-masters/:id', authorize(['Admin', 'Manager', 'Design']), async (req, res) => {
+  try {
+    const deleted = await pool.query('DELETE FROM panel_size_masters WHERE id = $1 RETURNING *', [req.params.id]);
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Panel Size Master not found' });
+    res.json(deleted.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete Panel Size Master' });
+  }
+});
+
+app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager', 'Sales']), upload.array('files', 10), async (req, res) => {
+  try {
+    const partId = req.params.id;
+    const partCheck = await pool.query('SELECT * FROM part_number_masters WHERE id = $1', [partId]);
+    if (partCheck.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
+
+    const insertedDocs = [];
+    for (const file of req.files) {
+      const relPath = path.relative(path.join(__dirname, 'uploads'), file.path);
+      const inserted = await pool.query(
+        `INSERT INTO part_number_documents (part_number_id, file_name, file_path, file_type)
+         VALUES ($1, $2, $3, $4) RETURNING *`,
+        [partId, file.originalname, relPath, file.mimetype]
+      );
+      insertedDocs.push(inserted.rows[0]);
+    }
+
+    res.json(insertedDocs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to upload Part Number documents' });
+  }
+});
+
+app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  try {
+    const deleted = await pool.query('DELETE FROM part_number_documents WHERE id = $1 AND part_number_id = $2 RETURNING *', [req.params.docId, req.params.id]);
+    if (deleted.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    res.json(deleted.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete document' });
   }
 });
 

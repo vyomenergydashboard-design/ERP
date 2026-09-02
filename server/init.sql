@@ -203,3 +203,89 @@ CREATE TABLE IF NOT EXISTS system_settings (
 INSERT INTO system_settings (key, value) VALUES ('order_number_start', '1') ON CONFLICT (key) DO NOTHING;
 INSERT INTO system_settings (key, value) VALUES ('unit_number_start', '1') ON CONFLICT (key) DO NOTHING;
 
+-- Column Master & Department Column Visibility System
+CREATE TABLE IF NOT EXISTS column_masters (
+    id SERIAL PRIMARY KEY,
+    col_key TEXT UNIQUE NOT NULL,
+    label TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'General',
+    field_type TEXT NOT NULL DEFAULT 'Text',
+    is_system BOOLEAN DEFAULT true,
+    sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS department_column_visibility (
+    id SERIAL PRIMARY KEY,
+    dept TEXT NOT NULL,
+    col_key TEXT NOT NULL REFERENCES column_masters(col_key) ON DELETE CASCADE,
+    is_visible BOOLEAN DEFAULT true,
+    UNIQUE(dept, col_key)
+);
+
+-- Seed System Columns
+INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+  ('order_number',           'Order Number',          'Order',    'Text',     true, 1),
+  ('short_serial',           'Unit Serial',          'Unit',     'Text',     true, 2),
+  ('company_name',           'Customer Name',         'Order',    'Text',     true, 3),
+  ('po_number',              'PO Number',             'Order',    'Text',     true, 4),
+  ('reference_number',       'Reference Number',      'Order',    'Text',     true, 5),
+  ('end_client_name',        'End Client Name',       'Order',    'Text',     true, 6),
+  ('material_description',   'Material Description',  'LineItem', 'Text',     true, 7),
+  ('part_number',            'Part Number',          'LineItem', 'Text',     true, 8),
+  ('panel_type_size',        'Panel Size / Type',     'LineItem', 'Text',     true, 9),
+  ('delivery_date',          'Delivery Date',         'Order',    'Date',     true, 10),
+  ('planned_dispatch_date',  'Planned Dispatch',      'Planning', 'Date',     true, 11),
+  ('priority',               'Priority',              'Order',    'Dropdown', true, 12),
+  ('unit_status',            'Status',                'Unit',     'Dropdown', true, 13),
+  ('mounting_start_date',    'Mounting Start',        'Planning', 'Date',     true, 14),
+  ('mounting_complete_date', 'Mounting Complete',     'Planning', 'Date',     true, 15),
+  ('wiring_assigned_date',   'Wiring Assigned',       'Planning', 'Date',     true, 16),
+  ('wiring_expected_date',   'Wiring Expected',       'Planning', 'Date',     true, 17),
+  ('expected_qc_date',       'Expected QC',           'Planning', 'Date',     true, 18),
+  ('qc_status',              'QC Status',             'Planning', 'Dropdown', true, 19),
+  ('qc_date',                'QC Date',               'Planning', 'Date',     true, 20),
+  ('classification',         'Classification',        'Order',    'Dropdown', true, 21)
+ON CONFLICT (col_key) DO NOTHING;
+
+-- Seed default visibility (all visible for all departments)
+INSERT INTO department_column_visibility (dept, col_key, is_visible)
+SELECT d.dept, c.col_key, true
+FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+CROSS JOIN column_masters c
+ON CONFLICT (dept, col_key) DO NOTHING;
+
+-- Part Number Masters & Documents System
+CREATE TABLE IF NOT EXISTS part_number_masters (
+    id SERIAL PRIMARY KEY,
+    part_number TEXT UNIQUE NOT NULL,
+    description TEXT,
+    category TEXT NOT NULL DEFAULT 'Standard',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS part_number_documents (
+    id SERIAL PRIMARY KEY,
+    part_number_id INTEGER NOT NULL REFERENCES part_number_masters(id) ON DELETE CASCADE,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_type TEXT,
+    uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS panel_size_masters (
+    id SERIAL PRIMARY KEY,
+    size_name VARCHAR(100) UNIQUE NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO panel_size_masters (size_name, description) VALUES
+  ('800x600x300 mm', 'Standard Wall Mount Control Panel'),
+  ('1000x800x300 mm', 'Medium Wall Mount Control Panel'),
+  ('1200x800x400 mm', 'Large Wall Mount / Small Floor Standing Panel'),
+  ('1600x800x400 mm', 'Floor Standing Single Door Panel'),
+  ('2000x800x600 mm', 'Floor Standing Standard PCC/MCC Panel'),
+  ('2000x1000x800 mm', 'Heavy Duty Floor Standing Double Door Panel'),
+  ('Custom', 'Customized Non-Standard Panel Dimensions')
+ON CONFLICT (size_name) DO NOTHING;

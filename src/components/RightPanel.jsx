@@ -14,6 +14,28 @@ function relativeTime(isoString) {
 
 export default function RightPanel({ selectedStep, activityLog, selectedOrder, isOpen = true, onToggle }) {
   const dept = selectedStep ? DEPTS.find((d) => d.id === selectedStep.dept) : null;
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = localStorage.getItem('token');
+  const canEditClassification = ['Admin', 'Manager', 'Design', 'Sales'].includes(user.role);
+
+  const handleClassificationChange = async (newVal) => {
+    if (!selectedOrder?.id) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/classification`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ classification: newVal })
+      });
+      if (res.ok) {
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className={`right-panel${isOpen ? '' : ' right-panel--collapsed'}`}>
@@ -96,11 +118,37 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                     <span className="detail-val">{selectedOrder.reference_number}</span>
                   </div>
                 )}
+                {selectedOrder.line_items?.[0]?.panel_type_size && (
+                  <div className="detail-row">
+                    <span className="detail-key">Panel Size</span>
+                    <span className="detail-val" style={{ color: '#60a5fa', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                      {selectedOrder.line_items[0].panel_type_size}
+                    </span>
+                  </div>
+                )}
                 <div className="detail-row">
                   <span className="detail-key">Classification</span>
-                  <span className="detail-val" style={{ fontWeight: '600', color: selectedOrder.classification === 'Non-Standard' ? 'var(--blue)' : 'var(--text2)' }}>
-                    {selectedOrder.classification || 'Standard'}
-                  </span>
+                  {canEditClassification ? (
+                    <select
+                      className="form-select"
+                      value={selectedOrder.classification || 'Standard'}
+                      onChange={(e) => handleClassificationChange(e.target.value)}
+                      style={{
+                        fontSize: '11px', padding: '2px 6px', borderRadius: '4px',
+                        background: (selectedOrder.classification || 'Standard') === 'Standard' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
+                        color: (selectedOrder.classification || 'Standard') === 'Standard' ? '#60a5fa' : '#fbbf24',
+                        border: `1px solid ${(selectedOrder.classification || 'Standard') === 'Standard' ? 'rgba(59,130,246,0.4)' : 'rgba(245,158,11,0.4)'}`,
+                        fontWeight: 'bold', cursor: 'pointer'
+                      }}
+                    >
+                      <option value="Standard">Standard</option>
+                      <option value="Non-Standard">Non-Standard</option>
+                    </select>
+                  ) : (
+                    <span className="detail-val" style={{ fontWeight: '600', color: selectedOrder.classification === 'Non-Standard' ? '#fbbf24' : '#60a5fa' }}>
+                      {selectedOrder.classification || 'Standard'}
+                    </span>
+                  )}
                 </div>
                 <div className="detail-row">
                   <span className="detail-key">Order Date</span>

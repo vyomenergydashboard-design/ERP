@@ -37,9 +37,25 @@ const ProtectedRoute = ({ children }) => {
 function Dashboard() {
   const [steps, setSteps] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
-  const [currentFilter, setCurrentFilter] = useState('all');
-  const [currentView, setCurrentView] = useState('table'); // default to table
+  const [currentFilter, setCurrentFilter] = useState(() => {
+    const saved = localStorage.getItem('erp_currentFilter');
+    if (saved) return saved;
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    if (u.role && !['Admin', 'Manager', 'Viewer'].includes(u.role)) {
+      return u.role;
+    }
+    return 'all';
+  });
+  const [currentView, setCurrentView] = useState(() => localStorage.getItem('erp_currentView') || 'table'); // default to table
   const [bomState, setBomState] = useState('Accept-Complete');
+
+  useEffect(() => {
+    localStorage.setItem('erp_currentView', currentView);
+  }, [currentView]);
+
+  useEffect(() => {
+    localStorage.setItem('erp_currentFilter', currentFilter);
+  }, [currentFilter]);
   const [designType, setDesignType] = useState('Standard');
   const [selectedStepId, setSelectedStepId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -261,17 +277,16 @@ function Dashboard() {
     navigate('/');
   };
 
-  // Navigating to Board clears the selected order — Board shows all orders,
-  // so having one "selected" is confusing and pollutes the stats + right panel.
+  // Navigating to Table View or Board clears the selected order and search query
   const navigateToView = (view) => {
-    if (view === 'board') {
-      setCurrentView('table'); // Default to table view
+    if (view === 'table' || view === 'board') {
+      setCurrentView('table');
       setSelectedOrderId(null);
       selectedOrderIdRef.current = null;
       setSelectedOrder(null);
+      setSelectedUnitId('');
       setSteps([]);
-      setCurrentFilter('all'); // board always shows all departments
-      window.dispatchEvent(new CustomEvent('setView', { detail: { orderId: null } }));
+      window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'table', orderId: null, unitId: null } }));
     } else {
       setCurrentView(view);
     }
@@ -426,13 +441,7 @@ function Dashboard() {
           {currentView === 'board' ? (
             <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
           ) : currentView === 'planning' ? (
-            ['Admin', 'Manager', 'Planning'].includes(user.role) ? (
-              <PlanningModule />
-            ) : (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
-                Unauthorized to view the Planning Module.
-              </div>
-            )
+            <PlanningModule />
           ) : currentView === 'flow' ? (
             selectedOrderId ? (
               <FlowView 

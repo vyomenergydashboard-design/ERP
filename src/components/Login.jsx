@@ -35,6 +35,9 @@ export default function Login() {
 
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
+      if (data.user?.role && !['Admin', 'Manager', 'Viewer'].includes(data.user.role)) {
+        localStorage.setItem('erp_currentFilter', data.user.role);
+      }
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
