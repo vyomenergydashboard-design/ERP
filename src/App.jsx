@@ -65,6 +65,7 @@ function Dashboard() {
   const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [sidenavCollapsed, setSidenavCollapsed] = useState(() => window.innerWidth < 1200);
+  const [statCardFilter, setStatCardFilter] = useState(null); // 'all' | 'priority' | 'inprogress' | 'blocked' | 'due'
 
   const [selectedUnitId, setSelectedUnitId] = useState('');
   const [unitSteps, setUnitSteps] = useState([]);
@@ -401,7 +402,15 @@ function Dashboard() {
         )}
         <main className="main">
           {currentView !== 'planning' && (
-            <StatsRow steps={combinedSteps} currentFilter={currentFilter} selectedOrder={selectedOrder} />
+            <StatsRow 
+              steps={combinedSteps} 
+              currentFilter={currentFilter} 
+              selectedOrder={selectedOrder}
+              activeStatFilter={statCardFilter}
+              onSelectStatFilter={(key) => {
+                setStatCardFilter(prev => prev === key ? null : key);
+              }}
+            />
           )}
           
           <div className="flow-header">
@@ -439,7 +448,13 @@ function Dashboard() {
           </div>
 
           {currentView === 'board' ? (
-            <BoardView currentFilter={currentFilter} userRole={user.role} onSetView={setCurrentView} />
+            <BoardView 
+              currentFilter={currentFilter} 
+              userRole={user.role} 
+              onSetView={setCurrentView}
+              statCardFilter={statCardFilter}
+              onClearStatFilter={() => setStatCardFilter(null)}
+            />
           ) : currentView === 'planning' ? (
             <PlanningModule />
           ) : currentView === 'flow' ? (
@@ -464,7 +479,12 @@ function Dashboard() {
               </div>
             )
           ) : currentView === 'table' ? (
-            <AllOrdersTableView currentFilter={currentFilter} onSetView={navigateToView} />
+            <AllOrdersTableView 
+              currentFilter={currentFilter} 
+              onSetView={navigateToView}
+              statCardFilter={statCardFilter}
+              onClearStatFilter={() => setStatCardFilter(null)}
+            />
           ) : currentView === 'orders' ? (
             <OrderList initialSelectedId={selectedOrderId} />
           ) : currentView === 'documents' ? (

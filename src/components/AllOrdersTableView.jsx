@@ -11,10 +11,11 @@ const PRIORITY_STYLES = {
 };
 
 const STATUS_STYLES = {
-  Completed:   { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
-  Blocked:     { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+  Completed:    { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
+  Blocked:      { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
   'In Progress':{ bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
-  'On Hold':   { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
+  Pending:      { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+  'On Hold':    { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
 };
 
 const ALL_COLUMNS = [
@@ -53,7 +54,7 @@ const DEFAULT_COL_WIDTHS = {
   unit_status: 120,
 };
 
-export default function AllOrdersTableView({ currentFilter, onSetView }) {
+export default function AllOrdersTableView({ currentFilter, onSetView, statCardFilter, onClearStatFilter }) {
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -454,22 +455,57 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
     if (unit.unit_status === 'Dispatched') return 'Completed';
     if (unit.unit_status === 'Hold') return 'On Hold';
     if (unit.dept_steps?.some(s => s.status === 'blocked')) return 'Blocked';
-    return 'In Progress';
+
+    const hasInprogress = 
+      Number(unit.inprogress_step_count || 0) > 0 ||
+      Number(unit.order_inprogress_step_count || 0) > 0 ||
+      unit.dept_steps?.some(s => s.status === 'inprogress');
+
+    const hasDone = 
+      Number(unit.done_step_count || 0) > 0 ||
+      Number(unit.order_done_step_count || 0) > 0 ||
+      unit.dept_steps?.some(s => s.status === 'done');
+
+    if (hasInprogress || hasDone) {
+      return 'In Progress';
+    }
+
+    return 'Pending';
   };
 
   const filtered = units.filter(u => {
     const status = getUnitStatus(u);
+
+    // Apply Stat Card Filter if active
+    if (statCardFilter === 'priority') {
+      const p = (u.priority || 'Medium').toLowerCase();
+      if (p !== 'urgent' && p !== 'high') return false;
+    } else if (statCardFilter === 'inprogress') {
+      if (status !== 'In Progress') return false;
+    } else if (statCardFilter === 'blocked') {
+      if (status !== 'Blocked') return false;
+    } else if (statCardFilter === 'due') {
+      if (!u.delivery_date) return false;
+      const today = new Date();
+      const in7 = new Date(today);
+      in7.setDate(today.getDate() + 7);
+      const d = new Date(u.delivery_date);
+      if (d < today || d > in7) return false;
+    }
+
     if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
     if (statusFilter === 'incomplete' && status === 'Completed') return false;
     if (statusFilter === 'completed' && status !== 'Completed') return false;
+    if (statusFilter === 'pending' && status !== 'Pending') return false;
+    if (statusFilter === 'inprogress' && status !== 'In Progress') return false;
     if (statusFilter === 'blocked' && status !== 'Blocked') return false;
     if (statusFilter === 'hold' && status !== 'On Hold') return false;
     
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       return (
-        (u.order_number || '').toLowerCase().includes(q) ||
         (u.unit_serial || '').toLowerCase().includes(q) ||
+        (u.short_serial || '').toLowerCase().includes(q) ||
         (u.po_number || '').toLowerCase().includes(q) ||
         (u.company_name || '').toLowerCase().includes(q) ||
         (u.end_client_name || '').toLowerCase().includes(q) ||
@@ -818,7 +854,7 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search order, serial, PO, description, customer..."
+            placeholder="Search unit serial, PO, description, customer..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{
@@ -844,6 +880,8 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
         >
           <option value="all">All Status</option>
           <option value="incomplete">Incomplete</option>
+          <option value="pending">Pending</option>
+          <option value="inprogress">In Progress</option>
           <option value="completed">Completed</option>
           <option value="blocked">Blocked</option>
           <option value="hold">On Hold</option>
@@ -880,6 +918,48 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
           Reset Layout
         </button>
 
+        {statCardFilter && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.12)' :
+                        statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
+                        statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
+                        statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+            color: statCardFilter === 'priority' ? '#f97316' :
+                   statCardFilter === 'inprogress' ? '#3b82f6' :
+                   statCardFilter === 'blocked' ? '#ef4444' :
+                   statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
+            border: `1px solid ${
+              statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
+              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
+              statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
+              statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
+            }`,
+            borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600,
+            whiteSpace: 'nowrap'
+          }}>
+            <span>
+              Card Filter: {
+                statCardFilter === 'priority' ? 'Urgent / High' :
+                statCardFilter === 'inprogress' ? 'In Progress' :
+                statCardFilter === 'blocked' ? 'Blocked' :
+                statCardFilter === 'due' ? 'Due This Week' : 'All Active'
+              }
+            </span>
+            <button
+              onClick={onClearStatFilter}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 0, marginLeft: 2, display: 'flex', alignItems: 'center',
+                color: 'inherit'
+              }}
+              title="Clear card filter"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+
         {/* Summary chip */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
@@ -888,6 +968,10 @@ export default function AllOrdersTableView({ currentFilter, onSetView }) {
           whiteSpace: 'nowrap', flexShrink: 0
         }}>
           <Layers size={13} />
+          <strong style={{ color: 'var(--text)' }}>
+            {new Set(sorted.map(u => u.order_number).filter(Boolean)).size}
+          </strong> {new Set(sorted.map(u => u.order_number).filter(Boolean)).size === 1 ? 'order' : 'orders'}
+          <span style={{ color: 'var(--text3)', margin: '0 2px' }}>·</span>
           <strong style={{ color: 'var(--text)' }}>{sorted.length}</strong> unit items
         </div>
       </div>

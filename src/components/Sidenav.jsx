@@ -4,7 +4,7 @@ import { DEPTS } from '../data/planningData';
 const PRIMARY_NAV = [
   { id: 'table',     icon: Table,           label: 'Table View',  roles: null },
   { id: 'board',     icon: LayoutDashboard, label: 'Board',       roles: null },
-  { id: 'planning',  icon: Calendar,        label: 'Planning',    roles: ['Admin', 'Manager', 'Planning'] },
+  { id: 'planning',  icon: Calendar,        label: 'Planning',    roles: null },
   { id: 'orders',    icon: ClipboardList,   label: 'Orders',      roles: null },
   { id: 'documents', icon: FileText,        label: 'Documents',   roles: null },
   { id: 'new-order', icon: PlusCircle,      label: 'New Order',   roles: ['Admin', 'Manager', 'Sales'] },
