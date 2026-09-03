@@ -389,7 +389,7 @@ export default function DeptWorklist({ dept }) {
     if (search.trim() !== '') {
       const tokens = search.trim().toLowerCase().split(/\s+/);
       const serial = (u.unit_serial || '').toLowerCase();
-      const orderNum = (u.order_number || '').toLowerCase();
+      const shortSerial = (u.short_serial || '').toLowerCase();
       const material = (u.material_description || '').toLowerCase();
       const company = (u.company_name || '').toLowerCase();
       const refNum = (u.reference_number || '').toLowerCase();
@@ -397,7 +397,7 @@ export default function DeptWorklist({ dept }) {
       
       const matchesAllTokens = tokens.every(token => 
         serial.includes(token) || 
-        orderNum.includes(token) || 
+        shortSerial.includes(token) || 
         material.includes(token) || 
         company.includes(token) ||
         refNum.includes(token) ||
@@ -554,7 +554,7 @@ export default function DeptWorklist({ dept }) {
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <input
           type="text"
-          placeholder="Search by unit ID, order, item, client..."
+          placeholder="Search by unit serial, item, client..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{

@@ -3332,12 +3332,14 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         o.end_client_name,
         o.priority,
         o.delivery_date,
+        o.classification,
         cl.city        AS company_city,
         co.name        AS company_name,
         oli.id         AS line_item_id,
         oli.line_item_number,
         oli.material_description,
         oli.part_number,
+        oli.panel_type_size,
         oli.quantity   AS batch_qty,
         (
           SELECT json_agg(
@@ -3353,7 +3355,27 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
           )
           FROM unit_steps us
           WHERE us.order_unit_id = ou.id AND us.dept = ou.current_dept
-        ) AS dept_steps
+        ) AS dept_steps,
+        (
+          SELECT count(*)::int
+          FROM unit_steps us
+          WHERE us.order_unit_id = ou.id AND us.status = 'inprogress'
+        ) AS inprogress_step_count,
+        (
+          SELECT count(*)::int
+          FROM unit_steps us
+          WHERE us.order_unit_id = ou.id AND us.status = 'done'
+        ) AS done_step_count,
+        (
+          SELECT count(*)::int
+          FROM order_steps os
+          WHERE os.order_id = o.id AND os.status = 'inprogress'
+        ) AS order_inprogress_step_count,
+        (
+          SELECT count(*)::int
+          FROM order_steps os
+          WHERE os.order_id = o.id AND os.status = 'done'
+        ) AS order_done_step_count
       FROM order_units ou
       JOIN orders o         ON ou.order_id = o.id
       JOIN order_line_items oli ON ou.line_item_id = oli.id

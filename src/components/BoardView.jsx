@@ -7,7 +7,7 @@ function StatusBadge({ status }) {
   return <span className={`step-status-badge ${cls}`}>{label}</span>;
 }
 
-export default function BoardView({ currentFilter, userRole, onSetView }) {
+export default function BoardView({ currentFilter, userRole, onSetView, statCardFilter, onClearStatFilter }) {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -50,6 +50,24 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
 
   const displayOrders = orders
     .filter(o => {
+      if (statCardFilter === 'priority') {
+        const p = (o.priority || 'Medium').toLowerCase();
+        if (p !== 'urgent' && p !== 'high') return false;
+      } else if (statCardFilter === 'inprogress') {
+        const hasIP = (o.steps || []).some(s => s.status === 'inprogress');
+        if (!hasIP) return false;
+      } else if (statCardFilter === 'blocked') {
+        const hasBlocked = (o.steps || []).some(s => s.status === 'blocked');
+        if (!hasBlocked) return false;
+      } else if (statCardFilter === 'due') {
+        if (!o.delivery_date) return false;
+        const today = new Date();
+        const in7 = new Date(today);
+        in7.setDate(today.getDate() + 7);
+        const d = new Date(o.delivery_date);
+        if (d < today || d > in7) return false;
+      }
+
       if (priorityFilter !== 'all' && (o.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
       if (statusFilter === 'incomplete' && o.status === 'completed') return false;
       if (statusFilter === 'completed' && o.status !== 'completed') return false;
@@ -110,6 +128,48 @@ export default function BoardView({ currentFilter, userRole, onSetView }) {
             <option value="low">Low</option>
           </select>
         </div>
+
+        {statCardFilter && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.12)' :
+                        statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
+                        statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
+                        statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+            color: statCardFilter === 'priority' ? '#f97316' :
+                   statCardFilter === 'inprogress' ? '#3b82f6' :
+                   statCardFilter === 'blocked' ? '#ef4444' :
+                   statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
+            border: `1px solid ${
+              statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
+              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
+              statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
+              statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
+            }`,
+            borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600,
+            whiteSpace: 'nowrap'
+          }}>
+            <span>
+              Card Filter: {
+                statCardFilter === 'priority' ? 'Urgent / High' :
+                statCardFilter === 'inprogress' ? 'In Progress' :
+                statCardFilter === 'blocked' ? 'Blocked' :
+                statCardFilter === 'due' ? 'Due This Week' : 'All Active'
+              }
+            </span>
+            <button
+              onClick={onClearStatFilter}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                padding: 0, marginLeft: 2, display: 'flex', alignItems: 'center',
+                color: 'inherit'
+              }}
+              title="Clear card filter"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
 
         <div className="board-search-container">
           <Search size={14} className="board-search-icon" />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin } from 'lucide-react';
+import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin, Eye } from 'lucide-react';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -1063,6 +1063,26 @@ export default function PlanningModule() {
             onChange={(e) => handleSearchChange(e.target.value)}
           />
         </div>
+
+        {!canEdit && (
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: '6px',
+            background: 'rgba(59, 130, 246, 0.1)',
+            border: '1px solid rgba(59, 130, 246, 0.25)',
+            color: '#60a5fa',
+            fontSize: '12px',
+            fontWeight: 600,
+            letterSpacing: '0.3px',
+            whiteSpace: 'nowrap'
+          }}>
+            <Eye size={14} />
+            <span>View-Only Mode</span>
+          </div>
+        )}
 
         <div className="filter-group">
           <div className="filter-select-wrapper">
