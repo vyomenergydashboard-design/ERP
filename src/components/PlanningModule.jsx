@@ -26,6 +26,23 @@ const DEFAULT_COLUMNS = [
   'action'
 ];
 
+const isDateTimeType = (type) => ['date & time', 'date and time', 'datetime'].includes((type || '').toLowerCase());
+const isDateType = (type) => (type || '').toLowerCase() === 'date';
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return '—';
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return String(dateStr);
+  return date.toLocaleString('en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+};
+
 export default function PlanningModule() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -82,15 +99,14 @@ export default function PlanningModule() {
   }, []);
 
   const [orders, setOrders] = useState([]);
+  const [customColumns, setCustomColumns] = useState([]);
   const [columnOrder, setColumnOrder] = useState(() => {
     const saved = localStorage.getItem('planning_column_order');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const validSaved = parsed.filter(col => DEFAULT_COLUMNS.includes(col));
-          const missing = DEFAULT_COLUMNS.filter(col => !validSaved.includes(col));
-          return [...validSaved, ...missing];
+          return parsed;
         }
       } catch (e) {
         console.error('Error parsing column order from localStorage:', e);
@@ -158,7 +174,8 @@ export default function PlanningModule() {
     let leftOffset = canEdit ? 40 : 0;
     for (let i = 0; i < idxInPinned; i++) {
       const k = visiblePinned[i];
-      leftOffset += COL_WIDTHS[k] || 120;
+      const customK = customColumns.find(c => c.col_key === k);
+      leftOffset += COL_WIDTHS[k] || (isDateTimeType(customK?.field_type) ? 170 : 130);
     }
 
     const isLastPinned = idxInPinned === visiblePinned.length - 1;
@@ -223,6 +240,9 @@ export default function PlanningModule() {
   };
 
   const getColumnLabel = (colId) => {
+    const customCol = customColumns.find(c => c.col_key === colId);
+    if (customCol) return customCol.label;
+
     switch (colId) {
       case 'sr_no': return 'Sr. No.';
       case 'order_number': return 'Order Number';
@@ -249,14 +269,29 @@ export default function PlanningModule() {
     }
   };
 
-  const activeColumns = columnOrder.filter(colId => {
-    if (colId === 'action' && !canEdit) return false;
-    return true;
-  });
+  const customColKeys = customColumns.map(c => c.col_key);
+  const allAvailableColKeys = [...DEFAULT_COLUMNS, ...customColKeys];
+
+  const activeColumns = (() => {
+    const validOrdered = columnOrder.filter(k => allAvailableColKeys.includes(k));
+    const missing = customColKeys.filter(k => !validOrdered.includes(k));
+    if (missing.length > 0) {
+      const progIdx = validOrdered.indexOf('progress');
+      if (progIdx !== -1) {
+        validOrdered.splice(progIdx, 0, ...missing);
+      } else {
+        validOrdered.push(...missing);
+      }
+    }
+    return validOrdered.filter(colId => {
+      if (colId === 'action' && !canEdit) return false;
+      return true;
+    });
+  })();
 
   const renderCell = (columnId, order, globalIdx, progressPct) => {
-    const isEditing = editingCell && editingCell.lineItemId === order.line_item_id && editingCell.colId === columnId;
-    const isSaving = savingCell && savingCell.lineItemId === order.line_item_id && savingCell.colId === columnId;
+    const isEditing = editingCell && editingCell.colId === columnId && (editingCell.unitId ? editingCell.unitId === order.specific_unit_id : editingCell.lineItemId === order.line_item_id);
+    const isSaving = savingCell && savingCell.colId === columnId && (savingCell.unitId ? savingCell.unitId === order.specific_unit_id : savingCell.lineItemId === order.line_item_id);
 
     if (isSaving) {
       return (
@@ -277,14 +312,82 @@ export default function PlanningModule() {
       };
 
       const handleSelectChange = (val) => {
-        saveInlineField(order.line_item_id, columnId, val, editingCell.oldValue);
+        saveInlineField(order.line_item_id, columnId, val, editingCell.oldValue, order.specific_unit_id);
       };
 
       const handleBlur = () => {
-        if (editingCell && editingCell.lineItemId === order.line_item_id && editingCell.colId === columnId) {
-          saveInlineField(order.line_item_id, columnId, editingCell.value, editingCell.oldValue);
+        if (editingCell && editingCell.colId === columnId && (editingCell.unitId ? editingCell.unitId === order.specific_unit_id : editingCell.lineItemId === order.line_item_id)) {
+          saveInlineField(order.line_item_id, columnId, editingCell.value, editingCell.oldValue, order.specific_unit_id);
         }
       };
+
+      const customCol = customColumns.find(c => c.col_key === columnId);
+      if (customCol) {
+        if (customCol.field_type === 'Yes/No') {
+          return (
+            <select
+              className="inline-edit-select"
+              value={editingCell.value || 'No'}
+              onChange={(e) => handleSelectChange(e.target.value)}
+              onBlur={handleBlur}
+              autoFocus
+            >
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
+          );
+        }
+        if (isDateTimeType(customCol.field_type)) {
+          return (
+            <input
+              type="datetime-local"
+              className="inline-edit-input"
+              value={editingCell.value ? String(editingCell.value).slice(0, 16) : ''}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+          );
+        }
+        if (isDateType(customCol.field_type)) {
+          return (
+            <input
+              type="date"
+              className="inline-edit-input"
+              value={editingCell.value ? String(editingCell.value).split('T')[0] : ''}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+          );
+        }
+        if (customCol.field_type === 'Number') {
+          return (
+            <input
+              type="number"
+              className="inline-edit-input"
+              value={editingCell.value ?? ''}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+            />
+          );
+        }
+        return (
+          <input
+            type="text"
+            className="inline-edit-input"
+            value={editingCell.value ?? ''}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={handleBlur}
+            onKeyDown={handleKeyDown}
+            autoFocus
+          />
+        );
+      }
 
       if (['priority', 'status', 'qc_status'].includes(columnId)) {
         let options = [];
@@ -335,6 +438,49 @@ export default function PlanningModule() {
           />
         );
       }
+    }
+
+    const customCol = customColumns.find(c => c.col_key === columnId);
+    if (customCol) {
+      const val = order.custom_fields?.[columnId];
+      if (val === undefined || val === null || val === '') {
+        return (
+          <span 
+            className="dim text-xs" 
+            style={{ cursor: canEdit ? 'pointer' : 'default', padding: '2px 4px', display: 'inline-block' }}
+            title={canEdit ? "Click to edit" : undefined}
+          >
+            —
+          </span>
+        );
+      }
+
+      if (isDateTimeType(customCol.field_type)) {
+        return formatDateTime(val);
+      }
+
+      if (isDateType(customCol.field_type)) {
+        return formatDate(val);
+      }
+
+      if (customCol.field_type === 'Yes/No') {
+        const isYes = String(val).toLowerCase() === 'yes';
+        return (
+          <span style={{
+            display: 'inline-block',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontSize: '11px',
+            fontWeight: 600,
+            background: isYes ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+            color: isYes ? '#34d399' : '#f87171'
+          }}>
+            {val}
+          </span>
+        );
+      }
+
+      return <span>{String(val)}</span>;
     }
 
     switch (columnId) {
@@ -546,7 +692,31 @@ export default function PlanningModule() {
 
   useEffect(() => {
     fetchPlanningData();
+    fetchColumnMasters();
+
+    const handleMastersUpdate = () => fetchColumnMasters();
+    window.addEventListener('columnMastersUpdated', handleMastersUpdate);
+    return () => window.removeEventListener('columnMastersUpdated', handleMastersUpdate);
   }, []);
+
+  const fetchColumnMasters = async () => {
+    try {
+      const res = await fetch(window.API_BASE + "/api/column-masters", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const planningVis = data.visibilityByDept?.['Planning'] || {};
+        const visibleCustom = (data.columns || []).filter(c => {
+          if (c.is_system) return false;
+          return planningVis[c.col_key] !== false;
+        });
+        setCustomColumns(visibleCustom);
+      }
+    } catch (err) {
+      console.error('Error fetching column masters for planning:', err);
+    }
+  };
 
   const fetchPlanningData = async () => {
     try {
@@ -577,10 +747,21 @@ export default function PlanningModule() {
       priority: order.priority || 'Medium',
       status: order.status || 'Not Started',
       qc_status: order.qc_status || 'Pending',
-      qc_date: order.qc_date ? order.qc_date.split('T')[0] : ''
+      qc_date: order.qc_date ? order.qc_date.split('T')[0] : '',
+      custom_fields: { ...(order.custom_fields || {}) }
     });
     setErrorMessage('');
     setSuccessMessage('');
+  };
+
+  const handleCustomFieldChange = (colKey, value) => {
+    setEditForm(prev => ({
+      ...prev,
+      custom_fields: {
+        ...(prev.custom_fields || {}),
+        [colKey]: value
+      }
+    }));
   };
 
   const handleFormChange = (e) => {
@@ -654,6 +835,7 @@ export default function PlanningModule() {
         qc_date: unitObj?.qc_date || order.qc_date,
         mounting_start_date: unitObj?.mounting_start_date || order.mounting_start_date,
         mounting_complete_date: unitObj?.mounting_complete_date || order.mounting_complete_date,
+        custom_fields: unitObj?.custom_fields || order.custom_fields || {},
         row_key: `${order.line_item_id}-${i}`
       });
     }
@@ -675,6 +857,10 @@ export default function PlanningModule() {
       const endClient = (order.end_client_name || '').toLowerCase();
       const unitSerial = (order.specific_unit_serial || order.unit_numbers || '').toLowerCase();
       
+      const customMatches = Object.values(order.custom_fields || {}).some(val => 
+        val && String(val).toLowerCase().includes(tokens[0])
+      );
+
       matchesSearch = tokens.every(token => 
         orderNum.includes(token) ||
         lineItemNum.includes(token) ||
@@ -685,7 +871,8 @@ export default function PlanningModule() {
         partNum.includes(token) ||
         compName.includes(token) ||
         endClient.includes(token) ||
-        unitSerial.includes(token)
+        unitSerial.includes(token) ||
+        customMatches
       );
     }
 
@@ -726,6 +913,20 @@ export default function PlanningModule() {
       const bTotal = parseInt(b.total_steps || 0);
       const bDone = parseInt(b.done_steps || 0);
       bv = bTotal > 0 ? bDone / bTotal : 0;
+    } else if (customColKeys.includes(sortKey)) {
+      const colDef = customColumns.find(c => c.col_key === sortKey);
+      const aVal = a.custom_fields?.[sortKey] ?? '';
+      const bVal = b.custom_fields?.[sortKey] ?? '';
+      if (isDateType(colDef?.field_type) || isDateTimeType(colDef?.field_type)) {
+        av = aVal ? new Date(aVal).getTime() : Infinity;
+        bv = bVal ? new Date(bVal).getTime() : Infinity;
+      } else if (colDef?.field_type === 'Number') {
+        av = aVal !== '' ? Number(aVal) : Infinity;
+        bv = bVal !== '' ? Number(bVal) : Infinity;
+      } else {
+        av = String(aVal).toLowerCase();
+        bv = String(bVal).toLowerCase();
+      }
     } else {
       av = (a[sortKey] || '').toString().toLowerCase();
       bv = (b[sortKey] || '').toString().toLowerCase();
@@ -863,19 +1064,64 @@ export default function PlanningModule() {
     if (['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'LABEL'].includes(e.target.tagName?.toUpperCase()) || e.target.closest('button') || e.target.closest('input[type="checkbox"]')) {
       return;
     }
+    const isCustom = customColumns.some(c => c.col_key === colId);
+    if (isCustom) {
+      e.stopPropagation();
+      const currentVal = order.custom_fields?.[colId] ?? '';
+      setEditingCell({
+        lineItemId: order.line_item_id,
+        unitId: order.specific_unit_id,
+        colId,
+        value: currentVal,
+        oldValue: currentVal
+      });
+      return;
+    }
     handleEditClick(order);
   };
 
-  const saveInlineField = async (lineItemId, colId, value, oldValue) => {
+  const saveInlineField = async (lineItemId, colId, value, oldValue, unitId = null) => {
     if (value === oldValue) {
       setEditingCell(null);
       return;
     }
 
-    setSavingCell({ lineItemId, colId });
+    setSavingCell({ lineItemId, colId, unitId });
     setEditingCell(null);
 
     try {
+      const isCustom = customColumns.some(c => c.col_key === colId);
+      if (isCustom) {
+        const targetOrder = repeatedOrders.find(o => 
+          (unitId && o.specific_unit_id === unitId) || (!unitId && o.line_item_id === lineItemId)
+        ) || orders.find(o => o.line_item_id === lineItemId);
+
+        const currentCustom = targetOrder?.custom_fields || {};
+        const updatedCustom = { ...currentCustom, [colId]: value };
+
+        const endpoint = unitId
+          ? `${window.API_BASE}/api/planning/units/${unitId}`
+          : `${window.API_BASE}/api/planning/line-items/${lineItemId}`;
+
+        const res = await fetch(endpoint, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ custom_fields: updatedCustom })
+        });
+
+        if (res.ok) {
+          await fetchPlanningData();
+          window.dispatchEvent(new CustomEvent('orderUpdated'));
+        } else {
+          const data = await res.json();
+          alert(data.error || 'Failed to update custom field.');
+        }
+        return;
+      }
+
       let fieldName = colId;
       if (colId === 'planned_dispatch') fieldName = 'planned_dispatch_date';
       else if (colId === 'mounting_start') fieldName = 'mounting_start_date';
@@ -903,7 +1149,11 @@ export default function PlanningModule() {
 
       updateForm[fieldName] = value;
 
-      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${lineItemId}`, {
+      const endpoint = unitId
+        ? `${window.API_BASE}/api/planning/units/${unitId}`
+        : `${window.API_BASE}/api/planning/line-items/${lineItemId}`;
+
+      const res = await fetch(endpoint, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -929,6 +1179,13 @@ export default function PlanningModule() {
 
   const getGroupKeyValue = (order, field) => {
     if (!field || field === 'none') return '';
+    const customCol = customColumns.find(c => c.col_key === field);
+    if (customCol) {
+      const val = order.custom_fields?.[field];
+      if (isDateTimeType(customCol.field_type)) return formatDateTime(val);
+      if (isDateType(customCol.field_type)) return formatDate(val);
+      return val || 'Unspecified';
+    }
     switch (field) {
       case 'planned_dispatch': return formatDate(order.planned_dispatch_date);
       case 'mounting_start': return formatDate(order.mounting_start_date);
@@ -1131,6 +1388,9 @@ export default function PlanningModule() {
               <option value="qc_date">QC Passed Date</option>
               <option value="delivery_date">Order Delivery Date</option>
               <option value="active_dept">Active Dept</option>
+              {customColumns.map(c => (
+                <option key={c.col_key} value={c.col_key}>{c.label}</option>
+              ))}
             </select>
           </div>
 
@@ -1156,6 +1416,9 @@ export default function PlanningModule() {
               <option value="qc_date">QC Passed Date</option>
               <option value="delivery_date">Order Delivery Date</option>
               <option value="active_dept">Active Dept</option>
+              {customColumns.map(c => (
+                <option key={c.col_key} value={c.col_key}>{c.label}</option>
+              ))}
             </select>
           </div>
 
@@ -1554,6 +1817,64 @@ export default function PlanningModule() {
                     className="form-input"
                   />
                 </div>
+
+                {customColumns.length > 0 && (
+                  <>
+                    <div style={{ gridColumn: '1 / -1', marginTop: '10px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--accent, #f59e0b)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Custom Planning Fields
+                      </span>
+                    </div>
+                    {customColumns.map(col => {
+                      const val = editForm.custom_fields?.[col.col_key] || '';
+                      return (
+                        <div key={col.col_key} className="modal-field">
+                          <label>{col.label}</label>
+                          {isDateTimeType(col.field_type) ? (
+                            <input
+                              type="datetime-local"
+                              value={val ? String(val).slice(0, 16) : ''}
+                              onChange={(e) => handleCustomFieldChange(col.col_key, e.target.value)}
+                              className="form-input"
+                            />
+                          ) : isDateType(col.field_type) ? (
+                            <input
+                              type="date"
+                              value={val ? String(val).split('T')[0] : ''}
+                              onChange={(e) => handleCustomFieldChange(col.col_key, e.target.value)}
+                              className="form-input"
+                            />
+                          ) : col.field_type === 'Number' ? (
+                            <input
+                              type="number"
+                              value={val}
+                              onChange={(e) => handleCustomFieldChange(col.col_key, e.target.value)}
+                              className="form-input"
+                              placeholder={`Enter ${col.label}...`}
+                            />
+                          ) : col.field_type === 'Yes/No' ? (
+                            <select
+                              value={val || 'No'}
+                              onChange={(e) => handleCustomFieldChange(col.col_key, e.target.value)}
+                              className="form-select"
+                            >
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                            </select>
+                          ) : (
+                            <input
+                              type="text"
+                              value={val}
+                              onChange={(e) => handleCustomFieldChange(col.col_key, e.target.value)}
+                              className="form-input"
+                              placeholder={`Enter ${col.label}...`}
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
 
               <div className="modal-actions">

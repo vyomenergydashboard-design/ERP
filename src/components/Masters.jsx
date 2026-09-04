@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DEPTS } from '../data/planningData';
 
-const FIELD_TYPES = ['Text', 'Number', 'Date', 'Yes/No', 'Dropdown'];
+const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
 // Known DB fields admins can pick from (grouped by category)
 const DATAKEY_OPTIONS = [
@@ -165,6 +165,7 @@ export default function Masters() {
   const [visibilityByDept, setVisibilityByDept] = useState({});
   const [showColModal, setShowColModal] = useState(false);
   const [colFormData, setColFormData] = useState({ label: '', col_key: '', category: 'Order', field_type: 'Text' });
+  const [colKeyManuallyEdited, setColKeyManuallyEdited] = useState(false);
   const [savingVisibility, setSavingVisibility] = useState(false);
   const [colSaveSuccess, setColSaveSuccess] = useState('');
 
@@ -413,6 +414,7 @@ export default function Masters() {
         setShowColModal(false);
         setColFormData({ label: '', col_key: '', category: 'Order', field_type: 'Text' });
         fetchColumnMasters();
+        window.dispatchEvent(new CustomEvent('columnMastersUpdated'));
       } else {
         const errMsg = await safeJsonError(res, 'Failed to create column master');
         alert(errMsg);
@@ -427,7 +429,10 @@ export default function Masters() {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (res.ok) fetchColumnMasters();
+      if (res.ok) {
+        fetchColumnMasters();
+        window.dispatchEvent(new CustomEvent('columnMastersUpdated'));
+      }
       else {
         const errMsg = await safeJsonError(res, 'Failed to delete column master');
         alert(errMsg);
@@ -445,6 +450,7 @@ export default function Masters() {
       });
       if (res.ok) {
         setColSaveSuccess('Department column visibility matrix saved!');
+        window.dispatchEvent(new CustomEvent('columnMastersUpdated'));
         setTimeout(() => setColSaveSuccess(''), 3000);
       }
     } catch (err) {
@@ -733,7 +739,11 @@ export default function Masters() {
             </div>
             {canEditMasters && (
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button className="vbtn" onClick={() => setShowColModal(true)}>+ Add Custom Column</button>
+                <button className="vbtn" onClick={() => {
+                  setColFormData({ label: '', col_key: '', category: 'Order', field_type: 'Text' });
+                  setColKeyManuallyEdited(false);
+                  setShowColModal(true);
+                }}>+ Add Custom Column</button>
                 <button
                   className="vbtn"
                   style={{ background: 'var(--accent)', color: '#fff' }}
@@ -1338,11 +1348,11 @@ export default function Masters() {
                     value={colFormData.label}
                     onChange={(e) => {
                       const labelVal = e.target.value;
-                      const autoKey = labelVal.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                      const autoKey = labelVal.toLowerCase().replace(/[^a-z0-9_]/g, '_').replace(/^_+|_+$/g, '');
                       setColFormData(p => ({
                         ...p,
                         label: labelVal,
-                        col_key: p.col_key ? p.col_key : autoKey
+                        col_key: colKeyManuallyEdited ? p.col_key : autoKey
                       }));
                     }}
                   />
@@ -1355,8 +1365,16 @@ export default function Masters() {
                     required
                     placeholder="e.g. special_tag"
                     value={colFormData.col_key}
-                    onChange={(e) => setColFormData({ ...colFormData, col_key: e.target.value })}
+                    onChange={(e) => {
+                      setColKeyManuallyEdited(true);
+                      setColFormData({ ...colFormData, col_key: e.target.value });
+                    }}
                   />
+                  {columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) && (
+                    <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>
+                      ⚠️ Column Key "{colFormData.col_key.trim().toLowerCase()}" already exists. Please enter a different key.
+                    </div>
+                  )}
                 </div>
                 <div className="modal-field">
                   <label>Category</label>
@@ -1382,13 +1400,24 @@ export default function Masters() {
                     <option value="Text">Text</option>
                     <option value="Number">Number</option>
                     <option value="Date">Date</option>
+                    <option value="Date & Time">Date & Time</option>
                     <option value="Dropdown">Dropdown</option>
                     <option value="Yes/No">Yes/No</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
                   <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowColModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">Create Column</button>
+                  <button
+                    type="submit"
+                    className="vbtn"
+                    disabled={columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()}
+                    style={{
+                      opacity: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 0.5 : 1,
+                      cursor: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    Create Column
+                  </button>
                 </div>
               </form>
             </div>

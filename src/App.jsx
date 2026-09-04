@@ -481,6 +481,7 @@ function Dashboard() {
           ) : currentView === 'table' ? (
             <AllOrdersTableView 
               currentFilter={currentFilter} 
+              userRole={user?.role}
               onSetView={navigateToView}
               statCardFilter={statCardFilter}
               onClearStatFilter={() => setStatCardFilter(null)}

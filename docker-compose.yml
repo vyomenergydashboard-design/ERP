@@ -36,7 +36,7 @@ services:
       - /app/node_modules
     ports:
       - "5000:5000"
-    command: sh -c "npm install && node index.js"
+    command: sh -c "node index.js"
     environment:
       - DB_USER=postgres
       - DB_PASSWORD=postgres

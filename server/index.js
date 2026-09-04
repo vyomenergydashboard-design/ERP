@@ -17,24 +17,42 @@ const __dirname = path.dirname(__filename);
 
 // Hold validation helpers
 const isOrderOnHold = async (orderId) => {
-  const res = await pool.query("SELECT hold_status FROM orders WHERE id = $1", [orderId]);
-  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  if (!orderId || isNaN(Number(orderId))) return false;
+  try {
+    const res = await pool.query("SELECT hold_status FROM orders WHERE id = $1", [orderId]);
+    return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  } catch (err) {
+    console.error('isOrderOnHold error:', err);
+    return false;
+  }
 };
 
 const isUnitOnHold = async (unitId) => {
-  const res = await pool.query(
-    "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1",
-    [unitId]
-  );
-  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  if (!unitId || isNaN(Number(unitId))) return false;
+  try {
+    const res = await pool.query(
+      "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1",
+      [unitId]
+    );
+    return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  } catch (err) {
+    console.error('isUnitOnHold error:', err);
+    return false;
+  }
 };
 
 const isLineItemOnHold = async (lineItemId) => {
-  const res = await pool.query(
-    "SELECT o.hold_status FROM orders o JOIN order_line_items oli ON oli.order_id = o.id WHERE oli.id = $1",
-    [lineItemId]
-  );
-  return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  if (!lineItemId || isNaN(Number(lineItemId))) return false;
+  try {
+    const res = await pool.query(
+      "SELECT o.hold_status FROM orders o JOIN order_line_items oli ON oli.order_id = o.id WHERE oli.id = $1",
+      [lineItemId]
+    );
+    return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+  } catch (err) {
+    console.error('isLineItemOnHold error:', err);
+    return false;
+  }
 };
 
 let isSystemSeeding = false;
@@ -1092,8 +1110,8 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         const unit_id = formatOrderNumber(year, globalUnitCounter);
         const short_serial = unit_id;
         const unitResult = await client.query(
-          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1, $2, $3, $4) RETURNING id`,
-          [order.id, lineItem.id, unit_id, short_serial]
+          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard']
         );
         createdUnits.push(unitResult.rows[0].id);
         globalUnitCounter++;
@@ -1456,7 +1474,7 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
 });
 
 // Amend a single line item's core details
-app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   const { orderId, liId } = req.params;
   const {
     material_description,
@@ -1480,53 +1498,81 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
     const liCheck = await pool.query('SELECT id FROM order_line_items WHERE id = $1 AND order_id = $2', [liId, orderId]);
     if (liCheck.rows.length === 0) return res.status(404).json({ error: 'Line item not found for this order' });
 
-    // Calculate delivery_date as 4 weeks from the order's order_date
-    const resolved_order_date = order_date ? (order_date instanceof Date ? order_date.toISOString().split('T')[0] : String(order_date).split('T')[0]) : new Date().toISOString().split('T')[0];
-    const orderDateObj = new Date(resolved_order_date);
-    const deliveryDateObj = new Date(orderDateObj);
-    deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
-    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+    const updates = [];
+    const values = [];
+    let idx = 1;
 
-    const qty = quantity ? parseInt(quantity) : null;
-    const price = unit_price ? parseFloat(unit_price) : null;
-    const total = qty != null && price != null ? qty * price : null;
-
-    if (price !== null) {
-      if (isNaN(price) || price < 0 || price > 9999999999999.99) {
+    if (material_description !== undefined) {
+      updates.push(`material_description = $${idx++}`);
+      values.push(material_description || null);
+    }
+    if (part_number !== undefined) {
+      updates.push(`part_number = $${idx++}`);
+      values.push(part_number || null);
+    }
+    if (panel_type_size !== undefined) {
+      updates.push(`panel_type_size = $${idx++}`);
+      values.push(panel_type_size || null);
+    }
+    if (quantity !== undefined) {
+      const qty = quantity ? parseInt(quantity) : null;
+      updates.push(`quantity = $${idx++}`);
+      values.push(qty);
+    }
+    if (unit !== undefined) {
+      updates.push(`unit = $${idx++}`);
+      values.push(unit || null);
+    }
+    if (unit_price !== undefined) {
+      const price = unit_price ? parseFloat(unit_price) : null;
+      if (price !== null && (isNaN(price) || price < 0 || price > 9999999999999.99)) {
         return res.status(400).json({ error: "Unit price must be a valid number between 0 and 9,999,999,999,999.99." });
       }
+      updates.push(`unit_price = $${idx++}`);
+      values.push(price);
     }
-    if (total !== null) {
-      if (isNaN(total) || total < 0 || total > 9999999999999.99) {
+    if (req.body.total_price !== undefined || (quantity !== undefined && unit_price !== undefined)) {
+      let total = null;
+      if (req.body.total_price !== undefined) {
+        total = parseFloat(req.body.total_price);
+      } else if (quantity && unit_price) {
+        total = parseInt(quantity) * parseFloat(unit_price);
+      }
+      if (total !== null && (isNaN(total) || total < 0 || total > 9999999999999.99)) {
         return res.status(400).json({ error: "Total price must be a valid number between 0 and 9,999,999,999,999.99." });
       }
+      updates.push(`total_price = $${idx++}`);
+      values.push(total);
+    }
+    if (delivery_date !== undefined) {
+      // If delivery_date is passed, or calculate from order_date
+      let calculated_delivery_date = delivery_date;
+      if (!calculated_delivery_date) {
+        const resolved_order_date = order_date ? (order_date instanceof Date ? order_date.toISOString().split('T')[0] : String(order_date).split('T')[0]) : new Date().toISOString().split('T')[0];
+        const orderDateObj = new Date(resolved_order_date);
+        const deliveryDateObj = new Date(orderDateObj);
+        deliveryDateObj.setDate(orderDateObj.getDate() + 28);
+        calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+      }
+      updates.push(`delivery_date = $${idx++}`);
+      values.push(calculated_delivery_date);
+    }
+    if (notes !== undefined) {
+      updates.push(`notes = $${idx++}`);
+      values.push(notes || null);
     }
 
+    if (updates.length === 0) {
+      return res.json({ success: true, message: 'No changes provided' });
+    }
+
+    values.push(liId);
     const result = await pool.query(
       `UPDATE order_line_items
-       SET material_description = COALESCE($1, material_description),
-           part_number           = $2,
-           panel_type_size       = $3,
-           quantity              = COALESCE($4, quantity),
-           unit                  = COALESCE($5, unit),
-           unit_price            = COALESCE($6, unit_price),
-           total_price           = COALESCE($7, total_price),
-           delivery_date         = $8,
-           notes                 = $9
-       WHERE id = $10
+       SET ${updates.join(', ')}
+       WHERE id = $${idx}
        RETURNING *`,
-      [
-        material_description || null,
-        part_number !== undefined ? (part_number || null) : undefined,
-        panel_type_size !== undefined ? (panel_type_size || null) : undefined,
-        qty,
-        unit || null,
-        price,
-        total,
-        calculated_delivery_date,
-        notes !== undefined ? (notes || null) : undefined,
-        liId,
-      ]
+      values
     );
 
     await pool.query(
@@ -1887,8 +1933,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           const unit_id = formatOrderNumber(new Date().getFullYear(), globalUnitCounter);
           const short_serial = unit_id;
           const unitResult = await client.query(
-            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial) VALUES ($1,$2,$3,$4) RETURNING id`,
-            [order.id, lineItem.id, unit_id, short_serial]
+            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+            [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard']
           );
           createdUnits.push(unitResult.rows[0].id);
           globalUnitCounter++;
@@ -2123,7 +2169,7 @@ const resolveCustomFieldValues = async (customFields, orderId, unitId = null) =>
         o.planned_dispatch_date, o.wiring_assigned_date, o.wiring_expected_date, o.expected_qc_date,
         c.name as company_name,
         cl.city as company_city, cl.person_in_charge, cl.contact_number, cl.email as company_email,
-        li.material_description, li.part_number, li.panel_type_size,
+        li.material_description, li.part_number, COALESCE(u.panel_type_size, li.panel_type_size) as panel_type_size,
         li.delivery_date as line_item_delivery_date, li.quantity, li.unit,
         li.unit_price, li.total_price, li.notes as line_item_notes,
         u.unit_id as unit_serial, u.short_serial, u.current_dept, u.status as unit_status
@@ -2623,6 +2669,7 @@ app.get('/api/planning', authorize(), async (req, res) => {
           oli.part_number,
           oli.line_item_number,
           oli.quantity,
+          oli.custom_fields,
           (
               SELECT STRING_AGG(ou.unit_id, ', ' ORDER BY ou.id ASC)
               FROM order_units ou
@@ -2647,7 +2694,8 @@ app.get('/api/planning', authorize(), async (req, res) => {
                 'qc_status', COALESCE(ou.qc_status, oli.qc_status, 'Pending'),
                 'qc_date', COALESCE(ou.qc_date, oli.qc_date),
                 'mounting_start_date', COALESCE(ou.mounting_start_date, oli.mounting_start_date),
-                'mounting_complete_date', COALESCE(ou.mounting_complete_date, oli.mounting_complete_date)
+                'mounting_complete_date', COALESCE(ou.mounting_complete_date, oli.mounting_complete_date),
+                'custom_fields', COALESCE(ou.custom_fields, oli.custom_fields, '{}'::jsonb)
               ) ORDER BY ou.id ASC)
               FROM order_units ou
               WHERE ou.line_item_id = oli.id
@@ -2779,12 +2827,25 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
         liUpdates.push(`mounting_complete_date = $${lIdx++}`);
         liParams.push(fields.mounting_complete_date || null);
       }
+      if (fields.hasOwnProperty('custom_fields') && fields.custom_fields) {
+        liUpdates.push(`custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $${lIdx++}::jsonb`);
+        liParams.push(JSON.stringify(fields.custom_fields));
+      }
 
       if (liUpdates.length > 0) {
         liParams.push(lineItemId);
         await client.query(
           `UPDATE order_line_items SET ${liUpdates.join(', ')} WHERE id = $${lIdx}`,
           liParams
+        );
+      }
+
+      if (fields.custom_fields) {
+        await client.query(
+          `UPDATE order_units 
+           SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $1::jsonb 
+           WHERE line_item_id = $2`,
+          [JSON.stringify(fields.custom_fields), lineItemId]
         );
       }
 
@@ -2818,7 +2879,8 @@ app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning'
     qc_status, 
     qc_date,
     mounting_start_date,
-    mounting_complete_date
+    mounting_complete_date,
+    custom_fields
   } = req.body;
   
   const client = await pool.connect();
@@ -2855,8 +2917,12 @@ app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning'
            qc_status = COALESCE($6, qc_status), 
            qc_date = $7,
            mounting_start_date = $8,
-           mounting_complete_date = $9
-       WHERE id = $10 
+           mounting_complete_date = $9,
+           custom_fields = CASE 
+             WHEN $10::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $10::jsonb 
+             ELSE custom_fields 
+           END
+       WHERE id = $11 
        RETURNING *`,
       [
         planned_dispatch_date || null, 
@@ -2868,6 +2934,7 @@ app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning'
         qc_date || null, 
         mounting_start_date || null,
         mounting_complete_date || null,
+        custom_fields ? JSON.stringify(custom_fields) : null,
         unitId
       ]
     );
@@ -2903,7 +2970,8 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
     qc_status, 
     qc_date,
     mounting_start_date,
-    mounting_complete_date
+    mounting_complete_date,
+    custom_fields
   } = req.body;
   
   const client = await pool.connect();
@@ -2933,8 +3001,12 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
            qc_status = COALESCE($6, qc_status), 
            qc_date = $7,
            mounting_start_date = $8,
-           mounting_complete_date = $9
-       WHERE id = $10 
+           mounting_complete_date = $9,
+           custom_fields = CASE 
+             WHEN $10::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $10::jsonb 
+             ELSE custom_fields 
+           END
+       WHERE id = $11 
        RETURNING *`,
       [
         planned_dispatch_date || null, 
@@ -2946,9 +3018,19 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
         qc_date || null, 
         mounting_start_date || null,
         mounting_complete_date || null,
+        custom_fields ? JSON.stringify(custom_fields) : null,
         req.params.lineItemId
       ]
     );
+
+    if (custom_fields) {
+      await client.query(
+        `UPDATE order_units 
+         SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) || $1::jsonb 
+         WHERE line_item_id = $2`,
+        [JSON.stringify(custom_fields), req.params.lineItemId]
+      );
+    }
 
     await client.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
@@ -3265,6 +3347,68 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
+app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning']), async (req, res) => {
+  const { id } = req.params;
+  if (!id || isNaN(Number(id))) {
+    return res.status(400).json({ error: 'Valid numeric unit ID is required' });
+  }
+  if (await isUnitOnHold(id)) {
+    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  }
+  const { panel_type_size, classification, custom_fields } = req.body;
+
+  try {
+    const checkUnit = await pool.query('SELECT id, order_id, unit_id FROM order_units WHERE id = $1', [id]);
+    if (checkUnit.rows.length === 0) {
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = checkUnit.rows[0];
+
+    const updates = [];
+    const values = [];
+    let idx = 1;
+
+    if (panel_type_size !== undefined) {
+      updates.push(`panel_type_size = $${idx++}`);
+      values.push(panel_type_size || null);
+    }
+
+    if (classification !== undefined) {
+      updates.push(`classification = $${idx++}`);
+      values.push(classification || 'Standard');
+    }
+
+    if (custom_fields !== undefined) {
+      updates.push(`custom_fields = $${idx++}`);
+      values.push(typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields));
+    }
+
+    if (updates.length === 0) {
+      return res.json({ success: true, message: 'No changes provided' });
+    }
+
+    values.push(id);
+    const result = await pool.query(
+      `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+
+    let logAction = `Updated unit ${unit.unit_id}`;
+    if (panel_type_size !== undefined) logAction += ` panel size: "${panel_type_size}"`;
+    if (classification !== undefined) logAction += ` classification: "${classification}"`;
+
+    await pool.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, logAction, unit.order_id]
+    );
+
+    res.json({ success: true, unit: result.rows[0] });
+  } catch (err) {
+    console.error('Failed to update unit:', err);
+    res.status(500).json({ error: 'Failed to update unit' });
+  }
+});
+
 app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Admin', 'Manager', 'Production']), async (req, res) => {
   if (await isLineItemOnHold(req.params.lineItemId)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
@@ -3332,14 +3476,15 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         o.end_client_name,
         o.priority,
         o.delivery_date,
-        o.classification,
+        COALESCE(ou.classification, o.classification, 'Standard') AS classification,
         cl.city        AS company_city,
         co.name        AS company_name,
         oli.id         AS line_item_id,
         oli.line_item_number,
         oli.material_description,
         oli.part_number,
-        oli.panel_type_size,
+        COALESCE(ou.panel_type_size, oli.panel_type_size) AS panel_type_size,
+        COALESCE(ou.custom_fields, '{}'::jsonb) AS custom_fields,
         oli.quantity   AS batch_qty,
         (
           SELECT json_agg(
@@ -3609,8 +3754,8 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
     
     const doc = result.rows[0];
     
-    // Optional: Only allow the uploader, Admin, or Manager to delete
-    if (doc.uploaded_by !== req.user.id && req.user.role !== 'Admin' && req.user.role !== 'Manager') {
+    // Optional: Only allow the uploader, Admin, Manager, or Design to delete
+    if (doc.uploaded_by !== req.user.id && !['Admin', 'Manager', 'Design'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
@@ -3917,7 +4062,7 @@ app.get('/api/part-number-masters', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
     const { part_number, description, category } = req.body;
     if (!part_number || !part_number.trim()) {
@@ -3947,7 +4092,7 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Sales']), a
   }
 });
 
-app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
     const { part_number, description, category } = req.body;
     if (!part_number || !part_number.trim()) {
@@ -3974,7 +4119,7 @@ app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Sales'])
   }
 });
 
-app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design']), async (req, res) => {
   try {
     const deleted = await pool.query('DELETE FROM part_number_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (deleted.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
@@ -4051,7 +4196,7 @@ app.delete('/api/panel-size-masters/:id', authorize(['Admin', 'Manager', 'Design
   }
 });
 
-app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager', 'Sales']), upload.array('files', 10), async (req, res) => {
+app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager', 'Design', 'Sales']), upload.array('files', 10), async (req, res) => {
   try {
     const partId = req.params.id;
     const partCheck = await pool.query('SELECT * FROM part_number_masters WHERE id = $1', [partId]);
@@ -4075,7 +4220,7 @@ app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager'
   }
 });
 
-app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
     const deleted = await pool.query('DELETE FROM part_number_documents WHERE id = $1 AND part_number_id = $2 RETURNING *', [req.params.docId, req.params.id]);
     if (deleted.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
