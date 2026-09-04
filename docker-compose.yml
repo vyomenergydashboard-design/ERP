@@ -8,7 +8,7 @@ services:
       - /app/node_modules
     ports:
       - "5173:5173"
-    command: sh -c "npm install && npm run dev"
+    command: sh -c "npm install --no-audit --no-fund && npm run dev"
     environment:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
@@ -36,7 +36,7 @@ services:
       - /app/node_modules
     ports:
       - "5000:5000"
-    command: sh -c "node index.js"
+    command: sh -c "npm install --no-audit --no-fund && node index.js"
     environment:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
