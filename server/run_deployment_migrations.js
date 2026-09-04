@@ -17,7 +17,18 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending',
       ADD COLUMN IF NOT EXISTS qc_date DATE,
       ADD COLUMN IF NOT EXISTS mounting_start_date DATE,
-      ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+      ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
+      ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
+      ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
+      ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+
+      ALTER TABLE order_line_items
+      ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
+      ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+
+      ALTER TABLE orders
+      ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
+      ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None';
     `);
 
     // Backfill unit planning fields if null

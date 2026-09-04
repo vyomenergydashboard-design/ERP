@@ -293,3 +293,12 @@ INSERT INTO panel_size_masters (size_name, description) VALUES
   ('2000x1000x800 mm', 'Heavy Duty Floor Standing Double Door Panel'),
   ('Custom', 'Customized Non-Standard Panel Dimensions')
 ON CONFLICT (size_name) DO NOTHING;
+
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None';
+
