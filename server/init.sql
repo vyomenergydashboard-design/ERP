@@ -79,6 +79,8 @@ CREATE TABLE IF NOT EXISTS order_units (
     status TEXT DEFAULT 'Pending',
     assigned_user INTEGER REFERENCES users(id),
     barcode TEXT,
+    panel_type_size TEXT,
+    classification TEXT DEFAULT 'Standard',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -181,6 +183,7 @@ ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pe
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 
 -- Planning Module columns for order_units (Unit Planning)
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS planned_dispatch_date DATE;
@@ -192,6 +195,7 @@ ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 
 -- System Settings (key-value store for admin-configurable DB-backed settings)
 CREATE TABLE IF NOT EXISTS system_settings (
