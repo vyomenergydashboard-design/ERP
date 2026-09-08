@@ -18,14 +18,19 @@ const STATUS_STYLES = {
   Completed:    { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
   Blocked:      { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
   'In Progress':{ bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
+  'In Process': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
   Pending:      { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-  'On Hold':    { bg: 'rgba(148,163,184,0.12)', color: '#94a3b8', border: 'rgba(148,163,184,0.3)' },
+  'Not Started':{ bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+  Hold:         { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
+  'On Hold':    { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
+  Cancelled:    { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
 };
 
 const BASE_COLUMNS = [
   { key: 'order_number',          label: 'Order #',       align: 'left' },
-  { key: 'short_serial',          label: 'Unit Serial',   align: 'left', alias: 'unit_serial' },
+  { key: 'short_serial',          label: 'Serial No.',    align: 'left', alias: 'unit_serial' },
   { key: 'company_name',          label: 'Customer',      align: 'left' },
+  { key: 'project_name',          label: 'Project Name',  align: 'left' },
   { key: 'po_number',             label: 'PO Number',     align: 'left' },
   { key: 'reference_number',      label: 'Ref #',         align: 'left' },
   { key: 'end_client_name',       label: 'End Client',    align: 'left' },
@@ -33,7 +38,6 @@ const BASE_COLUMNS = [
   { key: 'panel_type_size',       label: 'Panel Size',    align: 'left' },
   { key: 'material_description',  label: 'Description',   align: 'left' },
   { key: 'classification',        label: 'Type (Design)', align: 'center' },
-  { key: 'current_dept',          label: 'Current Dept',  align: 'left' },
   { key: 'priority',              label: 'Priority',      align: 'center' },
   { key: 'delivery_date',         label: 'Delivery',      align: 'left' },
   { key: 'unit_status',           label: 'Status',        align: 'center' },
@@ -79,20 +83,20 @@ const formatCustomDate = (val) => {
 };
 
 const DEFAULT_COL_WIDTHS = {
-  order_number: 130,
-  short_serial: 135,
-  company_name: 180,
-  po_number: 140,
-  reference_number: 130,
-  end_client_name: 140,
-  part_number: 140,
-  panel_type_size: 150,
+  order_number: 105,
+  short_serial: 120,
+  company_name: 175,
+  project_name: 140,
+  po_number: 110,
+  reference_number: 95,
+  end_client_name: 125,
+  part_number: 145,
+  panel_type_size: 155,
   material_description: 220,
-  classification: 130,
-  current_dept: 120,
-  priority: 110,
-  delivery_date: 130,
-  unit_status: 120,
+  classification: 115,
+  priority: 95,
+  delivery_date: 110,
+  unit_status: 105,
 };
 
 function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
@@ -118,7 +122,8 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
         width: Math.max(rect.width, 260)
       });
     }
-    setQuery(currentValue);
+    // Start with empty search query so all master dimensions from Masters -> Panel Sizes are visible immediately
+    setQuery('');
     setHighlightIndex(0);
     setIsOpen(true);
   };
@@ -264,7 +269,7 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
           gap: 6,
           width: '100%',
           maxWidth: '100%',
-          padding: '3px 8px',
+          padding: '2px 7px',
           borderRadius: 6,
           cursor: 'pointer',
           background: isOpen ? 'var(--bg3)' : 'rgba(59,130,246,0.07)',
@@ -902,7 +907,7 @@ function TechnicalDocsModal({
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text3)' }}>
               {selectedPart.unitSerial && (
-                <div>Unit Serial: <strong style={{ color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>{selectedPart.unitSerial}</strong></div>
+                <div>Serial No.: <strong style={{ color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>{selectedPart.unitSerial}</strong></div>
               )}
               {selectedPart.orderNumber && (
                 <div>Order #: <strong style={{ color: 'var(--text)' }}>{selectedPart.orderNumber}</strong></div>
@@ -1341,10 +1346,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('erp_all_activeTab') || 'all');
   const [priorityFilter, setPriorityFilter] = useState(() => localStorage.getItem('erp_all_priorityFilter') || 'all');
   const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('erp_all_statusFilter') || 'incomplete');
   const [sortKey, setSortKey] = useState(() => localStorage.getItem('erp_all_sortKey') || 'order_number');
   const [sortDir, setSortDir] = useState(() => localStorage.getItem('erp_all_sortDir') || 'asc');
+
+  useEffect(() => {
+    localStorage.setItem('erp_all_activeTab', activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     localStorage.setItem('erp_all_priorityFilter', priorityFilter);
@@ -1411,15 +1421,16 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const saved = localStorage.getItem('erp_all_colWidths');
-      return saved ? { ...DEFAULT_COL_WIDTHS, ...JSON.parse(saved) } : DEFAULT_COL_WIDTHS;
+      const savedV2 = localStorage.getItem('erp_all_colWidths_v2');
+      if (savedV2) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(savedV2) };
+      return DEFAULT_COL_WIDTHS;
     } catch (e) {
       return DEFAULT_COL_WIDTHS;
     }
   });
 
   useEffect(() => {
-    localStorage.setItem('erp_all_colWidths', JSON.stringify(columnWidths));
+    localStorage.setItem('erp_all_colWidths_v2', JSON.stringify(columnWidths));
   }, [columnWidths]);
 
   // Header Drag & Drop state
@@ -1494,6 +1505,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setPinnedKeys(['order_number', 'short_serial']);
     localStorage.removeItem('erp_all_column_order');
     localStorage.removeItem('erp_all_colWidths');
+    localStorage.removeItem('erp_all_colWidths_v2');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -1692,9 +1704,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           });
         }
       } else if (colKey === 'panel_type_size') {
-        const uId = unit.unit_id || unit.id;
+        const uId = unit.id || unit.unit_id;
         if (uId) {
-          await fetch(`${window.API_BASE}/api/units/${uId}`, {
+          const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -1702,6 +1714,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             },
             body: JSON.stringify({ panel_type_size: newValue })
           });
+          if (!res.ok) {
+            console.error('Failed to update panel size', await res.text());
+          }
         }
       } else {
         await fetch(`${window.API_BASE}/api/orders/${unit.order_id}`, {
@@ -1808,20 +1823,77 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     else { setSortKey(key); setSortDir('asc'); }
   };
 
+  const isStatusDone = (st) => {
+    if (!st) return false;
+    const s = String(st).trim().toLowerCase();
+    return s === 'done' || s === 'completed' || s === 'complete';
+  };
+
+  const isStatusInProgress = (st) => {
+    if (!st) return false;
+    const s = String(st).trim().toLowerCase();
+    return s === 'inprogress' || s === 'in progress' || s === 'in process' || s === 'review';
+  };
+
   const getUnitStatus = (unit) => {
-    if (unit.unit_status === 'Dispatched') return 'Completed';
-    if (unit.unit_status === 'Hold') return 'On Hold';
-    if (unit.dept_steps?.some(s => s.status === 'blocked')) return 'Blocked';
+    if (!unit) return 'Pending';
+
+    const rawUnitStatus = String(unit.unit_status || unit.status || '').trim().toLowerCase();
+    const rawHoldStatus = String(unit.hold_status || '').trim().toLowerCase();
+    const rawOrderStatus = String(unit.order_status || '').trim().toLowerCase();
+
+    // 1. Cancelled orders
+    if (rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
+        rawOrderStatus === 'cancelled' || rawOrderStatus === 'canceled') {
+      return 'Cancelled';
+    }
+
+    // 2. Hold orders
+    if (rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
+        rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
+        rawOrderStatus === 'hold' || rawOrderStatus === 'on hold') {
+      return 'Hold';
+    }
+
+    if (rawUnitStatus === 'dispatched' || isStatusDone(rawUnitStatus)) return 'Completed';
+    if (unit.dept_steps?.some(s => String(s.status).toLowerCase() === 'blocked')) return 'Blocked';
+
+    // Design workflow evaluation
+    const isDesignWorkflow = currentFilter === 'Design' || userRole?.toLowerCase() === 'design';
+    const stepsToCheck = isDesignWorkflow
+      ? (unit.dept_steps || unit.design_steps || [])
+      : (unit.dept_steps || []);
+
+    if (stepsToCheck && stepsToCheck.length > 0) {
+      const allDone = stepsToCheck.every(s => isStatusDone(s.status));
+      const releaseDocStep = stepsToCheck.find(s => 
+        s.name === 'Release Documents' || 
+        s.special === 'design' || 
+        String(s.name || '').toLowerCase().includes('design')
+      );
+      const isReleaseDocDone = releaseDocStep && isStatusDone(releaseDocStep.status);
+
+      if (allDone || (isDesignWorkflow && isReleaseDocDone)) {
+        return 'Completed';
+      }
+
+      const hasStarted = stepsToCheck.some(s => isStatusDone(s.status) || isStatusInProgress(s.status));
+      if (hasStarted) {
+        return 'In Progress';
+      }
+
+      return 'Pending';
+    }
 
     const hasInprogress = 
       Number(unit.inprogress_step_count || 0) > 0 ||
       Number(unit.order_inprogress_step_count || 0) > 0 ||
-      unit.dept_steps?.some(s => s.status === 'inprogress');
+      unit.dept_steps?.some(s => isStatusInProgress(s.status));
 
     const hasDone = 
       Number(unit.done_step_count || 0) > 0 ||
       Number(unit.order_done_step_count || 0) > 0 ||
-      unit.dept_steps?.some(s => s.status === 'done');
+      unit.dept_steps?.some(s => isStatusDone(s.status));
 
     if (hasInprogress || hasDone) {
       return 'In Progress';
@@ -1830,15 +1902,26 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return 'Pending';
   };
 
+  const holdCount = units.filter(u => {
+    const s = getUnitStatus(u);
+    return s === 'Hold' || s === 'On Hold';
+  }).length;
+
+  const cancelledCount = units.filter(u => getUnitStatus(u) === 'Cancelled').length;
+
   const filtered = units.filter(u => {
     const status = getUnitStatus(u);
+
+    // Tab-level filtering
+    if (activeTab === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
+    if (activeTab === 'cancelled' && status !== 'Cancelled') return false;
 
     // Apply Stat Card Filter if active
     if (statCardFilter === 'priority') {
       const p = (u.priority || 'Medium').toLowerCase();
       if (p !== 'urgent' && p !== 'high') return false;
     } else if (statCardFilter === 'inprogress') {
-      if (status !== 'In Progress') return false;
+      if (status !== 'In Progress' && status !== 'In Process') return false;
     } else if (statCardFilter === 'blocked') {
       if (status !== 'Blocked') return false;
     } else if (statCardFilter === 'due') {
@@ -1851,12 +1934,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }
 
     if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
-    if (statusFilter === 'incomplete' && status === 'Completed') return false;
-    if (statusFilter === 'completed' && status !== 'Completed') return false;
-    if (statusFilter === 'pending' && status !== 'Pending') return false;
-    if (statusFilter === 'inprogress' && status !== 'In Progress') return false;
-    if (statusFilter === 'blocked' && status !== 'Blocked') return false;
-    if (statusFilter === 'hold' && status !== 'On Hold') return false;
+    
+    // Status filter dropdown (when in All Orders tab)
+    if (activeTab === 'all') {
+      if ((statusFilter === 'incomplete' || statusFilter === 'active') && (status === 'Completed' || status === 'Cancelled')) return false;
+      if (statusFilter === 'completed' && status !== 'Completed') return false;
+      if ((statusFilter === 'pending' || statusFilter === 'not_started') && status !== 'Pending' && status !== 'Not Started') return false;
+      if ((statusFilter === 'inprogress' || statusFilter === 'in_process') && status !== 'In Progress' && status !== 'In Process') return false;
+      if (statusFilter === 'blocked' && status !== 'Blocked') return false;
+    }
     
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
@@ -1943,12 +2029,19 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const isPinned = (colKey) => pinnedKeys.includes(colKey);
   const isLastPinned = (colKey) => pinnedCols.length > 0 && pinnedCols[pinnedCols.length - 1].key === colKey;
 
-  const getColStyle = (colKey, isHeader = false, isAltRow = false) => {
+  const getColStyle = (colKey, isHeader = false, isAltRow = false, rowHighlight = null) => {
     const colDef = allColumns.find(c => c.key === colKey);
-    const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 140);
+    const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 125);
     const width = columnWidths[colKey] || defaultWidth;
     const pinned = isPinned(colKey);
     const lastPin = isLastPinned(colKey);
+
+    let pinnedBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
+    if (rowHighlight === 'cancelled') {
+      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)';
+    } else if (rowHighlight === 'hold') {
+      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)';
+    }
 
     return {
       width,
@@ -1957,12 +2050,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       boxSizing: 'border-box',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+      verticalAlign: 'middle',
       position: pinned ? 'sticky' : 'relative',
       left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
       zIndex: pinned ? (isHeader ? 15 : 3) : (isHeader ? 10 : 1),
       background: isHeader
         ? 'var(--bg3)'
-        : (pinned ? (isAltRow ? 'var(--bg2)' : 'var(--bg)') : undefined),
+        : (pinned ? pinnedBg : undefined),
       boxShadow: lastPin ? '4px 0 8px -3px rgba(0,0,0,0.35)' : undefined
     };
   };
@@ -1974,7 +2069,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
     const priority = unit.priority || 'Medium';
     const priorityStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.Medium;
-    const isOverdue = unit.delivery_date && new Date(unit.delivery_date) < new Date() && status !== 'Completed';
+    const isOverdue = unit.delivery_date && new Date(unit.delivery_date) < new Date() && status !== 'Completed' && status !== 'Cancelled';
     const effectiveUnitId = unit.unit_id || unit.id;
 
     switch (colKey) {
@@ -1995,7 +2090,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <div 
             onClick={(e) => { e.stopPropagation(); handleRowClick(unit.order_id, effectiveUnitId); }} 
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-            title="Click to view Process Flow for this Unit Serial"
+            title="Click to view Process Flow for this Serial No."
           >
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6', fontSize: 12, textDecoration: 'underline' }}>
               {unit.unit_serial}
@@ -2005,10 +2100,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       case 'company_name':
         return (
-          <>
+          <div 
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            title={unit.company_name ? `${unit.company_name}${unit.company_city ? ` · ${unit.company_city}` : ''}` : undefined}
+          >
             <span style={{ fontWeight: 600, color: 'var(--text)' }}>{unit.company_name || '—'}</span>
             {unit.company_city && <span style={{ color: 'var(--text3)', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>· {unit.company_city}</span>}
-          </>
+          </div>
         );
 
       case 'classification':
@@ -2071,17 +2169,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
           }}>
             {priority}
-          </span>
-        );
-
-      case 'current_dept':
-        return (
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-            background: 'rgba(99,102,241,0.12)', color: '#818cf8',
-            border: '1px solid rgba(99,102,241,0.25)', textTransform: 'uppercase', letterSpacing: '0.4px'
-          }}>
-            {unit.current_dept || 'Sales'}
           </span>
         );
 
@@ -2383,7 +2470,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           );
         }
 
-        const isEditableTextCol = ['end_client_name', 'po_number', 'reference_number', 'material_description'].includes(colKey);
+        const isEditableTextCol = ['project_name', 'end_client_name', 'po_number', 'reference_number', 'material_description'].includes(colKey);
 
         return (
           <span
@@ -2393,11 +2480,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
               }
             }}
-            title={canEdit && isEditableTextCol ? "Click to edit" : undefined}
+            title={canEdit && isEditableTextCol ? "Click to edit" : (currentVal ? String(currentVal) : undefined)}
             style={{
-              color: colKey === 'reference_number' ? '#f59e0b' : 'var(--text2)',
+              color: colKey === 'reference_number' ? '#f59e0b' : (colKey === 'project_name' ? '#38bdf8' : 'var(--text2)'),
               fontSize: 12,
-              cursor: canEdit && isEditableTextCol ? 'pointer' : 'default'
+              cursor: canEdit && isEditableTextCol ? 'pointer' : 'default',
+              display: 'block',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
             }}
           >
             {currentVal || '—'}
@@ -2414,6 +2505,123 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
+
+      {/* ── Tabs Bar (All Orders, Hold, Cancelled) ─────────────── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        background: 'var(--bg2)',
+        borderBottom: '1px solid var(--border)',
+        padding: '0 16px',
+        gap: 6
+      }}>
+        {/* All Orders Tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('all')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'all' ? '2px solid var(--blue)' : '2px solid transparent',
+            color: activeTab === 'all' ? 'var(--text)' : 'var(--text3)',
+            padding: '11px 16px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: activeTab === 'all' ? 600 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: '-1px',
+            transition: 'all 0.15s'
+          }}
+        >
+          <span>All Orders</span>
+          <span style={{
+            background: activeTab === 'all' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg3)',
+            color: activeTab === 'all' ? '#3b82f6' : 'var(--text3)',
+            borderRadius: 10,
+            padding: '1px 7px',
+            fontSize: 11,
+            fontWeight: 700
+          }}>
+            {units.length}
+          </span>
+        </button>
+
+        {/* Hold Tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('hold')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'hold' ? '2px solid #f59e0b' : '2px solid transparent',
+            color: activeTab === 'hold' ? '#f59e0b' : 'var(--text3)',
+            padding: '11px 16px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: activeTab === 'hold' ? 600 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: '-1px',
+            transition: 'all 0.15s'
+          }}
+        >
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#f59e0b', display: 'inline-block'
+          }} />
+          <span>Hold</span>
+          <span style={{
+            background: activeTab === 'hold' ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg3)',
+            color: activeTab === 'hold' ? '#f59e0b' : 'var(--text3)',
+            borderRadius: 10,
+            padding: '1px 7px',
+            fontSize: 11,
+            fontWeight: 700
+          }}>
+            {holdCount}
+          </span>
+        </button>
+
+        {/* Cancelled Tab */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('cancelled')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'cancelled' ? '2px solid #ef4444' : '2px solid transparent',
+            color: activeTab === 'cancelled' ? '#ef4444' : 'var(--text3)',
+            padding: '11px 16px',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: activeTab === 'cancelled' ? 600 : 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            marginBottom: '-1px',
+            transition: 'all 0.15s'
+          }}
+        >
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%',
+            background: '#ef4444', display: 'inline-block'
+          }} />
+          <span>Cancelled</span>
+          <span style={{
+            background: activeTab === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : 'var(--bg3)',
+            color: activeTab === 'cancelled' ? '#ef4444' : 'var(--text3)',
+            borderRadius: 10,
+            padding: '1px 7px',
+            fontSize: 11,
+            fontWeight: 700
+          }}>
+            {cancelledCount}
+          </span>
+        </button>
+      </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div style={{
@@ -2432,7 +2640,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search unit serial, PO, description, customer..."
+            placeholder="Search serial no., PO, description, customer..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{
@@ -2457,12 +2665,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           }}
         >
           <option value="all">All Status</option>
-          <option value="incomplete">Incomplete</option>
-          <option value="pending">Pending</option>
-          <option value="inprogress">In Progress</option>
+          <option value="incomplete">Not Started + In Process</option>
+          <option value="pending">Not Started</option>
+          <option value="inprogress">In Process</option>
           <option value="completed">Completed</option>
           <option value="blocked">Blocked</option>
-          <option value="hold">On Hold</option>
         </select>
 
         {/* Priority filter */}
@@ -2595,23 +2802,24 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                       cursor: 'grab',
                       userSelect: 'none',
                       whiteSpace: 'nowrap',
-                      padding: '11px 12px',
+                      padding: '8px 8px',
                       fontSize: '11px',
                       fontWeight: 700,
                       textTransform: 'uppercase',
-                      letterSpacing: '0.6px',
+                      letterSpacing: '0.5px',
                       color: sortKey === colKey ? 'var(--blue)' : 'var(--text3)',
                       borderBottom: '1px solid var(--border)',
-                      textAlign: align
+                      textAlign: align,
+                      verticalAlign: 'middle'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 6, width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 4, width: '100%' }}>
                       <div 
                         onClick={() => handleSort(colKey)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', overflow: 'hidden', flex: 1 }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', overflow: 'hidden', flex: 1 }}
                       >
-                        <GripVertical size={12} className="drag-handle" style={{ cursor: 'grab' }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+                        <GripVertical size={11} className="drag-handle" style={{ cursor: 'grab', flexShrink: 0 }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
                         {sortKey === colKey && <SortIcon col={colKey} />}
                       </div>
 
@@ -2623,7 +2831,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                           background: 'none',
                           border: 'none',
                           cursor: 'pointer',
-                          padding: 2,
+                          padding: 1,
                           display: 'flex',
                           alignItems: 'center',
                           color: isPinned ? 'var(--blue)' : 'var(--text3)',
@@ -2631,7 +2839,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                           flexShrink: 0
                         }}
                       >
-                        <Pin size={12} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
+                        <Pin size={11} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
                       </button>
                     </div>
 
@@ -2662,27 +2870,63 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <tbody>
             {sorted.map((unit, idx) => {
               const isAltRow = idx % 2 !== 0;
+              const status = getUnitStatus(unit);
+              const isCancelled = status === 'Cancelled';
+              const isHold = status === 'Hold' || status === 'On Hold';
+              const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
+
+              const defaultBg = isCancelled
+                ? (isAltRow ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)')
+                : isHold
+                ? (isAltRow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)')
+                : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
+
+              const hoverBg = isCancelled
+                ? 'rgba(239, 68, 68, 0.18)'
+                : isHold
+                ? 'rgba(245, 158, 11, 0.18)'
+                : 'var(--bg4)';
+
+              const borderBottomColor = isCancelled
+                ? 'rgba(239, 68, 68, 0.25)'
+                : isHold
+                ? 'rgba(245, 158, 11, 0.25)'
+                : 'var(--border)';
 
               return (
                 <tr
                   key={unit.unit_id}
+                  className={isCancelled ? 'row-cancelled' : (isHold ? 'row-hold' : '')}
                   style={{
-                    background: isAltRow ? 'var(--bg2)' : 'var(--bg)',
+                    background: defaultBg,
                     cursor: 'default',
                     transition: 'background 0.12s',
-                    borderBottom: '1px solid var(--border)',
+                    borderBottom: `1px solid ${borderBottomColor}`,
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg4)'}
-                  onMouseLeave={e => e.currentTarget.style.background = isAltRow ? 'var(--bg2)' : 'var(--bg)'}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = hoverBg;
+                    if (isCancelled || isHold) {
+                      const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
+                      stickyTds.forEach(td => td.style.background = hoverBg);
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = defaultBg;
+                    if (isCancelled || isHold) {
+                      const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
+                      stickyTds.forEach(td => td.style.background = defaultBg);
+                    }
+                  }}
                 >
                   {visibleCols.map(c => {
-                    const style = getColStyle(c.key, false, isAltRow);
+                    const style = getColStyle(c.key, false, isAltRow, rowHighlight);
                     return (
                       <td
                         key={c.key}
                         style={{
-                          padding: '10px 14px',
+                          padding: '6px 10px',
                           textAlign: c.align || 'left',
+                          verticalAlign: 'middle',
                           ...style
                         }}
                       >
@@ -2698,7 +2942,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
               <tr>
                 <td colSpan={visibleCols.length || 12} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
                   <Search size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
-                  <div style={{ fontSize: 14 }}>No units match the current filters</div>
+                  <div style={{ fontSize: 14 }}>
+                    {activeTab === 'hold'
+                      ? 'No orders are currently on hold'
+                      : activeTab === 'cancelled'
+                      ? 'No cancelled orders found'
+                      : 'No units match the current filters'}
+                  </div>
                 </td>
               </tr>
             )}
@@ -2712,6 +2962,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         .table-responsive-scroll.active-drag {
           cursor: grabbing;
           user-select: none;
+        }
+        .table-responsive-scroll tbody tr:hover td {
+          background-color: var(--bg4) !important;
+        }
+        .table-responsive-scroll tbody tr.row-cancelled:hover td {
+          background-color: rgba(239, 68, 68, 0.18) !important;
+        }
+        .table-responsive-scroll tbody tr.row-hold:hover td {
+          background-color: rgba(245, 158, 11, 0.18) !important;
         }
         .drag-handle {
           color: var(--text3, #5a6070);

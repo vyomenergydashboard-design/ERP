@@ -50,6 +50,7 @@ CREATE TABLE IF NOT EXISTS orders (
     reference_number TEXT,
     hold_status TEXT DEFAULT 'None',
     classification TEXT DEFAULT 'Standard',
+    project_name TEXT,
     created_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -61,6 +62,7 @@ CREATE TABLE IF NOT EXISTS order_line_items (
     material_description TEXT,
     part_number TEXT,
     panel_type_size TEXT,
+    project_name TEXT,
     delivery_date DATE,
     quantity INTEGER NOT NULL,
     unit TEXT,
@@ -230,7 +232,7 @@ CREATE TABLE IF NOT EXISTS department_column_visibility (
 -- Seed System Columns
 INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
   ('order_number',           'Order Number',          'Order',    'Text',     true, 1),
-  ('short_serial',           'Unit Serial',          'Unit',     'Text',     true, 2),
+  ('short_serial',           'Serial No.',            'Unit',     'Text',     true, 2),
   ('company_name',           'Customer Name',         'Order',    'Text',     true, 3),
   ('po_number',              'PO Number',             'Order',    'Text',     true, 4),
   ('reference_number',       'Reference Number',      'Order',    'Text',     true, 5),

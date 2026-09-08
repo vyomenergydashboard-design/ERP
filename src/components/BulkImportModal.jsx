@@ -1,15 +1,6 @@
-import { useEffect } from 'react';
 import OrderImport from './OrderImport';
 
 export default function BulkImportModal({ isOpen, onClose, onImportComplete }) {
-  // Close on Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
-
   if (!isOpen) return null;
 
   return (

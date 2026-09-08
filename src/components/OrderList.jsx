@@ -117,7 +117,7 @@ export default function OrderList({ initialSelectedId }) {
   };
 
   const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order? This will permanently delete the order, all its line items, all unit serial numbers, steps, and resequence all remaining orders!')) {
+    if (!window.confirm('Are you sure you want to delete this order? This will permanently delete the order, all its line items, all serial numbers, steps, and resequence all remaining orders!')) {
       return;
     }
     try {

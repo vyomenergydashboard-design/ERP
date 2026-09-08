@@ -411,7 +411,9 @@ export default function DeptWorklist({ dept }) {
     }
     if (filter === 'inprogress') {
       const steps = u.dept_steps || [];
-      return steps.some(s => s.status === 'inprogress');
+      const anyDone = steps.some(s => s.status === 'done');
+      const allDone = steps.length > 0 && steps.every(s => s.status === 'done');
+      return steps.some(s => s.status === 'inprogress' || s.status === 'review') || (anyDone && !allDone);
     }
     if (filter === 'pending') {
       const steps = u.dept_steps || [];
@@ -554,7 +556,7 @@ export default function DeptWorklist({ dept }) {
       <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <input
           type="text"
-          placeholder="Search by unit serial, item, client..."
+          placeholder="Search by serial no., item, client..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{
@@ -617,7 +619,7 @@ export default function DeptWorklist({ dept }) {
             <thead>
               <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
                 <Th label="Order Info" col="order_number" />
-                <Th label="Unit Serial" col="unit_serial" />
+                <Th label="Serial No." col="unit_serial" />
                 <Th label="Item Details" col="material_description" />
                 <Th label="Priority" col="priority" />
                 <Th label="Delivery Date" col="delivery_date" />

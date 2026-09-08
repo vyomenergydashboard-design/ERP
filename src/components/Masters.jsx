@@ -15,6 +15,7 @@ const DATAKEY_OPTIONS = [
   { key: 'orders.classification',         label: 'Classification' },
   { key: 'orders.packaging_type',         label: 'Packaging Type' },
   { key: 'orders.end_client_name',        label: 'End Client Name' },
+  { key: 'orders.project_name',           label: 'Project Name' },
   { key: 'orders.reference_number',       label: 'Reference Number' },
   { key: 'orders.gst_number',             label: 'GST Number' },
   { key: 'orders.hold_status',            label: 'Hold Status' },
@@ -52,7 +53,7 @@ const DATAKEY_OPTIONS = [
   { key: 'docs.General',                label: 'General document uploaded' },
   { key: 'docs.TaskUpload',             label: 'Task upload present' },
   // ── Unit (unit-level tasks only) ───────────────────────
-  { key: 'unit_serial',                  label: 'Unit Serial' },
+  { key: 'unit_serial',                  label: 'Serial No.' },
   { key: 'short_serial',                 label: 'Short Serial' },
   { key: 'current_dept',                 label: 'Current Department' },
   { key: 'unit_status',                  label: 'Unit Status' },

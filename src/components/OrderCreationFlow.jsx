@@ -10,6 +10,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     po_number: '',
     packaging_type: '',
     end_client_name: '',
+    project_name: '',
     gst_number: '',
     reference_number: '',
     classification: 'Standard',
@@ -209,6 +210,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('priority', formData.priority);
     data.append('po_number', formData.po_number);
     data.append('end_client_name', formData.end_client_name || '');
+    data.append('project_name', formData.project_name || '');
     data.append('gst_number', formData.gst_number || '');
     data.append('reference_number', formData.reference_number || '');
     data.append('classification', formData.classification || 'Standard');
@@ -243,6 +245,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           po_number: '',
           packaging_type: '',
           end_client_name: '',
+          project_name: '',
           gst_number: '',
           reference_number: '',
           classification: 'Standard',
@@ -371,6 +374,17 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
+              <label>Project Name (Optional)</label>
+              <input 
+                type="text" 
+                name="project_name" 
+                value={formData.project_name} 
+                onChange={handleInputChange} 
+                placeholder="e.g. Mooviboost Project"
+              />
+            </div>
+
+            <div className="form-group">
               <label>GST Number (Optional)</label>
               <input 
                 type="text" 
@@ -447,16 +461,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         value={li.part_number}
                         required
                         onChange={(e) => {
-                          const selectedVal = e.target.value;
-                          const found = partMasters.find(p => p.part_number === selectedVal);
-                          if (found) {
-                            handleLineItemChanges(idx, {
-                              part_number: found.part_number,
-                              material_description: found.description || li.material_description
-                            });
-                          } else {
-                            handleLineItemChange(idx, 'part_number', selectedVal);
-                          }
+                          handleLineItemChange(idx, 'part_number', e.target.value);
                         }}
                       >
                         <option value="">-- Choose Master Part Number --</option>
