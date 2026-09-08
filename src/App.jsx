@@ -22,6 +22,7 @@ import SettingsView from './components/Settings';
 import DeptWorklist from './components/DeptWorklist';
 import DocumentDirectory from './components/DocumentDirectory';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
+import useGlobalModalEscape from './hooks/useGlobalModalEscape';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -537,6 +538,8 @@ function Dashboard() {
 }
 
 export default function App() {
+  useGlobalModalEscape();
+
   return (
     <BrowserRouter>
       <Routes>

@@ -28,11 +28,12 @@ const isOrderOnHold = async (orderId) => {
 };
 
 const isUnitOnHold = async (unitId) => {
-  if (!unitId || isNaN(Number(unitId))) return false;
+  if (!unitId) return false;
   try {
+    const numId = !isNaN(Number(unitId)) ? Number(unitId) : -1;
     const res = await pool.query(
-      "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1",
-      [unitId]
+      "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1 OR ou.unit_id = $2",
+      [numId, String(unitId)]
     );
     return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
   } catch (err) {
@@ -137,7 +138,7 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
             <td style="padding: 4px 0; color: #1e293b; font-family: monospace;">${unitIdStr}</td>
           </tr>
           <tr>
-            <td style="padding: 4px 0; color: #64748b;"><strong>Unit Serial:</strong></td>
+            <td style="padding: 4px 0; color: #64748b;"><strong>Serial No.:</strong></td>
             <td style="padding: 4px 0; color: #1e293b;">${shortSerial}</td>
           </tr>
           <tr>
@@ -1040,7 +1041,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name, gst_number, reference_number, classification } = req.body;
+    const { order_date, delivery_date, notes, company_location_id, lineItems, priority, po_number, packaging_type, end_client_name, gst_number, reference_number, classification, project_name } = req.body;
     let parsedLineItems = [];
     try {
       parsedLineItems = JSON.parse(lineItems);
@@ -1078,9 +1079,9 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
 
     const orderResult = await client.query(
-      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-      [order_number, company_location_id || null, resolved_order_date, calculated_delivery_date, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard']
+      `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification, project_name) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
+      [order_number, company_location_id || null, resolved_order_date, calculated_delivery_date, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard', project_name || null]
     );
     const order = orderResult.rows[0];
 
@@ -1099,9 +1100,9 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       itemIdx++;
 
       const liResult = await client.query(
-        `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, calculated_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes]
+        `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, calculated_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes, li.project_name || order.project_name || null]
       );
       const lineItem = liResult.rows[0];
       totalUnits += qty;
@@ -1397,7 +1398,8 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
     end_client_name, 
     gst_number, 
     reference_number,
-    classification
+    classification,
+    project_name
   } = req.body;
   
   try {
@@ -1411,44 +1413,53 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
     const orderDateObj = new Date(resolved_order_date);
     const deliveryDateObj = new Date(orderDateObj);
     deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
-    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+    const calculated_delivery_date = delivery_date || deliveryDateObj.toISOString().split('T')[0];
 
-    // Auto-update all line items' delivery dates to match
-    await pool.query(
-      'UPDATE order_line_items SET delivery_date = $1 WHERE order_id = $2',
-      [calculated_delivery_date, req.params.id]
-    );
+    if (delivery_date) {
+      // Auto-update all line items' delivery dates if delivery_date was explicitly changed
+      await pool.query(
+        'UPDATE order_line_items SET delivery_date = $1 WHERE order_id = $2',
+        [calculated_delivery_date, req.params.id]
+      );
+    }
 
     const result = await pool.query(
       `UPDATE orders 
        SET company_location_id = COALESCE($1, company_location_id), 
-           order_date = $2, 
-           delivery_date = $3, 
-           notes = $4, 
+           order_date = COALESCE($2, order_date), 
+           delivery_date = COALESCE($3, delivery_date), 
+           notes = CASE WHEN $4::text IS NOT NULL THEN $4 ELSE notes END, 
            priority = COALESCE($5, priority), 
-           po_number = $6, 
-           packaging_type = $7, 
-           end_client_name = $8, 
-           gst_number = $9, 
-           reference_number = $10,
-           classification = COALESCE($11, classification)
-       WHERE id = $12 
+           po_number = CASE WHEN $6::text IS NOT NULL THEN $6 ELSE po_number END, 
+           packaging_type = CASE WHEN $7::text IS NOT NULL THEN $7 ELSE packaging_type END, 
+           end_client_name = CASE WHEN $8::text IS NOT NULL THEN $8 ELSE end_client_name END, 
+           gst_number = CASE WHEN $9::text IS NOT NULL THEN $9 ELSE gst_number END, 
+           reference_number = CASE WHEN $10::text IS NOT NULL THEN $10 ELSE reference_number END,
+           classification = COALESCE($11, classification),
+           project_name = CASE WHEN $12::text IS NOT NULL THEN $12 ELSE project_name END
+       WHERE id = $13 
        RETURNING *`,
       [
         company_location_id ? parseInt(company_location_id) : null, 
-        resolved_order_date, 
-        calculated_delivery_date, 
-        notes || null, 
-        priority || 'Medium', 
-        po_number || null, 
-        packaging_type || null, 
-        end_client_name || null, 
-        gst_number || null, 
-        reference_number || null,
+        order_date || null, 
+        delivery_date || null, 
+        notes !== undefined ? notes : null, 
+        priority || null, 
+        po_number !== undefined ? po_number : null, 
+        packaging_type !== undefined ? packaging_type : null, 
+        end_client_name !== undefined ? end_client_name : null, 
+        gst_number !== undefined ? gst_number : null, 
+        reference_number !== undefined ? reference_number : null,
         classification || null,
+        project_name !== undefined ? project_name : null,
         req.params.id
       ]
     );
+
+    // If project_name was updated, also sync line items
+    if (project_name !== undefined) {
+      await pool.query('UPDATE order_line_items SET project_name = $1 WHERE order_id = $2', [project_name || null, req.params.id]);
+    }
 
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
@@ -1862,14 +1873,15 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         const VALID_CLASSIFICATIONS = ['Standard', 'Non-Standard'];
         const classification = VALID_CLASSIFICATIONS.includes(header['classification']) ? header['classification'] : 'Standard';
         const orderResult = await client.query(
-          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+          `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification, project_name)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
           [order_number, company_location_id, order_date, delivery_date,
            header['order_notes'] || null, priority, po_number, packaging_type, req.user.id,
            header['end_client_name'] || header['end_client'] || null,
            header['gst_number'] || null,
            header['reference_number'] || null,
-           classification]
+           classification,
+           header['project_name'] || header['project'] || null]
         );
         order = orderResult.rows[0];
       }
@@ -1920,11 +1932,12 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
 
         const liResult = await client.query(
           `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number,
-            panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
           [order.id, li_number, li['material_description'] || '', li['part_number'] || '',
            li['panel_type_size'] || '', delivery_date,
-           qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null]
+           qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null,
+           li['project_name'] || li['project'] || order.project_name || null]
         );
         const lineItem = liResult.rows[0];
         totalUnits += qty;
@@ -3349,8 +3362,8 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
 
 app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning']), async (req, res) => {
   const { id } = req.params;
-  if (!id || isNaN(Number(id))) {
-    return res.status(400).json({ error: 'Valid numeric unit ID is required' });
+  if (!id) {
+    return res.status(400).json({ error: 'Valid unit ID is required' });
   }
   if (await isUnitOnHold(id)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
@@ -3358,11 +3371,16 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   const { panel_type_size, classification, custom_fields } = req.body;
 
   try {
-    const checkUnit = await pool.query('SELECT id, order_id, unit_id FROM order_units WHERE id = $1', [id]);
+    const numId = !isNaN(Number(id)) ? Number(id) : -1;
+    const checkUnit = await pool.query(
+      'SELECT id, order_id, line_item_id, unit_id FROM order_units WHERE id = $1 OR unit_id = $2',
+      [numId, String(id)]
+    );
     if (checkUnit.rows.length === 0) {
       return res.status(404).json({ error: 'Unit not found' });
     }
     const unit = checkUnit.rows[0];
+    const realId = unit.id;
 
     const updates = [];
     const values = [];
@@ -3371,6 +3389,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (panel_type_size !== undefined) {
       updates.push(`panel_type_size = $${idx++}`);
       values.push(panel_type_size || null);
+
+      // Also keep line item in sync if unit is linked to a line item
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET panel_type_size = $1 WHERE id = $2', [panel_type_size || null, unit.line_item_id]);
+      }
     }
 
     if (classification !== undefined) {
@@ -3387,7 +3410,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       return res.json({ success: true, message: 'No changes provided' });
     }
 
-    values.push(id);
+    values.push(realId);
     const result = await pool.query(
       `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
       values
@@ -3476,6 +3499,8 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         o.end_client_name,
         o.priority,
         o.delivery_date,
+        o.hold_status,
+        o.status       AS order_status,
         COALESCE(ou.classification, o.classification, 'Standard') AS classification,
         cl.city        AS company_city,
         co.name        AS company_name,
@@ -3483,6 +3508,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         oli.line_item_number,
         oli.material_description,
         oli.part_number,
+        COALESCE(oli.project_name, o.project_name) AS project_name,
         COALESCE(ou.panel_type_size, oli.panel_type_size) AS panel_type_size,
         COALESCE(ou.custom_fields, '{}'::jsonb) AS custom_fields,
         oli.quantity   AS batch_qty,
@@ -3499,8 +3525,23 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
             ) ORDER BY us.id
           )
           FROM unit_steps us
-          WHERE us.order_unit_id = ou.id AND us.dept = ou.current_dept
+          WHERE us.order_unit_id = ou.id AND us.dept = (CASE WHEN $1 = 'Sales' THEN ou.current_dept ELSE $1 END)
         ) AS dept_steps,
+        (
+          SELECT json_agg(
+            json_build_object(
+              'id', us.id,
+              'name', us.name,
+              'status', us.status,
+              'dept', us.dept,
+              'notes', us.notes,
+              'updated', us.updated,
+              'assigned_user_id', us.assigned_user_id
+            ) ORDER BY us.id
+          )
+          FROM unit_steps us
+          WHERE us.order_unit_id = ou.id AND us.dept = 'Design'
+        ) AS design_steps,
         (
           SELECT count(*)::int
           FROM unit_steps us
@@ -3526,7 +3567,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       JOIN order_line_items oli ON ou.line_item_id = oli.id
       LEFT JOIN company_locations cl ON o.company_location_id = cl.id
       LEFT JOIN companies co ON cl.company_id = co.id
-      WHERE $1 = 'Sales' OR ou.current_dept = $1
+      WHERE $1 = 'Sales' OR ou.current_dept = $1 OR ($1 = 'Design' AND EXISTS (SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND us.dept = 'Design' AND (us.status = 'done' OR us.status = 'completed')))
       ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
     `, [dept]);
     res.json(result.rows);
@@ -4247,6 +4288,7 @@ const templateHandler = (req, res) => {
     ['PO Details','priority','Medium','YES','Low | Medium | High | Urgent'],
     ['PO Details','packaging_type','Wooden Packaging','NO','Wooden Packaging | Foam Packaging'],
     ['PO Details','end_client_name','Basavanakolla site','NO','End client name / site location'],
+    ['PO Details','project_name','Mooviboost Project','NO','Project / System Name'],
     ['PO Details','order_notes','Handle with care.','NO','Overall order notes'],
     ['PO Details','gst_number','27AAAAA1111A1Z1','NO','GST Number of client'],
     ['PO Details','reference_number','REF-2026-99','NO','Customer Reference Number'],
@@ -4270,7 +4312,7 @@ const templateHandler = (req, res) => {
   // ── Sheet 2: Import Template — 2000 blank rows ready for bulk paste ──────
   const COLS = [
     'company_name','company_city','order_date','delivery_date',
-    'po_number','priority','packaging_type','end_client_name','order_notes',
+    'po_number','priority','packaging_type','end_client_name','project_name','order_notes',
     'gst_number','reference_number','classification',
     'line_item_number','material_description','part_number','panel_type_size',
     'quantity','unit','unit_price','total_price',
@@ -4279,22 +4321,22 @@ const templateHandler = (req, res) => {
 
   // Visual group-label row so users understand which columns are order-level vs item-level
   const groupRow = [
-    '<-- ORDER LEVEL: repeat these 12 columns on every row of the same PO -->',
-    '','','','','','','','','','','',
+    '<-- ORDER LEVEL: repeat these 13 columns on every row of the same PO -->',
+    '','','','','','','','','','','','',
     '<-- LINE ITEM LEVEL: one row = one item in the order -->',
     '','','','','','','','',''
   ];
 
   const exampleRows = [
     // ORDER 1 — PO-2026-1001 — 3 line items (same PO groups them into 1 order)
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','VFD Panel 800x600',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','MCC Panel 1800x800',2,'Nos',72000,144000,'2026-07-15',''],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','PFCP 600x500',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','800x600x300 mm',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','1600x800x400 mm',2,'Nos',72000,144000,'2026-07-15',''],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','1000x800x300 mm',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
     // ORDER 2 — PO-2026-1002 — 1 line item
-    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
+    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','Solar Grid System','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400x300 mm',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
     // ORDER 3 — PO-2026-1003 — 2 line items
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','DB 400x300',5,'Nos',12000,60000,'2026-09-01',''],
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','500x400x200 mm',5,'Nos',12000,60000,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
   ];
 
   // Pre-allocate 2000 blank rows so the sheet is bulk-paste ready

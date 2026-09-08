@@ -246,7 +246,7 @@ export default function PlanningModule() {
     switch (colId) {
       case 'sr_no': return 'Sr. No.';
       case 'order_number': return 'Order Number';
-      case 'unit_number': return 'Unit Serial #';
+      case 'unit_number': return 'Serial No.';
       case 'po_number': return 'PO Number';
       case 'reference_number': return 'Cust. Ref #';
       case 'part_number': return 'Part Number';
@@ -1706,7 +1706,7 @@ export default function PlanningModule() {
             <div className="modal-header">
               <div>
                 <div className="modal-title">Edit Planning Parameters</div>
-                <div className="modal-sub">Order: {editingOrder.order_number} — Unit Serial: {editingOrder.specific_unit_serial || editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
+                <div className="modal-sub">Order: {editingOrder.order_number} — Serial No.: {editingOrder.specific_unit_serial || editingOrder.line_item_number} (PO: {editingOrder.po_number || 'N/A'})</div>
               </div>
               <button className="modal-close" onClick={() => setEditingOrder(null)}><X size={18} /></button>
             </div>

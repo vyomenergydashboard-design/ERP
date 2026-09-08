@@ -165,6 +165,7 @@ export default function OrderImport({ onImportComplete }) {
                   { f: 'unit_price',   r: true,  note: 'Numeric, no ₹' },
                   { f: 'packaging_type', r: false, note: 'Wooden Packaging / Foam Packaging' },
                   { f: 'end_client_name', r: false, note: 'Optional end client name / site location' },
+                  { f: 'project_name', r: false, note: 'Optional project / system name' },
                   { f: 'order_notes',  r: false, note: 'Optional' },
                   { f: 'part_number',  r: false, note: 'Optional' },
                   { f: 'panel_type_size', r: false, note: 'e.g. 800x600' },

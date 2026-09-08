@@ -219,7 +219,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           <input 
             type="text"
             className="order-search-input"
-            placeholder="Search Unit Serial, Order #, PO, Customer..."
+            placeholder="Search Serial No., Order #, PO, Customer..."
             value={searchQuery}
             onFocus={() => setIsDropdownOpen(true)}
             onChange={(e) => {
@@ -266,7 +266,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
                   </div>
                 </div>
               )) : (
-                <div className="search-dropdown-item empty">No unit serials found</div>
+                <div className="search-dropdown-item empty">No serial nos. found</div>
               )}
             </div>
           )}

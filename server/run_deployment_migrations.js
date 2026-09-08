@@ -24,11 +24,13 @@ export async function runDeploymentMigrations(clientParam) {
 
       ALTER TABLE order_line_items
       ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
+      ADD COLUMN IF NOT EXISTS project_name TEXT,
       ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 
       ALTER TABLE orders
       ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
-      ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None';
+      ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
+      ADD COLUMN IF NOT EXISTS project_name TEXT;
     `);
 
     // Backfill unit planning fields if null
@@ -50,6 +52,13 @@ export async function runDeploymentMigrations(clientParam) {
 
     // 2. Re-align orders and unit serials so Order Number = Starting Unit Serial
     await realignUnitSerials(client);
+
+    // Ensure column_masters label for short_serial is 'Serial No.'
+    await client.query(`
+      UPDATE column_masters 
+      SET label = 'Serial No.' 
+      WHERE col_key = 'short_serial' AND label IN ('Unit Serial', 'Serial Number');
+    `);
 
     // 2. Check if old ORD- order numbers exist
     const oldOrdersRes = await client.query("SELECT COUNT(*) FROM orders WHERE order_number LIKE 'ORD-%'");
