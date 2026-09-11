@@ -174,22 +174,45 @@ export default function Masters() {
   const [partMasters, setPartMasters] = useState([]);
   const [showPartModal, setShowPartModal] = useState(false);
   const [editingPartId, setEditingPartId] = useState(null);
-  const [partFormData, setPartFormData] = useState({ part_number: '', description: '', category: 'Standard' });
-  const [showPartDocModal, setShowPartDocModal] = useState(false);
-  const [selectedPartMaster, setSelectedPartMaster] = useState(null);
-  const [uploadingDocs, setUploadingDocs] = useState(false);
+  const [partFormData, setPartFormData] = useState({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+  const [newPartDrawingFile, setNewPartDrawingFile] = useState(null);
+  const [newPartBomFile, setNewPartBomFile] = useState(null);
   const [partSearch, setPartSearch] = useState('');
+
+  // Document modals for Part Number Masters
+  const [pdfViewerDoc, setPdfViewerDoc] = useState(null);
+  const [showDocUploadModal, setShowDocUploadModal] = useState(false);
+  const [activeUploadTarget, setActiveUploadTarget] = useState(null);
+  const [docUploadFile, setDocUploadFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  const [showDocHistoryModal, setShowDocHistoryModal] = useState(false);
+  const [activeHistoryTarget, setActiveHistoryTarget] = useState(null);
+  const [activeHistoryList, setActiveHistoryList] = useState([]);
 
   // Panel Size Masters State
   const [panelSizes, setPanelSizes] = useState([]);
   const [showPanelSizeModal, setShowPanelSizeModal] = useState(false);
   const [editingPanelSizeId, setEditingPanelSizeId] = useState(null);
-  const [panelSizeForm, setPanelSizeForm] = useState({ size_name: '', description: '' });
+  const [panelSizeForm, setPanelSizeForm] = useState({ panel_code: '', panel_size: '', ip_rating: '', comments: '' });
   const [panelSizeSearch, setPanelSizeSearch] = useState('');
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canEditMasters = !user.role || ['admin', 'manager'].includes(user.role?.toLowerCase());
+  const canEditPartMaster = !user.role || ['admin', 'manager', 'design', 'sales'].includes(user.role?.toLowerCase());
+  const isDesignUser = (user.role || '').trim().toLowerCase() === 'design';
+  const canViewRevisionHistory = !isDesignUser;
+
+  const formatDateDMY = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return String(dateVal);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}-${month}-${year}`;
+  };
 
   const getDocUrl = (doc) => {
     if (!doc) return '#';
@@ -225,21 +248,30 @@ export default function Masters() {
 
   const handleSavePanelSize = async (e) => {
     e.preventDefault();
-    if (!panelSizeForm.size_name.trim()) return alert('Panel Size is required');
+    const sizeVal = (panelSizeForm.panel_size || '').trim();
+    if (!sizeVal) return alert('Panel Size is required');
     try {
       const url = editingPanelSizeId
         ? `${window.API_BASE}/api/panel-size-masters/${editingPanelSizeId}`
         : `${window.API_BASE}/api/panel-size-masters`;
       const method = editingPanelSizeId ? 'PUT' : 'POST';
+      const payload = {
+        panel_code: (panelSizeForm.panel_code || '').trim(),
+        panel_size: sizeVal,
+        size_name: sizeVal,
+        ip_rating: (panelSizeForm.ip_rating || '').trim(),
+        comments: (panelSizeForm.comments || '').trim(),
+        description: (panelSizeForm.comments || '').trim()
+      };
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(panelSizeForm)
+        body: JSON.stringify(payload)
       });
       if (res.ok) {
         setShowPanelSizeModal(false);
         setEditingPanelSizeId(null);
-        setPanelSizeForm({ size_name: '', description: '' });
+        setPanelSizeForm({ panel_code: '', panel_size: '', ip_rating: '', comments: '' });
         fetchPanelSizes();
       } else {
         const errData = await safeJsonError(res);
@@ -285,9 +317,37 @@ export default function Masters() {
         body: JSON.stringify(partFormData)
       });
       if (res.ok) {
+        const savedPart = await res.json();
+        
+        // If initial Drawing PDF was chosen during creation
+        if (!editingPartId && newPartDrawingFile) {
+          const drawBody = new FormData();
+          drawBody.append('file', newPartDrawingFile);
+          drawBody.append('doc_type', 'Drawing');
+          await fetch(`${window.API_BASE}/api/part-number-masters/${savedPart.id}/documents`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: drawBody
+          });
+        }
+
+        // If initial BOM PDF was chosen during creation
+        if (!editingPartId && newPartBomFile) {
+          const bomBody = new FormData();
+          bomBody.append('file', newPartBomFile);
+          bomBody.append('doc_type', 'BOM');
+          await fetch(`${window.API_BASE}/api/part-number-masters/${savedPart.id}/documents`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: bomBody
+          });
+        }
+
         setShowPartModal(false);
         setEditingPartId(null);
-        setPartFormData({ part_number: '', description: '', category: 'Standard' });
+        setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+        setNewPartDrawingFile(null);
+        setNewPartBomFile(null);
         fetchPartNumberMasters();
       } else {
         const errMsg = await safeJsonError(res, 'Failed to save Part Number Master');
@@ -297,7 +357,7 @@ export default function Masters() {
   };
 
   const handleDeletePartMaster = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this Part Number Master? All associated drawings will also be deleted.')) return;
+    if (!window.confirm('Are you sure you want to delete this Part Number Master? All associated drawings and BOMs will also be deleted.')) return;
     try {
       const res = await fetch(`${window.API_BASE}/api/part-number-masters/${id}`, {
         method: 'DELETE',
@@ -311,47 +371,42 @@ export default function Masters() {
     } catch (err) { console.error(err); }
   };
 
-  const handleUploadPartDocs = async (partId, files) => {
-    if (!files || files.length === 0) return;
-    setUploadingDocs(true);
-    const body = new FormData();
-    for (const f of files) body.append('files', f);
+  const handleUploadDocumentSubmit = async (e) => {
+    e.preventDefault();
+    if (!activeUploadTarget || !docUploadFile) return;
+
+    if (!docUploadFile.name.toLowerCase().endsWith('.pdf') && docUploadFile.type !== 'application/pdf') {
+      alert('Only PDF files are allowed.');
+      return;
+    }
+
+    setUploadingDoc(true);
+    const formData = new FormData();
+    formData.append('file', docUploadFile);
+    formData.append('doc_type', activeUploadTarget.docType);
+
     try {
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents`, {
+      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${activeUploadTarget.part.id}/documents`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
-        body
+        body: formData
       });
-      if (res.ok) {
-        const updatedRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (updatedRes.ok) {
-          const all = await updatedRes.json();
-          setPartMasters(all);
-          const found = all.find(p => p.id === partId);
-          if (found) setSelectedPartMaster(found);
-        }
-      }
-    } catch (err) { console.error(err); }
-    finally { setUploadingDocs(false); }
-  };
 
-  const handleDeletePartDoc = async (partId, docId) => {
-    if (!window.confirm('Delete this drawing from Master?')) return;
-    try {
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
       if (res.ok) {
+        setShowDocUploadModal(false);
+        setDocUploadFile(null);
+        setActiveUploadTarget(null);
         await fetchPartNumberMasters();
-        setSelectedPartMaster(prev => prev ? {
-          ...prev,
-          documents: prev.documents.filter(d => d.id !== docId)
-        } : null);
+      } else {
+        const errMsg = await safeJsonError(res, 'Failed to upload document');
+        alert(errMsg);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert('An error occurred while uploading document.');
+    } finally {
+      setUploadingDoc(false);
+    }
   };
 
   const fetchColumnMasters = async () => {
@@ -474,6 +529,10 @@ export default function Masters() {
           setTaskCustomFields([]);
           setShowFieldBuilder(false);
           setShowTaskModal(true);
+        } else if (activeTab === 'panel_sizes' && canEditMasters) {
+          setEditingPanelSizeId(null);
+          setPanelSizeForm({ panel_code: '', panel_size: '', ip_rating: '', comments: '' });
+          setShowPanelSizeModal(true);
         }
       }
     };
@@ -881,10 +940,12 @@ export default function Masters() {
                 Store standardized part numbers with technical drawings and specifications for standard sales orders.
               </div>
             </div>
-            {canEditMasters && (
+            {canEditPartMaster && (
               <button className="vbtn" onClick={() => {
                 setEditingPartId(null);
-                setPartFormData({ part_number: '', description: '', category: 'Standard' });
+                setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+                setNewPartDrawingFile(null);
+                setNewPartBomFile(null);
                 setShowPartModal(true);
               }}>+ Add Master Part Number</button>
             )}
@@ -893,12 +954,12 @@ export default function Masters() {
           <div style={{ marginBottom: '16px', display: 'flex', gap: '12px' }}>
             <input
               type="text"
-              placeholder="Search Part Number or Description..."
+              placeholder="Search by Part No., Client Name, Project, Revision..."
               value={partSearch}
               onChange={(e) => setPartSearch(e.target.value)}
               style={{
                 background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px',
-                color: 'var(--text)', fontSize: '13px', padding: '8px 14px', width: '320px'
+                color: 'var(--text)', fontSize: '13px', padding: '8px 14px', width: '360px'
               }}
             />
           </div>
@@ -907,73 +968,282 @@ export default function Masters() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Part Number</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Description</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '120px' }}>Category</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)' }}>Master Drawings / Docs</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text2)', width: '180px' }}>Actions</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '180px' }}>Part No.</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '220px' }}>Client Name</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '200px' }}>Project</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '240px' }}>Drawing</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '240px' }}>BOM</th>
                 </tr>
               </thead>
               <tbody>
                 {partMasters.filter(p => {
                   if (!partSearch.trim()) return true;
                   const q = partSearch.toLowerCase();
-                  return p.part_number.toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q);
+                  const matchPart = (p.part_number || '').toLowerCase().includes(q);
+                  const matchClient = (p.client_name || '').toLowerCase().includes(q);
+                  const matchProject = (p.project || '').toLowerCase().includes(q);
+                  const matchDrawingRev = (p.drawing?.revision_label || '').toLowerCase().includes(q);
+                  const matchBomRev = (p.bom?.revision_label || '').toLowerCase().includes(q);
+                  return matchPart || matchClient || matchProject || matchDrawingRev || matchBomRev;
                 }).map(part => (
                   <tr key={part.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '12px 16px', fontWeight: '700', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>
-                      {part.part_number}
-                    </td>
-                    <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
-                      {part.description || <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>No description</span>}
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{
-                        fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '4px',
-                        background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.3)'
-                      }}>
-                        {part.category || 'Standard'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '12px', color: part.documents.length > 0 ? 'var(--text)' : 'var(--text3)' }}>
-                          📁 {part.documents.length} drawing{part.documents.length === 1 ? '' : 's'}
-                        </span>
-                        <button
-                          onClick={() => {
-                            setSelectedPartMaster(part);
-                            setShowPartDocModal(true);
-                          }}
-                          style={{
-                            background: 'var(--bg3)', border: '1px solid var(--border)',
-                            color: 'var(--text2)', borderRadius: '6px', cursor: 'pointer',
-                            padding: '4px 10px', fontSize: '11px'
-                          }}
-                        >
-                          Manage Drawings
-                        </button>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                      {canEditMasters && (
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span>{part.part_number}</span>
+                        {canEditPartMaster && (
                           <button
                             onClick={() => {
                               setEditingPartId(part.id);
-                              setPartFormData({ part_number: part.part_number, description: part.description || '', category: part.category || 'Standard' });
+                              setPartFormData({
+                                part_number: part.part_number,
+                                client_name: part.client_name || '',
+                                project: part.project || '',
+                                description: part.description || '',
+                                category: part.category || 'Standard'
+                              });
                               setShowPartModal(true);
                             }}
-                            style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                            title="Edit Part Master"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: 'var(--text3)',
+                              fontSize: '12px',
+                              padding: '2px 4px',
+                              borderRadius: '4px'
+                            }}
                           >
-                            Edit
+                            ✏️
                           </button>
-                          <button
-                            onClick={() => handleDeletePartMaster(part.id)}
-                            style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
-                          >
-                            Delete
-                          </button>
+                        )}
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text)', fontWeight: '500' }}>
+                      {part.client_name ? (
+                        part.client_name
+                      ) : (
+                        <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
+                      {part.project ? (
+                        part.project
+                      ) : (
+                        <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {part.drawing ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              color: 'var(--text)',
+                              fontFamily: 'var(--font-mono)'
+                            }}>
+                              {part.drawing.revision_label || ('R' + (part.drawing.revision_number ?? 0))} · {formatDateDMY(part.drawing.uploaded_at)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => {
+                                setPdfViewerDoc({
+                                  ...part.drawing,
+                                  title: `Drawing (${part.drawing.revision_label || 'R0'}) - ${part.part_number}`
+                                });
+                              }}
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                color: 'var(--blue)',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: '600'
+                              }}
+                            >
+                              View PDF
+                            </button>
+                            {canEditPartMaster && (
+                              <button
+                                onClick={() => {
+                                  setActiveUploadTarget({ part, docType: 'Drawing', currentDoc: part.drawing });
+                                  setDocUploadFile(null);
+                                  setShowDocUploadModal(true);
+                                }}
+                                style={{
+                                  background: 'var(--bg3)',
+                                  border: '1px solid var(--border)',
+                                  color: 'var(--text2)',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  padding: '3px 8px',
+                                  fontSize: '11px'
+                                }}
+                              >
+                                Update
+                              </button>
+                            )}
+                            {canViewRevisionHistory && (part.drawing_history?.length > 1 || part.drawing) && (
+                              <button
+                                onClick={() => {
+                                  setActiveHistoryTarget({ part, docType: 'Drawing' });
+                                  setActiveHistoryList(part.drawing_history || (part.drawing ? [part.drawing] : []));
+                                  setShowDocHistoryModal(true);
+                                }}
+                                title="View Revision History"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--text3)',
+                                  cursor: 'pointer',
+                                  padding: '2px 4px',
+                                  fontSize: '11px',
+                                  textDecoration: 'underline'
+                                }}
+                              >
+                                History ({part.drawing_history?.length || 1})
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text3)', fontStyle: 'italic' }}>
+                            No Drawing
+                          </span>
+                          {canEditPartMaster && (
+                            <button
+                              onClick={() => {
+                                setActiveUploadTarget({ part, docType: 'Drawing', currentDoc: null });
+                                setDocUploadFile(null);
+                                setShowDocUploadModal(true);
+                              }}
+                              style={{
+                                background: 'var(--bg3)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--blue)',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                alignSelf: 'flex-start'
+                              }}
+                            >
+                              Upload PDF
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td style={{ padding: '12px 16px' }}>
+                      {part.bom ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: '700',
+                              color: 'var(--text)',
+                              fontFamily: 'var(--font-mono)'
+                            }}>
+                              {part.bom.revision_label || ('R' + (part.bom.revision_number ?? 0))} · {formatDateDMY(part.bom.uploaded_at)}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => {
+                                setPdfViewerDoc({
+                                  ...part.bom,
+                                  title: `BOM (${part.bom.revision_label || 'R0'}) - ${part.part_number}`
+                                });
+                              }}
+                              style={{
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                color: 'var(--blue)',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: '600'
+                              }}
+                            >
+                              View PDF
+                            </button>
+                            {canEditPartMaster && (
+                              <button
+                                onClick={() => {
+                                  setActiveUploadTarget({ part, docType: 'BOM', currentDoc: part.bom });
+                                  setDocUploadFile(null);
+                                  setShowDocUploadModal(true);
+                                }}
+                                style={{
+                                  background: 'var(--bg3)',
+                                  border: '1px solid var(--border)',
+                                  color: 'var(--text2)',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  padding: '3px 8px',
+                                  fontSize: '11px'
+                                }}
+                              >
+                                Update
+                              </button>
+                            )}
+                            {canViewRevisionHistory && (part.bom_history?.length > 1 || part.bom) && (
+                              <button
+                                onClick={() => {
+                                  setActiveHistoryTarget({ part, docType: 'BOM' });
+                                  setActiveHistoryList(part.bom_history || (part.bom ? [part.bom] : []));
+                                  setShowDocHistoryModal(true);
+                                }}
+                                title="View Revision History"
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: 'var(--text3)',
+                                  cursor: 'pointer',
+                                  padding: '2px 4px',
+                                  fontSize: '11px',
+                                  textDecoration: 'underline'
+                                }}
+                              >
+                                History ({part.bom_history?.length || 1})
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '12px', color: 'var(--text3)', fontStyle: 'italic' }}>
+                            No BOM
+                          </span>
+                          {canEditPartMaster && (
+                            <button
+                              onClick={() => {
+                                setActiveUploadTarget({ part, docType: 'BOM', currentDoc: null });
+                                setDocUploadFile(null);
+                                setShowDocUploadModal(true);
+                              }}
+                              style={{
+                                background: 'var(--bg3)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--blue)',
+                                borderRadius: '5px',
+                                cursor: 'pointer',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                alignSelf: 'flex-start'
+                              }}
+                            >
+                              Upload PDF
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -1006,7 +1276,7 @@ export default function Masters() {
                 className="vbtn"
                 onClick={() => {
                   setEditingPanelSizeId(null);
-                  setPanelSizeForm({ size_name: '', description: '' });
+                  setPanelSizeForm({ panel_code: '', panel_size: '', ip_rating: '', comments: '' });
                   setShowPanelSizeModal(true);
                 }}
               >
@@ -1015,10 +1285,10 @@ export default function Masters() {
             )}
           </div>
 
-          <div style={{ marginBottom: '16px', maxWidth: '360px' }}>
+          <div style={{ marginBottom: '16px', maxWidth: '420px' }}>
             <input
               type="text"
-              placeholder="Search panel sizes or description..."
+              placeholder="Search by panel code, size, IP rating, or comments..."
               className="form-input"
               value={panelSizeSearch}
               onChange={e => setPanelSizeSearch(e.target.value)}
@@ -1030,23 +1300,73 @@ export default function Masters() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text3)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
-                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>#</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>Panel Size / Dimensions</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left' }}>Description</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', width: '50px' }}>#</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '130px' }}>Panel Code</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '160px' }}>Panel Size</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '110px' }}>IP Rating</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '220px' }}>Comments</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'right', width: '130px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {panelSizes
-                  .filter(p => !panelSizeSearch || p.size_name.toLowerCase().includes(panelSizeSearch.toLowerCase()) || (p.description || '').toLowerCase().includes(panelSizeSearch.toLowerCase()))
+                  .filter(p => {
+                    if (!panelSizeSearch) return true;
+                    const q = panelSizeSearch.toLowerCase();
+                    return (
+                      (p.panel_code || '').toLowerCase().includes(q) ||
+                      (p.panel_size || p.size_name || '').toLowerCase().includes(q) ||
+                      (p.ip_rating || '').toLowerCase().includes(q) ||
+                      (p.comments || p.description || '').toLowerCase().includes(q)
+                    );
+                  })
                   .map((ps, idx) => (
                     <tr key={ps.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '12px 16px', color: 'var(--text3)', width: '40px' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 16px', color: 'var(--text3)', width: '50px' }}>{idx + 1}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {ps.panel_code ? (
+                          <span style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: '#c084fc',
+                            background: 'rgba(168, 85, 247, 0.12)',
+                            border: '1px solid rgba(168, 85, 247, 0.28)',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            letterSpacing: '0.3px',
+                            display: 'inline-block'
+                          }}>
+                            {ps.panel_code}
+                          </span>
+                        ) : (
+                          <span style={{ opacity: 0.4 }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
-                        {ps.size_name}
+                        {ps.panel_size || ps.size_name || <span style={{ opacity: 0.4 }}>—</span>}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {ps.ip_rating ? (
+                          <span style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            color: '#10b981',
+                            background: 'rgba(16, 185, 129, 0.12)',
+                            border: '1px solid rgba(16, 185, 129, 0.28)',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            display: 'inline-block'
+                          }}>
+                            {ps.ip_rating}
+                          </span>
+                        ) : (
+                          <span style={{ opacity: 0.4 }}>—</span>
+                        )}
                       </td>
                       <td style={{ padding: '12px 16px', color: 'var(--text2)' }}>
-                        {ps.description || <span style={{ opacity: 0.4 }}>—</span>}
+                        {ps.comments || ps.description || <span style={{ opacity: 0.4 }}>—</span>}
                       </td>
                       <td style={{ padding: '12px 16px', textAlign: 'right' }}>
                         {canEditMasters && (
@@ -1054,7 +1374,12 @@ export default function Masters() {
                             <button
                               onClick={() => {
                                 setEditingPanelSizeId(ps.id);
-                                setPanelSizeForm({ size_name: ps.size_name, description: ps.description || '' });
+                                setPanelSizeForm({
+                                  panel_code: ps.panel_code || '',
+                                  panel_size: ps.panel_size || ps.size_name || '',
+                                  ip_rating: ps.ip_rating || '',
+                                  comments: ps.comments || ps.description || ''
+                                });
                                 setShowPanelSizeModal(true);
                               }}
                               style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
@@ -1074,7 +1399,7 @@ export default function Masters() {
                   ))}
                 {panelSizes.length === 0 && (
                   <tr>
-                    <td colSpan={4} style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>
+                    <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: 'var(--text3)' }}>
                       No Master Panel Sizes registered yet. Click "+ Add Panel Size" to create one.
                     </td>
                   </tr>
@@ -1426,51 +1751,124 @@ export default function Masters() {
         </div>
       )}
 
-      {/* Part Number Master Modal */}
+      {/* Part Number Master Add / Edit Modal */}
       {showPartModal && (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPartModal(false); }}>
-          <div className="modal" style={{ maxWidth: '480px' }}>
+          <div className="modal" style={{ width: '520px', maxWidth: '95vw' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPartId ? 'Edit Master Part Number' : 'Add Master Part Number'}</div>
               <button className="modal-close" onClick={() => setShowPartModal(false)}>✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleSavePartMaster}>
-                <div className="modal-field">
-                  <label>Part Number (Code / Model)</label>
+                <div className="modal-field" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Part No. *</label>
                   <input
                     type="text"
                     className="form-input"
                     required
-                    placeholder="e.g. PLC-1200, VFD-15KW, MCC-250A"
+                    placeholder="e.g. PN-1001, PLC-1200, VFD-15KW"
                     value={partFormData.part_number}
                     onChange={(e) => setPartFormData({ ...partFormData, part_number: e.target.value })}
                   />
                 </div>
-                <div className="modal-field">
-                  <label>Description / Technical Specification</label>
-                  <textarea
+
+                <div className="modal-field" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Client Name</label>
+                  <input
+                    type="text"
+                    list="company-list-suggestions"
                     className="form-input"
-                    rows={3}
-                    placeholder="e.g. 1200mm PLC Control Panel with Dual Circuit Breakers"
-                    value={partFormData.description}
-                    onChange={(e) => setPartFormData({ ...partFormData, description: e.target.value })}
+                    placeholder="e.g. ABC Industries, XYZ Manufacturing, Tata Projects"
+                    value={partFormData.client_name || ''}
+                    onChange={(e) => setPartFormData({ ...partFormData, client_name: e.target.value })}
+                  />
+                  <datalist id="company-list-suggestions">
+                    {companies.map(c => (
+                      <option key={c.id} value={c.name} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div className="modal-field" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Project</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. Project Alpha, Plant Expansion, Control Panel Upgrade"
+                    value={partFormData.project || ''}
+                    onChange={(e) => setPartFormData({ ...partFormData, project: e.target.value })}
                   />
                 </div>
-                <div className="modal-field">
-                  <label>Category</label>
-                  <select
-                    className="form-select"
-                    value={partFormData.category}
-                    onChange={(e) => setPartFormData({ ...partFormData, category: e.target.value })}
-                  >
-                    <option value="Standard">Standard Product</option>
-                    <option value="Custom">Custom Component</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowPartModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">{editingPartId ? 'Update Part Number' : 'Save Part Number'}</button>
+
+                {!editingPartId && (
+                  <>
+                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Drawing PDF (Optional - will be R0)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+                              alert('Only PDF files are allowed.');
+                              e.target.value = '';
+                              setNewPartDrawingFile(null);
+                              return;
+                            }
+                            setNewPartDrawingFile(file);
+                          } else {
+                            setNewPartDrawingFile(null);
+                          }
+                        }}
+                        style={{ width: '100%', fontSize: '12px', color: 'var(--text)' }}
+                      />
+                    </div>
+
+                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>BOM PDF (Optional - will be R0)</label>
+                      <input
+                        type="file"
+                        accept=".pdf,application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+                              alert('Only PDF files are allowed.');
+                              e.target.value = '';
+                              setNewPartBomFile(null);
+                              return;
+                            }
+                            setNewPartBomFile(file);
+                          } else {
+                            setNewPartBomFile(null);
+                          }
+                        }}
+                        style={{ width: '100%', fontSize: '12px', color: 'var(--text)' }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
+                  {editingPartId ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleDeletePartMaster(editingPartId);
+                        setShowPartModal(false);
+                      }}
+                      style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer', padding: '6px 12px', fontSize: '12px' }}
+                    >
+                      Delete Part
+                    </button>
+                  ) : <div />}
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }} onClick={() => setShowPartModal(false)}>Cancel</button>
+                    <button type="submit" className="vbtn">{editingPartId ? 'Update Part' : 'Save Part Number'}</button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -1478,79 +1876,284 @@ export default function Masters() {
         </div>
       )}
 
-      {/* Part Number Master Drawings & Documents Modal */}
-      {showPartDocModal && selectedPartMaster && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPartDocModal(false); }}>
-          <div className="modal" style={{ maxWidth: '640px' }}>
+      {/* Upload / Update Document Modal */}
+      {showDocUploadModal && activeUploadTarget && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowDocUploadModal(false); }}>
+          <div className="modal" style={{ width: '480px', maxWidth: '95vw' }}>
             <div className="modal-header">
               <div className="modal-title">
-                Master Drawings: <span style={{ color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{selectedPartMaster.part_number}</span>
+                {activeUploadTarget.currentDoc ? `Update ${activeUploadTarget.docType}` : `Upload ${activeUploadTarget.docType}`}
               </div>
-              <button className="modal-close" onClick={() => setShowPartDocModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowDocUploadModal(false)}>✕</button>
             </div>
             <div className="modal-body">
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--text2)', display: 'block', marginBottom: '8px' }}>
-                  Upload Standard Technical Drawings / PDF / CAD Files
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  disabled={uploadingDocs}
-                  onChange={(e) => handleUploadPartDocs(selectedPartMaster.id, e.target.files)}
-                  style={{
-                    background: 'var(--bg3)', border: '1px border var(--border)', borderRadius: '8px',
-                    padding: '8px', width: '100%', color: 'var(--text)'
-                  }}
-                />
-                {uploadingDocs && <div style={{ fontSize: '12px', color: 'var(--blue)', marginTop: '4px' }}>Uploading drawings...</div>}
+              <div style={{ marginBottom: '16px', background: 'var(--bg3)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Part No:</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{activeUploadTarget.part.part_number}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Document Type:</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)' }}>{activeUploadTarget.docType}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Current Revision:</span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>
+                    {activeUploadTarget.currentDoc
+                      ? `${activeUploadTarget.currentDoc.revision_label || ('R' + activeUploadTarget.currentDoc.revision_number)} : ${formatDateDMY(activeUploadTarget.currentDoc.uploaded_at)}`
+                      : 'None (Initial upload)'}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>New Revision:</span>
+                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#10b981' }}>
+                    {activeUploadTarget.currentDoc
+                      ? `R${(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}`
+                      : 'R0'}
+                  </span>
+                </div>
               </div>
 
-              <div style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--text)', marginBottom: '10px' }}>
-                Attached Technical Drawings ({selectedPartMaster.documents.length}):
-              </div>
+              {activeUploadTarget.currentDoc && (
+                <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: 'var(--text2)', fontSize: '12px' }}>
+                  ⚠️ Uploading a new PDF will create revision <strong>R{(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}</strong>. The current revision will be preserved in Revision History.
+                </div>
+              )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
-                {selectedPartMaster.documents.map(doc => (
-                  <div key={doc.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg3)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                      <span style={{ fontSize: '16px' }}>📄</span>
-                      <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        <a
-                          href={getDocUrl(doc)}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ color: 'var(--blue)', fontWeight: '600', textDecoration: 'underline' }}
-                        >
-                          {doc.file_name}
-                        </a>
-                        <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                          Uploaded {new Date(doc.uploaded_at).toLocaleDateString('en-IN')}
+              <form onSubmit={handleUploadDocumentSubmit}>
+                <div className="modal-field" style={{ marginBottom: '18px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Choose PDF File *</label>
+                  <input
+                    type="file"
+                    accept=".pdf,application/pdf"
+                    required
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
+                          alert('Only PDF files are allowed.');
+                          e.target.value = '';
+                          setDocUploadFile(null);
+                          return;
+                        }
+                        if (file.size > 20 * 1024 * 1024) {
+                          alert('File size exceeds 20MB limit.');
+                          e.target.value = '';
+                          setDocUploadFile(null);
+                          return;
+                        }
+                        setDocUploadFile(file);
+                      } else {
+                        setDocUploadFile(null);
+                      }
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg3)',
+                      color: 'var(--text)',
+                      fontSize: '13px'
+                    }}
+                  />
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                    Only PDF files are allowed (Max 20MB)
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                  <button
+                    type="button"
+                    className="vbtn"
+                    style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                    onClick={() => setShowDocUploadModal(false)}
+                    disabled={uploadingDoc}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="vbtn"
+                    disabled={!docUploadFile || uploadingDoc}
+                    style={{ minWidth: '100px' }}
+                  >
+                    {uploadingDoc ? 'Uploading...' : (activeUploadTarget.currentDoc ? 'Upload' : 'Upload')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revision History Modal */}
+      {canViewRevisionHistory && showDocHistoryModal && activeHistoryTarget && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowDocHistoryModal(false); }}>
+          <div className="modal" style={{ width: '680px', maxWidth: '95vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">
+                  {activeHistoryTarget.docType} Revision History
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
+                  Part No: <span style={{ color: 'var(--blue)', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>{activeHistoryTarget.part.part_number}</span>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setShowDocHistoryModal(false)}>✕</button>
+            </div>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '10px 4px' }}>
+              {activeHistoryList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', color: 'var(--text3)', fontSize: '13px', fontStyle: 'italic' }}>
+                  No revisions found for this {activeHistoryTarget.docType}.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {activeHistoryList.map((doc) => (
+                    <div
+                      key={doc.id}
+                      style={{
+                        background: 'var(--bg3)',
+                        border: doc.is_current ? '1.5px solid var(--blue)' : '1px solid var(--border)',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '16px',
+                        minWidth: 0
+                      }}
+                    >
+                      <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', minWidth: 0 }}>
+                          <span style={{
+                            fontWeight: '700',
+                            fontSize: '11px',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            flexShrink: 0,
+                            background: doc.is_current ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg2)',
+                            color: doc.is_current ? 'var(--blue)' : 'var(--text2)',
+                            border: doc.is_current ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border)'
+                          }}>
+                            {doc.revision_label || ('R' + (doc.revision_number ?? 0))}
+                            {doc.is_current ? ' (Current)' : ''}
+                          </span>
+                          <span
+                            title={doc.file_name}
+                            style={{
+                              fontSize: '12px',
+                              fontWeight: '600',
+                              color: 'var(--text)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              minWidth: 0,
+                              flex: 1
+                            }}
+                          >
+                            {doc.file_name}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                          <span>📅 {formatDateDMY(doc.uploaded_at)}</span>
+                          {doc.uploaded_by_name && <span>👤 {doc.uploaded_by_name}</span>}
+                          {doc.file_size ? <span>💾 {(doc.file_size / 1024).toFixed(1)} KB</span> : null}
                         </div>
                       </div>
+
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPdfViewerDoc({
+                              ...doc,
+                              title: `${activeHistoryTarget.docType} (${doc.revision_label || 'R' + doc.revision_number}) - ${activeHistoryTarget.part.part_number}`
+                            });
+                          }}
+                          style={{
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            color: 'var(--blue)',
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                        >
+                          View PDF
+                        </button>
+                        <a
+                          href={getDocUrl(doc)}
+                          download={doc.file_name}
+                          style={{
+                            background: 'var(--bg2)',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text2)',
+                            padding: '5px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            textDecoration: 'none',
+                            fontWeight: '500'
+                          }}
+                        >
+                          Download
+                        </a>
+                      </div>
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="button" className="vbtn" onClick={() => setShowDocHistoryModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                    {canEditMasters && (
-                      <button
-                        onClick={() => handleDeletePartDoc(selectedPartMaster.id, doc.id)}
-                        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '16px', padding: '4px 8px' }}
-                        title="Delete Drawing"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {selectedPartMaster.documents.length === 0 && (
-                  <div style={{ color: 'var(--text3)', fontStyle: 'italic', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-                    No technical drawings uploaded for this part number master yet.
-                  </div>
-                )}
+      {/* In-App PDF Viewer Modal */}
+      {pdfViewerDoc && (
+        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setPdfViewerDoc(null); }}>
+          <div className="modal" style={{ maxWidth: '960px', width: '92vw', height: '88vh', display: 'flex', flexDirection: 'column' }}>
+            <div className="modal-header" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div className="modal-title" style={{ fontSize: '15px', fontWeight: '600' }}>
+                  {pdfViewerDoc.title || 'PDF Document Viewer'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
+                  {pdfViewerDoc.file_name} · {pdfViewerDoc.revision_label || 'R0'} · {formatDateDMY(pdfViewerDoc.uploaded_at)}
+                  {pdfViewerDoc.uploaded_by_name ? ` · by ${pdfViewerDoc.uploaded_by_name}` : ''}
+                </div>
               </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>
-                <button type="button" className="vbtn" onClick={() => setShowPartDocModal(false)}>Close</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a
+                  href={getDocUrl(pdfViewerDoc)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="vbtn"
+                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  Open in Tab ↗
+                </a>
+                <a
+                  href={getDocUrl(pdfViewerDoc)}
+                  download={pdfViewerDoc.file_name || 'document.pdf'}
+                  className="vbtn"
+                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
+                >
+                  Download ↓
+                </a>
+                <button className="modal-close" onClick={() => setPdfViewerDoc(null)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}>✕</button>
               </div>
+            </div>
+            <div className="modal-body" style={{ flex: 1, padding: 0, overflow: 'hidden', background: '#525659' }}>
+              <iframe
+                src={getDocUrl(pdfViewerDoc)}
+                title={pdfViewerDoc.file_name}
+                style={{ width: '100%', height: '100%', border: 'none' }}
+              />
             </div>
           </div>
         </div>
@@ -1559,31 +2162,53 @@ export default function Masters() {
       {/* Panel Size Master Modal */}
       {showPanelSizeModal && (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPanelSizeModal(false); }}>
-          <div className="modal" style={{ maxWidth: '500px' }}>
+          <div className="modal" style={{ maxWidth: '520px' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPanelSizeId ? 'Edit Panel Size Master' : 'New Panel Size Master'}</div>
               <button className="modal-close" onClick={() => setShowPanelSizeModal(false)}>✕</button>
             </div>
             <form onSubmit={handleSavePanelSize}>
               <div className="modal-body">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Code</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. PC-01"
+                      value={panelSizeForm.panel_code}
+                      onChange={e => setPanelSizeForm({ ...panelSizeForm, panel_code: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>IP Rating</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. IP55, IP65"
+                      value={panelSizeForm.ip_rating}
+                      onChange={e => setPanelSizeForm({ ...panelSizeForm, ip_rating: e.target.value })}
+                    />
+                  </div>
+                </div>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Size / Dimensions *</label>
                   <input
                     type="text"
                     className="form-input"
                     placeholder="e.g. 1200x800x400 mm"
-                    value={panelSizeForm.size_name}
-                    onChange={e => setPanelSizeForm({ ...panelSizeForm, size_name: e.target.value })}
+                    value={panelSizeForm.panel_size}
+                    onChange={e => setPanelSizeForm({ ...panelSizeForm, panel_size: e.target.value })}
                     required
                   />
                 </div>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Description / Notes</label>
+                  <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Comments / Notes</label>
                   <textarea
                     className="form-input"
                     placeholder="e.g. Standard Wall Mount Single Door Enclosure"
-                    value={panelSizeForm.description}
-                    onChange={e => setPanelSizeForm({ ...panelSizeForm, description: e.target.value })}
+                    value={panelSizeForm.comments}
+                    onChange={e => setPanelSizeForm({ ...panelSizeForm, comments: e.target.value })}
                     rows={3}
                   />
                 </div>

@@ -163,7 +163,7 @@ export default function PlanningModule() {
     action: 90
   };
 
-  const getColStyle = (colId, isHeader = false, isAltRow = false) => {
+  const getColStyle = (colId, isHeader = false, isAltRow = false, rowHighlight = null) => {
     const isPinned = pinnedCols.includes(colId);
     if (!isPinned) return {};
 
@@ -180,11 +180,18 @@ export default function PlanningModule() {
 
     const isLastPinned = idxInPinned === visiblePinned.length - 1;
 
+    let pinnedBg = isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)';
+    if (rowHighlight === 'cancelled') {
+      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
+    } else if (rowHighlight === 'hold') {
+      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
+    }
+
     return {
       position: 'sticky',
       left: `${leftOffset}px`,
       zIndex: isHeader ? 30 : 5,
-      background: isHeader ? 'var(--bg3, #1e222d)' : isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)',
+      background: isHeader ? 'var(--bg3, #1e222d)' : pinnedBg,
       boxShadow: isLastPinned ? '4px 0 8px -2px rgba(0,0,0,0.4)' : 'none'
     };
   };
@@ -532,12 +539,32 @@ export default function PlanningModule() {
             {order.priority}
           </span>
         );
-      case 'status':
+      case 'status': {
+        const isUnitHold = order.hold_status === 'Hold' || String(order.status || '').toLowerCase().startsWith('hold');
+        const isUnitCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span className={`status-badge ${(order.status || 'Not Started').toLowerCase().replace(/\s+/g, '-')}`}>
-              {order.status || 'Not Started'}
-            </span>
+            {isUnitHold ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
+                borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
+                color: '#fbbf24', fontSize: 11, fontWeight: 700
+              }}>
+                ⏸ HOLD {order.hold_step_name ? `@ ${order.hold_step_name}` : ''}
+              </span>
+            ) : isUnitCancelled ? (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
+                borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
+                color: '#f87171', fontSize: 11, fontWeight: 700
+              }}>
+                ✕ CANCELLED {order.cancelled_step_name ? `@ ${order.cancelled_step_name}` : ''}
+              </span>
+            ) : (
+              <span className={`status-badge ${(order.status || 'Not Started').toLowerCase().replace(/\s+/g, '-')}`}>
+                {order.status || 'Not Started'}
+              </span>
+            )}
             {order.active_dept && (
               <span className={`dept-badge dept-${(order.active_dept || '').toLowerCase()}`}>
                 {order.active_dept}
@@ -545,6 +572,7 @@ export default function PlanningModule() {
             )}
           </div>
         );
+      }
       case 'qc_status':
         return (
           <span className={`qc-badge ${(order.qc_status || 'Pending').toLowerCase()}`}>
@@ -827,6 +855,15 @@ export default function PlanningModule() {
         specific_unit_serial: specificUnitSerial,
         specific_active_dept: unitObj?.current_dept || order.active_dept,
         status: unitObj?.status || order.status || 'Not Started',
+        hold_status: unitObj?.hold_status || order.hold_status || 'None',
+        hold_step_name: unitObj?.hold_step_name || null,
+        hold_dept: unitObj?.hold_dept || null,
+        hold_reason: unitObj?.hold_reason || null,
+        held_by_name: unitObj?.held_by_name || null,
+        held_at: unitObj?.held_at || null,
+        cancelled_step_name: unitObj?.cancelled_step_name || null,
+        cancelled_dept: unitObj?.cancelled_dept || null,
+        cancelled_reason: unitObj?.cancelled_reason || null,
         qc_status: unitObj?.qc_status || order.qc_status || 'Pending',
         planned_dispatch_date: unitObj?.planned_dispatch_date || order.planned_dispatch_date,
         wiring_assigned_date: unitObj?.wiring_assigned_date || order.wiring_assigned_date,
@@ -876,7 +913,16 @@ export default function PlanningModule() {
       );
     }
 
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    let matchesStatus = true;
+    if (statusFilter !== 'all') {
+      if (statusFilter === 'Hold') {
+        matchesStatus = order.hold_status === 'Hold' || String(order.status || '').toLowerCase().startsWith('hold');
+      } else if (statusFilter === 'Cancelled') {
+        matchesStatus = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
+      } else {
+        matchesStatus = order.status === statusFilter;
+      }
+    }
     const matchesPriority = priorityFilter === 'all' || order.priority === priorityFilter;
 
     return matchesSearch && matchesStatus && matchesPriority;
@@ -1246,16 +1292,51 @@ export default function PlanningModule() {
 
   const renderRow = (order, globalIdx, progressPct) => {
     const isRowSelected = selectedRowIds.includes(order.line_item_id);
+    const isCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
+    const isHold = order.hold_status === 'Hold' || String(order.status || '').toLowerCase().startsWith('hold');
+    const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
+
+    const isAltRow = globalIdx % 2 === 1;
+
+    const defaultBg = isCancelled
+      ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
+      : isHold
+      ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
+      : (isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)');
+
+    const borderLeft = isCancelled
+      ? '5px solid #ef4444'
+      : isHold
+      ? '5px solid #f59e0b'
+      : undefined;
 
     return (
       <tr 
         key={order.row_key} 
-        className={`planning-row ${isRowSelected ? 'selected-row' : ''}`}
+        className={`planning-row ${isRowSelected ? 'selected-row' : ''} ${isCancelled ? 'row-cancelled' : isHold ? 'row-hold' : ''}`}
         onClick={(e) => handleCellClick(e, 'row', order)}
-        style={{ cursor: canEdit ? 'pointer' : 'default' }}
+        style={{ 
+          cursor: canEdit ? 'pointer' : 'default',
+          background: defaultBg,
+          borderLeft: borderLeft
+        }}
       >
         {canEdit && (
-          <td className="col-sticky-checkbox" style={{ width: '40px', minWidth: '40px', textAlign: 'center', left: 0 }} onClick={(e) => e.stopPropagation()}>
+          <td 
+            className="col-sticky-checkbox" 
+            style={{ 
+              width: '40px', 
+              minWidth: '40px', 
+              textAlign: 'center', 
+              left: 0,
+              background: isCancelled
+                ? (isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)')
+                : isHold
+                ? (isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)')
+                : undefined
+            }} 
+            onClick={(e) => e.stopPropagation()}
+          >
             <input
               type="checkbox"
               checked={isRowSelected}
@@ -1280,7 +1361,7 @@ export default function PlanningModule() {
             tdStyle = { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
           }
 
-          const stickyStyle = getColStyle(colId, false, globalIdx % 2 === 1);
+          const stickyStyle = getColStyle(colId, false, isAltRow, rowHighlight);
 
           return (
             <td
@@ -1346,6 +1427,8 @@ export default function PlanningModule() {
             <label>Status</label>
             <select value={statusFilter} onChange={(e) => handleStatusChange(e.target.value)}>
               <option value="all">All Statuses</option>
+              <option value="Hold">⏸ On Hold</option>
+              <option value="Cancelled">✕ Cancelled</option>
               <option value="Not Started">Not Started</option>
               <option value="In Progress">In Progress</option>
               <option value="Waiting for Material">Waiting for Material</option>
@@ -2211,6 +2294,38 @@ export default function PlanningModule() {
 
         .planning-row:hover {
           background: #1a1d23;
+        }
+
+        .planning-row.row-hold {
+          background: rgba(245, 158, 11, 0.17) !important;
+          border-left: 5px solid #f59e0b !important;
+        }
+        .planning-row.row-hold:hover {
+          background: rgba(245, 158, 11, 0.28) !important;
+        }
+        .planning-row.row-hold .col-sticky-td,
+        .planning-row.row-hold td[style*="position: sticky"] {
+          background: rgba(245, 158, 11, 0.22) !important;
+        }
+        .planning-row.row-hold:hover .col-sticky-td,
+        .planning-row.row-hold:hover td[style*="position: sticky"] {
+          background: rgba(245, 158, 11, 0.32) !important;
+        }
+
+        .planning-row.row-cancelled {
+          background: rgba(239, 68, 68, 0.17) !important;
+          border-left: 5px solid #ef4444 !important;
+        }
+        .planning-row.row-cancelled:hover {
+          background: rgba(239, 68, 68, 0.28) !important;
+        }
+        .planning-row.row-cancelled .col-sticky-td,
+        .planning-row.row-cancelled td[style*="position: sticky"] {
+          background: rgba(239, 68, 68, 0.22) !important;
+        }
+        .planning-row.row-cancelled:hover .col-sticky-td,
+        .planning-row.row-cancelled:hover td[style*="position: sticky"] {
+          background: rgba(239, 68, 68, 0.32) !important;
         }
 
         /* Draggable Columns styling */

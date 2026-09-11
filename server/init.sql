@@ -146,7 +146,7 @@ CREATE TABLE IF NOT EXISTS unit_steps (
     dept TEXT NOT NULL,
     name TEXT NOT NULL,
     sub TEXT,
-    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'inprogress', 'done', 'blocked', 'review')),
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'inprogress', 'done', 'blocked', 'review', 'hold', 'cancelled')),
     notes TEXT,
     updated TEXT,
     dispatch_date DATE,
@@ -239,19 +239,22 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('end_client_name',        'End Client Name',       'Order',    'Text',     true, 6),
   ('material_description',   'Material Description',  'LineItem', 'Text',     true, 7),
   ('part_number',            'Part Number',          'LineItem', 'Text',     true, 8),
-  ('panel_type_size',        'Panel Size / Type',     'LineItem', 'Text',     true, 9),
-  ('delivery_date',          'Delivery Date',         'Order',    'Date',     true, 10),
-  ('planned_dispatch_date',  'Planned Dispatch',      'Planning', 'Date',     true, 11),
-  ('priority',               'Priority',              'Order',    'Dropdown', true, 12),
-  ('unit_status',            'Status',                'Unit',     'Dropdown', true, 13),
-  ('mounting_start_date',    'Mounting Start',        'Planning', 'Date',     true, 14),
-  ('mounting_complete_date', 'Mounting Complete',     'Planning', 'Date',     true, 15),
-  ('wiring_assigned_date',   'Wiring Assigned',       'Planning', 'Date',     true, 16),
-  ('wiring_expected_date',   'Wiring Expected',       'Planning', 'Date',     true, 17),
-  ('expected_qc_date',       'Expected QC',           'Planning', 'Date',     true, 18),
-  ('qc_status',              'QC Status',             'Planning', 'Dropdown', true, 19),
-  ('qc_date',                'QC Date',               'Planning', 'Date',     true, 20),
-  ('classification',         'Classification',        'Order',    'Dropdown', true, 21)
+  ('panel_code',             'Panel Code',            'LineItem', 'Text',     true, 9),
+  ('panel_type_size',        'Panel Size',            'LineItem', 'Text',     true, 10),
+  ('panel_ip_rating',        'IP Rating',             'LineItem', 'Text',     true, 11),
+  ('panel_comments',         'Comments (Panel)',      'LineItem', 'Text',     true, 12),
+  ('delivery_date',          'Delivery Date',         'Order',    'Date',     true, 13),
+  ('planned_dispatch_date',  'Planned Dispatch',      'Planning', 'Date',     true, 14),
+  ('priority',               'Priority',              'Order',    'Dropdown', true, 15),
+  ('unit_status',            'Status',                'Unit',     'Dropdown', true, 16),
+  ('mounting_start_date',    'Mounting Start',        'Planning', 'Date',     true, 17),
+  ('mounting_complete_date', 'Mounting Complete',     'Planning', 'Date',     true, 18),
+  ('wiring_assigned_date',   'Wiring Assigned',       'Planning', 'Date',     true, 19),
+  ('wiring_expected_date',   'Wiring Expected',       'Planning', 'Date',     true, 20),
+  ('expected_qc_date',       'Expected QC',           'Planning', 'Date',     true, 21),
+  ('qc_status',              'QC Status',             'Planning', 'Dropdown', true, 22),
+  ('qc_date',                'QC Date',               'Planning', 'Date',     true, 23),
+  ('classification',         'Classification',        'Order',    'Dropdown', true, 24)
 ON CONFLICT (col_key) DO NOTHING;
 
 -- Seed default visibility (all visible for all departments)
@@ -265,36 +268,75 @@ ON CONFLICT (dept, col_key) DO NOTHING;
 CREATE TABLE IF NOT EXISTS part_number_masters (
     id SERIAL PRIMARY KEY,
     part_number TEXT UNIQUE NOT NULL,
+    client_name TEXT,
+    project TEXT,
     description TEXT,
     category TEXT NOT NULL DEFAULT 'Standard',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE part_number_masters ADD COLUMN IF NOT EXISTS client_name TEXT;
+ALTER TABLE part_number_masters ADD COLUMN IF NOT EXISTS project TEXT;
+
 CREATE TABLE IF NOT EXISTS part_number_documents (
     id SERIAL PRIMARY KEY,
     part_number_id INTEGER NOT NULL REFERENCES part_number_masters(id) ON DELETE CASCADE,
+    doc_type TEXT NOT NULL DEFAULT 'Drawing',
+    revision_number INTEGER NOT NULL DEFAULT 0,
+    revision_label TEXT NOT NULL DEFAULT 'R0',
     file_name TEXT NOT NULL,
     file_path TEXT NOT NULL,
     file_type TEXT,
+    file_size BIGINT DEFAULT 0,
+    is_current BOOLEAN NOT NULL DEFAULT true,
+    uploaded_by_id INTEGER REFERENCES users(id),
+    uploaded_by_name TEXT,
     uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS doc_type TEXT DEFAULT 'Drawing';
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS revision_number INTEGER DEFAULT 0;
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS revision_label TEXT DEFAULT 'R0';
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT true;
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS uploaded_by_id INTEGER REFERENCES users(id);
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS uploaded_by_name TEXT;
+ALTER TABLE part_number_documents ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+UPDATE part_number_documents SET doc_type = 'Drawing' WHERE doc_type IS NULL OR doc_type = '';
+UPDATE part_number_documents SET revision_label = 'R' || COALESCE(revision_number, 0) WHERE revision_label IS NULL OR revision_label = '';
+UPDATE part_number_documents SET is_current = true WHERE is_current IS NULL;
+
+
 CREATE TABLE IF NOT EXISTS panel_size_masters (
     id SERIAL PRIMARY KEY,
+    panel_code VARCHAR(100),
+    panel_size VARCHAR(100),
     size_name VARCHAR(100) UNIQUE NOT NULL,
+    ip_rating VARCHAR(50),
+    comments TEXT,
     description TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO panel_size_masters (size_name, description) VALUES
-  ('800x600x300 mm', 'Standard Wall Mount Control Panel'),
-  ('1000x800x300 mm', 'Medium Wall Mount Control Panel'),
-  ('1200x800x400 mm', 'Large Wall Mount / Small Floor Standing Panel'),
-  ('1600x800x400 mm', 'Floor Standing Single Door Panel'),
-  ('2000x800x600 mm', 'Floor Standing Standard PCC/MCC Panel'),
-  ('2000x1000x800 mm', 'Heavy Duty Floor Standing Double Door Panel'),
-  ('Custom', 'Customized Non-Standard Panel Dimensions')
-ON CONFLICT (size_name) DO NOTHING;
+ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS panel_code TEXT;
+ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS panel_size TEXT;
+ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS ip_rating TEXT;
+ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS comments TEXT;
+UPDATE panel_size_masters SET panel_size = COALESCE(panel_size, size_name) WHERE panel_size IS NULL;
+UPDATE panel_size_masters SET comments = COALESCE(comments, description) WHERE comments IS NULL;
+
+INSERT INTO panel_size_masters (panel_code, panel_size, size_name, ip_rating, comments, description) VALUES
+  ('PC-01', '800x600x300 mm', '800x600x300 mm', 'IP55', 'Standard Wall Mount Control Panel', 'Standard Wall Mount Control Panel'),
+  ('PC-02', '1000x800x300 mm', '1000x800x300 mm', 'IP55', 'Medium Wall Mount Control Panel', 'Medium Wall Mount Control Panel'),
+  ('PC-03', '1200x800x400 mm', '1200x800x400 mm', 'IP55', 'Large Wall Mount / Small Floor Standing Panel', 'Large Wall Mount / Small Floor Standing Panel'),
+  ('PC-04', '1600x800x400 mm', '1600x800x400 mm', 'IP55', 'Floor Standing Single Door Panel', 'Floor Standing Single Door Panel'),
+  ('PC-05', '2000x800x600 mm', '2000x800x600 mm', 'IP54', 'Floor Standing Standard PCC/MCC Panel', 'Floor Standing Standard PCC/MCC Panel'),
+  ('PC-06', '2000x1000x800 mm', '2000x1000x800 mm', 'IP54', 'Heavy Duty Floor Standing Double Door Panel', 'Heavy Duty Floor Standing Double Door Panel'),
+  ('PC-07', 'Custom', 'Custom', 'IP55', 'Customized Non-Standard Panel Dimensions', 'Customized Non-Standard Panel Dimensions')
+ON CONFLICT (size_name) DO UPDATE SET
+  panel_code = COALESCE(panel_size_masters.panel_code, EXCLUDED.panel_code),
+  panel_size = COALESCE(panel_size_masters.panel_size, EXCLUDED.panel_size),
+  ip_rating = COALESCE(panel_size_masters.ip_rating, EXCLUDED.ip_rating),
+  comments = COALESCE(panel_size_masters.comments, EXCLUDED.comments);
 
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
@@ -303,4 +345,15 @@ ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None';
+
+-- Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_id ON unit_steps(order_unit_id);
+CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_dept ON unit_steps(order_unit_id, dept);
+CREATE INDEX IF NOT EXISTS idx_unit_steps_status ON unit_steps(status);
+CREATE INDEX IF NOT EXISTS idx_order_units_order_id ON order_units(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_units_line_item_id ON order_units(line_item_id);
+CREATE INDEX IF NOT EXISTS idx_order_steps_order_id ON order_steps(order_id);
+CREATE INDEX IF NOT EXISTS idx_order_units_hold_status ON order_units(hold_status);
+
+
 

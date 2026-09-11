@@ -10,10 +10,12 @@ const PRIORITY_CONFIG = {
 
 const STEP_STATUS_CONFIG = {
   done:       { label: 'Done',        color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: '✓' },
-  inprogress: { label: 'In Progress', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', icon: '◉' },
+  inprogress: { label: 'In Progress', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', icon: '◉' },
   pending:    { label: 'Pending',     color: '#6b7280', bg: 'rgba(107,114,128,0.12)', icon: '○' },
   blocked:    { label: 'Blocked',     color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: '✕' },
   review:     { label: 'Review',      color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: '⟳' },
+  hold:       { label: 'Hold',        color: '#f59e0b', bg: 'rgba(245,158,11,0.25)', icon: '⏸' },
+  cancelled:  { label: 'Cancelled',   color: '#ef4444', bg: 'rgba(239,68,68,0.25)', icon: '✕' },
 };
 
 const DEPT_COLORS = {
@@ -55,6 +57,8 @@ function StepPill({ step, onStatusChange, canEdit }) {
           <option value="done">Done</option>
           <option value="blocked">Blocked</option>
           <option value="review">Review</option>
+          <option value="hold">Hold</option>
+          <option value="cancelled">Cancelled</option>
         </select>
       )}
     </div>
@@ -72,7 +76,15 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
     return ['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
   };
 
-  const rowBorder = hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
+  const isHold = unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
+  const isCancelled = unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
+
+  const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
+  const rowBg = isCancelled 
+    ? (expanded ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
+    : isHold
+    ? (expanded ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.18)')
+    : (expanded ? 'var(--bg3)' : 'transparent');
 
   return (
     <>
@@ -80,8 +92,8 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
         onClick={() => setExpanded(e => !e)}
         style={{
           cursor: 'pointer',
-          borderLeft: `3px solid ${rowBorder}`,
-          background: expanded ? 'var(--bg3)' : 'transparent',
+          borderLeft: `5px solid ${rowBorder}`,
+          background: rowBg,
           transition: 'background 0.15s',
         }}
         className="worklist-row"
@@ -110,7 +122,35 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
 
         {/* Unit ID */}
         <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
-          {unit.unit_serial}
+          <div>{unit.unit_serial}</div>
+          {isHold && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
+              borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
+              color: '#fbbf24', fontSize: 10, fontWeight: 700
+            }}>
+              <span>⏸</span> HOLD @ {unit.hold_step_name || 'Step'}
+            </div>
+          )}
+          {isHold && unit.hold_reason && (
+            <div style={{ fontSize: 10, color: '#fef3c7', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
+              {unit.hold_reason}
+            </div>
+          )}
+          {isCancelled && (
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
+              borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
+              color: '#f87171', fontSize: 10, fontWeight: 700
+            }}>
+              <span>✕</span> CANCELLED @ {unit.cancelled_step_name || 'Step'}
+            </div>
+          )}
+          {isCancelled && unit.cancelled_reason && (
+            <div style={{ fontSize: 10, color: '#fee2e2', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
+              {unit.cancelled_reason}
+            </div>
+          )}
         </td>
 
         {/* Item Details */}
@@ -419,6 +459,10 @@ export default function DeptWorklist({ dept }) {
       const steps = u.dept_steps || [];
       return steps.every(s => s.status === 'pending') || steps.length === 0;
     }
+    if (filter === 'hold') {
+      const steps = u.dept_steps || [];
+      return u.hold_status === 'Hold' || String(u.unit_status || '').toLowerCase().startsWith('hold') || steps.some(s => s.status === 'hold');
+    }
     return true;
   });
 
@@ -568,7 +612,7 @@ export default function DeptWorklist({ dept }) {
           onBlur={e => e.target.style.borderColor = 'var(--border2)'}
         />
         <div style={{ display: 'flex', background: 'var(--bg4)', border: '1px solid var(--border2)', borderRadius: 8, overflow: 'hidden' }}>
-          {['all', 'pending', 'inprogress', 'done'].map(f => (
+          {['all', 'pending', 'inprogress', 'done', 'hold'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -579,7 +623,7 @@ export default function DeptWorklist({ dept }) {
                 textTransform: 'capitalize', transition: 'all 0.15s',
               }}
             >
-              {f === 'inprogress' ? 'In Progress' : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'inprogress' ? 'In Progress' : f === 'hold' ? 'On Hold' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>

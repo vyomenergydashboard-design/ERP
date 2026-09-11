@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
-  UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2
+  UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
+  Eye, History, Download
 } from 'lucide-react';
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
@@ -35,7 +36,10 @@ const BASE_COLUMNS = [
   { key: 'reference_number',      label: 'Ref #',         align: 'left' },
   { key: 'end_client_name',       label: 'End Client',    align: 'left' },
   { key: 'part_number',           label: 'Part Number',   align: 'left' },
+  { key: 'panel_code',            label: 'Panel Code',    align: 'center' },
   { key: 'panel_type_size',       label: 'Panel Size',    align: 'left' },
+  { key: 'panel_ip_rating',       label: 'IP Rating',     align: 'center' },
+  { key: 'panel_comments',        label: 'Comments',      align: 'left' },
   { key: 'material_description',  label: 'Description',   align: 'left' },
   { key: 'classification',        label: 'Type (Design)', align: 'center' },
   { key: 'priority',              label: 'Priority',      align: 'center' },
@@ -91,7 +95,10 @@ const DEFAULT_COL_WIDTHS = {
   reference_number: 95,
   end_client_name: 125,
   part_number: 145,
+  panel_code: 115,
   panel_type_size: 155,
+  panel_ip_rating: 95,
+  panel_comments: 190,
   material_description: 220,
   classification: 115,
   priority: 95,
@@ -172,14 +179,19 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
   const cleanQ = (query || '').trim().toLowerCase();
   const matchedMasters = panelSizeMasters.filter(item => {
     if (!cleanQ) return true;
-    const nameMatch = item.size_name && item.size_name.toLowerCase().includes(cleanQ);
-    const descMatch = item.description && item.description.toLowerCase().includes(cleanQ);
-    return nameMatch || descMatch;
+    const codeMatch = item.panel_code && item.panel_code.toLowerCase().includes(cleanQ);
+    const sizeVal = item.panel_size || item.size_name || '';
+    const nameMatch = sizeVal.toLowerCase().includes(cleanQ);
+    const ipMatch = item.ip_rating && item.ip_rating.toLowerCase().includes(cleanQ);
+    const descVal = item.comments || item.description || '';
+    const descMatch = descVal.toLowerCase().includes(cleanQ);
+    return codeMatch || nameMatch || ipMatch || descMatch;
   });
 
-  const exactMatch = panelSizeMasters.some(
-    item => item.size_name && item.size_name.toLowerCase() === cleanQ
-  );
+  const exactMatch = panelSizeMasters.some(item => {
+    const sizeVal = item.panel_size || item.size_name || '';
+    return sizeVal.toLowerCase() === cleanQ;
+  });
 
   const options = [...matchedMasters];
   if (cleanQ && !exactMatch) {
@@ -411,24 +423,54 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                     transition: 'background 0.1s'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: isHighlighted ? '#60a5fa' : 'var(--text)'
-                    }}>
-                      {opt.isCustom ? `+ Use: "${opt.size_name}"` : renderHighlighted(opt.size_name, cleanQ)}
-                    </span>
-                    {isSelected && <Check size={13} style={{ color: '#10b981' }} />}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {opt.panel_code && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10.5,
+                          fontWeight: 700,
+                          color: '#c084fc',
+                          background: 'rgba(168, 85, 247, 0.15)',
+                          border: '1px solid rgba(168, 85, 247, 0.3)',
+                          padding: '1px 5px',
+                          borderRadius: 4
+                        }}>
+                          {opt.panel_code}
+                        </span>
+                      )}
+                      <span style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: isHighlighted ? '#60a5fa' : 'var(--text)'
+                      }}>
+                        {opt.isCustom ? `+ Use: "${opt.size_name}"` : renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
+                      </span>
+                      {opt.ip_rating && (
+                        <span style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          color: '#10b981',
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          border: '1px solid rgba(16, 185, 129, 0.28)',
+                          padding: '1px 5px',
+                          borderRadius: 4
+                        }}>
+                          {opt.ip_rating}
+                        </span>
+                      )}
+                    </div>
+                    {isSelected && <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />}
                   </div>
-                  {opt.description && (
+                  {(opt.comments || opt.description) && (
                     <span style={{
                       fontSize: 10.5,
                       color: isHighlighted ? 'var(--text2)' : 'var(--text3)',
                       fontStyle: opt.isCustom ? 'italic' : 'normal'
                     }}>
-                      {opt.description}
+                      {opt.comments || opt.description}
                     </span>
                   )}
                 </div>
@@ -457,37 +499,70 @@ function TechnicalDocsModal({
   selectedPart,
   onClose,
   canManageDocs,
+  userRole,
   token,
   getDocUrl,
   onUpdatePartMasters,
   onUpdateSelectedPart
 }) {
   const [filesToUpload, setFilesToUpload] = useState([]);
+  const [uploadDocType, setUploadDocType] = useState('Drawing');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [isDragging, setIsDragging] = useState(false);
-  const [showExtraUpload, setShowExtraUpload] = useState(false);
+  const [showUploadBox, setShowUploadBox] = useState(false);
+  const [showDrawingHistory, setShowDrawingHistory] = useState(false);
+  const [showBomHistory, setShowBomHistory] = useState(false);
+  const [pdfViewerDoc, setPdfViewerDoc] = useState(null);
   const fileInputRef = useRef(null);
+
+  const effectiveRole = (userRole || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('user') || '{}').role) || '').trim().toLowerCase();
+  const isDesignUser = effectiveRole === 'design';
+  const canViewRevisionHistory = !isDesignUser;
 
   const isStandard = (selectedPart.classification || '').trim().toLowerCase() === 'standard';
   const masterDocs = selectedPart.masterDocs || [];
   const orderDocs = selectedPart.orderDocs || [];
+
+  const drawings = masterDocs.filter(d => (d.doc_type || 'Drawing').toLowerCase() === 'drawing');
+  const boms = masterDocs.filter(d => (d.doc_type || '').toLowerCase() === 'bom');
+
+  const latestDrawing = selectedPart.drawing || drawings.find(d => d.is_current) || (drawings.length > 0 ? drawings[drawings.length - 1] : null);
+  const latestBom = selectedPart.bom || boms.find(d => d.is_current) || (boms.length > 0 ? boms[boms.length - 1] : null);
+
+  const drawingHistory = selectedPart.drawingHistory && selectedPart.drawingHistory.length > 0
+    ? selectedPart.drawingHistory
+    : [...drawings].reverse();
+
+  const bomHistory = selectedPart.bomHistory && selectedPart.bomHistory.length > 0
+    ? selectedPart.bomHistory
+    : [...boms].reverse();
   
-  // Custom drawings attached to the order
   const customDrawings = orderDocs.filter(d => 
     (d.doc_type || '').toLowerCase() === 'drawing' || 
     (d.doc_type || '').toLowerCase() === 'technical specification' ||
     (d.doc_type || '').toLowerCase() === 'spec'
   );
-  // Other attachments like PO, Quotation, General
   const otherOrderDocs = orderDocs.filter(d => 
     (d.doc_type || '').toLowerCase() !== 'drawing' && 
-    (d.doc_type || '').toLowerCase() !== 'technical specification' &&
+    (d.doc_type || '').toLowerCase() !== 'technical specification' && 
     (d.doc_type || '').toLowerCase() !== 'spec'
   );
 
-  const hasMasterDocs = masterDocs.length > 0;
+  const formatDateDMY = (dateStr) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return String(dateStr);
+      const day = String(d.getDate()).padStart(2, '0');
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
+    } catch (e) {
+      return String(dateStr);
+    }
+  };
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -511,10 +586,10 @@ function TechnicalDocsModal({
     setFilesToUpload(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Upload handler for Standard Part technical drawings
-  const handleUploadStandard = async () => {
+  const handleUploadStandard = async (targetType) => {
+    const docTypeToUpload = targetType || uploadDocType || 'Drawing';
     if (filesToUpload.length === 0) {
-      setUploadError('Please select at least one drawing file to upload.');
+      setUploadError(`Please select a ${docTypeToUpload} file (PDF) to upload.`);
       return;
     }
     setIsUploading(true);
@@ -524,7 +599,6 @@ function TechnicalDocsModal({
     try {
       let partId = selectedPart.partId;
 
-      // If partId is missing, attempt to create part master entry or find it
       if (!partId) {
         const createRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
           method: 'POST',
@@ -543,7 +617,6 @@ function TechnicalDocsModal({
           const created = await createRes.json();
           partId = created.id;
         } else {
-          // If already exists or error, look it up
           const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
             headers: { Authorization: `Bearer ${token}` }
           });
@@ -560,6 +633,7 @@ function TechnicalDocsModal({
       }
 
       const formData = new FormData();
+      formData.append('doc_type', docTypeToUpload);
       filesToUpload.forEach(f => formData.append('files', f));
 
       const upRes = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents`, {
@@ -570,19 +644,34 @@ function TechnicalDocsModal({
 
       if (!upRes.ok) {
         const errData = await upRes.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to upload technical drawings');
+        throw new Error(errData.error || `Failed to upload ${docTypeToUpload}`);
       }
 
-      const newDocs = await upRes.json();
-      onUpdateSelectedPart(prev => ({
-        ...prev,
-        partId,
-        masterDocs: [...(prev.masterDocs || []), ...newDocs]
-      }));
+      const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (listRes.ok) {
+        const freshList = await listRes.json();
+        const updated = freshList.find(p => p.id === partId || p.part_number?.trim().toLowerCase() === selectedPart.partNumber?.trim().toLowerCase());
+        if (updated) {
+          onUpdateSelectedPart(prev => ({
+            ...prev,
+            partId: updated.id,
+            clientName: updated.client_name || prev.clientName,
+            project: updated.project || prev.project,
+            drawing: updated.drawing,
+            bom: updated.bom,
+            drawingHistory: updated.drawing_history || [],
+            bomHistory: updated.bom_history || [],
+            masterDocs: updated.documents || []
+          }));
+        }
+      }
+
       if (onUpdatePartMasters) onUpdatePartMasters();
       setFilesToUpload([]);
-      setUploadSuccess('Standard Technical Drawing(s) uploaded successfully!');
-      setShowExtraUpload(false);
+      setUploadSuccess(`${docTypeToUpload} uploaded successfully!`);
+      setShowUploadBox(false);
     } catch (err) {
       console.error(err);
       setUploadError(err.message || 'Failed to upload document');
@@ -591,7 +680,6 @@ function TechnicalDocsModal({
     }
   };
 
-  // Upload handler for Non-Standard custom drawings
   const handleUploadNonStandard = async () => {
     if (filesToUpload.length === 0) {
       setUploadError('Please select at least one drawing file to upload.');
@@ -631,7 +719,7 @@ function TechnicalDocsModal({
       const savedDocs = await upRes.json();
       onUpdateSelectedPart(prev => ({
         ...prev,
-        orderDocs: [...(prev.orderDocs || []), ...savedDocs]
+        orderDocs: [...(prev.orderDocs || []), ...(Array.isArray(savedDocs) ? savedDocs : [savedDocs])]
       }));
       setFilesToUpload([]);
       setUploadSuccess('Custom Technical Drawing(s) uploaded successfully!');
@@ -644,17 +732,30 @@ function TechnicalDocsModal({
   };
 
   const handleDeleteMasterDoc = async (docId) => {
-    if (!window.confirm('Are you sure you want to delete this Standard Technical Drawing?')) return;
+    if (!window.confirm('Are you sure you want to delete this document revision?')) return;
     try {
       const delRes = await fetch(`${window.API_BASE}/api/part-number-masters/${selectedPart.partId}/documents/${docId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       if (delRes.ok) {
-        onUpdateSelectedPart(prev => ({
-          ...prev,
-          masterDocs: prev.masterDocs.filter(d => d.id !== docId)
-        }));
+        const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (listRes.ok) {
+          const freshList = await listRes.json();
+          const updated = freshList.find(p => p.id === selectedPart.partId || p.part_number?.trim().toLowerCase() === selectedPart.partNumber?.trim().toLowerCase());
+          if (updated) {
+            onUpdateSelectedPart(prev => ({
+              ...prev,
+              drawing: updated.drawing,
+              bom: updated.bom,
+              drawingHistory: updated.drawing_history || [],
+              bomHistory: updated.bom_history || [],
+              masterDocs: updated.documents || []
+            }));
+          }
+        }
         if (onUpdatePartMasters) onUpdatePartMasters();
       } else {
         const err = await delRes.json().catch(() => ({}));
@@ -695,7 +796,6 @@ function TechnicalDocsModal({
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  // Reusable dropzone component
   const renderUploadBox = (onUploadAction, buttonLabel) => (
     <div style={{
       background: 'var(--bg3)',
@@ -721,14 +821,15 @@ function TechnicalDocsModal({
       >
         <UploadCloud size={30} style={{ color: isDragging ? '#3b82f6' : 'var(--text3)', margin: '0 auto 8px' }} />
         <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
-          Click to browse or drag & drop technical drawings
+          Click to browse or drag & drop technical files
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-          Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)
+          {isStandard ? 'PDF documents only (Up to 10 files)' : 'Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)'}
         </div>
         <input
           ref={fileInputRef}
           type="file"
+          accept={isStandard ? '.pdf,application/pdf' : undefined}
           multiple
           style={{ display: 'none' }}
           onChange={handleFileSelect}
@@ -851,7 +952,7 @@ function TechnicalDocsModal({
 
   return (
     <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') onClose(); }}>
-      <div className="modal" style={{ maxWidth: '720px', width: '92vw', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
+      <div className="modal" style={{ maxWidth: '800px', width: '92vw', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
         
         {/* Modal Header */}
         <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -862,6 +963,8 @@ function TechnicalDocsModal({
             </div>
             <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '3px' }}>
               Part Number: <span style={{ color: '#60a5fa', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{selectedPart.partNumber}</span>
+              {selectedPart.clientName && <span> · Client: <strong style={{ color: 'var(--text)' }}>{selectedPart.clientName}</strong></span>}
+              {selectedPart.project && <span> · Project: <strong style={{ color: 'var(--text)' }}>{selectedPart.project}</strong></span>}
               {selectedPart.description && ` — ${selectedPart.description}`}
             </div>
           </div>
@@ -901,7 +1004,7 @@ function TechnicalDocsModal({
               </span>
               <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
                 {isStandard 
-                  ? 'Master standard catalog drawings apply to this unit.' 
+                  ? 'Master catalog drawings & BOM apply to this unit. The latest revisions are shown below.' 
                   : `Custom specification unit (${selectedPart.unitSerial || 'Custom'}). Upload tailored drawings below.`}
               </span>
             </div>
@@ -917,72 +1020,128 @@ function TechnicalDocsModal({
 
           {/* ══════════════════════════════════════════════════════════
               CONDITION 1: STANDARD CLASSIFICATION
-              "Show Standard docs if present and if not give option to upload docs"
+              Shows both the Latest Drawing & Latest BOM
              ══════════════════════════════════════════════════════════ */}
           {isStandard && (
             <div style={{ marginBottom: '22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span>Standard Technical Drawings</span>
-                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: 500 }}>({masterDocs.length})</span>
+                <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Standard Master Documents (Drawing & BOM)
                 </div>
-                {canManageDocs && hasMasterDocs && !showExtraUpload && (
+                {canManageDocs && !showUploadBox && (
                   <button
                     type="button"
                     className="vbtn"
-                    onClick={() => setShowExtraUpload(true)}
-                    style={{ fontSize: '11px', padding: '4px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    onClick={() => {
+                      setUploadDocType('Drawing');
+                      setShowUploadBox(true);
+                    }}
+                    style={{ fontSize: '11px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
                   >
                     <Plus size={13} />
-                    <span>Upload Additional Drawing</span>
+                    <span>Upload New Revision</span>
                   </button>
                 )}
               </div>
 
-              {/* If Master Docs are PRESENT -> Render them */}
-              {hasMasterDocs ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: showExtraUpload ? '16px' : '0px' }}>
-                  {masterDocs.map((doc) => {
-                    const docUrl = getDocUrl(doc);
-                    return (
-                      <div
-                        key={`master-${doc.id}`}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          background: 'var(--bg3)',
-                          border: '1px solid var(--border)',
-                          borderRadius: '8px',
-                          padding: '12px 16px',
-                          gap: '12px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                          <div style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '6px',
-                            background: 'rgba(59, 130, 246, 0.12)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            flexShrink: 0
-                          }}>
-                            <FileText size={18} style={{ color: '#3b82f6' }} />
-                          </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {doc.file_name}
-                            </div>
-                            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                              Standard Technical Drawing · Uploaded {new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </div>
-                          </div>
+              {/* Grid with 2 distinct cards: Drawing and BOM */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px', marginBottom: '16px' }}>
+                {/* ── CARD 1: LATEST DRAWING ── */}
+                <div style={{
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <FileText size={15} style={{ color: '#3b82f6' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                        Technical Drawing
+                      </span>
+                    </div>
+
+                    {latestDrawing ? (
+                      <span style={{
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        color: '#60a5fa',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        {latestDrawing.revision_label || `R${latestDrawing.revision_number ?? 0}`} · Latest
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600
+                      }}>
+                        Not Uploaded
+                      </span>
+                    )}
+                  </div>
+
+                  {latestDrawing ? (
+                    <>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          title={latestDrawing.file_name}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            fontSize: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {latestDrawing.file_name}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>
+                          Uploaded {formatDateDMY(latestDrawing.uploaded_at)}
+                          {latestDrawing.file_size ? ` · ${formatFileSize(latestDrawing.file_size)}` : ''}
+                          {latestDrawing.uploaded_by_name ? ` · by ${latestDrawing.uploaded_by_name}` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="vbtn"
+                            onClick={() => setPdfViewerDoc({
+                              ...latestDrawing,
+                              title: `Drawing (${latestDrawing.revision_label || 'R0'}) - ${selectedPart.partNumber}`
+                            })}
+                            style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
                           <a
-                            href={docUrl}
+                            href={getDocUrl(latestDrawing)}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="vbtn"
@@ -990,89 +1149,436 @@ function TechnicalDocsModal({
                               background: '#3b82f6',
                               color: '#fff',
                               textDecoration: 'none',
-                              padding: '6px 14px',
+                              padding: '5px 12px',
                               borderRadius: '6px',
-                              fontSize: '12px',
+                              fontSize: '11px',
                               fontWeight: 600,
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '5px'
+                              gap: '4px'
                             }}
                           >
-                            <span>View / Download</span>
-                            <ExternalLink size={13} />
+                            <span>Download</span>
+                            <ExternalLink size={12} />
                           </a>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {canManageDocs && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteMasterDoc(doc.id)}
-                              title="Delete standard drawing"
-                              style={{
-                                background: 'transparent',
-                                border: '1px solid rgba(239, 68, 68, 0.3)',
-                                color: '#ef4444',
-                                borderRadius: '6px',
-                                padding: '6px 9px',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                className="vbtn"
+                                onClick={() => {
+                                  setUploadDocType('Drawing');
+                                  setShowUploadBox(true);
+                                }}
+                                title="Upload new revision of Drawing"
+                                style={{ fontSize: '11px', padding: '5px 8px' }}
+                              >
+                                + New Rev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMasterDoc(latestDrawing.id)}
+                                title="Delete this drawing revision"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  color: '#ef4444',
+                                  borderRadius: '6px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                /* If Master Docs are NOT PRESENT -> Give option to upload */
-                <div>
-                  <div style={{
-                    padding: '14px 16px',
-                    borderRadius: '8px',
-                    background: 'rgba(234, 179, 8, 0.08)',
-                    border: '1px solid rgba(234, 179, 8, 0.25)',
-                    marginBottom: '16px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px'
-                  }}>
-                    <AlertCircle size={18} style={{ color: '#eab308', flexShrink: 0, marginTop: '2px' }} />
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text)' }}>
-                        No Standard Technical Drawings found for {selectedPart.partNumber}
+
+                      {/* Revision history toggle */}
+                      {canViewRevisionHistory && drawingHistory.length > 1 && (
+                        <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowDrawingHistory(!showDrawingHistory)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#60a5fa',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: 0
+                            }}
+                          >
+                            <History size={12} />
+                            <span>{showDrawingHistory ? 'Hide Previous Revisions' : `View Earlier Revisions (${drawingHistory.length - 1})`}</span>
+                          </button>
+
+                          {showDrawingHistory && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                              {drawingHistory.slice(1).map((revDoc) => (
+                                <div
+                                  key={`draw-hist-${revDoc.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'var(--bg2)',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--text2)', fontFamily: 'var(--font-mono)' }}>
+                                      {revDoc.revision_label || `R${revDoc.revision_number}`}
+                                    </span>
+                                    <span style={{ color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={revDoc.file_name}>
+                                      {revDoc.file_name}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(revDoc.uploaded_at)}</span>
+                                    <a
+                                      href={getDocUrl(revDoc)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }}
+                                      title="Download this revision"
+                                    >
+                                      <Download size={12} />
+                                    </a>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px', textAlign: 'center', background: 'var(--bg2)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>
+                        No drawing uploaded for this part.
                       </div>
-                      <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                        {canManageDocs 
-                          ? 'As Design, you can upload the official standard technical drawings below. They will immediately become available across all orders referencing this part.'
-                          : 'Standard technical drawings have not yet been uploaded for this part. Please contact the Design department.'}
-                      </div>
+                      {canManageDocs && (
+                        <button
+                          type="button"
+                          className="vbtn primary"
+                          onClick={() => {
+                            setUploadDocType('Drawing');
+                            setShowUploadBox(true);
+                          }}
+                          style={{ fontSize: '11px', padding: '5px 12px' }}
+                        >
+                          + Upload Drawing (R0)
+                        </button>
+                      )}
                     </div>
+                  )}
+                </div>
+
+                {/* ── CARD 2: LATEST BOM ── */}
+                <div style={{
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Layers size={15} style={{ color: '#10b981' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                        Bill of Materials (BOM)
+                      </span>
+                    </div>
+
+                    {latestBom ? (
+                      <span style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#34d399',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        {latestBom.revision_label || `R${latestBom.revision_number ?? 0}`} · Latest
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600
+                      }}>
+                        Not Uploaded
+                      </span>
+                    )}
                   </div>
 
-                  {canManageDocs ? (
-                    renderUploadBox(handleUploadStandard, 'Upload Standard Technical Drawing')
-                  ) : null}
-                </div>
-              )}
+                  {latestBom ? (
+                    <>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          title={latestBom.file_name}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            fontSize: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {latestBom.file_name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>
+                          Uploaded {formatDateDMY(latestBom.uploaded_at)}
+                          {latestBom.file_size ? ` · ${formatFileSize(latestBom.file_size)}` : ''}
+                          {latestBom.uploaded_by_name ? ` · by ${latestBom.uploaded_by_name}` : ''}
+                        </div>
+                      </div>
 
-              {/* Extra upload box when docs are present and user clicked "+ Upload Additional" */}
-              {canManageDocs && hasMasterDocs && showExtraUpload && (
-                <div style={{ marginTop: '14px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text)' }}>Upload Additional Standard Drawing:</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="vbtn"
+                            onClick={() => setPdfViewerDoc({
+                              ...latestBom,
+                              title: `BOM (${latestBom.revision_label || 'R0'}) - ${selectedPart.partNumber}`
+                            })}
+                            style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                          <a
+                            href={getDocUrl(latestBom)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="vbtn"
+                            style={{
+                              background: '#10b981',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>Download</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {canManageDocs && (
+                            <>
+                              <button
+                                type="button"
+                                className="vbtn"
+                                onClick={() => {
+                                  setUploadDocType('BOM');
+                                  setShowUploadBox(true);
+                                }}
+                                title="Upload new revision of BOM"
+                                style={{ fontSize: '11px', padding: '5px 8px' }}
+                              >
+                                + New Rev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMasterDoc(latestBom.id)}
+                                title="Delete this BOM revision"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  color: '#ef4444',
+                                  borderRadius: '6px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Revision history toggle */}
+                      {canViewRevisionHistory && bomHistory.length > 1 && (
+                        <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowBomHistory(!showBomHistory)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#10b981',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: 0
+                            }}
+                          >
+                            <History size={12} />
+                            <span>{showBomHistory ? 'Hide Previous Revisions' : `View Earlier Revisions (${bomHistory.length - 1})`}</span>
+                          </button>
+
+                          {showBomHistory && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                              {bomHistory.slice(1).map((revDoc) => (
+                                <div
+                                  key={`bom-hist-${revDoc.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'var(--bg2)',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--text2)', fontFamily: 'var(--font-mono)' }}>
+                                      {revDoc.revision_label || `R${revDoc.revision_number}`}
+                                    </span>
+                                    <span style={{ color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={revDoc.file_name}>
+                                      {revDoc.file_name}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(revDoc.uploaded_at)}</span>
+                                    <a
+                                      href={getDocUrl(revDoc)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#10b981', display: 'flex', alignItems: 'center' }}
+                                      title="Download this revision"
+                                    >
+                                      <Download size={12} />
+                                    </a>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px', textAlign: 'center', background: 'var(--bg2)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>
+                        No BOM uploaded for this part.
+                      </div>
+                      {canManageDocs && (
+                        <button
+                          type="button"
+                          className="vbtn primary"
+                          onClick={() => {
+                            setUploadDocType('BOM');
+                            setShowUploadBox(true);
+                          }}
+                          style={{ fontSize: '11px', padding: '5px 12px', background: '#10b981' }}
+                        >
+                          + Upload BOM (R0)
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Box for Standard Part Documents */}
+              {canManageDocs && showUploadBox && (
+                <div style={{ marginTop: '14px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                      Upload New Master Document
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setShowExtraUpload(false)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '11px', cursor: 'pointer' }}
+                      onClick={() => {
+                        setShowUploadBox(false);
+                        setFilesToUpload([]);
+                        setUploadError('');
+                      }}
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text3)', fontSize: '12px', cursor: 'pointer' }}
                     >
                       Cancel
                     </button>
                   </div>
-                  {renderUploadBox(handleUploadStandard, 'Upload Additional Drawing')}
+
+                  {/* Document Type Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text2)' }}>Target Type:</span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: uploadDocType === 'Drawing' ? '#60a5fa' : 'var(--text2)', fontWeight: uploadDocType === 'Drawing' ? 700 : 400 }}>
+                      <input
+                        type="radio"
+                        name="standardUploadType"
+                        value="Drawing"
+                        checked={uploadDocType === 'Drawing'}
+                        onChange={() => setUploadDocType('Drawing')}
+                      />
+                      <span>Technical Drawing ({latestDrawing ? `will create R${(latestDrawing.revision_number ?? 0) + 1}` : 'creates R0'})</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', color: uploadDocType === 'BOM' ? '#34d399' : 'var(--text2)', fontWeight: uploadDocType === 'BOM' ? 700 : 400 }}>
+                      <input
+                        type="radio"
+                        name="standardUploadType"
+                        value="BOM"
+                        checked={uploadDocType === 'BOM'}
+                        onChange={() => setUploadDocType('BOM')}
+                      />
+                      <span>BOM ({latestBom ? `will create R${(latestBom.revision_number ?? 0) + 1}` : 'creates R0'})</span>
+                    </label>
+                  </div>
+
+                  {renderUploadBox(() => handleUploadStandard(uploadDocType), `Upload ${uploadDocType}`)}
                 </div>
               )}
             </div>
@@ -1140,22 +1646,30 @@ function TechnicalDocsModal({
                               justifyContent: 'center',
                               flexShrink: 0
                             }}>
-                              <FileText size={18} style={{ color: '#c084fc' }} />
+                              <FileText size={18} style={{ color: '#a855f7' }} />
                             </div>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {doc.file_name}
-                                <span style={{ fontSize: '10px', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', padding: '2px 6px', borderRadius: '4px', marginLeft: '8px', fontWeight: 700 }}>
-                                  CUSTOM DRAWING
-                                </span>
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                                Uploaded {new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                Custom Drawing · Uploaded {formatDateDMY(doc.created_at || doc.uploaded_at)}
                               </div>
                             </div>
                           </div>
-
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              className="vbtn"
+                              onClick={() => setPdfViewerDoc({
+                                ...doc,
+                                title: `Custom Drawing - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                              })}
+                              style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <Eye size={12} />
+                              <span>Preview</span>
+                            </button>
                             <a
                               href={docUrl}
                               target="_blank"
@@ -1230,18 +1744,19 @@ function TechnicalDocsModal({
                         background: 'var(--bg3)',
                         border: '1px solid var(--border)',
                         borderRadius: '6px',
-                        padding: '10px 14px'
+                        padding: '10px 14px',
+                        fontSize: '12px'
                       }}
                     >
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '13px' }}>
-                          {doc.file_name}
-                          <span style={{ fontSize: '10px', background: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
-                            {doc.doc_type || 'General'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <FileText size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />
+                        <div style={{ minWidth: 0 }}>
+                          <span style={{ fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {doc.file_name}
                           </span>
-                        </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                          Uploaded {new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          <span style={{ color: 'var(--text3)', marginLeft: '8px', fontSize: '11px' }}>
+                            ({doc.doc_type || 'General'} · {formatDateDMY(doc.created_at || doc.uploaded_at)})
+                          </span>
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1250,7 +1765,12 @@ function TechnicalDocsModal({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="vbtn"
-                          style={{ background: 'var(--bg2)', color: 'var(--text)', border: '1px solid var(--border)', textDecoration: 'none', padding: '6px 12px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}
+                          style={{
+                            fontSize: '11px',
+                            padding: '4px 10px',
+                            textDecoration: 'none',
+                            color: 'var(--text)'
+                          }}
                         >
                           View / Download
                         </a>
@@ -1280,6 +1800,53 @@ function TechnicalDocsModal({
           </button>
         </div>
       </div>
+
+      {/* In-App PDF Viewer Modal */}
+      {pdfViewerDoc && (
+        <div className="modal-overlay open" style={{ zIndex: 1200 }} onClick={(e) => { if (e.target.className.includes('modal-overlay')) setPdfViewerDoc(null); }}>
+          <div className="modal" style={{ maxWidth: '920px', width: '92vw', height: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+            <div className="modal-header" style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>
+                  {pdfViewerDoc.title || 'PDF Document Viewer'}
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {pdfViewerDoc.file_name} · {pdfViewerDoc.revision_label || 'R0'} · {formatDateDMY(pdfViewerDoc.uploaded_at || pdfViewerDoc.created_at)}
+                  {pdfViewerDoc.uploaded_by_name ? ` · by ${pdfViewerDoc.uploaded_by_name}` : ''}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <a
+                  href={getDocUrl(pdfViewerDoc)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="vbtn"
+                  style={{ fontSize: '12px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                >
+                  <ExternalLink size={13} />
+                  <span>Open New Tab</span>
+                </a>
+                <a
+                  href={getDocUrl(pdfViewerDoc)}
+                  download={pdfViewerDoc.file_name || 'document.pdf'}
+                  className="vbtn primary"
+                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none' }}
+                >
+                  Download ↓
+                </a>
+                <button className="modal-close" onClick={() => setPdfViewerDoc(null)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}>✕</button>
+              </div>
+            </div>
+            <div style={{ flex: 1, position: 'relative', background: '#525659' }}>
+              <iframe
+                src={getDocUrl(pdfViewerDoc)}
+                title={pdfViewerDoc.file_name}
+                style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1384,7 +1951,28 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         const parsed = JSON.parse(saved);
         const valid = parsed.filter(k => DEFAULT_COLUMN_KEYS.includes(k));
         const missing = DEFAULT_COLUMN_KEYS.filter(k => !valid.includes(k));
-        return [...valid, ...missing];
+        if (missing.length > 0) {
+          const result = [...valid];
+          const ptsIdx = result.indexOf('panel_type_size');
+          if (ptsIdx !== -1) {
+            const panelMissing = missing.filter(k => ['panel_code', 'panel_ip_rating', 'panel_comments'].includes(k));
+            const otherMissing = missing.filter(k => !panelMissing.includes(k));
+            if (panelMissing.includes('panel_code')) {
+              result.splice(ptsIdx, 0, 'panel_code');
+            }
+            const newPtsIdx = result.indexOf('panel_type_size');
+            if (panelMissing.includes('panel_ip_rating')) {
+              result.splice(newPtsIdx + 1, 0, 'panel_ip_rating');
+            }
+            const ipIdx = result.indexOf('panel_ip_rating');
+            if (panelMissing.includes('panel_comments')) {
+              result.splice((ipIdx !== -1 ? ipIdx : newPtsIdx) + 1, 0, 'panel_comments');
+            }
+            return [...result, ...otherMissing];
+          }
+          return [...valid, ...missing];
+        }
+        return valid;
       }
     } catch (e) {}
     return DEFAULT_COLUMN_KEYS;
@@ -1614,7 +2202,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         });
         if (resUnit.ok) {
           const uDocs = await resUnit.json();
-          orderDocs = [...orderDocs, ...uDocs];
+          orderDocs = [...orderDocs, ...(Array.isArray(uDocs) ? uDocs : [uDocs])];
         }
       }
       if (unit.order_id) {
@@ -1623,22 +2211,33 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         });
         if (res.ok) {
           const oDocs = await res.json();
-          orderDocs = [...orderDocs, ...oDocs];
+          orderDocs = [...orderDocs, ...(Array.isArray(oDocs) ? oDocs : [oDocs])];
         }
       }
     } catch (err) {
       console.error('Failed to fetch documents:', err);
     }
 
+    const drawings = masterDocs.filter(d => (d.doc_type || 'Drawing').toLowerCase() === 'drawing');
+    const boms = masterDocs.filter(d => (d.doc_type || '').toLowerCase() === 'bom');
+    const currentDrawing = match?.drawing || drawings.find(d => d.is_current) || (drawings.length > 0 ? drawings[drawings.length - 1] : null);
+    const currentBOM = match?.bom || boms.find(d => d.is_current) || (boms.length > 0 ? boms[boms.length - 1] : null);
+
     setSelectedPartForDocs({
       partId: match?.id || null,
       partNumber: pNum || 'Unspecified',
+      clientName: match?.client_name || '',
+      project: match?.project || '',
       orderId: unit.order_id,
       orderNumber: unit.order_number || '',
       unitId: targetUnitId,
       unitSerial: unit.unit_serial || unit.short_serial || '',
       description: unit.material_description || match?.description || '',
       classification: unit.classification || 'Standard',
+      drawing: currentDrawing,
+      bom: currentBOM,
+      drawingHistory: match?.drawing_history || [...drawings].reverse(),
+      bomHistory: match?.bom_history || [...boms].reverse(),
       masterDocs,
       orderDocs
     });
@@ -1684,7 +2283,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setUnits(prevUnits => prevUnits.map(u => {
       const currentId = u.unit_id || u.id;
       if (currentId === targetUnitId) {
-        return { ...u, [colKey]: newValue };
+        const updated = { ...u, [colKey]: newValue };
+        if (colKey === 'panel_type_size') {
+          const matched = panelSizeMasters.find(m => (m.panel_size || m.size_name) === newValue || m.panel_code === newValue);
+          updated.panel_code = matched?.panel_code || '';
+          updated.panel_ip_rating = matched?.ip_rating || '';
+          updated.panel_comments = matched?.comments || matched?.description || '';
+        }
+        return updated;
       }
       return u;
     }));
@@ -1842,16 +2448,25 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const rawHoldStatus = String(unit.hold_status || '').trim().toLowerCase();
     const rawOrderStatus = String(unit.order_status || '').trim().toLowerCase();
 
-    // 1. Cancelled orders
-    if (rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
-        rawOrderStatus === 'cancelled' || rawOrderStatus === 'canceled') {
+    // 1. Cancelled orders/units
+    if (
+      rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
+      rawUnitStatus.startsWith('cancel') ||
+      rawHoldStatus === 'cancelled' ||
+      unit.hold_status === 'Cancelled' ||
+      rawOrderStatus === 'cancelled' || rawOrderStatus === 'canceled'
+    ) {
       return 'Cancelled';
     }
 
-    // 2. Hold orders
-    if (rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
-        rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
-        rawOrderStatus === 'hold' || rawOrderStatus === 'on hold') {
+    // 2. Hold orders/units
+    if (
+      rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
+      rawUnitStatus.startsWith('hold') ||
+      rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
+      unit.hold_status === 'Hold' ||
+      rawOrderStatus === 'hold' || rawOrderStatus === 'on hold'
+    ) {
       return 'Hold';
     }
 
@@ -1958,7 +2573,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         (u.end_client_name || '').toLowerCase().includes(q) ||
         (u.reference_number || '').toLowerCase().includes(q) ||
         (u.material_description || '').toLowerCase().includes(q) ||
-        (u.part_number || '').toLowerCase().includes(q)
+        (u.part_number || '').toLowerCase().includes(q) ||
+        (u.panel_type_size || '').toLowerCase().includes(q) ||
+        (u.panel_code || '').toLowerCase().includes(q) ||
+        (u.panel_ip_rating || '').toLowerCase().includes(q) ||
+        (u.panel_comments || '').toLowerCase().includes(q)
       );
     }
     return true;
@@ -1990,8 +2609,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       av = getUnitStatus(a);
       bv = getUnitStatus(b);
     } else {
-      av = (a[sortKey] || '').toString().toLowerCase();
-      bv = (b[sortKey] || '').toString().toLowerCase();
+      let aVal = a[sortKey];
+      let bVal = b[sortKey];
+      if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
+        if (!aVal) {
+          const masterA = panelSizeMasters.find(m => (m.panel_size || m.size_name) === a.panel_type_size || m.panel_code === a.panel_type_size);
+          aVal = sortKey === 'panel_code' ? masterA?.panel_code : sortKey === 'panel_ip_rating' ? masterA?.ip_rating : (masterA?.comments || masterA?.description);
+        }
+        if (!bVal) {
+          const masterB = panelSizeMasters.find(m => (m.panel_size || m.size_name) === b.panel_type_size || m.panel_code === b.panel_type_size);
+          bVal = sortKey === 'panel_code' ? masterB?.panel_code : sortKey === 'panel_ip_rating' ? masterB?.ip_rating : (masterB?.comments || masterB?.description);
+        }
+      }
+      av = (aVal || '').toString().toLowerCase();
+      bv = (bVal || '').toString().toLowerCase();
     }
     if (av < bv) return sortDir === 'asc' ? -1 : 1;
     if (av > bv) return sortDir === 'asc' ? 1 : -1;
@@ -2038,9 +2669,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     let pinnedBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
     if (rowHighlight === 'cancelled') {
-      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)';
+      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
     } else if (rowHighlight === 'hold') {
-      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)';
+      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
     }
 
     return {
@@ -2173,6 +2804,42 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         );
 
       case 'unit_status':
+        if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
+          const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+          const holdTooltip = `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? new Date(unit.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
+          return (
+            <span 
+              title={holdTooltip}
+              style={{
+                fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
+                background: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24',
+                border: '1px solid #f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
+                boxShadow: '0 0 10px rgba(245, 158, 11, 0.3)'
+              }}
+            >
+              <span>⏸</span> Hold @ {holdStep}
+            </span>
+          );
+        }
+        if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
+          const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+          const cancelTooltip = `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? new Date(unit.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
+          return (
+            <span 
+              title={cancelTooltip}
+              style={{
+                fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
+                background: 'rgba(239, 68, 68, 0.35)', color: '#f87171',
+                border: '1px solid #ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
+                boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)'
+              }}
+            >
+              <span>✕</span> Cancelled @ {cancelStep}
+            </span>
+          );
+        }
         return (
           <span style={{
             fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
@@ -2246,6 +2913,33 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           </span>
         );
 
+      case 'panel_code': {
+        const currentSize = unit.panel_type_size || '';
+        const master = panelSizeMasters.find(m => 
+          (m.panel_size && m.panel_size === currentSize) ||
+          (m.size_name && m.size_name === currentSize) ||
+          (m.panel_code && m.panel_code === currentSize)
+        );
+        const code = unit.panel_code || master?.panel_code;
+        return code ? (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: '#c084fc',
+            background: 'rgba(168, 85, 247, 0.12)',
+            border: '1px solid rgba(168, 85, 247, 0.28)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            display: 'inline-block'
+          }}>
+            {code}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+        );
+      }
+
       case 'panel_type_size':
         return (
           <PanelSizeComboboxCell
@@ -2255,6 +2949,50 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             onSave={(newSize) => handleSaveInlineCell(unit, 'panel_type_size', newSize)}
           />
         );
+
+      case 'panel_ip_rating': {
+        const currentSize = unit.panel_type_size || '';
+        const master = panelSizeMasters.find(m => 
+          (m.panel_size && m.panel_size === currentSize) ||
+          (m.size_name && m.size_name === currentSize) ||
+          (m.panel_code && m.panel_code === currentSize)
+        );
+        const ip = unit.panel_ip_rating || master?.ip_rating;
+        return ip ? (
+          <span style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#10b981',
+            background: 'rgba(16, 185, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.28)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            display: 'inline-block'
+          }}>
+            {ip}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+        );
+      }
+
+      case 'panel_comments': {
+        const currentSize = unit.panel_type_size || '';
+        const master = panelSizeMasters.find(m => 
+          (m.panel_size && m.panel_size === currentSize) ||
+          (m.size_name && m.size_name === currentSize) ||
+          (m.panel_code && m.panel_code === currentSize)
+        );
+        const comment = unit.panel_comments || master?.comments || master?.description;
+        return comment ? (
+          <span style={{ color: 'var(--text2)', fontSize: 12 }} title={comment}>
+            {comment}
+          </span>
+        ) : (
+          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+        );
+      }
 
       default:
         const customCol = customColumnDefs.find(c => c.col_key === colKey);
@@ -2871,26 +3609,26 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             {sorted.map((unit, idx) => {
               const isAltRow = idx % 2 !== 0;
               const status = getUnitStatus(unit);
-              const isCancelled = status === 'Cancelled';
-              const isHold = status === 'Hold' || status === 'On Hold';
+              const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
+              const isHold = status === 'Hold' || status === 'On Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
               const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
 
               const defaultBg = isCancelled
-                ? (isAltRow ? 'rgba(239, 68, 68, 0.12)' : 'rgba(239, 68, 68, 0.08)')
+                ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
                 : isHold
-                ? (isAltRow ? 'rgba(245, 158, 11, 0.12)' : 'rgba(245, 158, 11, 0.08)')
+                ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
                 : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
 
               const hoverBg = isCancelled
-                ? 'rgba(239, 68, 68, 0.18)'
+                ? 'rgba(239, 68, 68, 0.32)'
                 : isHold
-                ? 'rgba(245, 158, 11, 0.18)'
+                ? 'rgba(245, 158, 11, 0.32)'
                 : 'var(--bg4)';
 
               const borderBottomColor = isCancelled
-                ? 'rgba(239, 68, 68, 0.25)'
+                ? 'rgba(239, 68, 68, 0.45)'
                 : isHold
-                ? 'rgba(245, 158, 11, 0.25)'
+                ? 'rgba(245, 158, 11, 0.45)'
                 : 'var(--border)';
 
               return (
@@ -2918,8 +3656,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     }
                   }}
                 >
-                  {visibleCols.map(c => {
+                  {visibleCols.map((c, cIdx) => {
                     const style = getColStyle(c.key, false, isAltRow, rowHighlight);
+                    const leftBorder = cIdx === 0 && (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : undefined);
                     return (
                       <td
                         key={c.key}
@@ -2927,6 +3666,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                           padding: '6px 10px',
                           textAlign: c.align || 'left',
                           verticalAlign: 'middle',
+                          borderLeft: leftBorder,
                           ...style
                         }}
                       >
@@ -2999,6 +3739,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           selectedPart={selectedPartForDocs}
           onClose={() => setShowDocsModal(false)}
           canManageDocs={canManageDocs}
+          userRole={userRole}
           token={token}
           getDocUrl={getDocUrl}
           onUpdatePartMasters={fetchPartMasters}

@@ -52,4 +52,6 @@ export const STATUS_BADGE_MAP = {
   done:       { cls: 'badge-done',       label: 'DONE' },
   blocked:    { cls: 'badge-blocked',    label: 'BLOCKED' },
   review:     { cls: 'badge-review',     label: 'REVIEW' },
+  hold:       { cls: 'badge-hold',       label: 'ON HOLD' },
+  cancelled:  { cls: 'badge-cancelled',  label: 'CANCELLED' },
 };

@@ -282,13 +282,13 @@ function Dashboard() {
   // Navigating to Table View or Board clears the selected order and search query
   const navigateToView = (view) => {
     if (view === 'table' || view === 'board') {
-      setCurrentView('table');
+      setCurrentView(view);
       setSelectedOrderId(null);
       selectedOrderIdRef.current = null;
       setSelectedOrder(null);
       setSelectedUnitId('');
       setSteps([]);
-      window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'table', orderId: null, unitId: null } }));
+      window.dispatchEvent(new CustomEvent('setView', { detail: { view, orderId: null, unitId: null } }));
     } else {
       setCurrentView(view);
     }
@@ -431,9 +431,9 @@ function Dashboard() {
             </div>
             {['board', 'flow', 'table'].includes(currentView) && (
               <div className="view-toggle">
-                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => setCurrentView('board')}>Board</button>
+                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => navigateToView('board')}>Board</button>
                 <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
-                <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => setCurrentView('table')}>Table</button>
+                <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => navigateToView('table')}>Table</button>
               </div>
             )}
             {currentView === 'planning' && (
@@ -452,7 +452,7 @@ function Dashboard() {
             <BoardView 
               currentFilter={currentFilter} 
               userRole={user.role} 
-              onSetView={setCurrentView}
+              onSetView={navigateToView}
               statCardFilter={statCardFilter}
               onClearStatFilter={() => setStatCardFilter(null)}
             />
@@ -464,7 +464,7 @@ function Dashboard() {
                 steps={steps} 
                 currentFilter={currentFilter} 
                 onOpenModal={handleOpenModal} 
-                onSetView={setCurrentView} 
+                onSetView={navigateToView} 
                 userRole={user.role} 
                 selectedOrderId={selectedOrderId} 
                 selectedOrder={selectedOrder} 

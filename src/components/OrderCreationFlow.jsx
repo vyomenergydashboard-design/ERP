@@ -502,7 +502,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Type / Size</label>
                     <select
                       className="form-select"
-                      value={panelSizeMasters.some(ps => ps.size_name === li.panel_type_size) ? li.panel_type_size : (li.panel_type_size ? '__custom__' : '')}
+                      value={panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size) ? li.panel_type_size : (li.panel_type_size ? '__custom__' : '')}
                       onChange={e => {
                         const val = e.target.value;
                         if (val === '__custom__') {
@@ -513,12 +513,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                       }}
                     >
                       <option value="">-- Select Master Panel Size --</option>
-                      {panelSizeMasters.map(ps => (
-                        <option key={ps.id} value={ps.size_name}>{ps.size_name} {ps.description ? `(${ps.description})` : ''}</option>
-                      ))}
+                      {panelSizeMasters.map(ps => {
+                        const sizeVal = ps.panel_size || ps.size_name;
+                        const labelParts = [];
+                        if (ps.panel_code) labelParts.push(`[${ps.panel_code}]`);
+                        labelParts.push(sizeVal);
+                        if (ps.ip_rating) labelParts.push(`· ${ps.ip_rating}`);
+                        const comment = ps.comments || ps.description;
+                        if (comment) labelParts.push(`(${comment})`);
+                        return (
+                          <option key={ps.id} value={sizeVal}>
+                            {labelParts.join(' ')}
+                          </option>
+                        );
+                      })}
                       <option value="__custom__">Custom Panel Dimensions…</option>
                     </select>
-                    {(!panelSizeMasters.some(ps => ps.size_name === li.panel_type_size) || li.panel_type_size === '') && (
+                    {(!panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size) || li.panel_type_size === '') && (
                       <input
                         type="text"
                         className="form-input"
