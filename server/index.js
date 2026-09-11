@@ -32,10 +32,11 @@ const isUnitOnHold = async (unitId) => {
   try {
     const numId = !isNaN(Number(unitId)) ? Number(unitId) : -1;
     const res = await pool.query(
-      "SELECT o.hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1 OR ou.unit_id = $2",
+      "SELECT o.hold_status as order_hold_status, ou.hold_status as unit_hold_status FROM orders o JOIN order_units ou ON ou.order_id = o.id WHERE ou.id = $1 OR ou.unit_id = $2",
       [numId, String(unitId)]
     );
-    return res.rows.length > 0 && res.rows[0].hold_status === 'Approved';
+    if (res.rows.length === 0) return false;
+    return res.rows[0].order_hold_status === 'Approved' || res.rows[0].unit_hold_status === 'Hold';
   } catch (err) {
     console.error('isUnitOnHold error:', err);
     return false;
@@ -65,6 +66,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 const DEFAULT_STEPS = [
   { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order' },
   { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, default_doc_type: 'General', level: 'order' },
+  { dept: 'Sales', name: 'Sales Clearance', sub: 'PO & Specs Clearance', special: 'sales', requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { 
     dept: 'Design', 
     name: 'Review & Classify', 
@@ -88,7 +90,7 @@ const DEFAULT_STEPS = [
   { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, default_doc_type: 'General', level: 'unit' },
   { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, default_doc_type: 'QC Report', level: 'unit' },
   { dept: 'Dispatch', name: 'Ready for Dispatch', sub: 'QC cleared panels', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'unit' },
-  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'order' }
+  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'unit' }
 ];
 
 const transporter = nodemailer.createTransport({
@@ -320,7 +322,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, o.classification
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, o.classification, o.hold_status as order_hold_status
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -328,10 +330,34 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   );
   if (prevUnitRes.rows.length === 0) return;
 
-  const oldDept = prevUnitRes.rows[0].current_dept;
-  const unit_id_str = prevUnitRes.rows[0].unit_id || '';
-  const short_serial = prevUnitRes.rows[0].short_serial || '';
-  const orderId = prevUnitRes.rows[0].order_id;
+  const row = prevUnitRes.rows[0];
+  const oldDept = row.current_dept;
+  const unit_id_str = row.unit_id || '';
+  const short_serial = row.short_serial || '';
+  const orderId = row.order_id;
+  const unitHoldStatus = row.hold_status;
+  const orderHoldStatus = row.order_hold_status;
+
+  // 1. Check if unit is Cancelled
+  if (unitHoldStatus === 'Cancelled') {
+    const cancelDept = row.cancelled_dept || oldDept || 'Sales';
+    await clientOrPool.query(
+      `UPDATE order_units SET status = 'Cancelled', current_dept = $1 WHERE id = $2`,
+      [cancelDept, unitId]
+    );
+    return;
+  }
+
+  // 2. Check if unit or order is On Hold
+  if (unitHoldStatus === 'Hold' || orderHoldStatus === 'Approved') {
+    const holdDept = row.hold_dept || oldDept || 'Sales';
+    const statusText = row.hold_step_name ? `Hold @ ${row.hold_step_name}` : 'Hold';
+    await clientOrPool.query(
+      `UPDATE order_units SET status = $1, current_dept = $2 WHERE id = $3`,
+      [statusText, holdDept, unitId]
+    );
+    return;
+  }
 
   // Clean up any legacy bulk auto-completed notes and reset them back to pending
   await clientOrPool.query(
@@ -356,14 +382,18 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   let newStatus = 'Pending';
   let newDept = 'Sales';
 
-  if (!isSalesDone) {
+  const stepsRes = await clientOrPool.query(
+    `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
+    [unitId]
+  );
+
+  // If unit has its own Sales Clearance step marked done, or order PO is done
+  const hasUnitSalesDone = stepsRes.rows.some(s => s.dept === 'Sales' && s.status === 'done');
+
+  if (!isSalesDone && !hasUnitSalesDone) {
     newDept = 'Sales';
     newStatus = 'Pending';
   } else {
-    const stepsRes = await clientOrPool.query(
-      `SELECT id, dept, name, status FROM unit_steps WHERE order_unit_id = $1 ORDER BY step_order ASC, id ASC`,
-      [unitId]
-    );
 
     if (stepsRes.rows.length > 0) {
       const steps = stepsRes.rows;
@@ -1213,7 +1243,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         const pCheck = await client.query('SELECT id FROM part_number_masters WHERE LOWER(part_number) = LOWER($1)', [item.part_number.trim()]);
         if (pCheck.rows.length > 0) {
           const masterId = pCheck.rows[0].id;
-          const pDocs = await client.query('SELECT * FROM part_number_documents WHERE part_number_id = $1', [masterId]);
+          const pDocs = await client.query('SELECT * FROM part_number_documents WHERE part_number_id = $1 AND is_current = true', [masterId]);
           for (const doc of pDocs.rows) {
             await client.query(
               `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
@@ -2670,6 +2700,7 @@ app.get('/api/planning', authorize(), async (req, res) => {
           o.notes,
           o.end_client_name,
           o.reference_number,
+          o.hold_status,
           oli.planned_dispatch_date,
           oli.wiring_assigned_date,
           oli.wiring_expected_date,
@@ -2700,6 +2731,15 @@ app.get('/api/planning', authorize(), async (req, res) => {
                 'short_serial', ou.short_serial, 
                 'current_dept', ou.current_dept, 
                 'status', COALESCE(ou.status, oli.status, 'Not Started'),
+                'hold_status', ou.hold_status,
+                'hold_step_name', ou.hold_step_name,
+                'hold_dept', ou.hold_dept,
+                'hold_reason', ou.hold_reason,
+                'held_by_name', ou.held_by_name,
+                'held_at', ou.held_at,
+                'cancelled_step_name', ou.cancelled_step_name,
+                'cancelled_dept', ou.cancelled_dept,
+                'cancelled_reason', ou.cancelled_reason,
                 'planned_dispatch_date', COALESCE(ou.planned_dispatch_date, oli.planned_dispatch_date),
                 'wiring_assigned_date', COALESCE(ou.wiring_assigned_date, oli.wiring_assigned_date),
                 'wiring_expected_date', COALESCE(ou.wiring_expected_date, oli.wiring_expected_date),
@@ -2862,6 +2902,40 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
         );
       }
 
+      if (fields.hasOwnProperty('status') && fields.status) {
+        await client.query(
+          `UPDATE order_units SET status = $1 WHERE line_item_id = $2`,
+          [fields.status, lineItemId]
+        );
+
+        if (fields.status === 'Completed') {
+          await client.query(
+            `UPDATE unit_steps 
+             SET status = 'done', updated = $1 
+             WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning'`,
+            [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), lineItemId]
+          );
+          await client.query(
+            `UPDATE unit_steps 
+             SET status = 'done', updated = $1 
+             WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
+            [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), lineItemId]
+          );
+        } else if (fields.status === 'Not Started' || fields.status === 'Pending') {
+          await client.query(
+            `UPDATE unit_steps 
+             SET status = 'pending', updated = $1 
+             WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning' AND status = 'done'`,
+            [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), lineItemId]
+          );
+        }
+
+        const unitsRes = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [lineItemId]);
+        for (const u of unitsRes.rows) {
+          await deriveUnitStatus(u.id, client);
+        }
+      }
+
       await client.query(
         'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
         [req.user.id, req.user.role, 'Updated planning details (bulk) for line item', order_id]
@@ -2952,13 +3026,42 @@ app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning'
       ]
     );
 
+    // If status was updated, propagate to unit_steps and derive new department
+    if (status) {
+      if (status === 'Completed') {
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'done', updated = $1 
+           WHERE order_unit_id = $2 AND dept = 'Planning'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), unitId]
+        );
+        // Also ensure lingering pending upstream steps are marked done so unit is never blocked from Production
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'done', updated = $1 
+           WHERE order_unit_id = $2 AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), unitId]
+        );
+        await deriveUnitStatus(unitId, client);
+      } else if (status === 'Not Started' || status === 'Pending') {
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'pending', updated = $1 
+           WHERE order_unit_id = $2 AND dept = 'Planning' AND status = 'done'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), unitId]
+        );
+        await deriveUnitStatus(unitId, client);
+      }
+    }
+
     await client.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
       [req.user.id, req.user.role, `Updated planning details for unit ${unit.unit_id}`, unit.order_id]
     );
 
     await client.query('COMMIT');
-    res.json(result.rows[0]);
+    const updatedUnitRes = await client.query('SELECT * FROM order_units WHERE id = $1', [unitId]);
+    res.json(updatedUnitRes.rows[0] || result.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Failed to update unit planning details:', err);
@@ -3043,6 +3146,40 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
          WHERE line_item_id = $2`,
         [JSON.stringify(custom_fields), req.params.lineItemId]
       );
+    }
+
+    if (status) {
+      await client.query(
+        `UPDATE order_units SET status = $1 WHERE line_item_id = $2`,
+        [status, req.params.lineItemId]
+      );
+
+      if (status === 'Completed') {
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'done', updated = $1 
+           WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId]
+        );
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'done', updated = $1 
+           WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId]
+        );
+      } else if (status === 'Not Started' || status === 'Pending') {
+        await client.query(
+          `UPDATE unit_steps 
+           SET status = 'pending', updated = $1 
+           WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning' AND status = 'done'`,
+          [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId]
+        );
+      }
+
+      const unitsRes = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [req.params.lineItemId]);
+      for (const u of unitsRes.rows) {
+        await deriveUnitStatus(u.id, client);
+      }
     }
 
     await client.query(
@@ -3224,18 +3361,37 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
 });
 
 app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
-  if (await isUnitOnHold(req.params.unitId)) {
-    return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
+  const { 
+    action, 
+    status, 
+    notes, 
+    dispatchDate, 
+    custom_fields, 
+    assigned_user_id, 
+    holdReason, 
+    scope = 'unit', 
+    targetUnitIds, 
+    resumeTarget 
+  } = req.body;
+
+  const isSpecialAction = ['hold', 'resume', 'cancel'].includes(action);
+  if (!isSpecialAction && (await isUnitOnHold(req.params.unitId))) {
+    return res.status(400).json({ error: 'This unit is currently on hold. Resume the panel to make updates.' });
   }
-  const { status, notes, dispatchDate, custom_fields, assigned_user_id } = req.body;
+
   const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-  
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
     // Fetch step details to verify permissions
-    const stepRes = await client.query('SELECT dept, assigned_user_id FROM unit_steps WHERE id = $1 AND order_unit_id = $2', [req.params.stepId, req.params.unitId]);
+    const stepRes = await client.query(
+      `SELECT s.id, s.name, s.dept, s.assigned_user_id, ou.order_id, ou.short_serial, ou.unit_id 
+       FROM unit_steps s 
+       JOIN order_units ou ON s.order_unit_id = ou.id 
+       WHERE s.id = $1 AND s.order_unit_id = $2`,
+      [req.params.stepId, req.params.unitId]
+    );
     if (stepRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Unit step not found' });
@@ -3248,84 +3404,202 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: You are not authorized to update this task.' });
     }
 
-    // Upstream validation: block marking 'done' if upstream depts are incomplete
-    if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
-      const myIndex = PIPELINE.indexOf(step.dept);
-      if (myIndex > 0) {
-        const upstreamDepts = PIPELINE.slice(0, myIndex);
-        const blockingRes = await client.query(
-          `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
-          [req.params.unitId, upstreamDepts]
+    // Determine target units
+    let targetUnits = [];
+    if (scope === 'order') {
+      const orderUnitsRes = await client.query('SELECT id, short_serial FROM order_units WHERE order_id = $1', [step.order_id]);
+      targetUnits = orderUnitsRes.rows;
+    } else if (scope === 'selected' && Array.isArray(targetUnitIds) && targetUnitIds.length > 0) {
+      const selectedRes = await client.query('SELECT id, short_serial FROM order_units WHERE id = ANY($1::int[])', [targetUnitIds]);
+      targetUnits = selectedRes.rows;
+    } else {
+      targetUnits = [{ id: parseInt(req.params.unitId), short_serial: step.short_serial }];
+    }
+
+    let lastResult = null;
+    const userName = req.user.name || req.user.username || 'User';
+
+    if (action === 'hold') {
+      const reason = (holdReason || notes || 'On hold').trim();
+      for (const tu of targetUnits) {
+        const matchingStep = await client.query(
+          'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
+          [tu.id, step.name, step.dept]
         );
-        if (blockingRes.rows.length > 0) {
-          const blocking = blockingRes.rows.map(r => r.dept).join(', ');
-          await client.query('ROLLBACK');
-          return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
+        const sId = matchingStep.rows.length > 0 ? matchingStep.rows[0].id : null;
+        if (sId) {
+          const upd = await client.query(
+            `UPDATE unit_steps 
+             SET status = 'hold', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3 
+             WHERE id = $4 RETURNING *`,
+            [reason, userName, updated, sId]
+          );
+          if (tu.id === parseInt(req.params.unitId)) lastResult = upd.rows[0];
+        }
+
+        await client.query(
+          `UPDATE order_units 
+           SET hold_status = 'Hold', hold_step_id = $1, hold_step_name = $2, hold_dept = $3, 
+               hold_reason = $4, held_by_name = $5, held_at = NOW(), status = $6 
+           WHERE id = $7`,
+          [sId, step.name, step.dept, reason, userName, `Hold @ ${step.name}`, tu.id]
+        );
+
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: Put on HOLD @ ${step.name} (${step.dept}) — Reason: ${reason}`]
+        );
+
+        await deriveUnitStatus(tu.id, client);
+      }
+    } else if (action === 'resume') {
+      for (const tu of targetUnits) {
+        const matchingStep = await client.query(
+          'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
+          [tu.id, step.name, step.dept]
+        );
+        const sId = matchingStep.rows.length > 0 ? matchingStep.rows[0].id : null;
+        if (sId) {
+          const upd = await client.query(
+            `UPDATE unit_steps 
+             SET status = 'inprogress', hold_reason = NULL, held_by = NULL, hold_at = NULL, updated = $1 
+             WHERE id = $2 RETURNING *`,
+            [updated, sId]
+          );
+          if (tu.id === parseInt(req.params.unitId)) lastResult = upd.rows[0];
+        }
+
+        await client.query(
+          `UPDATE order_units 
+           SET hold_status = 'None', 
+               hold_step_id = NULL, hold_step_name = NULL, hold_dept = NULL, 
+               hold_reason = NULL, held_by_name = NULL, held_at = NULL,
+               cancelled_step_id = NULL, cancelled_step_name = NULL, cancelled_dept = NULL,
+               cancelled_reason = NULL, cancelled_by_name = NULL, cancelled_at = NULL
+           WHERE id = $1`,
+          [tu.id]
+        );
+
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: RESUMED @ ${step.name} (${step.dept})`]
+        );
+
+        await deriveUnitStatus(tu.id, client);
+      }
+    } else if (action === 'cancel') {
+      const reason = (holdReason || notes || 'Cancelled').trim();
+      for (const tu of targetUnits) {
+        const matchingStep = await client.query(
+          'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
+          [tu.id, step.name, step.dept]
+        );
+        const sId = matchingStep.rows.length > 0 ? matchingStep.rows[0].id : null;
+        if (sId) {
+          const upd = await client.query(
+            `UPDATE unit_steps 
+             SET status = 'cancelled', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3 
+             WHERE id = $4 RETURNING *`,
+            [reason, userName, updated, sId]
+          );
+          if (tu.id === parseInt(req.params.unitId)) lastResult = upd.rows[0];
+        }
+
+        await client.query(
+          `UPDATE order_units 
+           SET hold_status = 'Cancelled', cancelled_step_id = $1, cancelled_step_name = $2, cancelled_dept = $3, 
+               cancelled_reason = $4, cancelled_by_name = $5, cancelled_at = NOW(), status = 'Cancelled' 
+           WHERE id = $6`,
+          [sId, step.name, step.dept, reason, userName, tu.id]
+        );
+
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: CANCELLED @ ${step.name} (${step.dept}) — Reason: ${reason}`]
+        );
+
+        await deriveUnitStatus(tu.id, client);
+      }
+    } else {
+      // Regular step update (done, inprogress, blocked, etc.)
+      const newStatus = status || 'pending';
+
+      // Upstream validation: block marking 'done' if upstream depts are incomplete
+      if (newStatus === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
+        const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
+        const myIndex = PIPELINE.indexOf(step.dept);
+        if (myIndex > 0) {
+          const upstreamDepts = PIPELINE.slice(0, myIndex);
+          const blockingRes = await client.query(
+            `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
+            [req.params.unitId, upstreamDepts]
+          );
+          if (blockingRes.rows.length > 0) {
+            const blocking = blockingRes.rows.map(r => r.dept).join(', ');
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
+          }
         }
       }
-    }
-    
-    if (custom_fields) {
-      await propagateCustomFieldsToDB(custom_fields, null, req.params.unitId, client);
-    }
 
-    let cfJson = null;
-    if (custom_fields) {
-      cfJson = JSON.stringify(custom_fields);
-    }
+      for (const tu of targetUnits) {
+        const matchingStep = await client.query(
+          'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
+          [tu.id, step.name, step.dept]
+        );
+        const sId = matchingStep.rows.length > 0 ? matchingStep.rows[0].id : null;
+        if (!sId) continue;
 
-    const result = await client.query(
-      `UPDATE unit_steps 
-       SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields), assigned_user_id = COALESCE($6, assigned_user_id) 
-       WHERE id = $7 AND order_unit_id = $8 
-       RETURNING *`,
-      [status, notes, dispatchDate || null, updated, cfJson, assigned_user_id || null, req.params.stepId, req.params.unitId]
-    );
+        if (custom_fields) {
+          await propagateCustomFieldsToDB(custom_fields, null, tu.id, client);
+        }
 
-    if (result.rows.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ error: 'Unit step not found' });
-    }
+        let cfJson = custom_fields ? JSON.stringify(custom_fields) : null;
 
-    const unitInfoRes = await client.query('SELECT order_id, short_serial FROM order_units WHERE id = $1', [req.params.unitId]);
-    const unitInfo = unitInfoRes.rows[0] || {};
-    await client.query(
-      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
-      [req.user.id, unitInfo.order_id || null, step.dept, `Unit ${unitInfo.short_serial}: Updated step "${result.rows[0].name}" (Status: ${status})`]
-    );
+        const upd = await client.query(
+          `UPDATE unit_steps 
+           SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields), assigned_user_id = COALESCE($6, assigned_user_id) 
+           WHERE id = $7 AND order_unit_id = $8 
+           RETURNING *`,
+          [newStatus, notes, dispatchDate || null, updated, cfJson, assigned_user_id || null, sId, tu.id]
+        );
 
-    if (step.dept === 'QC' && status === 'blocked') {
-      const { qcFailTarget } = req.body;
-      const target = qcFailTarget === 'design' ? 'Design' : 'Production';
-      const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
+        if (tu.id === parseInt(req.params.unitId)) {
+          lastResult = upd.rows[0];
+        }
 
-      await client.query(
-        `UPDATE unit_steps 
-         SET status = 'inprogress', notes = $1, updated = $2 
-         WHERE order_unit_id = $3 AND dept = $4`,
-        [remark, updated, req.params.unitId, target]
-      );
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: Updated step "${step.name}" (Status: ${newStatus})`]
+        );
 
-      const unitResForLog = await client.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
-      const orderIdForLog = unitResForLog.rows[0]?.order_id || null;
-      await client.query(
-        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
-         VALUES ($1, $2, 'QC', $3)`,
-        [req.user.id, orderIdForLog, `QC FAIL → returned to ${target} for ${target === 'Design' ? 're-check' : 'rework'}`]
-      );
-    }
+        if (step.dept === 'QC' && newStatus === 'blocked') {
+          const { qcFailTarget } = req.body;
+          const target = qcFailTarget === 'design' ? 'Design' : 'Production';
+          const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
 
-    // Recalculate derived status
-    await deriveUnitStatus(req.params.unitId, client);
+          await client.query(
+            `UPDATE unit_steps 
+             SET status = 'inprogress', notes = $1, updated = $2 
+             WHERE order_unit_id = $3 AND dept = $4`,
+            [remark, updated, tu.id, target]
+          );
 
-    const unitRes = await client.query('SELECT order_id FROM order_units WHERE id = $1', [req.params.unitId]);
-    if (unitRes.rows.length > 0) {
-      await updateOrderQCStatusFromSteps(unitRes.rows[0].order_id, client);
+          await client.query(
+            `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+             VALUES ($1, $2, 'QC', $3)`,
+            [req.user.id, step.order_id, `QC FAIL → returned to ${target} for ${target === 'Design' ? 're-check' : 'rework'}`]
+          );
+        }
+
+        await deriveUnitStatus(tu.id, client);
+      }
+
+      await updateOrderQCStatusFromSteps(step.order_id, client);
     }
 
     await client.query('COMMIT');
-    res.json(result.rows[0]);
+    res.json(lastResult || { success: true });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
@@ -3492,6 +3766,19 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.short_serial,
         ou.status      AS unit_status,
         ou.current_dept,
+        ou.hold_status,
+        ou.hold_step_id,
+        ou.hold_step_name,
+        ou.hold_dept,
+        ou.hold_reason,
+        ou.held_by_name,
+        ou.held_at,
+        ou.cancelled_step_id,
+        ou.cancelled_step_name,
+        ou.cancelled_dept,
+        ou.cancelled_reason,
+        ou.cancelled_by_name,
+        ou.cancelled_at,
         o.id           AS order_id,
         o.order_number,
         o.po_number,
@@ -3499,7 +3786,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         o.end_client_name,
         o.priority,
         o.delivery_date,
-        o.hold_status,
+        o.hold_status  AS order_hold_status,
         o.status       AS order_status,
         COALESCE(ou.classification, o.classification, 'Standard') AS classification,
         cl.city        AS company_city,
@@ -3510,6 +3797,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         oli.part_number,
         COALESCE(oli.project_name, o.project_name) AS project_name,
         COALESCE(ou.panel_type_size, oli.panel_type_size) AS panel_type_size,
+        psm.panel_code AS panel_code,
+        psm.ip_rating  AS panel_ip_rating,
+        COALESCE(psm.comments, psm.description) AS panel_comments,
         COALESCE(ou.custom_fields, '{}'::jsonb) AS custom_fields,
         oli.quantity   AS batch_qty,
         (
@@ -3521,6 +3811,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
               'dept', us.dept,
               'notes', us.notes,
               'updated', us.updated,
+              'hold_reason', us.hold_reason,
+              'held_by', us.held_by,
+              'hold_at', us.hold_at,
               'assigned_user_id', us.assigned_user_id
             ) ORDER BY us.id
           )
@@ -3536,6 +3829,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
               'dept', us.dept,
               'notes', us.notes,
               'updated', us.updated,
+              'hold_reason', us.hold_reason,
+              'held_by', us.held_by,
+              'hold_at', us.hold_at,
               'assigned_user_id', us.assigned_user_id
             ) ORDER BY us.id
           )
@@ -3567,7 +3863,30 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       JOIN order_line_items oli ON ou.line_item_id = oli.id
       LEFT JOIN company_locations cl ON o.company_location_id = cl.id
       LEFT JOIN companies co ON cl.company_id = co.id
-      WHERE $1 = 'Sales' OR ou.current_dept = $1 OR ($1 = 'Design' AND EXISTS (SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND us.dept = 'Design' AND (us.status = 'done' OR us.status = 'completed')))
+      LEFT JOIN panel_size_masters psm ON (
+        psm.size_name = COALESCE(ou.panel_type_size, oli.panel_type_size)
+        OR psm.panel_size = COALESCE(ou.panel_type_size, oli.panel_type_size)
+        OR psm.panel_code = COALESCE(ou.panel_type_size, oli.panel_type_size)
+      )
+      WHERE $1 = 'Sales' 
+         OR ou.current_dept = $1 
+         OR ($1 = 'Design' AND EXISTS (SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND us.dept = 'Design' AND (us.status = 'done' OR us.status = 'completed')))
+         OR ($1 = 'Production' AND (
+           ou.current_dept = 'Production'
+           OR ((ou.status = 'Completed' OR oli.status = 'Completed') AND ou.current_dept NOT IN ('QC', 'Dispatch', 'Accounts'))
+           OR EXISTS (
+             SELECT 1 FROM unit_steps us 
+             WHERE us.order_unit_id = ou.id 
+               AND us.dept = 'Planning' 
+               AND (us.status = 'done' OR us.status = 'completed')
+               AND EXISTS (
+                 SELECT 1 FROM unit_steps pus 
+                 WHERE pus.order_unit_id = ou.id 
+                   AND pus.dept = 'Production' 
+                   AND pus.status != 'done'
+               )
+           )
+         ))
       ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
     `, [dept]);
     res.json(result.rows);
@@ -4083,18 +4402,43 @@ app.post('/api/column-masters/visibility', authorize(['Admin', 'Manager']), asyn
 app.get('/api/part-number-masters', authorize(), async (req, res) => {
   try {
     const mastersRes = await pool.query('SELECT * FROM part_number_masters ORDER BY part_number ASC');
-    const docsRes = await pool.query('SELECT * FROM part_number_documents ORDER BY uploaded_at ASC');
+    const docsRes = await pool.query(`
+      SELECT d.*, u.username as uploader_username, u.email as uploader_email
+      FROM part_number_documents d
+      LEFT JOIN users u ON d.uploaded_by_id = u.id
+      ORDER BY d.revision_number ASC, d.uploaded_at ASC
+    `);
 
     const docsByPart = {};
     for (const doc of docsRes.rows) {
       if (!docsByPart[doc.part_number_id]) docsByPart[doc.part_number_id] = [];
-      docsByPart[doc.part_number_id].push(doc);
+      const normalizedDoc = {
+        ...doc,
+        uploaded_by_name: doc.uploaded_by_name || doc.uploader_username || 'User',
+        doc_type: (doc.doc_type || 'Drawing').trim()
+      };
+      docsByPart[doc.part_number_id].push(normalizedDoc);
     }
 
-    const masters = mastersRes.rows.map(m => ({
-      ...m,
-      documents: docsByPart[m.id] || []
-    }));
+    const masters = mastersRes.rows.map(m => {
+      const allDocs = docsByPart[m.id] || [];
+      const drawings = allDocs.filter(d => (d.doc_type || 'Drawing').toLowerCase() === 'drawing');
+      const boms = allDocs.filter(d => (d.doc_type || '').toLowerCase() === 'bom');
+
+      const currentDrawing = drawings.find(d => d.is_current) || (drawings.length > 0 ? drawings[drawings.length - 1] : null);
+      const currentBOM = boms.find(d => d.is_current) || (boms.length > 0 ? boms[boms.length - 1] : null);
+
+      return {
+        ...m,
+        client_name: m.client_name || '',
+        project: m.project || '',
+        drawing: currentDrawing,
+        bom: currentBOM,
+        drawing_history: [...drawings].reverse(),
+        bom_history: [...boms].reverse(),
+        documents: allDocs
+      };
+    });
 
     res.json(masters);
   } catch (err) {
@@ -4105,7 +4449,7 @@ app.get('/api/part-number-masters', authorize(), async (req, res) => {
 
 app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
-    const { part_number, description, category } = req.body;
+    const { part_number, client_name, project, description, category } = req.body;
     if (!part_number || !part_number.trim()) {
       return res.status(400).json({ error: 'Part Number is required' });
     }
@@ -4116,9 +4460,9 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
     }
 
     const newPart = await pool.query(
-      `INSERT INTO part_number_masters (part_number, description, category)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [part_number.trim(), description || '', category || 'Standard']
+      `INSERT INTO part_number_masters (part_number, client_name, project, description, category)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard']
     );
 
     await pool.query(
@@ -4126,7 +4470,16 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
       [req.user.id, req.user.role, `Created Part Number Master "${part_number.trim()}"`]
     );
 
-    res.status(201).json({ ...newPart.rows[0], documents: [] });
+    res.status(201).json({
+      ...newPart.rows[0],
+      client_name: newPart.rows[0].client_name || '',
+      project: newPart.rows[0].project || '',
+      drawing: null,
+      bom: null,
+      drawing_history: [],
+      bom_history: [],
+      documents: []
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create Part Number Master' });
@@ -4135,7 +4488,7 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
 
 app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
-    const { part_number, description, category } = req.body;
+    const { part_number, client_name, project, description, category } = req.body;
     if (!part_number || !part_number.trim()) {
       return res.status(400).json({ error: 'Part Number is required' });
     }
@@ -4147,9 +4500,9 @@ app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design',
 
     const updated = await pool.query(
       `UPDATE part_number_masters
-       SET part_number = $1, description = $2, category = $3
-       WHERE id = $4 RETURNING *`,
-      [part_number.trim(), description || '', category || 'Standard', req.params.id]
+       SET part_number = $1, client_name = $2, project = $3, description = $4, category = $5
+       WHERE id = $6 RETURNING *`,
+      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard', req.params.id]
     );
 
     if (updated.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
@@ -4181,7 +4534,12 @@ app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Desig
 app.get('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Production', 'Planning', 'Viewer']), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM panel_size_masters ORDER BY id ASC');
-    res.json(result.rows);
+    const rows = result.rows.map(r => ({
+      ...r,
+      panel_size: r.panel_size || r.size_name || '',
+      comments: r.comments || r.description || ''
+    }));
+    res.json(rows);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch Panel Size Masters' });
@@ -4189,16 +4547,27 @@ app.get('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sal
 });
 
 app.post('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
-  const { size_name, description } = req.body;
-  if (!size_name || !size_name.trim()) {
-    return res.status(400).json({ error: 'Panel size name is required' });
+  const { panel_code, panel_size, size_name, ip_rating, comments, description } = req.body;
+  const finalSize = (panel_size || size_name || '').trim();
+  if (!finalSize) {
+    return res.status(400).json({ error: 'Panel size is required' });
   }
+  const finalCode = (panel_code || '').trim();
+  const finalIp = (ip_rating || '').trim();
+  const finalComments = (comments || description || '').trim();
+
   try {
     const result = await pool.query(
-      'INSERT INTO panel_size_masters (size_name, description) VALUES ($1, $2) RETURNING *',
-      [size_name.trim(), description || '']
+      `INSERT INTO panel_size_masters (panel_code, panel_size, size_name, ip_rating, comments, description) 
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [finalCode, finalSize, finalSize, finalIp, finalComments, finalComments]
     );
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    res.json({
+      ...row,
+      panel_size: row.panel_size || row.size_name,
+      comments: row.comments || row.description
+    });
   } catch (err) {
     if (err.code === '23505') {
       return res.status(400).json({ error: 'Panel size already exists' });
@@ -4209,17 +4578,29 @@ app.post('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sa
 });
 
 app.put('/api/panel-size-masters/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
-  const { size_name, description } = req.body;
-  if (!size_name || !size_name.trim()) {
-    return res.status(400).json({ error: 'Panel size name is required' });
+  const { panel_code, panel_size, size_name, ip_rating, comments, description } = req.body;
+  const finalSize = (panel_size || size_name || '').trim();
+  if (!finalSize) {
+    return res.status(400).json({ error: 'Panel size is required' });
   }
+  const finalCode = (panel_code || '').trim();
+  const finalIp = (ip_rating || '').trim();
+  const finalComments = (comments || description || '').trim();
+
   try {
     const result = await pool.query(
-      'UPDATE panel_size_masters SET size_name = $1, description = $2 WHERE id = $3 RETURNING *',
-      [size_name.trim(), description || '', req.params.id]
+      `UPDATE panel_size_masters 
+       SET panel_code = $1, panel_size = $2, size_name = $3, ip_rating = $4, comments = $5, description = $6 
+       WHERE id = $7 RETURNING *`,
+      [finalCode, finalSize, finalSize, finalIp, finalComments, finalComments, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Panel Size Master not found' });
-    res.json(result.rows[0]);
+    const row = result.rows[0];
+    res.json({
+      ...row,
+      panel_size: row.panel_size || row.size_name,
+      comments: row.comments || row.description
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update Panel Size Master' });
@@ -4237,27 +4618,100 @@ app.delete('/api/panel-size-masters/:id', authorize(['Admin', 'Manager', 'Design
   }
 });
 
-app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager', 'Design', 'Sales']), upload.array('files', 10), async (req, res) => {
+app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager', 'Design', 'Sales']), upload.any(), async (req, res) => {
   try {
     const partId = req.params.id;
     const partCheck = await pool.query('SELECT * FROM part_number_masters WHERE id = $1', [partId]);
     if (partCheck.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
 
+    const files = req.files || [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Determine target doc_type: 'Drawing' or 'BOM'
+    let targetDocType = 'Drawing';
+    if (req.body.doc_type && String(req.body.doc_type).trim().toUpperCase() === 'BOM') {
+      targetDocType = 'BOM';
+    }
+
+    // Validate each file is strictly a PDF
+    for (const file of files) {
+      const isPdfExt = path.extname(file.originalname).toLowerCase() === '.pdf';
+      const isPdfMime = (file.mimetype || '').toLowerCase().includes('pdf');
+      if (!isPdfExt || !isPdfMime) {
+        // Cleanup uploaded files
+        try { fs.unlinkSync(file.path); } catch (e) {}
+        return res.status(400).json({ error: 'Only PDF files are allowed.' });
+      }
+    }
+
     const insertedDocs = [];
-    for (const file of req.files) {
+    for (const file of files) {
       const relPath = path.relative(path.join(__dirname, 'uploads'), file.path);
-      const inserted = await pool.query(
-        `INSERT INTO part_number_documents (part_number_id, file_name, file_path, file_type)
-         VALUES ($1, $2, $3, $4) RETURNING *`,
-        [partId, file.originalname, relPath, file.mimetype]
+      
+      // Revision calculation: deterministic & backend-controlled
+      const maxRevRes = await pool.query(
+        `SELECT COALESCE(MAX(revision_number), -1) AS max_rev 
+         FROM part_number_documents 
+         WHERE part_number_id = $1 AND UPPER(doc_type) = UPPER($2)`,
+        [partId, targetDocType]
       );
+      const nextRevNumber = parseInt(maxRevRes.rows[0].max_rev, 10) + 1;
+      const revisionLabel = `R${nextRevNumber}`;
+
+      // Mark previous documents of this type as is_current = false
+      await pool.query(
+        `UPDATE part_number_documents 
+         SET is_current = false 
+         WHERE part_number_id = $1 AND UPPER(doc_type) = UPPER($2)`,
+        [partId, targetDocType]
+      );
+
+      const uploaderName = req.user.name || req.user.username || req.user.email || 'User';
+
+      const inserted = await pool.query(
+        `INSERT INTO part_number_documents 
+          (part_number_id, file_name, file_path, file_type, doc_type, revision_number, revision_label, is_current, uploaded_by_id, uploaded_by_name, file_size)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10) 
+         RETURNING *`,
+        [partId, file.originalname, relPath, file.mimetype, targetDocType, nextRevNumber, revisionLabel, req.user.id, uploaderName, file.size]
+      );
+
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, $2, $3)`,
+        [req.user.id, req.user.role, `Uploaded ${targetDocType} ${revisionLabel} for Part Number "${partCheck.rows[0].part_number}"`]
+      );
+
       insertedDocs.push(inserted.rows[0]);
     }
 
-    res.json(insertedDocs);
+    res.json(insertedDocs.length === 1 ? insertedDocs[0] : insertedDocs);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to upload Part Number documents' });
+    res.status(500).json({ error: 'Failed to upload Part Number document' });
+  }
+});
+
+app.get('/api/part-number-masters/:id/documents/:docType/history', authorize(), async (req, res) => {
+  try {
+    const { id, docType } = req.params;
+    const historyRes = await pool.query(
+      `SELECT d.*, u.username as uploader_username, u.email as uploader_email
+       FROM part_number_documents d
+       LEFT JOIN users u ON d.uploaded_by_id = u.id
+       WHERE d.part_number_id = $1 AND UPPER(d.doc_type) = UPPER($2)
+       ORDER BY d.revision_number DESC, d.uploaded_at DESC`,
+      [id, docType]
+    );
+    const rows = historyRes.rows.map(r => ({
+      ...r,
+      uploaded_by_name: r.uploaded_by_name || r.uploader_username || 'User'
+    }));
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch revision history' });
   }
 });
 
@@ -4265,6 +4719,21 @@ app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 
   try {
     const deleted = await pool.query('DELETE FROM part_number_documents WHERE id = $1 AND part_number_id = $2 RETURNING *', [req.params.docId, req.params.id]);
     if (deleted.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
+    
+    const doc = deleted.rows[0];
+    if (doc.is_current) {
+      await pool.query(
+        `UPDATE part_number_documents
+         SET is_current = true
+         WHERE id = (
+           SELECT id FROM part_number_documents
+           WHERE part_number_id = $1 AND UPPER(doc_type) = UPPER($2)
+           ORDER BY revision_number DESC LIMIT 1
+         )`,
+        [req.params.id, doc.doc_type]
+      );
+    }
+
     res.json(deleted.rows[0]);
   } catch (err) {
     console.error(err);
@@ -4438,6 +4907,60 @@ const seedSayaUser = async () => {
     await pool.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reference_number TEXT');
     await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None'");
     await pool.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard'");
+
+    // Ensure panel_size_masters columns exist and are backfilled
+    await pool.query(`
+      ALTER TABLE panel_size_masters 
+      ADD COLUMN IF NOT EXISTS panel_code TEXT,
+      ADD COLUMN IF NOT EXISTS panel_size TEXT,
+      ADD COLUMN IF NOT EXISTS ip_rating TEXT,
+      ADD COLUMN IF NOT EXISTS comments TEXT;
+
+      UPDATE panel_size_masters 
+      SET panel_size = COALESCE(panel_size, size_name),
+          comments = COALESCE(comments, description)
+      WHERE panel_size IS NULL OR comments IS NULL;
+
+      UPDATE panel_size_masters 
+      SET panel_code = 'PC-' || LPAD(id::text, 2, '0') 
+      WHERE panel_code IS NULL OR panel_code = '';
+
+      UPDATE panel_size_masters 
+      SET ip_rating = 'IP55' 
+      WHERE ip_rating IS NULL OR ip_rating = '';
+
+      INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+        ('panel_code',      'Panel Code',        'LineItem', 'Text', true, 9),
+        ('panel_ip_rating', 'IP Rating',         'LineItem', 'Text', true, 11),
+        ('panel_comments',  'Comments',          'LineItem', 'Text', true, 12)
+      ON CONFLICT (col_key) DO NOTHING;
+
+      INSERT INTO department_column_visibility (dept, col_key, is_visible)
+      SELECT d.dept, c.col_key, true
+      FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+      CROSS JOIN (SELECT col_key FROM column_masters WHERE col_key IN ('panel_code', 'panel_ip_rating', 'panel_comments')) c
+      ON CONFLICT (dept, col_key) DO NOTHING;
+
+      ALTER TABLE part_number_masters 
+      ADD COLUMN IF NOT EXISTS client_name TEXT,
+      ADD COLUMN IF NOT EXISTS project TEXT;
+
+      ALTER TABLE part_number_documents 
+      ADD COLUMN IF NOT EXISTS doc_type TEXT DEFAULT 'Drawing',
+      ADD COLUMN IF NOT EXISTS revision_number INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS revision_label TEXT DEFAULT 'R0',
+      ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS uploaded_by_id INTEGER REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS uploaded_by_name TEXT,
+      ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+
+      UPDATE part_number_documents 
+      SET doc_type = COALESCE(doc_type, 'Drawing'),
+          revision_number = COALESCE(revision_number, 0),
+          revision_label = COALESCE(revision_label, 'R0'),
+          is_current = COALESCE(is_current, true)
+      WHERE doc_type IS NULL OR revision_number IS NULL OR revision_label IS NULL OR is_current IS NULL;
+    `);
 
     // Auto-migrate role constraints at boot to revert Planning default
     await pool.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');

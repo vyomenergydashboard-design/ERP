@@ -23,6 +23,9 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
   const [customFields, setCustomFields] = useState([]);
   const [activeTab, setActiveTab] = useState('details');
   const [saveError, setSaveError] = useState(null);
+  const [showHoldBox, setShowHoldBox] = useState(false);
+  const [showCancelBox, setShowCancelBox] = useState(false);
+  const [actionReason, setActionReason] = useState('');
 
   const canEditStructure = ['Admin', 'Manager'].includes(userRole);
   const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) && selectedOrder?.hold_status !== 'Approved' : false;
@@ -37,6 +40,9 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
       setDocCount(0);
       setActiveTab('details');
       setSaveError(null);
+      setShowHoldBox(false);
+      setShowCancelBox(false);
+      setActionReason('');
       try {
         const cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]');
         setCustomFields(Array.isArray(cf) ? cf : []);
@@ -241,15 +247,70 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
 
 
+              {/* Hold Warning Banner */}
+              {status === 'hold' && (
+                <div style={{
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '2px solid #f59e0b',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <div>
+                    <div style={{ fontWeight: '700', color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>⏸</span> TASK IS CURRENTLY ON HOLD
+                    </div>
+                    {notes && <div style={{ fontSize: '12px', color: '#fef3c7', marginTop: '2px' }}>{notes}</div>}
+                  </div>
+                  {canEditStep && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatus('inprogress');
+                        onSave({ status: 'inprogress', notes: notes ? `${notes} (Resumed)` : 'Resumed from hold' });
+                      }}
+                      style={{
+                        background: '#10b981', color: '#fff', border: 'none', borderRadius: '6px',
+                        padding: '6px 14px', fontWeight: '700', fontSize: '12px', cursor: 'pointer', flexShrink: 0
+                      }}
+                    >
+                      ▶ Resume Task
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Cancelled Warning Banner */}
+              {status === 'cancelled' && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '2px solid #ef4444',
+                  borderRadius: '8px',
+                  padding: '12px 16px',
+                  marginBottom: '16px'
+                }}>
+                  <div style={{ fontWeight: '700', color: '#f87171', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>✕</span> TASK IS CANCELLED
+                  </div>
+                  {notes && <div style={{ fontSize: '12px', color: '#fee2e2', marginTop: '2px' }}>{notes}</div>}
+                </div>
+              )}
+
               <div className="modal-field">
                 <label>Status</label>
                 {canEditStep ? (
                   <select className="form-select" value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="pending">Pending</option>
                     <option value="inprogress">In Progress</option>
-                    <option value="review">Under Review</option>
                     <option value="done">Done</option>
                     <option value="blocked">Blocked</option>
+                    <option value="review">Review</option>
+                    {status === 'hold' && <option value="hold" disabled>Hold</option>}
+                    {status === 'cancelled' && <option value="cancelled" disabled>Cancelled</option>}
                   </select>
                 ) : (
                   <div style={{ marginTop: '4px' }}>
@@ -259,6 +320,104 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   </div>
                 )}
               </div>
+
+              {canEditStep && status !== 'hold' && status !== 'cancelled' && (
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowHoldBox(p => !p); setShowCancelBox(false); }}
+                    style={{
+                      flex: 1,
+                      background: showHoldBox ? '#f59e0b' : 'rgba(245, 158, 11, 0.12)',
+                      color: showHoldBox ? '#000' : '#fbbf24',
+                      border: '1px solid rgba(245, 158, 11, 0.4)',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ⏸ Put on Hold
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowCancelBox(p => !p); setShowHoldBox(false); }}
+                    style={{
+                      flex: 1,
+                      background: showCancelBox ? '#ef4444' : 'rgba(239, 68, 68, 0.12)',
+                      color: showCancelBox ? '#fff' : '#f87171',
+                      border: '1px solid rgba(239, 68, 68, 0.4)',
+                      padding: '7px 12px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✕ Cancel Task
+                  </button>
+                </div>
+              )}
+
+              {showHoldBox && (
+                <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid #f59e0b', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#fbbf24', marginBottom: '6px' }}>
+                    Reason for placing on hold:
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter reason..."
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value)}
+                    style={{ fontSize: '12px', marginBottom: '8px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!actionReason.trim()) { alert('Please enter a hold reason'); return; }
+                      setStatus('hold');
+                      setNotes(actionReason);
+                      onSave({ status: 'hold', notes: actionReason });
+                      setShowHoldBox(false);
+                    }}
+                    style={{ background: '#f59e0b', color: '#000', fontWeight: '700', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    Confirm Put on Hold
+                  </button>
+                </div>
+              )}
+
+              {showCancelBox && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '6px' }}>
+                    Reason for cancellation:
+                  </div>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="Enter reason..."
+                    value={actionReason}
+                    onChange={e => setActionReason(e.target.value)}
+                    style={{ fontSize: '12px', marginBottom: '8px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!actionReason.trim()) { alert('Please enter a cancellation reason'); return; }
+                      if (!confirm('Are you sure you want to cancel this task?')) return;
+                      setStatus('cancelled');
+                      setNotes(actionReason);
+                      onSave({ status: 'cancelled', notes: actionReason });
+                      setShowCancelBox(false);
+                    }}
+                    style={{ background: '#ef4444', color: '#fff', fontWeight: '700', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    Confirm Cancellation
+                  </button>
+                </div>
+              )}
 
               {step.special === 'qc' && (
                 <div id="qcFailArea">

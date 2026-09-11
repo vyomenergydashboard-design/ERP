@@ -20,7 +20,33 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
       ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
       ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
-      ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+      ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb,
+      ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
+      ADD COLUMN IF NOT EXISTS hold_step_id INTEGER,
+      ADD COLUMN IF NOT EXISTS hold_step_name TEXT,
+      ADD COLUMN IF NOT EXISTS hold_dept TEXT,
+      ADD COLUMN IF NOT EXISTS hold_reason TEXT,
+      ADD COLUMN IF NOT EXISTS held_by_name TEXT,
+      ADD COLUMN IF NOT EXISTS held_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS cancelled_step_id INTEGER,
+      ADD COLUMN IF NOT EXISTS cancelled_step_name TEXT,
+      ADD COLUMN IF NOT EXISTS cancelled_dept TEXT,
+      ADD COLUMN IF NOT EXISTS cancelled_reason TEXT,
+      ADD COLUMN IF NOT EXISTS cancelled_by_name TEXT,
+      ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+
+      ALTER TABLE unit_steps
+      ADD COLUMN IF NOT EXISTS hold_reason TEXT,
+      ADD COLUMN IF NOT EXISTS held_by TEXT,
+      ADD COLUMN IF NOT EXISTS hold_at TIMESTAMP WITH TIME ZONE;
+
+      DO $$ 
+      BEGIN 
+        ALTER TABLE unit_steps DROP CONSTRAINT IF EXISTS unit_steps_status_check;
+        ALTER TABLE unit_steps ADD CONSTRAINT unit_steps_status_check CHECK (status IN ('pending', 'inprogress', 'done', 'blocked', 'review', 'hold', 'cancelled'));
+      EXCEPTION WHEN OTHERS THEN 
+        NULL;
+      END $$;
 
       ALTER TABLE order_line_items
       ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
@@ -31,7 +57,55 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
       ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
       ADD COLUMN IF NOT EXISTS project_name TEXT;
+
+      ALTER TABLE panel_size_masters
+      ADD COLUMN IF NOT EXISTS panel_code TEXT,
+      ADD COLUMN IF NOT EXISTS panel_size TEXT,
+      ADD COLUMN IF NOT EXISTS ip_rating TEXT,
+      ADD COLUMN IF NOT EXISTS comments TEXT;
+
+      UPDATE panel_size_masters
+      SET panel_size = COALESCE(panel_size, size_name),
+          comments = COALESCE(comments, description)
+      WHERE panel_size IS NULL OR comments IS NULL;
+
+      UPDATE panel_size_masters
+      SET panel_code = 'PC-' || LPAD(id::text, 2, '0')
+      WHERE panel_code IS NULL OR panel_code = '';
+
+      UPDATE panel_size_masters
+      SET ip_rating = 'IP55'
+      WHERE ip_rating IS NULL OR ip_rating = '';
+
+      ALTER TABLE part_number_masters
+      ADD COLUMN IF NOT EXISTS client_name TEXT,
+      ADD COLUMN IF NOT EXISTS project TEXT;
+
+      ALTER TABLE part_number_documents
+      ADD COLUMN IF NOT EXISTS doc_type TEXT DEFAULT 'Drawing',
+      ADD COLUMN IF NOT EXISTS revision_number INTEGER DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS revision_label TEXT DEFAULT 'R0',
+      ADD COLUMN IF NOT EXISTS is_current BOOLEAN DEFAULT true,
+      ADD COLUMN IF NOT EXISTS uploaded_by_id INTEGER REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS uploaded_by_name TEXT,
+      ADD COLUMN IF NOT EXISTS file_size BIGINT DEFAULT 0;
+
+      UPDATE part_number_documents
+      SET doc_type = COALESCE(doc_type, 'Drawing'),
+          revision_number = COALESCE(revision_number, 0),
+          revision_label = COALESCE(revision_label, 'R0'),
+          is_current = COALESCE(is_current, true)
+      WHERE doc_type IS NULL OR revision_number IS NULL OR revision_label IS NULL OR is_current IS NULL;
+
+      CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_id ON unit_steps(order_unit_id);
+      CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_dept ON unit_steps(order_unit_id, dept);
+      CREATE INDEX IF NOT EXISTS idx_unit_steps_status ON unit_steps(status);
+      CREATE INDEX IF NOT EXISTS idx_order_units_order_id ON order_units(order_id);
+      CREATE INDEX IF NOT EXISTS idx_order_units_line_item_id ON order_units(line_item_id);
+      CREATE INDEX IF NOT EXISTS idx_order_steps_order_id ON order_steps(order_id);
+      CREATE INDEX IF NOT EXISTS idx_order_units_hold_status ON order_units(hold_status);
     `);
+
 
     // Backfill unit planning fields if null
     await client.query(`
@@ -58,6 +132,18 @@ export async function runDeploymentMigrations(clientParam) {
       UPDATE column_masters 
       SET label = 'Serial No.' 
       WHERE col_key = 'short_serial' AND label IN ('Unit Serial', 'Serial Number');
+
+      INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+        ('panel_code',      'Panel Code',        'LineItem', 'Text', true, 9),
+        ('panel_ip_rating', 'IP Rating',         'LineItem', 'Text', true, 11),
+        ('panel_comments',  'Comments',          'LineItem', 'Text', true, 12)
+      ON CONFLICT (col_key) DO NOTHING;
+
+      INSERT INTO department_column_visibility (dept, col_key, is_visible)
+      SELECT d.dept, c.col_key, true
+      FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+      CROSS JOIN (SELECT col_key FROM column_masters WHERE col_key IN ('panel_code', 'panel_ip_rating', 'panel_comments')) c
+      ON CONFLICT (dept, col_key) DO NOTHING;
     `);
 
     // 2. Check if old ORD- order numbers exist
@@ -154,6 +240,30 @@ export async function runDeploymentMigrations(clientParam) {
 
       await client.query('COMMIT');
       console.log('[Deployment Migration] Unit serials re-aligned successfully.');
+    }
+
+    // ── Sync completed planning units to Production ───────────────────────
+    try {
+      console.log('[Deployment Migration] Syncing planned/completed units to Production...');
+      await client.query(`
+        UPDATE unit_steps us
+        SET status = 'done', updated = COALESCE(updated, TO_CHAR(NOW(), 'HH12:MI AM'))
+        FROM order_units ou
+        WHERE us.order_unit_id = ou.id
+          AND us.dept = 'Planning'
+          AND (ou.status = 'Completed' OR ou.status = 'Production')
+          AND us.status != 'done';
+      `);
+
+      await client.query(`
+        UPDATE order_units
+        SET current_dept = 'Production', status = 'Production'
+        WHERE (status = 'Completed' OR status = 'Production')
+          AND current_dept IN ('Planning', 'Sales');
+      `);
+      console.log('[Deployment Migration] Planning to Production sync complete.');
+    } catch (syncErr) {
+      console.error('[Deployment Migration] Planning to Production sync error:', syncErr);
     }
 
   } catch (err) {
