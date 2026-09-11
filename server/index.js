@@ -558,11 +558,24 @@ const initDB = async () => {
     const sql = fs.readFileSync(path.join(__dirname, 'init.sql'), 'utf8');
     await pool.query(sql);
     console.log('Database initialized successfully (Tables checked/created)');
-    
-    await runDeploymentMigrations();
+  } catch (err) {
+    console.error('Database initialization (init.sql) warning:', err.message || err);
+  }
 
+  try {
+    await runDeploymentMigrations();
+  } catch (err) {
+    console.error('Deployment migrations error:', err.message || err);
+  }
+
+  try {
     // Force sync unit serial alignment
     await realignUnitSerials();
+  } catch (err) {
+    console.error('Realign unit serials error:', err.message || err);
+  }
+
+  try {
 
     // Synchronize default task_masters to match tasks
     const currentTasks = await pool.query('SELECT name, level FROM task_masters WHERE is_mandatory = true');

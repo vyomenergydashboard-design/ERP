@@ -338,13 +338,38 @@ ON CONFLICT (size_name) DO UPDATE SET
   ip_rating = COALESCE(panel_size_masters.ip_rating, EXCLUDED.ip_rating),
   comments = COALESCE(panel_size_masters.comments, EXCLUDED.comments);
 
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS panel_type_size TEXT;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard';
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None';
+ALTER TABLE order_units 
+  ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
+  ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
+  ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb,
+  ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
+  ADD COLUMN IF NOT EXISTS hold_step_id INTEGER,
+  ADD COLUMN IF NOT EXISTS hold_step_name TEXT,
+  ADD COLUMN IF NOT EXISTS hold_dept TEXT,
+  ADD COLUMN IF NOT EXISTS hold_reason TEXT,
+  ADD COLUMN IF NOT EXISTS held_by_name TEXT,
+  ADD COLUMN IF NOT EXISTS held_at TIMESTAMP WITH TIME ZONE,
+  ADD COLUMN IF NOT EXISTS cancelled_step_id INTEGER,
+  ADD COLUMN IF NOT EXISTS cancelled_step_name TEXT,
+  ADD COLUMN IF NOT EXISTS cancelled_dept TEXT,
+  ADD COLUMN IF NOT EXISTS cancelled_reason TEXT,
+  ADD COLUMN IF NOT EXISTS cancelled_by_name TEXT,
+  ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE unit_steps 
+  ADD COLUMN IF NOT EXISTS hold_reason TEXT,
+  ADD COLUMN IF NOT EXISTS held_by TEXT,
+  ADD COLUMN IF NOT EXISTS hold_at TIMESTAMP WITH TIME ZONE;
+
+ALTER TABLE order_line_items 
+  ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
+  ADD COLUMN IF NOT EXISTS project_name TEXT,
+  ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+
+ALTER TABLE orders 
+  ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
+  ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
+  ADD COLUMN IF NOT EXISTS project_name TEXT;
 
 -- Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_id ON unit_steps(order_unit_id);
