@@ -198,6 +198,8 @@ ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_number TEXT;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL;
 
 -- System Settings (key-value store for admin-configurable DB-backed settings)
 CREATE TABLE IF NOT EXISTS system_settings (
