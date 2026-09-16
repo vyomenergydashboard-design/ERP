@@ -3657,10 +3657,10 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });
   }
-  if (await isUnitOnHold(id)) {
+  if (await isUnitOnHold(id) && req.body.po_number === undefined) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { panel_type_size, classification, custom_fields } = req.body;
+  const { panel_type_size, classification, custom_fields, po_number } = req.body;
 
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
@@ -3693,6 +3693,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(classification || 'Standard');
     }
 
+    if (po_number !== undefined) {
+      updates.push(`po_number = $${idx++}`);
+      values.push(po_number ? String(po_number).trim() : null);
+    }
+
     if (custom_fields !== undefined) {
       updates.push(`custom_fields = $${idx++}`);
       values.push(typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields));
@@ -3711,6 +3716,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     let logAction = `Updated unit ${unit.unit_id}`;
     if (panel_type_size !== undefined) logAction += ` panel size: "${panel_type_size}"`;
     if (classification !== undefined) logAction += ` classification: "${classification}"`;
+    if (po_number !== undefined) logAction += ` po_number: "${po_number}"`;
 
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
@@ -3799,7 +3805,12 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.cancelled_at,
         o.id           AS order_id,
         o.order_number,
-        o.po_number,
+        COALESCE(ou.po_number, o.po_number) AS po_number,
+        ou.po_number   AS unit_po_number,
+        o.po_number    AS order_po_number,
+        ou.po_doc_id,
+        COALESCE(podoc.file_path, opodoc.file_path) AS po_file_path,
+        COALESCE(podoc.file_name, opodoc.file_name) AS po_file_name,
         o.reference_number,
         o.end_client_name,
         o.priority,
@@ -3886,6 +3897,14 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         OR psm.panel_size = COALESCE(ou.panel_type_size, oli.panel_type_size)
         OR psm.panel_code = COALESCE(ou.panel_type_size, oli.panel_type_size)
       )
+      LEFT JOIN documents podoc ON podoc.id = ou.po_doc_id
+      LEFT JOIN LATERAL (
+        SELECT file_path, file_name 
+        FROM documents 
+        WHERE entity_type = 'Order' AND entity_id = o.id AND doc_type = 'PO' 
+        ORDER BY uploaded_at DESC 
+        LIMIT 1
+      ) opodoc ON true
       WHERE $1 = 'Sales' 
          OR ou.current_dept = $1 
          OR ou.hold_status IN ('Hold', 'Cancelled')
@@ -4039,6 +4058,111 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to upload documents' });
+  }
+});
+
+app.post('/api/units/batch-po', authorize(['Sales', 'Accounts', 'Admin', 'Manager']), upload.single('file'), async (req, res) => {
+  const { po_number } = req.body;
+  let unit_ids = req.body.unit_ids;
+
+  if (!po_number || !po_number.trim()) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    return res.status(400).json({ error: 'PO Number is required.' });
+  }
+
+  if (!unit_ids) {
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    return res.status(400).json({ error: 'At least one serial number must be selected.' });
+  }
+
+  try {
+    if (typeof unit_ids === 'string') {
+      try {
+        unit_ids = JSON.parse(unit_ids);
+      } catch (e) {
+        unit_ids = unit_ids.split(',').map(id => parseInt(id.trim(), 10)).filter(Boolean);
+      }
+    }
+    if (!Array.isArray(unit_ids) || unit_ids.length === 0) {
+      if (req.file && fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      return res.status(400).json({ error: 'Invalid or empty unit_ids array.' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'PO PDF file is required.' });
+    }
+
+    const isPdf = req.file.mimetype === 'application/pdf' || req.file.originalname.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      if (fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      return res.status(400).json({ error: 'Only PDF files are allowed for PO document upload.' });
+    }
+
+    // Verify units exist
+    const unitRes = await pool.query(
+      'SELECT ou.id, ou.order_id, ou.unit_id FROM order_units ou WHERE ou.id = ANY($1::int[])',
+      [unit_ids]
+    );
+
+    if (unitRes.rows.length === 0) {
+      if (fs.existsSync(req.file.path)) {
+        try { fs.unlinkSync(req.file.path); } catch (e) {}
+      }
+      return res.status(404).json({ error: 'No matching units found.' });
+    }
+
+    const firstUnit = unitRes.rows[0];
+    const cleanPo = po_number.trim();
+
+    // 1. Insert into documents table (linked to the first unit or entity_type = 'Unit')
+    const docRes = await pool.query(
+      `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      ['Unit', firstUnit.id, 'PO', req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
+    );
+    const savedDoc = docRes.rows[0];
+
+    // 2. Update order_units table for all selected unit IDs
+    await pool.query(
+      `UPDATE order_units
+       SET po_number = $1, po_doc_id = $2
+       WHERE id = ANY($3::int[])`,
+      [cleanPo, savedDoc.id, unit_ids]
+    );
+
+    // 3. Activity log for affected orders
+    const orderIds = [...new Set(unitRes.rows.map(u => u.order_id).filter(Boolean))];
+    const serialList = unitRes.rows.map(u => u.unit_id).join(', ');
+    for (const ordId of orderIds) {
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+        [req.user.id, ordId, 'Sales', `Attached PO #${cleanPo} (${req.file.originalname}) to serials: ${serialList}`]
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `PO #${cleanPo} attached to ${unitRes.rows.length} serials.`,
+      po_number: cleanPo,
+      po_doc_id: savedDoc.id,
+      po_file_path: savedDoc.file_path,
+      po_file_name: savedDoc.file_name,
+      updated_unit_ids: unit_ids
+    });
+  } catch (err) {
+    console.error('Error in batch-po upload:', err);
+    if (req.file && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    res.status(500).json({ error: 'Failed to upload PO for selected serials: ' + (err.message || err) });
   }
 });
 

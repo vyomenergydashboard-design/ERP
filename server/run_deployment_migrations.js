@@ -104,6 +104,8 @@ export async function runDeploymentMigrations(clientParam) {
       CREATE INDEX IF NOT EXISTS idx_order_units_line_item_id ON order_units(line_item_id);
       CREATE INDEX IF NOT EXISTS idx_order_steps_order_id ON order_steps(order_id);
       CREATE INDEX IF NOT EXISTS idx_order_units_hold_status ON order_units(hold_status);
+      CREATE INDEX IF NOT EXISTS idx_documents_entity_po ON documents (entity_type, entity_id, doc_type);
+      CREATE INDEX IF NOT EXISTS idx_order_units_po_doc_id ON order_units (po_doc_id);
     `);
 
 
