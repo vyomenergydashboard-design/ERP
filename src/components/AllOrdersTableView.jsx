@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import ExcelSheetViewer from './ExcelSheetViewer';
 import { 
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
-  Eye, History, Download
+  Eye, History, Download, Upload, CheckSquare, Square
 } from 'lucide-react';
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
@@ -1938,6 +1938,1061 @@ function TechnicalDocsModal({
   );
 }
 
+const isStatusDone = (st) => {
+  if (!st) return false;
+  const s = String(st).trim().toLowerCase();
+  return s === 'done' || s === 'completed' || s === 'complete';
+};
+
+const isStatusInProgress = (st) => {
+  if (!st) return false;
+  const s = String(st).trim().toLowerCase();
+  return s === 'inprogress' || s === 'in progress' || s === 'in process' || s === 'review';
+};
+
+function calculateUnitStatus(unit, currentFilter, userRole) {
+  if (!unit) return 'Pending';
+
+  const rawUnitStatus = String(unit.unit_status || unit.status || '').trim().toLowerCase();
+  const rawHoldStatus = String(unit.hold_status || '').trim().toLowerCase();
+  const rawOrderStatus = String(unit.order_status || '').trim().toLowerCase();
+
+  // 1. Cancelled orders/units
+  if (
+    rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
+    rawUnitStatus.startsWith('cancel') ||
+    rawHoldStatus === 'cancelled' ||
+    unit.hold_status === 'Cancelled' ||
+    rawOrderStatus === 'cancelled' || rawOrderStatus === 'canceled'
+  ) {
+    return 'Cancelled';
+  }
+
+  // 2. Hold orders/units
+  if (
+    rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
+    rawUnitStatus.startsWith('hold') ||
+    rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
+    unit.hold_status === 'Hold' ||
+    rawOrderStatus === 'hold' || rawOrderStatus === 'on hold'
+  ) {
+    return 'Hold';
+  }
+
+  if (rawUnitStatus === 'dispatched' || isStatusDone(rawUnitStatus)) return 'Completed';
+  if (unit.dept_steps?.some(s => String(s.status).toLowerCase() === 'blocked')) return 'Blocked';
+
+  // Design workflow evaluation
+  const isDesignWorkflow = currentFilter === 'Design' || userRole?.toLowerCase() === 'design';
+  const stepsToCheck = isDesignWorkflow
+    ? (unit.dept_steps || unit.design_steps || [])
+    : (unit.dept_steps || []);
+
+  if (stepsToCheck && stepsToCheck.length > 0) {
+    const allDone = stepsToCheck.every(s => isStatusDone(s.status));
+    const releaseDocStep = stepsToCheck.find(s => 
+      s.name === 'Release Documents' || 
+      s.special === 'design' || 
+      String(s.name || '').toLowerCase().includes('design')
+    );
+    const isReleaseDocDone = releaseDocStep && isStatusDone(releaseDocStep.status);
+
+    if (allDone || (isDesignWorkflow && isReleaseDocDone)) {
+      return 'Completed';
+    }
+
+    const hasStarted = stepsToCheck.some(s => isStatusDone(s.status) || isStatusInProgress(s.status));
+    if (hasStarted) {
+      return 'In Progress';
+    }
+
+    return 'Pending';
+  }
+
+  const hasInprogress = 
+    Number(unit.inprogress_step_count || 0) > 0 ||
+    Number(unit.order_inprogress_step_count || 0) > 0 ||
+    unit.dept_steps?.some(s => isStatusInProgress(s.status));
+
+  const hasDone = 
+    Number(unit.done_step_count || 0) > 0 ||
+    Number(unit.order_done_step_count || 0) > 0 ||
+    unit.dept_steps?.some(s => isStatusDone(s.status));
+
+  if (hasInprogress || hasDone) {
+    return 'In Progress';
+  }
+
+  return 'Pending';
+}
+
+function renderCellContent({
+  unit,
+  colKey,
+  status,
+  canEdit,
+  canEditPanelSize,
+  canUploadPo,
+  panelSizeMasters,
+  customColumnDefs,
+  editingCell,
+  setEditingCell,
+  onRowClick,
+  onSaveInlineCell,
+  onSingleUnitPoClick,
+  onPartNumberClick,
+  setPoPdfViewer
+}) {
+  const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
+  const priority = unit.priority || 'Medium';
+  const priorityStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.Medium;
+  const isOverdue = unit.delivery_date && new Date(unit.delivery_date) < new Date() && status !== 'Completed' && status !== 'Cancelled';
+  const effectiveUnitId = unit.unit_id || unit.id;
+
+  switch (colKey) {
+    case 'order_number':
+      return (
+        <span 
+          onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
+          style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
+          title="Click to view Process Flow"
+        >
+          {unit.order_number}
+        </span>
+      );
+
+    case 'short_serial':
+    case 'unit_serial':
+      return (
+        <div 
+          onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }} 
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          title="Click to view Process Flow for this Serial No."
+        >
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6', fontSize: 12, textDecoration: 'underline' }}>
+            {unit.unit_serial}
+          </span>
+        </div>
+      );
+
+    case 'company_name':
+      return (
+        <div 
+          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          title={unit.company_name ? `${unit.company_name}${unit.company_city ? ` · ${unit.company_city}` : ''}` : undefined}
+        >
+          <span style={{ fontWeight: 600, color: 'var(--text)' }}>{unit.company_name || '—'}</span>
+          {unit.company_city && <span style={{ color: 'var(--text3)', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>· {unit.company_city}</span>}
+        </div>
+      );
+
+    case 'classification':
+      const clsVal = unit.classification || 'Standard';
+      if (canEdit) {
+        return (
+          <select
+            value={clsVal}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSaveInlineCell(unit, 'classification', e.target.value)}
+            style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+              background: clsVal === 'Standard' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
+              color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
+              border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.4)' : 'rgba(245,158,11,0.4)'}`,
+              cursor: 'pointer', outline: 'none'
+            }}
+          >
+            <option value="Standard" style={{ background: 'var(--bg3)', color: 'var(--text)' }}>Standard</option>
+            <option value="Non-Standard" style={{ background: 'var(--bg3)', color: 'var(--text)' }}>Non-Standard</option>
+          </select>
+        );
+      }
+      return (
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+          background: clsVal === 'Standard' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
+          color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
+          border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`
+        }}>
+          {clsVal}
+        </span>
+      );
+
+    case 'priority':
+      if (canEdit) {
+        return (
+          <select
+            value={priority}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSaveInlineCell(unit, 'priority', e.target.value)}
+            style={{
+              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
+              background: priorityStyle.bg, color: priorityStyle.color,
+              border: `1px solid ${priorityStyle.border}`, cursor: 'pointer', outline: 'none',
+              textTransform: 'uppercase'
+            }}
+          >
+            <option value="Urgent" style={{ background: 'var(--bg3)', color: '#ef4444' }}>Urgent</option>
+            <option value="High" style={{ background: 'var(--bg3)', color: '#f87171' }}>High</option>
+            <option value="Medium" style={{ background: 'var(--bg3)', color: '#fbbf24' }}>Medium</option>
+            <option value="Low" style={{ background: 'var(--bg3)', color: '#60a5fa' }}>Low</option>
+          </select>
+        );
+      }
+      return (
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+          background: priorityStyle.bg, color: priorityStyle.color,
+          border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
+        }}>
+          {priority}
+        </span>
+      );
+
+    case 'unit_status':
+      if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
+        const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+        const holdTooltip = `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? new Date(unit.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
+        return (
+          <span 
+            title={holdTooltip}
+            style={{
+              fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
+              background: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24',
+              border: '1px solid #f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
+              boxShadow: '0 0 10px rgba(245, 158, 11, 0.3)'
+            }}
+          >
+            <span>⏸</span> Hold @ {holdStep}
+          </span>
+        );
+      }
+      if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
+        const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+        const cancelTooltip = `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? new Date(unit.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
+        return (
+          <span 
+            title={cancelTooltip}
+            style={{
+              fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
+              background: 'rgba(239, 68, 68, 0.35)', color: '#f87171',
+              border: '1px solid #ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
+              boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)'
+            }}
+          >
+            <span>✕</span> Cancelled @ {cancelStep}
+          </span>
+        );
+      }
+      return (
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+          background: statusStyle.bg, color: statusStyle.color,
+          border: `1px solid ${statusStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap'
+        }}>
+          {status}
+        </span>
+      );
+
+    case 'delivery_date':
+      const isEditingDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'delivery_date';
+      if (isEditingDate) {
+        return (
+          <input
+            type="date"
+            autoFocus
+            value={unit.delivery_date ? unit.delivery_date.split('T')[0] : ''}
+            onChange={(e) => onSaveInlineCell(unit, 'delivery_date', e.target.value)}
+            onBlur={() => setEditingCell(null)}
+            style={{
+              padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4
+            }}
+          />
+        );
+      }
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey: 'delivery_date', value: unit.delivery_date || '' });
+            }
+          }}
+          title={canEdit ? "Click to change date" : undefined}
+          style={{
+            color: isOverdue ? '#ef4444' : 'var(--text2)',
+            fontWeight: isOverdue ? 600 : 400,
+            fontSize: 12,
+            cursor: canEdit ? 'pointer' : 'default'
+          }}
+        >
+          {unit.delivery_date
+            ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+            : '—'}
+          {isOverdue && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, marginLeft: 5, background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 5px' }}>OVERDUE</span>}
+        </span>
+      );
+
+    case 'part_number':
+      const hasPart = Boolean(unit.part_number);
+      return (
+        <span
+          onClick={(e) => {
+            e.stopPropagation();
+            onPartNumberClick(unit);
+          }}
+          title="Click to view Design Drawings & Technical Documents"
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            fontWeight: 600,
+            color: hasPart ? '#60a5fa' : 'var(--text3)',
+            cursor: 'pointer',
+            textDecoration: hasPart ? 'underline' : 'none'
+          }}
+        >
+          {unit.part_number || '—'}
+        </span>
+      );
+
+    case 'panel_code': {
+      const currentSize = unit.panel_type_size || '';
+      const master = panelSizeMasters.find(m => 
+        (m.panel_size && m.panel_size === currentSize) ||
+        (m.size_name && m.size_name === currentSize) ||
+        (m.panel_code && m.panel_code === currentSize)
+      );
+      const code = unit.panel_code || master?.panel_code;
+      return code ? (
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11.5,
+          fontWeight: 700,
+          color: '#c084fc',
+          background: 'rgba(168, 85, 247, 0.12)',
+          border: '1px solid rgba(168, 85, 247, 0.28)',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          display: 'inline-block'
+        }}>
+          {code}
+        </span>
+      ) : (
+        <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+      );
+    }
+
+    case 'panel_type_size':
+      return (
+        <PanelSizeComboboxCell
+          unit={unit}
+          panelSizeMasters={panelSizeMasters}
+          canEdit={canEditPanelSize}
+          onSave={(newSize) => onSaveInlineCell(unit, 'panel_type_size', newSize)}
+        />
+      );
+
+    case 'panel_ip_rating': {
+      const currentSize = unit.panel_type_size || '';
+      const master = panelSizeMasters.find(m => 
+        (m.panel_size && m.panel_size === currentSize) ||
+        (m.size_name && m.size_name === currentSize) ||
+        (m.panel_code && m.panel_code === currentSize)
+      );
+      const ip = unit.panel_ip_rating || master?.ip_rating;
+      return ip ? (
+        <span style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          fontWeight: 600,
+          color: '#10b981',
+          background: 'rgba(16, 185, 129, 0.12)',
+          border: '1px solid rgba(16, 185, 129, 0.28)',
+          padding: '2px 8px',
+          borderRadius: '4px',
+          display: 'inline-block'
+        }}>
+          {ip}
+        </span>
+      ) : (
+        <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+      );
+    }
+
+    case 'panel_comments': {
+      const currentSize = unit.panel_type_size || '';
+      const master = panelSizeMasters.find(m => 
+        (m.panel_size && m.panel_size === currentSize) ||
+        (m.size_name && m.size_name === currentSize) ||
+        (m.panel_code && m.panel_code === currentSize)
+      );
+      const comment = unit.panel_comments || master?.comments || master?.description;
+      return comment ? (
+        <span style={{ color: 'var(--text2)', fontSize: 12 }} title={comment}>
+          {comment}
+        </span>
+      ) : (
+        <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
+      );
+    }
+
+    case 'po_number': {
+      const hasPoNum = Boolean(unit.po_number);
+      const hasPdf = Boolean(unit.po_file_path);
+
+      if (editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'po_number') {
+        return (
+          <input
+            autoFocus
+            defaultValue={editingCell.value || ''}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={() => onSaveInlineCell(unit, 'po_number', editingCell.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveInlineCell(unit, 'po_number', editingCell.value);
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+            }}
+          />
+        );
+      }
+
+      return (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+          {hasPoNum ? (
+            hasPdf ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPoPdfViewer({
+                    file_path: unit.po_file_path,
+                    file_name: unit.po_file_name || `${unit.po_number}.pdf`,
+                    title: `PO Document - ${unit.po_number}`,
+                    subtitle: `Serial: ${unit.short_serial || unit.unit_serial} | Order: ${unit.order_number}`
+                  });
+                }}
+                title="Click to view PO in PDF"
+                style={{
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  borderRadius: 5,
+                  padding: '2px 7px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  cursor: 'pointer',
+                  color: 'var(--blue)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  maxWidth: 130,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <FileText size={12} style={{ flexShrink: 0 }} />
+                <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {unit.po_number}
+                </span>
+              </button>
+            ) : (
+              <span
+                title={canUploadPo ? "Click to edit PO No." : (unit.po_number || '')}
+                onClick={(e) => {
+                  if (canUploadPo) {
+                    e.stopPropagation();
+                    setEditingCell({ unitId: effectiveUnitId, colKey: 'po_number', value: unit.po_number });
+                  }
+                }}
+                style={{
+                  fontSize: 12,
+                  color: 'var(--text2)',
+                  cursor: canUploadPo ? 'pointer' : 'default',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {unit.po_number}
+              </span>
+            )
+          ) : (
+            <span
+              onClick={(e) => {
+                if (canUploadPo) {
+                  e.stopPropagation();
+                  setEditingCell({ unitId: effectiveUnitId, colKey: 'po_number', value: '' });
+                }
+              }}
+              style={{ fontSize: 12, color: 'var(--text3)', cursor: canUploadPo ? 'pointer' : 'default' }}
+              title={canUploadPo ? "Click to enter PO No." : undefined}
+            >
+              —
+            </span>
+          )}
+
+          {canUploadPo && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSingleUnitPoClick(unit);
+              }}
+              title={hasPoNum ? (hasPdf ? "Change PO / Re-upload PDF for this serial" : "Upload PDF for this PO") : "Enter PO & Upload PDF for this serial"}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 2,
+                cursor: 'pointer',
+                color: 'var(--text3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                opacity: 0.6,
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--blue)'; e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
+            >
+              <UploadCloud size={12} />
+            </button>
+          )}
+        </div>
+      );
+    }
+
+    default:
+      const customCol = customColumnDefs?.find(c => c.col_key === colKey);
+      if (customCol) {
+        const isEditingThis = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
+        const currentVal = unit.custom_fields?.[colKey] ?? '';
+
+        if (isEditingThis) {
+          if (customCol.field_type === 'Yes/No') {
+            return (
+              <select
+                autoFocus
+                value={editingCell.value || 'No'}
+                onChange={(e) => onSaveInlineCell(unit, colKey, e.target.value)}
+                onBlur={() => setEditingCell(null)}
+                style={{
+                  fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                  background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--blue)', outline: 'none'
+                }}
+              >
+                <option value="Yes">Yes</option>
+                <option value="No">No</option>
+              </select>
+            );
+          }
+          if (isDateTimeType(customCol.field_type)) {
+            return (
+              <input
+                type="datetime-local"
+                autoFocus
+                value={editingCell.value ? String(editingCell.value).slice(0, 16) : ''}
+                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+                  if (e.key === 'Escape') setEditingCell(null);
+                }}
+                style={{
+                  width: '100%', padding: '2px 6px', fontSize: 11, background: 'var(--bg3)',
+                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+                }}
+              />
+            );
+          }
+          if (isDateType(customCol.field_type)) {
+            return (
+              <input
+                type="date"
+                autoFocus
+                value={editingCell.value ? String(editingCell.value).split('T')[0] : ''}
+                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+                  if (e.key === 'Escape') setEditingCell(null);
+                }}
+                style={{
+                  width: '100%', padding: '2px 6px', fontSize: 11, background: 'var(--bg3)',
+                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+                }}
+              />
+            );
+          }
+          if (customCol.field_type === 'Number') {
+            return (
+              <input
+                type="number"
+                autoFocus
+                value={editingCell.value}
+                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+                onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+                  if (e.key === 'Escape') setEditingCell(null);
+                }}
+                style={{
+                  width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
+                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+                }}
+              />
+            );
+          }
+          return (
+            <input
+              type="text"
+              autoFocus
+              value={editingCell.value}
+              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+              onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+                if (e.key === 'Escape') setEditingCell(null);
+              }}
+              style={{
+                width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
+                color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+              }}
+            />
+          );
+        }
+
+        if (isDateTimeType(customCol.field_type)) {
+          return (
+            <span
+              onClick={(e) => {
+                if (canEdit) {
+                  e.stopPropagation();
+                  setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+                }
+              }}
+              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 11, color: 'var(--text2)' }}
+              title={canEdit ? 'Click to edit' : undefined}
+            >
+              {formatCustomDateTime(currentVal)}
+            </span>
+          );
+        }
+        if (isDateType(customCol.field_type)) {
+          return (
+            <span
+              onClick={(e) => {
+                if (canEdit) {
+                  e.stopPropagation();
+                  setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+                }
+              }}
+              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 11, color: 'var(--text2)' }}
+              title={canEdit ? 'Click to edit' : undefined}
+            >
+              {formatCustomDate(currentVal)}
+            </span>
+          );
+        }
+        if (customCol.field_type === 'Yes/No') {
+          const isYes = String(currentVal).toLowerCase() === 'yes';
+          return (
+            <span
+              onClick={(e) => {
+                if (canEdit) {
+                  e.stopPropagation();
+                  setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+                }
+              }}
+              style={{
+                cursor: canEdit ? 'pointer' : 'default',
+                display: 'inline-block',
+                padding: '2px 8px',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: 600,
+                background: isYes ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: isYes ? '#34d399' : '#f87171'
+              }}
+            >
+              {currentVal}
+            </span>
+          );
+        }
+
+        return (
+          <span
+            onClick={(e) => {
+              if (canEdit) {
+                e.stopPropagation();
+                setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+              }
+            }}
+            style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 12 }}
+            title={canEdit ? 'Click to edit' : undefined}
+          >
+            {String(currentVal)}
+          </span>
+        );
+      }
+
+      const isEditingThis = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
+      const currentVal = unit[colKey] || '';
+
+      if (isEditingThis) {
+        return (
+          <input
+            type="text"
+            autoFocus
+            value={editingCell.value}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+            }}
+          />
+        );
+      }
+
+      const isEditableTextCol = ['project_name', 'end_client_name', 'reference_number', 'material_description'].includes(colKey);
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit && isEditableTextCol) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+            }
+          }}
+          title={canEdit && isEditableTextCol ? "Click to edit" : (currentVal ? String(currentVal) : undefined)}
+          style={{
+            color: colKey === 'reference_number' ? '#f59e0b' : (colKey === 'project_name' ? '#38bdf8' : 'var(--text2)'),
+            fontSize: 12,
+            cursor: canEdit && isEditableTextCol ? 'pointer' : 'default',
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {currentVal || '—'}
+        </span>
+      );
+  }
+}
+
+const TableRow = memo(function TableRow({
+  unit,
+  idx,
+  isSelected,
+  status,
+  visibleCols,
+  columnWidths,
+  pinnedKeys,
+  stickyLeftMap,
+  canEdit,
+  canEditPanelSize,
+  canUploadPo,
+  panelSizeMasters,
+  customColumnDefs,
+  editingCell,
+  setEditingCell,
+  onRowMouseDown,
+  onRowMouseEnter,
+  onRowClick,
+  onSaveInlineCell,
+  onSingleUnitPoClick,
+  onPartNumberClick,
+  setPoPdfViewer
+}) {
+  const isAltRow = idx % 2 !== 0;
+  const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
+  const isHold = status === 'Hold' || status === 'On Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
+  const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
+
+  const defaultBg = isSelected
+    ? 'rgba(59, 130, 246, 0.16)'
+    : isCancelled
+    ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
+    : isHold
+    ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
+    : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
+
+  const borderBottomColor = isCancelled
+    ? 'rgba(239, 68, 68, 0.45)'
+    : isHold
+    ? 'rgba(245, 158, 11, 0.45)'
+    : (isSelected ? 'rgba(59, 130, 246, 0.4)' : 'var(--border)');
+
+  const rowClass = [
+    isCancelled ? 'row-cancelled' : '',
+    isHold ? 'row-hold' : '',
+    isSelected ? 'row-selected' : ''
+  ].filter(Boolean).join(' ');
+
+  return (
+    <tr
+      className={rowClass}
+      style={{
+        background: defaultBg,
+        cursor: 'default',
+        borderBottom: `1px solid ${borderBottomColor}`,
+      }}
+      onMouseEnter={(e) => onRowMouseEnter(unit.unit_id, idx, e)}
+    >
+      {/* Selection Checkbox Cell */}
+      <td
+        style={{
+          position: 'sticky',
+          left: 0,
+          zIndex: 3,
+          background: isSelected ? 'rgba(59, 130, 246, 0.22)' : defaultBg,
+          width: 38,
+          minWidth: 38,
+          maxWidth: 38,
+          padding: '6px 4px',
+          textAlign: 'center',
+          verticalAlign: 'middle',
+          borderRight: '1px solid var(--border)',
+          borderLeft: isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'),
+          userSelect: 'none',
+          cursor: 'pointer'
+        }}
+        title={isSelected ? "Click to deselect row (or drag to deselect range)" : "Click to select row (or drag to select range)"}
+        onMouseDown={(e) => onRowMouseDown(unit.unit_id, idx, e)}
+      >
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14, pointerEvents: 'none' }}
+        />
+      </td>
+
+      {visibleCols.map((c) => {
+        const colKey = c.key;
+        const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 125);
+        const width = columnWidths[colKey] || defaultWidth;
+        const pinned = pinnedKeys.includes(colKey);
+        const lastPin = pinned && pinnedKeys[pinnedKeys.length - 1] === colKey;
+
+        let pinnedBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
+        if (rowHighlight === 'cancelled') {
+          pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
+        } else if (rowHighlight === 'hold') {
+          pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
+        }
+
+        return (
+          <td
+            key={colKey}
+            style={{
+              width,
+              minWidth: width,
+              maxWidth: width,
+              boxSizing: 'border-box',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              verticalAlign: 'middle',
+              position: pinned ? 'sticky' : 'relative',
+              left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
+              zIndex: pinned ? 3 : 1,
+              background: pinned ? pinnedBg : undefined,
+              boxShadow: lastPin ? '4px 0 8px -3px rgba(0,0,0,0.35)' : undefined,
+              padding: '6px 10px',
+              textAlign: c.align || 'left'
+            }}
+          >
+            {renderCellContent({
+              unit,
+              colKey,
+              status,
+              canEdit,
+              canEditPanelSize,
+              canUploadPo,
+              panelSizeMasters,
+              customColumnDefs,
+              editingCell,
+              setEditingCell,
+              onRowClick,
+              onSaveInlineCell,
+              onSingleUnitPoClick,
+              onPartNumberClick,
+              setPoPdfViewer
+            })}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}, (prevProps, nextProps) => {
+  if (prevProps.isSelected !== nextProps.isSelected) return false;
+  if (prevProps.unit !== nextProps.unit) return false;
+  if (prevProps.idx !== nextProps.idx) return false;
+  if (prevProps.status !== nextProps.status) return false;
+  if (prevProps.columnWidths !== nextProps.columnWidths) return false;
+  if (prevProps.visibleCols !== nextProps.visibleCols) return false;
+  if (prevProps.pinnedKeys !== nextProps.pinnedKeys) return false;
+  if (prevProps.panelSizeMasters !== nextProps.panelSizeMasters) return false;
+  if (prevProps.customColumnDefs !== nextProps.customColumnDefs) return false;
+
+  const unitId = prevProps.unit.unit_id || prevProps.unit.id;
+  const prevEditing = prevProps.editingCell && prevProps.editingCell.unitId === unitId;
+  const nextEditing = nextProps.editingCell && nextProps.editingCell.unitId === unitId;
+  if (prevEditing !== nextEditing || (prevEditing && prevProps.editingCell !== nextProps.editingCell)) return false;
+
+  return true;
+});
+
+const PoUploadBar = memo(function PoUploadBar({
+  selectedCount,
+  canUploadPo,
+  isUploadingPo,
+  poSuccessMsg,
+  onClearSelection,
+  onUploadPo,
+  externalPoNumber,
+  setExternalPoNumber
+}) {
+  const [poNumber, setPoNumber] = useState('');
+  const poFileInputRef = useRef(null);
+  const poInputRef = useRef(null);
+
+  useEffect(() => {
+    if (externalPoNumber !== undefined && externalPoNumber !== null && externalPoNumber !== '') {
+      setPoNumber(externalPoNumber);
+      if (poInputRef.current) {
+        poInputRef.current.focus();
+        poInputRef.current.select();
+      }
+    }
+  }, [externalPoNumber]);
+
+  const handleUploadClick = () => {
+    if (!canUploadPo) {
+      alert("Only Sales, Accounts, Admin, and Manager roles can upload PO documents.");
+      return;
+    }
+    if (selectedCount === 0) {
+      alert("Please select the serial numbers (on which you require to add the PO data) first.");
+      return;
+    }
+    if (!poNumber.trim()) {
+      alert("Please enter the PO No. in the text box.");
+      if (poInputRef.current) poInputRef.current.focus();
+      return;
+    }
+    if (poFileInputRef.current) {
+      poFileInputRef.current.click();
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    onUploadPo(poNumber.trim(), file);
+  };
+
+  return (
+    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+      {poSuccessMsg && (
+        <span style={{ fontSize: 12, fontWeight: 600, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '3px 8px' }}>
+          {poSuccessMsg}
+        </span>
+      )}
+
+      {selectedCount > 0 && (
+        <span style={{
+          fontSize: 12, fontWeight: 600, color: 'var(--blue)', background: 'rgba(59, 130, 246, 0.12)',
+          border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 6, padding: '3px 8px',
+          display: 'inline-flex', alignItems: 'center', gap: 5
+        }}>
+          <span>{selectedCount} serial{selectedCount > 1 ? 's' : ''} selected</span>
+          <button
+            type="button"
+            onClick={onClearSelection}
+            title="Deselect all"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex', alignItems: 'center' }}
+          >
+            <X size={12} />
+          </button>
+        </span>
+      )}
+
+      <input
+        ref={poInputRef}
+        type="text"
+        placeholder="Enter PO No."
+        value={poNumber}
+        onChange={(e) => {
+          setPoNumber(e.target.value);
+          if (externalPoNumber) setExternalPoNumber('');
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleUploadClick();
+        }}
+        style={{
+          height: 30,
+          padding: '0 10px',
+          fontSize: 12,
+          background: 'var(--bg3)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          borderRadius: 6,
+          outline: 'none',
+          width: 140
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={handleUploadClick}
+        disabled={isUploadingPo}
+        title="Upload PO (PDF) for selected serial numbers"
+        style={{
+          height: 30,
+          padding: '0 12px',
+          fontSize: 12,
+          fontWeight: 600,
+          background: 'var(--blue)',
+          color: '#ffffff',
+          border: 'none',
+          borderRadius: 6,
+          cursor: isUploadingPo ? 'wait' : 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          opacity: isUploadingPo ? 0.7 : 1,
+          whiteSpace: 'nowrap'
+        }}
+      >
+        {isUploadingPo ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
+        <span>Upload PO</span>
+      </button>
+
+      <input
+        ref={poFileInputRef}
+        type="file"
+        accept=".pdf,application/pdf"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
+    </div>
+  );
+});
+
 export default function AllOrdersTableView({ currentFilter, userRole: propUserRole, onSetView, statCardFilter, onClearStatFilter }) {
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
@@ -2025,6 +3080,49 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     localStorage.setItem('erp_all_sortDir', sortDir);
   }, [sortDir]);
+
+  // Excel-style multi-row selection state
+  const [selectedUnitIds, setSelectedUnitIds] = useState(new Set());
+  const lastSelectedIndexRef = useRef(null);
+  const isDraggingSelectRef = useRef(false);
+  const dragStartIdxRef = useRef(null);
+  const dragSelectTargetStateRef = useRef(true);
+
+  // PO upload state
+  const [externalPoNumber, setExternalPoNumber] = useState('');
+  const [isUploadingPo, setIsUploadingPo] = useState(false);
+  const [poSuccessMsg, setPoSuccessMsg] = useState('');
+
+  // Pagination state
+  const [pageSize, setPageSize] = useState(() => {
+    const saved = localStorage.getItem('erp_all_pageSize');
+    if (saved === 'all') return 'all';
+    const num = Number(saved);
+    return num && num > 0 ? num : 100;
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    localStorage.setItem('erp_all_pageSize', String(pageSize));
+  }, [pageSize]);
+
+  // Reset to page 1 on filter or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab, priorityFilter, statusFilter, statCardFilter]);
+
+  // In-app PDF viewer modal for PO document
+  const [poPdfViewer, setPoPdfViewer] = useState(null);
+
+  // Reset drag-select on mouseup anywhere
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      isDraggingSelectRef.current = false;
+      dragStartIdxRef.current = null;
+    };
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
 
   // Column Definitions (Merged BASE_COLUMNS + Custom columns from column-masters)
   const [allColumns, setAllColumns] = useState(BASE_COLUMNS);
@@ -2221,6 +3319,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
+  const canUploadPo = ['ADMIN', 'MANAGER', 'SALES', 'ACCOUNTS'].includes(roleUpper);
 
   const [colVisibility, setColVisibility] = useState({});
   const [editingCell, setEditingCell] = useState(null);
@@ -2272,6 +3371,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     
     return `${baseUrl}/uploads/${relPath}${tokenParam}`;
   };
+
+
 
   const handlePartNumberClick = async (unit) => {
     const pNum = unit.part_number;
@@ -2411,6 +3512,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             console.error('Failed to update panel size', await res.text());
           }
         }
+      } else if (colKey === 'po_number') {
+        const uId = unit.id || unit.unit_id;
+        if (uId) {
+          await fetch(`${window.API_BASE}/api/units/${uId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ po_number: newValue })
+          });
+        }
       } else {
         await fetch(`${window.API_BASE}/api/orders/${unit.order_id}`, {
           method: 'PUT',
@@ -2505,218 +3618,298 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }
   };
 
-  const handleRowClick = (orderId, unitId) => {
+  const handleRowClick = useCallback((orderId, unitId) => {
     window.dispatchEvent(new CustomEvent('setView', {
       detail: { view: 'flow', orderId: parseInt(orderId), unitId: parseInt(unitId) }
     }));
-  };
+  }, []);
 
-  const handleSort = (key) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
-  };
-
-  const isStatusDone = (st) => {
-    if (!st) return false;
-    const s = String(st).trim().toLowerCase();
-    return s === 'done' || s === 'completed' || s === 'complete';
-  };
-
-  const isStatusInProgress = (st) => {
-    if (!st) return false;
-    const s = String(st).trim().toLowerCase();
-    return s === 'inprogress' || s === 'in progress' || s === 'in process' || s === 'review';
-  };
-
-  const getUnitStatus = (unit) => {
-    if (!unit) return 'Pending';
-
-    const rawUnitStatus = String(unit.unit_status || unit.status || '').trim().toLowerCase();
-    const rawHoldStatus = String(unit.hold_status || '').trim().toLowerCase();
-    const rawOrderStatus = String(unit.order_status || '').trim().toLowerCase();
-
-    // 1. Cancelled orders/units
-    if (
-      rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
-      rawUnitStatus.startsWith('cancel') ||
-      rawHoldStatus === 'cancelled' ||
-      unit.hold_status === 'Cancelled' ||
-      rawOrderStatus === 'cancelled' || rawOrderStatus === 'canceled'
-    ) {
-      return 'Cancelled';
-    }
-
-    // 2. Hold orders/units
-    if (
-      rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
-      rawUnitStatus.startsWith('hold') ||
-      rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
-      unit.hold_status === 'Hold' ||
-      rawOrderStatus === 'hold' || rawOrderStatus === 'on hold'
-    ) {
-      return 'Hold';
-    }
-
-    if (rawUnitStatus === 'dispatched' || isStatusDone(rawUnitStatus)) return 'Completed';
-    if (unit.dept_steps?.some(s => String(s.status).toLowerCase() === 'blocked')) return 'Blocked';
-
-    // Design workflow evaluation
-    const isDesignWorkflow = currentFilter === 'Design' || userRole?.toLowerCase() === 'design';
-    const stepsToCheck = isDesignWorkflow
-      ? (unit.dept_steps || unit.design_steps || [])
-      : (unit.dept_steps || []);
-
-    if (stepsToCheck && stepsToCheck.length > 0) {
-      const allDone = stepsToCheck.every(s => isStatusDone(s.status));
-      const releaseDocStep = stepsToCheck.find(s => 
-        s.name === 'Release Documents' || 
-        s.special === 'design' || 
-        String(s.name || '').toLowerCase().includes('design')
-      );
-      const isReleaseDocDone = releaseDocStep && isStatusDone(releaseDocStep.status);
-
-      if (allDone || (isDesignWorkflow && isReleaseDocDone)) {
-        return 'Completed';
-      }
-
-      const hasStarted = stepsToCheck.some(s => isStatusDone(s.status) || isStatusInProgress(s.status));
-      if (hasStarted) {
-        return 'In Progress';
-      }
-
-      return 'Pending';
-    }
-
-    const hasInprogress = 
-      Number(unit.inprogress_step_count || 0) > 0 ||
-      Number(unit.order_inprogress_step_count || 0) > 0 ||
-      unit.dept_steps?.some(s => isStatusInProgress(s.status));
-
-    const hasDone = 
-      Number(unit.done_step_count || 0) > 0 ||
-      Number(unit.order_done_step_count || 0) > 0 ||
-      unit.dept_steps?.some(s => isStatusDone(s.status));
-
-    if (hasInprogress || hasDone) {
-      return 'In Progress';
-    }
-
-    return 'Pending';
-  };
-
-  const holdCount = units.filter(u => {
-    const s = getUnitStatus(u);
-    return s === 'Hold' || s === 'On Hold';
-  }).length;
-
-  const cancelledCount = units.filter(u => getUnitStatus(u) === 'Cancelled').length;
-
-  const filtered = units.filter(u => {
-    const status = getUnitStatus(u);
-
-    // Tab-level filtering
-    if (activeTab === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
-    if (activeTab === 'cancelled' && status !== 'Cancelled') return false;
-
-    // Apply Stat Card Filter if active
-    if (statCardFilter === 'priority') {
-      const p = (u.priority || 'Medium').toLowerCase();
-      if (p !== 'urgent' && p !== 'high') return false;
-    } else if (statCardFilter === 'inprogress') {
-      if (status !== 'In Progress' && status !== 'In Process') return false;
-    } else if (statCardFilter === 'blocked') {
-      if (status !== 'Blocked') return false;
-    } else if (statCardFilter === 'due') {
-      if (!u.delivery_date) return false;
-      const today = new Date();
-      const in7 = new Date(today);
-      in7.setDate(today.getDate() + 7);
-      const d = new Date(u.delivery_date);
-      if (d < today || d > in7) return false;
-    }
-
-    if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
-    
-    // Status filter dropdown (when in All Orders tab)
-    if (activeTab === 'all') {
-      if ((statusFilter === 'incomplete' || statusFilter === 'active') && (status === 'Completed' || status === 'Cancelled')) return false;
-      if (statusFilter === 'completed' && status !== 'Completed') return false;
-      if ((statusFilter === 'pending' || statusFilter === 'not_started') && status !== 'Pending' && status !== 'Not Started') return false;
-      if ((statusFilter === 'inprogress' || statusFilter === 'in_process') && status !== 'In Progress' && status !== 'In Process') return false;
-      if (statusFilter === 'blocked' && status !== 'Blocked') return false;
-      if (statusFilter === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
-      if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
-    }
-    
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      const customMatches = Object.values(u.custom_fields || {}).some(
-        val => val != null && String(val).toLowerCase().includes(q)
-      );
-      return (
-        customMatches ||
-        (u.unit_serial || '').toLowerCase().includes(q) ||
-        (u.short_serial || '').toLowerCase().includes(q) ||
-        (u.po_number || '').toLowerCase().includes(q) ||
-        (u.company_name || '').toLowerCase().includes(q) ||
-        (u.end_client_name || '').toLowerCase().includes(q) ||
-        (u.reference_number || '').toLowerCase().includes(q) ||
-        (u.material_description || '').toLowerCase().includes(q) ||
-        (u.part_number || '').toLowerCase().includes(q) ||
-        (u.panel_type_size || '').toLowerCase().includes(q) ||
-        (u.panel_code || '').toLowerCase().includes(q) ||
-        (u.panel_ip_rating || '').toLowerCase().includes(q) ||
-        (u.panel_comments || '').toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    let av, bv;
-    const customDef = customColumnDefs.find(c => c.col_key === sortKey);
-    if (customDef) {
-      const aVal = a.custom_fields?.[sortKey] ?? '';
-      const bVal = b.custom_fields?.[sortKey] ?? '';
-      if (isDateType(customDef.field_type) || isDateTimeType(customDef.field_type)) {
-        av = aVal ? new Date(aVal).getTime() : Infinity;
-        bv = bVal ? new Date(bVal).getTime() : Infinity;
-      } else if (customDef.field_type === 'Number') {
-        av = aVal !== '' ? Number(aVal) : Infinity;
-        bv = bVal !== '' ? Number(bVal) : Infinity;
+  const handleSort = useCallback((key) => {
+    setSortKey(prevKey => {
+      if (prevKey === key) {
+        setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        return prevKey;
       } else {
-        av = String(aVal).toLowerCase();
-        bv = String(bVal).toLowerCase();
+        setSortDir('asc');
+        return key;
       }
-    } else if (sortKey === 'priority') {
-      av = PRIORITY_ORDER[a.priority || 'Medium'] ?? 2;
-      bv = PRIORITY_ORDER[b.priority || 'Medium'] ?? 2;
-    } else if (sortKey === 'delivery_date') {
-      av = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
-      bv = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
-    } else if (sortKey === 'unit_status') {
-      av = getUnitStatus(a);
-      bv = getUnitStatus(b);
-    } else {
-      let aVal = a[sortKey];
-      let bVal = b[sortKey];
-      if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
-        if (!aVal) {
-          const masterA = panelSizeMasters.find(m => (m.panel_size || m.size_name) === a.panel_type_size || m.panel_code === a.panel_type_size);
-          aVal = sortKey === 'panel_code' ? masterA?.panel_code : sortKey === 'panel_ip_rating' ? masterA?.ip_rating : (masterA?.comments || masterA?.description);
-        }
-        if (!bVal) {
-          const masterB = panelSizeMasters.find(m => (m.panel_size || m.size_name) === b.panel_type_size || m.panel_code === b.panel_type_size);
-          bVal = sortKey === 'panel_code' ? masterB?.panel_code : sortKey === 'panel_ip_rating' ? masterB?.ip_rating : (masterB?.comments || masterB?.description);
-        }
-      }
-      av = (aVal || '').toString().toLowerCase();
-      bv = (bVal || '').toString().toLowerCase();
+    });
+  }, []);
+
+  const unitStatusMap = useMemo(() => {
+    const map = new Map();
+    for (let i = 0; i < units.length; i++) {
+      const u = units[i];
+      const id = u.unit_id || u.id;
+      map.set(id, calculateUnitStatus(u, currentFilter, userRole));
     }
-    if (av < bv) return sortDir === 'asc' ? -1 : 1;
-    if (av > bv) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
+    return map;
+  }, [units, currentFilter, userRole]);
+
+  const getUnitStatus = useCallback((unit) => {
+    if (!unit) return 'Pending';
+    const id = unit.unit_id || unit.id;
+    return unitStatusMap.get(id) || 'Pending';
+  }, [unitStatusMap]);
+
+  const { holdCount, cancelledCount } = useMemo(() => {
+    let hold = 0;
+    let cancelled = 0;
+    for (let i = 0; i < units.length; i++) {
+      const s = getUnitStatus(units[i]);
+      if (s === 'Hold' || s === 'On Hold') hold++;
+      else if (s === 'Cancelled') cancelled++;
+    }
+    return { holdCount: hold, cancelledCount: cancelled };
+  }, [units, getUnitStatus]);
+
+  const filtered = useMemo(() => {
+    return units.filter(u => {
+      const status = getUnitStatus(u);
+
+      // Tab-level filtering
+      if (activeTab === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
+      if (activeTab === 'cancelled' && status !== 'Cancelled') return false;
+
+      // Apply Stat Card Filter if active
+      if (statCardFilter === 'priority') {
+        const p = (u.priority || 'Medium').toLowerCase();
+        if (p !== 'urgent' && p !== 'high') return false;
+      } else if (statCardFilter === 'inprogress') {
+        if (status !== 'In Progress' && status !== 'In Process') return false;
+      } else if (statCardFilter === 'blocked') {
+        if (status !== 'Blocked') return false;
+      } else if (statCardFilter === 'due') {
+        if (!u.delivery_date) return false;
+        const today = new Date();
+        const in7 = new Date(today);
+        in7.setDate(today.getDate() + 7);
+        const d = new Date(u.delivery_date);
+        if (d < today || d > in7) return false;
+      }
+
+      if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
+      
+      // Status filter dropdown (when in All Orders tab)
+      if (activeTab === 'all') {
+        if ((statusFilter === 'incomplete' || statusFilter === 'active') && (status === 'Completed' || status === 'Cancelled')) return false;
+        if (statusFilter === 'completed' && status !== 'Completed') return false;
+        if ((statusFilter === 'pending' || statusFilter === 'not_started') && status !== 'Pending' && status !== 'Not Started') return false;
+        if ((statusFilter === 'inprogress' || statusFilter === 'in_process') && status !== 'In Progress' && status !== 'In Process') return false;
+        if (statusFilter === 'blocked' && status !== 'Blocked') return false;
+        if (statusFilter === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
+        if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
+      }
+      
+      if (searchTerm) {
+        const q = searchTerm.toLowerCase();
+        const customMatches = Object.values(u.custom_fields || {}).some(
+          val => val != null && String(val).toLowerCase().includes(q)
+        );
+        return (
+          customMatches ||
+          (u.unit_serial || '').toLowerCase().includes(q) ||
+          (u.short_serial || '').toLowerCase().includes(q) ||
+          (u.po_number || '').toLowerCase().includes(q) ||
+          (u.company_name || '').toLowerCase().includes(q) ||
+          (u.end_client_name || '').toLowerCase().includes(q) ||
+          (u.reference_number || '').toLowerCase().includes(q) ||
+          (u.material_description || '').toLowerCase().includes(q) ||
+          (u.part_number || '').toLowerCase().includes(q) ||
+          (u.panel_type_size || '').toLowerCase().includes(q) ||
+          (u.panel_code || '').toLowerCase().includes(q) ||
+          (u.panel_ip_rating || '').toLowerCase().includes(q) ||
+          (u.panel_comments || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [units, activeTab, statCardFilter, priorityFilter, statusFilter, searchTerm, getUnitStatus]);
+
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      let av, bv;
+      const customDef = customColumnDefs.find(c => c.col_key === sortKey);
+      if (customDef) {
+        const aVal = a.custom_fields?.[sortKey] ?? '';
+        const bVal = b.custom_fields?.[sortKey] ?? '';
+        if (isDateType(customDef.field_type) || isDateTimeType(customDef.field_type)) {
+          av = aVal ? new Date(aVal).getTime() : Infinity;
+          bv = bVal ? new Date(bVal).getTime() : Infinity;
+        } else if (customDef.field_type === 'Number') {
+          av = aVal !== '' ? Number(aVal) : Infinity;
+          bv = bVal !== '' ? Number(bVal) : Infinity;
+        } else {
+          av = String(aVal).toLowerCase();
+          bv = String(bVal).toLowerCase();
+        }
+      } else if (sortKey === 'priority') {
+        av = PRIORITY_ORDER[a.priority || 'Medium'] ?? 2;
+        bv = PRIORITY_ORDER[b.priority || 'Medium'] ?? 2;
+      } else if (sortKey === 'delivery_date') {
+        av = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
+        bv = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+      } else if (sortKey === 'unit_status') {
+        av = getUnitStatus(a);
+        bv = getUnitStatus(b);
+      } else {
+        let aVal = a[sortKey];
+        let bVal = b[sortKey];
+        if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
+          if (!aVal) {
+            const masterA = panelSizeMasters.find(m => (m.panel_size || m.size_name) === a.panel_type_size || m.panel_code === a.panel_type_size);
+            aVal = sortKey === 'panel_code' ? masterA?.panel_code : sortKey === 'panel_ip_rating' ? masterA?.ip_rating : (masterA?.comments || masterA?.description);
+          }
+          if (!bVal) {
+            const masterB = panelSizeMasters.find(m => (m.panel_size || m.size_name) === b.panel_type_size || m.panel_code === b.panel_type_size);
+            bVal = sortKey === 'panel_code' ? masterB?.panel_code : sortKey === 'panel_ip_rating' ? masterB?.ip_rating : (masterB?.comments || masterB?.description);
+          }
+        }
+        av = (aVal || '').toString().toLowerCase();
+        bv = (bVal || '').toString().toLowerCase();
+      }
+      if (av < bv) return sortDir === 'asc' ? -1 : 1;
+      if (av > bv) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filtered, sortKey, sortDir, customColumnDefs, panelSizeMasters, getUnitStatus]);
+
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize));
+
+  const displayedUnits = useMemo(() => {
+    if (pageSize === 'all') return sorted;
+    const start = (currentPage - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, pageSize, currentPage]);
+
+  const handleRowMouseDown = useCallback((unitId, idx, e) => {
+    if (e.button !== 0) return; // Only primary (left) mouse click
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('a') || e.target.closest('.modal-overlay')) return;
+
+    if (e.shiftKey && lastSelectedIndexRef.current !== null) {
+      e.preventDefault();
+      const start = Math.min(lastSelectedIndexRef.current, idx);
+      const end = Math.max(lastSelectedIndexRef.current, idx);
+      setSelectedUnitIds(prev => {
+        const next = new Set(prev);
+        for (let i = start; i <= end; i++) {
+          if (displayedUnits[i]) next.add(displayedUnits[i].unit_id);
+        }
+        return next;
+      });
+      lastSelectedIndexRef.current = idx;
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setSelectedUnitIds(prev => {
+        const next = new Set(prev);
+        if (next.has(unitId)) next.delete(unitId);
+        else next.add(unitId);
+        return next;
+      });
+      lastSelectedIndexRef.current = idx;
+      return;
+    }
+
+    isDraggingSelectRef.current = true;
+    dragStartIdxRef.current = idx;
+    lastSelectedIndexRef.current = idx;
+
+    const willSelect = !selectedUnitIds.has(unitId);
+    dragSelectTargetStateRef.current = willSelect;
+
+    setSelectedUnitIds(prev => {
+      const next = new Set(prev);
+      if (willSelect) next.add(unitId);
+      else next.delete(unitId);
+      return next;
+    });
+  }, [displayedUnits, selectedUnitIds]);
+
+  const handleRowMouseEnter = useCallback((unitId, idx, e) => {
+    if (!isDraggingSelectRef.current || dragStartIdxRef.current === null) return;
+    
+    const start = Math.min(dragStartIdxRef.current, idx);
+    const end = Math.max(dragStartIdxRef.current, idx);
+    const targetState = dragSelectTargetStateRef.current;
+
+    setSelectedUnitIds(prev => {
+      const next = new Set(prev);
+      for (let i = start; i <= end; i++) {
+        if (displayedUnits[i]) {
+          if (targetState) next.add(displayedUnits[i].unit_id);
+          else next.delete(displayedUnits[i].unit_id);
+        }
+      }
+      return next;
+    });
+  }, [displayedUnits]);
+
+  const handleToggleSelectAll = useCallback(() => {
+    const displayedIds = displayedUnits.map(u => u.unit_id);
+    const allSelected = displayedIds.length > 0 && displayedIds.every(id => selectedUnitIds.has(id));
+
+    setSelectedUnitIds(prev => {
+      const next = new Set(prev);
+      if (allSelected) {
+        displayedIds.forEach(id => next.delete(id));
+      } else {
+        displayedIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  }, [displayedUnits, selectedUnitIds]);
+
+  const handleBatchPoUpload = useCallback(async (poNumber, file) => {
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (!isPdf) {
+      alert('Only PDF files are allowed for PO document upload.');
+      return;
+    }
+
+    setIsUploadingPo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('po_number', poNumber);
+      formData.append('unit_ids', JSON.stringify(Array.from(selectedUnitIds)));
+
+      const res = await fetch(`${window.API_BASE}/api/units/batch-po`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to upload PO');
+      }
+
+      setPoSuccessMsg(`✓ PO #${data.po_number} attached to ${selectedUnitIds.size} serial numbers!`);
+      setTimeout(() => setPoSuccessMsg(''), 4500);
+
+      setExternalPoNumber('');
+      setSelectedUnitIds(new Set());
+      await fetchUnits(true);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Failed to upload PO.');
+    } finally {
+      setIsUploadingPo(false);
+    }
+  }, [selectedUnitIds, token]);
+
+  const handleSingleUnitPoClick = useCallback((unit) => {
+    if (!canUploadPo) {
+      alert("Only Sales, Accounts, Admin, and Manager roles can upload PO documents.");
+      return;
+    }
+    setSelectedUnitIds(new Set([unit.unit_id]));
+    setExternalPoNumber(unit.po_number || '');
+  }, [canUploadPo]);
 
   const SortIcon = ({ col }) => {
     if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: 4 }} />;
@@ -2726,42 +3919,41 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   };
 
   // Active columns filtered by department visibility
-  const activeCols = columnKeys
-    .filter(key => isColVisible(key))
-    .map(key => allColumns.find(c => c.key === key))
-    .filter(Boolean);
+  const activeCols = useMemo(() => {
+    return columnKeys
+      .filter(key => isColVisible(key))
+      .map(key => allColumns.find(c => c.key === key))
+      .filter(Boolean);
+  }, [columnKeys, allColumns, isColVisible]);
 
   // Partition active columns into Pinned (frozen on left) and Unpinned
-  const pinnedCols = activeCols.filter(c => pinnedKeys.includes(c.key));
-  const unpinnedCols = activeCols.filter(c => !pinnedKeys.includes(c.key));
-  const visibleCols = [...pinnedCols, ...unpinnedCols];
+  const pinnedCols = useMemo(() => activeCols.filter(c => pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
+  const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
+  const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns
-  const stickyLeftMap = {};
-  let currentLeft = 0;
-  pinnedCols.forEach((c) => {
-    const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[c.key] || 140);
-    const width = columnWidths[c.key] || defaultWidth;
-    stickyLeftMap[c.key] = currentLeft;
-    currentLeft += width;
-  });
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width)
+  const SELECTION_COL_WIDTH = 38;
+  const stickyLeftMap = useMemo(() => {
+    const map = {};
+    let currentLeft = SELECTION_COL_WIDTH;
+    pinnedCols.forEach((c) => {
+      const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[c.key] || 140);
+      const width = columnWidths[c.key] || defaultWidth;
+      map[c.key] = currentLeft;
+      currentLeft += width;
+    });
+    return map;
+  }, [pinnedCols, columnWidths]);
 
   const isPinned = (colKey) => pinnedKeys.includes(colKey);
   const isLastPinned = (colKey) => pinnedCols.length > 0 && pinnedCols[pinnedCols.length - 1].key === colKey;
 
-  const getColStyle = (colKey, isHeader = false, isAltRow = false, rowHighlight = null) => {
+  const getColStyle = (colKey, isHeader = false) => {
     const colDef = allColumns.find(c => c.key === colKey);
     const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 125);
     const width = columnWidths[colKey] || defaultWidth;
     const pinned = isPinned(colKey);
     const lastPin = isLastPinned(colKey);
-
-    let pinnedBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
-    if (rowHighlight === 'cancelled') {
-      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
-    } else if (rowHighlight === 'hold') {
-      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
-    }
 
     return {
       width,
@@ -2774,555 +3966,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       verticalAlign: 'middle',
       position: pinned ? 'sticky' : 'relative',
       left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
-      zIndex: pinned ? (isHeader ? 15 : 3) : (isHeader ? 10 : 1),
-      background: isHeader
-        ? 'var(--bg3)'
-        : (pinned ? pinnedBg : undefined),
+      zIndex: pinned ? 15 : 10,
+      background: 'var(--bg3)',
       boxShadow: lastPin ? '4px 0 8px -3px rgba(0,0,0,0.35)' : undefined
     };
   };
 
 
-
-  const renderCellContent = (unit, colKey) => {
-    const status = getUnitStatus(unit);
-    const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
-    const priority = unit.priority || 'Medium';
-    const priorityStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.Medium;
-    const isOverdue = unit.delivery_date && new Date(unit.delivery_date) < new Date() && status !== 'Completed' && status !== 'Cancelled';
-    const effectiveUnitId = unit.unit_id || unit.id;
-
-    switch (colKey) {
-      case 'order_number':
-        return (
-          <span 
-            onClick={(e) => { e.stopPropagation(); handleRowClick(unit.order_id, effectiveUnitId); }}
-            style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
-            title="Click to view Process Flow"
-          >
-            {unit.order_number}
-          </span>
-        );
-
-      case 'short_serial':
-      case 'unit_serial':
-        return (
-          <div 
-            onClick={(e) => { e.stopPropagation(); handleRowClick(unit.order_id, effectiveUnitId); }} 
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-            title="Click to view Process Flow for this Serial No."
-          >
-            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6', fontSize: 12, textDecoration: 'underline' }}>
-              {unit.unit_serial}
-            </span>
-          </div>
-        );
-
-      case 'company_name':
-        return (
-          <div 
-            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            title={unit.company_name ? `${unit.company_name}${unit.company_city ? ` · ${unit.company_city}` : ''}` : undefined}
-          >
-            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{unit.company_name || '—'}</span>
-            {unit.company_city && <span style={{ color: 'var(--text3)', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>· {unit.company_city}</span>}
-          </div>
-        );
-
-      case 'classification':
-        const clsVal = unit.classification || 'Standard';
-        if (canEdit) {
-          return (
-            <select
-              value={clsVal}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => handleSaveInlineCell(unit, 'classification', e.target.value)}
-              style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
-                background: clsVal === 'Standard' ? 'rgba(59,130,246,0.15)' : 'rgba(245,158,11,0.15)',
-                color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
-                border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.4)' : 'rgba(245,158,11,0.4)'}`,
-                cursor: 'pointer', outline: 'none'
-              }}
-            >
-              <option value="Standard" style={{ background: 'var(--bg3)', color: 'var(--text)' }}>Standard</option>
-              <option value="Non-Standard" style={{ background: 'var(--bg3)', color: 'var(--text)' }}>Non-Standard</option>
-            </select>
-          );
-        }
-        return (
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-            background: clsVal === 'Standard' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
-            color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
-            border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`
-          }}>
-            {clsVal}
-          </span>
-        );
-
-      case 'priority':
-        if (canEdit) {
-          return (
-            <select
-              value={priority}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => handleSaveInlineCell(unit, 'priority', e.target.value)}
-              style={{
-                fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
-                background: priorityStyle.bg, color: priorityStyle.color,
-                border: `1px solid ${priorityStyle.border}`, cursor: 'pointer', outline: 'none',
-                textTransform: 'uppercase'
-              }}
-            >
-              <option value="Urgent" style={{ background: 'var(--bg3)', color: '#ef4444' }}>Urgent</option>
-              <option value="High" style={{ background: 'var(--bg3)', color: '#f87171' }}>High</option>
-              <option value="Medium" style={{ background: 'var(--bg3)', color: '#fbbf24' }}>Medium</option>
-              <option value="Low" style={{ background: 'var(--bg3)', color: '#60a5fa' }}>Low</option>
-            </select>
-          );
-        }
-        return (
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-            background: priorityStyle.bg, color: priorityStyle.color,
-            border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
-          }}>
-            {priority}
-          </span>
-        );
-
-      case 'unit_status':
-        if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
-          const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
-          const holdTooltip = `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? new Date(unit.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
-          return (
-            <span 
-              title={holdTooltip}
-              style={{
-                fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
-                background: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24',
-                border: '1px solid #f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
-                boxShadow: '0 0 10px rgba(245, 158, 11, 0.3)'
-              }}
-            >
-              <span>⏸</span> Hold @ {holdStep}
-            </span>
-          );
-        }
-        if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
-          const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
-          const cancelTooltip = `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? new Date(unit.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
-          return (
-            <span 
-              title={cancelTooltip}
-              style={{
-                fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
-                background: 'rgba(239, 68, 68, 0.35)', color: '#f87171',
-                border: '1px solid #ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-                display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
-                boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)'
-              }}
-            >
-              <span>✕</span> Cancelled @ {cancelStep}
-            </span>
-          );
-        }
-        return (
-          <span style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-            background: statusStyle.bg, color: statusStyle.color,
-            border: `1px solid ${statusStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap'
-          }}>
-            {status}
-          </span>
-        );
-
-      case 'delivery_date':
-        const isEditingDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'delivery_date';
-        if (isEditingDate) {
-          return (
-            <input
-              type="date"
-              autoFocus
-              value={unit.delivery_date ? unit.delivery_date.split('T')[0] : ''}
-              onChange={(e) => handleSaveInlineCell(unit, 'delivery_date', e.target.value)}
-              onBlur={() => setEditingCell(null)}
-              style={{
-                padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
-                color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4
-              }}
-            />
-          );
-        }
-
-        return (
-          <span
-            onClick={(e) => {
-              if (canEdit) {
-                e.stopPropagation();
-                setEditingCell({ unitId: effectiveUnitId, colKey: 'delivery_date', value: unit.delivery_date || '' });
-              }
-            }}
-            title={canEdit ? "Click to change date" : undefined}
-            style={{
-              color: isOverdue ? '#ef4444' : 'var(--text2)',
-              fontWeight: isOverdue ? 600 : 400,
-              fontSize: 12,
-              cursor: canEdit ? 'pointer' : 'default'
-            }}
-          >
-            {unit.delivery_date
-              ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-              : '—'}
-            {isOverdue && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, marginLeft: 5, background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 5px' }}>OVERDUE</span>}
-          </span>
-        );
-
-      case 'part_number':
-        const hasPart = Boolean(unit.part_number);
-        return (
-          <span
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePartNumberClick(unit);
-            }}
-            title="Click to view Design Drawings & Technical Documents"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: hasPart ? '#60a5fa' : 'var(--text3)',
-              cursor: 'pointer',
-              textDecoration: hasPart ? 'underline' : 'none'
-            }}
-          >
-            {unit.part_number || '—'}
-          </span>
-        );
-
-      case 'panel_code': {
-        const currentSize = unit.panel_type_size || '';
-        const master = panelSizeMasters.find(m => 
-          (m.panel_size && m.panel_size === currentSize) ||
-          (m.size_name && m.size_name === currentSize) ||
-          (m.panel_code && m.panel_code === currentSize)
-        );
-        const code = unit.panel_code || master?.panel_code;
-        return code ? (
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: '#c084fc',
-            background: 'rgba(168, 85, 247, 0.12)',
-            border: '1px solid rgba(168, 85, 247, 0.28)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}>
-            {code}
-          </span>
-        ) : (
-          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
-        );
-      }
-
-      case 'panel_type_size':
-        return (
-          <PanelSizeComboboxCell
-            unit={unit}
-            panelSizeMasters={panelSizeMasters}
-            canEdit={canEditPanelSize}
-            onSave={(newSize) => handleSaveInlineCell(unit, 'panel_type_size', newSize)}
-          />
-        );
-
-      case 'panel_ip_rating': {
-        const currentSize = unit.panel_type_size || '';
-        const master = panelSizeMasters.find(m => 
-          (m.panel_size && m.panel_size === currentSize) ||
-          (m.size_name && m.size_name === currentSize) ||
-          (m.panel_code && m.panel_code === currentSize)
-        );
-        const ip = unit.panel_ip_rating || master?.ip_rating;
-        return ip ? (
-          <span style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#10b981',
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.28)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}>
-            {ip}
-          </span>
-        ) : (
-          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
-        );
-      }
-
-      case 'panel_comments': {
-        const currentSize = unit.panel_type_size || '';
-        const master = panelSizeMasters.find(m => 
-          (m.panel_size && m.panel_size === currentSize) ||
-          (m.size_name && m.size_name === currentSize) ||
-          (m.panel_code && m.panel_code === currentSize)
-        );
-        const comment = unit.panel_comments || master?.comments || master?.description;
-        return comment ? (
-          <span style={{ color: 'var(--text2)', fontSize: 12 }} title={comment}>
-            {comment}
-          </span>
-        ) : (
-          <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
-        );
-      }
-
-      default:
-        const customCol = customColumnDefs.find(c => c.col_key === colKey);
-        if (customCol) {
-          const isEditingThis = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
-          const currentVal = unit.custom_fields?.[colKey] ?? '';
-
-          if (isEditingThis) {
-            if (customCol.field_type === 'Yes/No') {
-              return (
-                <select
-                  autoFocus
-                  value={editingCell.value || 'No'}
-                  onChange={(e) => handleSaveInlineCell(unit, colKey, e.target.value)}
-                  onBlur={() => setEditingCell(null)}
-                  style={{
-                    fontSize: 11, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                    background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--blue)', outline: 'none'
-                  }}
-                >
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              );
-            }
-            if (isDateTimeType(customCol.field_type)) {
-              return (
-                <input
-                  type="datetime-local"
-                  autoFocus
-                  value={editingCell.value ? String(editingCell.value).slice(0, 16) : ''}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                  onBlur={() => handleSaveInlineCell(unit, colKey, editingCell.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveInlineCell(unit, colKey, editingCell.value);
-                    if (e.key === 'Escape') setEditingCell(null);
-                  }}
-                  style={{
-                    width: '100%', padding: '2px 6px', fontSize: 11, background: 'var(--bg3)',
-                    color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-                  }}
-                />
-              );
-            }
-            if (isDateType(customCol.field_type)) {
-              return (
-                <input
-                  type="date"
-                  autoFocus
-                  value={editingCell.value ? String(editingCell.value).split('T')[0] : ''}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                  onBlur={() => handleSaveInlineCell(unit, colKey, editingCell.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveInlineCell(unit, colKey, editingCell.value);
-                    if (e.key === 'Escape') setEditingCell(null);
-                  }}
-                  style={{
-                    width: '100%', padding: '2px 6px', fontSize: 11, background: 'var(--bg3)',
-                    color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-                  }}
-                />
-              );
-            }
-            if (customCol.field_type === 'Number') {
-              return (
-                <input
-                  type="number"
-                  autoFocus
-                  value={editingCell.value ?? ''}
-                  onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                  onBlur={() => handleSaveInlineCell(unit, colKey, editingCell.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleSaveInlineCell(unit, colKey, editingCell.value);
-                    if (e.key === 'Escape') setEditingCell(null);
-                  }}
-                  style={{
-                    width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
-                    color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-                  }}
-                />
-              );
-            }
-            return (
-              <input
-                type="text"
-                autoFocus
-                value={editingCell.value ?? ''}
-                onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                onBlur={() => handleSaveInlineCell(unit, colKey, editingCell.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSaveInlineCell(unit, colKey, editingCell.value);
-                  if (e.key === 'Escape') setEditingCell(null);
-                }}
-                style={{
-                  width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
-                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-                }}
-              />
-            );
-          }
-
-          if (!currentVal && currentVal !== 0) {
-            return (
-              <span
-                onClick={(e) => {
-                  if (canEdit) {
-                    e.stopPropagation();
-                    setEditingCell({ unitId: effectiveUnitId, colKey, value: '' });
-                  }
-                }}
-                style={{ color: 'var(--text3)', cursor: canEdit ? 'pointer' : 'default', padding: '2px 4px', display: 'inline-block' }}
-                title={canEdit ? 'Click to edit' : undefined}
-              >
-                —
-              </span>
-            );
-          }
-
-          if (isDateTimeType(customCol.field_type)) {
-            return (
-              <span
-                onClick={(e) => {
-                  if (canEdit) {
-                    e.stopPropagation();
-                    setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
-                  }
-                }}
-                style={{ cursor: canEdit ? 'pointer' : 'default', fontFamily: 'var(--font-mono)', fontSize: 11 }}
-                title={canEdit ? 'Click to edit' : undefined}
-              >
-                {formatCustomDateTime(currentVal)}
-              </span>
-            );
-          }
-          if (isDateType(customCol.field_type)) {
-            return (
-              <span
-                onClick={(e) => {
-                  if (canEdit) {
-                    e.stopPropagation();
-                    setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
-                  }
-                }}
-                style={{ cursor: canEdit ? 'pointer' : 'default', fontFamily: 'var(--font-mono)', fontSize: 12 }}
-                title={canEdit ? 'Click to edit' : undefined}
-              >
-                {formatCustomDate(currentVal)}
-              </span>
-            );
-          }
-          if (customCol.field_type === 'Yes/No') {
-            const isYes = String(currentVal).toLowerCase() === 'yes';
-            return (
-              <span
-                onClick={(e) => {
-                  if (canEdit) {
-                    e.stopPropagation();
-                    setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
-                  }
-                }}
-                style={{
-                  cursor: canEdit ? 'pointer' : 'default',
-                  display: 'inline-block',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  background: isYes ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                  color: isYes ? '#34d399' : '#f87171'
-                }}
-              >
-                {currentVal}
-              </span>
-            );
-          }
-
-          return (
-            <span
-              onClick={(e) => {
-                if (canEdit) {
-                  e.stopPropagation();
-                  setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
-                }
-              }}
-              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 12 }}
-              title={canEdit ? 'Click to edit' : undefined}
-            >
-              {String(currentVal)}
-            </span>
-          );
-        }
-
-        const isEditingThis = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
-        const currentVal = unit[colKey] || '';
-
-        if (isEditingThis) {
-          return (
-            <input
-              type="text"
-              autoFocus
-              value={editingCell.value}
-              onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-              onBlur={() => handleSaveInlineCell(unit, colKey, editingCell.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSaveInlineCell(unit, colKey, editingCell.value);
-                if (e.key === 'Escape') setEditingCell(null);
-              }}
-              style={{
-                width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
-                color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-              }}
-            />
-          );
-        }
-
-        const isEditableTextCol = ['project_name', 'end_client_name', 'po_number', 'reference_number', 'material_description'].includes(colKey);
-
-        return (
-          <span
-            onClick={(e) => {
-              if (canEdit && isEditableTextCol) {
-                e.stopPropagation();
-                setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
-              }
-            }}
-            title={canEdit && isEditableTextCol ? "Click to edit" : (currentVal ? String(currentVal) : undefined)}
-            style={{
-              color: colKey === 'reference_number' ? '#f59e0b' : (colKey === 'project_name' ? '#38bdf8' : 'var(--text2)'),
-              fontSize: 12,
-              cursor: canEdit && isEditableTextCol ? 'pointer' : 'default',
-              display: 'block',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {currentVal || '—'}
-          </span>
-        );
-    }
-  };
 
   if (isLoading) return (
     <div style={{ padding: 60, textAlign: 'center', color: 'var(--text3)' }}>
@@ -3448,6 +4098,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             {cancelledCount}
           </span>
         </button>
+
+        {/* ── Right side: PO Controls (Enter PO No. + Upload PO button) ── */}
+        <PoUploadBar
+          selectedCount={selectedUnitIds.size}
+          canUploadPo={canUploadPo}
+          isUploadingPo={isUploadingPo}
+          poSuccessMsg={poSuccessMsg}
+          onClearSelection={() => setSelectedUnitIds(new Set())}
+          onUploadPo={handleBatchPoUpload}
+          externalPoNumber={externalPoNumber}
+          setExternalPoNumber={setExternalPoNumber}
+        />
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
@@ -3599,6 +4261,39 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
           <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg3)' }}>
             <tr>
+              {/* Selection Checkbox Header */}
+              <th
+                style={{
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 16,
+                  background: 'var(--bg3)',
+                  width: 38,
+                  minWidth: 38,
+                  maxWidth: 38,
+                  padding: '8px 4px',
+                  textAlign: 'center',
+                  verticalAlign: 'middle',
+                  borderBottom: '1px solid var(--border)',
+                  borderRight: '1px solid var(--border)',
+                  userSelect: 'none'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={displayedUnits.length > 0 && displayedUnits.every(u => selectedUnitIds.has(u.unit_id))}
+                  ref={el => {
+                    if (el) {
+                      const hasSome = displayedUnits.some(u => selectedUnitIds.has(u.unit_id));
+                      const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => selectedUnitIds.has(u.unit_id));
+                      el.indeterminate = hasSome && !hasAll;
+                    }
+                  }}
+                  onChange={handleToggleSelectAll}
+                  style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14 }}
+                  title="Select / Deselect visible serial numbers"
+                />
+              </th>
               {visibleCols.map(({ key: colKey, label, align }) => {
                 const isPinned = pinnedKeys.includes(colKey);
                 const isOver = dragOverColKey === colKey;
@@ -3697,89 +4392,37 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             </tr>
           </thead>
           <tbody>
-            {sorted.map((unit, idx) => {
-              const isAltRow = idx % 2 !== 0;
-              const status = getUnitStatus(unit);
-              const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
-              const isHold = status === 'Hold' || status === 'On Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
-              const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
-
-              const defaultBg = isCancelled
-                ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
-                : isHold
-                ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
-                : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
-
-              const hoverBg = isCancelled
-                ? 'rgba(239, 68, 68, 0.28)'
-                : isHold
-                ? 'rgba(245, 158, 11, 0.28)'
-                : 'rgba(37, 99, 235, 0.22)';
-
-              const borderBottomColor = isCancelled
-                ? 'rgba(239, 68, 68, 0.45)'
-                : isHold
-                ? 'rgba(245, 158, 11, 0.45)'
-                : 'var(--border)';
-
-              const rowClass = [
-                isCancelled ? 'row-cancelled' : '',
-                isHold ? 'row-hold' : ''
-              ].filter(Boolean).join(' ');
-
-              return (
-                <tr
-                  key={unit.unit_id}
-                  className={rowClass}
-                  style={{
-                    background: defaultBg,
-                    cursor: 'default',
-                    transition: 'background 0.12s',
-                    borderBottom: `1px solid ${borderBottomColor}`,
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = hoverBg;
-                    const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
-                    stickyTds.forEach(td => td.style.background = hoverBg);
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = defaultBg;
-                    const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
-                    const pinnedDefaultBg = isCancelled
-                      ? (isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)')
-                      : isHold
-                      ? (isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)')
-                      : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
-                    stickyTds.forEach(td => td.style.background = pinnedDefaultBg);
-                  }}
-                >
-                  {visibleCols.map((c, cIdx) => {
-                    const style = getColStyle(c.key, false, isAltRow, rowHighlight);
-                    const leftBorder = cIdx === 0
-                      ? (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent')
-                      : undefined;
-                    return (
-                      <td
-                        key={c.key}
-                        style={{
-                          padding: '6px 10px',
-                          textAlign: c.align || 'left',
-                          verticalAlign: 'middle',
-                          borderLeft: leftBorder,
-                          ...style
-                        }}
-                      >
-                        {renderCellContent(unit, c.key)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
+            {displayedUnits.map((unit, idx) => (
+              <TableRow
+                key={unit.unit_id}
+                unit={unit}
+                idx={idx}
+                isSelected={selectedUnitIds.has(unit.unit_id)}
+                status={getUnitStatus(unit)}
+                visibleCols={visibleCols}
+                columnWidths={columnWidths}
+                pinnedKeys={pinnedKeys}
+                stickyLeftMap={stickyLeftMap}
+                canEdit={canEdit}
+                canEditPanelSize={canEditPanelSize}
+                canUploadPo={canUploadPo}
+                panelSizeMasters={panelSizeMasters}
+                customColumnDefs={customColumnDefs}
+                editingCell={editingCell}
+                setEditingCell={setEditingCell}
+                onRowMouseDown={handleRowMouseDown}
+                onRowMouseEnter={handleRowMouseEnter}
+                onRowClick={handleRowClick}
+                onSaveInlineCell={handleSaveInlineCell}
+                onSingleUnitPoClick={handleSingleUnitPoClick}
+                onPartNumberClick={handlePartNumberClick}
+                setPoPdfViewer={setPoPdfViewer}
+              />
+            ))}
 
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={visibleCols.length || 12} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
+                <td colSpan={(visibleCols.length || 12) + 1} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
                   <Search size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
                   <div style={{ fontSize: 14 }}>
                     {activeTab === 'hold'
@@ -3793,6 +4436,119 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Table Footer & Pagination ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '8px 16px',
+        background: 'var(--bg2)',
+        borderTop: '1px solid var(--border)',
+        fontSize: '12px',
+        color: 'var(--text2)',
+        flexWrap: 'wrap',
+        gap: 8
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>
+            Showing <strong>{sorted.length === 0 ? 0 : (pageSize === 'all' ? 1 : (currentPage - 1) * pageSize + 1)}</strong>–
+            <strong>{pageSize === 'all' ? sorted.length : Math.min(currentPage * pageSize, sorted.length)}</strong> of <strong>{sorted.length}</strong> serials
+          </span>
+          {selectedUnitIds.size > 0 && (
+            <span
+              onClick={() => setSelectedUnitIds(new Set())}
+              style={{
+                color: 'var(--blue)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                fontSize: 12
+              }}
+              title="Click to deselect all"
+            >
+              <span>{selectedUnitIds.size} selected</span>
+              <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>✕</span>
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>Rows per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                const val = e.target.value === 'all' ? 'all' : Number(e.target.value);
+                setPageSize(val);
+                setCurrentPage(1);
+              }}
+              style={{
+                background: 'var(--bg3)',
+                border: '1px solid var(--border)',
+                borderRadius: 6,
+                padding: '3px 8px',
+                fontSize: '12px',
+                color: 'var(--text)',
+                cursor: 'pointer'
+              }}
+            >
+              <option value={50}>50</option>
+              <option value={100}>100 (Default)</option>
+              <option value={250}>250</option>
+              <option value="all">All ({sorted.length})</option>
+            </select>
+          </div>
+
+          {pageSize !== 'all' && totalPages > 1 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: 6,
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  color: currentPage <= 1 ? 'var(--text3)' : 'var(--text)',
+                  cursor: currentPage <= 1 ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  opacity: currentPage <= 1 ? 0.4 : 1
+                }}
+              >
+                ‹ Prev
+              </button>
+              <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                style={{
+                  padding: '3px 10px',
+                  borderRadius: 6,
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  color: currentPage >= totalPages ? 'var(--text3)' : 'var(--text)',
+                  cursor: currentPage >= totalPages ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  opacity: currentPage >= totalPages ? 0.4 : 1
+                }}
+              >
+                Next ›
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `
         .table-responsive-scroll {
@@ -3830,6 +4586,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         .table-responsive-scroll tbody tr.row-cancelled:hover td:first-child {
           border-left: 5px solid #ef4444 !important;
         }
+
+        /* ── Selected Row Highlight (Excel-style) ── */
+        .table-responsive-scroll tbody tr.row-selected td {
+          background-color: rgba(59, 130, 246, 0.16) !important;
+        }
+        .table-responsive-scroll tbody tr.row-selected td:first-child {
+          border-left: 5px solid #3b82f6 !important;
+        }
+        .table-responsive-scroll tbody tr.row-selected:hover td {
+          background-color: rgba(59, 130, 246, 0.26) !important;
+        }
+
         .drag-handle {
           color: var(--text3, #5a6070);
           opacity: 0.4;
@@ -3850,6 +4618,58 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           box-shadow: inset -3px 0 0 0 #3b82f6 !important;
         }
       `}} />
+
+      {/* ── In-App PDF Viewer for PO Document ── */}
+      {poPdfViewer && (
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setPoPdfViewer(null); }}>
+          <div className="modal-content" style={{ maxWidth: '92vw', width: '1050px', height: '88vh', display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <FileText size={18} color="var(--blue)" />
+                  {poPdfViewer.title || 'PO Document Viewer'}
+                </h3>
+                {poPdfViewer.subtitle && (
+                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
+                    {poPdfViewer.subtitle} · {poPdfViewer.file_name}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <a
+                  href={getDocUrl(poPdfViewer)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                >
+                  <ExternalLink size={14} /> Open in New Tab
+                </a>
+                <a
+                  href={getDocUrl(poPdfViewer)}
+                  download={poPdfViewer.file_name || 'po_document.pdf'}
+                  className="btn btn-secondary"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
+                >
+                  <Download size={14} /> Download
+                </a>
+                <button
+                  className="modal-close"
+                  onClick={() => setPoPdfViewer(null)}
+                  style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+            <iframe
+              src={getDocUrl(poPdfViewer)}
+              title={poPdfViewer.file_name}
+              style={{ flex: 1, width: '100%', border: '1px solid var(--border)', borderRadius: '6px', background: '#fff' }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* ── Technical Drawings & Standard Documents Modal ── */}
       {showDocsModal && selectedPartForDocs && (
