@@ -2557,6 +2557,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       if ((statusFilter === 'pending' || statusFilter === 'not_started') && status !== 'Pending' && status !== 'Not Started') return false;
       if ((statusFilter === 'inprogress' || statusFilter === 'in_process') && status !== 'In Progress' && status !== 'In Process') return false;
       if (statusFilter === 'blocked' && status !== 'Blocked') return false;
+      if (statusFilter === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
+      if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
     }
     
     if (searchTerm) {
@@ -3408,6 +3410,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <option value="inprogress">In Process</option>
           <option value="completed">Completed</option>
           <option value="blocked">Blocked</option>
+          <option value="hold">On Hold</option>
+          <option value="cancelled">Cancelled</option>
         </select>
 
         {/* Priority filter */}

@@ -154,11 +154,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
 
   const allUnitItems = [];
   orders.forEach(order => {
+    const isOrderHold = order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
+    const isOrderCancelled = String(order.status || '').toLowerCase().startsWith('cancel');
+
     const units = Array.isArray(order.units) && order.units.length > 0 
       ? order.units 
-      : [{ id: order.id, unit_serial: order.order_number, material_description: '', part_number: '' }];
+      : [{ id: order.id, unit_serial: order.order_number, material_description: '', part_number: '', hold_status: order.hold_status, status: order.status }];
     
     units.forEach(u => {
+      const isUnitHold = isOrderHold || u.hold_status === 'Hold' || String(u.status || '').toLowerCase().startsWith('hold');
+      const isUnitCancelled = isOrderCancelled || u.hold_status === 'Cancelled' || String(u.status || '').toLowerCase().startsWith('cancel');
+
       allUnitItems.push({
         unitId: u.id,
         unitSerial: u.unit_serial || u.short_serial || order.order_number,
@@ -167,7 +173,9 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         companyName: order.company_name,
         poNumber: order.po_number,
         materialDescription: u.material_description || '',
-        partNumber: u.part_number || ''
+        partNumber: u.part_number || '',
+        isHold: isUnitHold,
+        isCancelled: isUnitCancelled,
       });
     });
   });
@@ -253,9 +261,25 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
                   style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--blue)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                      {item.unitSerial}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--blue)', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
+                        {item.unitSerial}
+                      </span>
+                      {item.isHold && (
+                        <span style={{
+                          background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b',
+                          border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 3,
+                          fontSize: 9, fontWeight: 800, padding: '1px 5px', letterSpacing: 0.5
+                        }}>HOLD</span>
+                      )}
+                      {item.isCancelled && (
+                        <span style={{
+                          background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 3,
+                          fontSize: 9, fontWeight: 800, padding: '1px 5px', letterSpacing: 0.5
+                        }}>CANCELLED</span>
+                      )}
+                    </div>
                     <span style={{ fontSize: 11, color: 'var(--text3)', fontFamily: 'var(--font-mono)' }}>
                       Order #{item.orderNumber}
                     </span>

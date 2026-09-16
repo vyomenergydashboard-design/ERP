@@ -540,7 +540,7 @@ export default function PlanningModule() {
           </span>
         );
       case 'status': {
-        const isUnitHold = order.hold_status === 'Hold' || String(order.status || '').toLowerCase().startsWith('hold');
+        const isUnitHold = order.hold_status === 'Hold' || order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
         const isUnitCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -550,7 +550,7 @@ export default function PlanningModule() {
                 borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
                 color: '#fbbf24', fontSize: 11, fontWeight: 700
               }}>
-                ⏸ HOLD {order.hold_step_name ? `@ ${order.hold_step_name}` : ''}
+                ⏸ HOLD {order.hold_step_name ? `@ ${order.hold_step_name}` : (order.hold_status === 'Approved' ? '(Order Level)' : '')}
               </span>
             ) : isUnitCancelled ? (
               <span style={{
@@ -916,7 +916,7 @@ export default function PlanningModule() {
     let matchesStatus = true;
     if (statusFilter !== 'all') {
       if (statusFilter === 'Hold') {
-        matchesStatus = order.hold_status === 'Hold' || String(order.status || '').toLowerCase().startsWith('hold');
+        matchesStatus = order.hold_status === 'Hold' || order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
       } else if (statusFilter === 'Cancelled') {
         matchesStatus = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
       } else {

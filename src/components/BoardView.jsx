@@ -69,8 +69,10 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
       }
 
       if (priorityFilter !== 'all' && (o.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
-      if (statusFilter === 'incomplete' && o.status === 'completed') return false;
+      if (statusFilter === 'incomplete' && (o.status === 'completed' || o.status === 'cancelled')) return false;
       if (statusFilter === 'completed' && o.status !== 'completed') return false;
+      if (statusFilter === 'hold' && o.status !== 'hold' && o.hold_status !== 'Approved') return false;
+      if (statusFilter === 'cancelled' && o.status !== 'cancelled') return false;
       
       if (searchTerm.trim() !== '') {
         const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
@@ -116,6 +118,8 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
             <option value="all">All Orders</option>
             <option value="incomplete">Incomplete Only</option>
             <option value="completed">Completed Only</option>
+            <option value="hold">On Hold</option>
+            <option value="cancelled">Cancelled</option>
           </select>
         </div>
 
@@ -230,11 +234,103 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           );
         }
 
+        if (order.status === 'hold' || order.hold_status === 'Approved') {
+          if (currentFilter !== 'all') {
+            const hasMatchingDept = order.steps.some(s => s.dept === currentFilter);
+            if (!hasMatchingDept && order.steps.length > 0) return null;
+          }
+
+          return (
+            <div 
+              key={order.id} 
+              className="completed-order-row"
+              style={{ borderColor: '#f59e0b' }}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
+                onSetView('flow');
+              }}
+            >
+              <div className="completed-order-header">
+                <h3 className="board-order-title">
+                  {order.order_number} {order.company_name && <span className="board-order-company">— {order.company_name}</span>}
+                </h3>
+                <div className="completed-badges-row">
+                  {order.delivery_date && (
+                    <div className="delivery-badge">
+                      <span className="icon">Delivery:</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
+                  <span style={{
+                    background: 'rgba(245, 158, 11, 0.22)', color: '#f59e0b',
+                    border: '1px solid rgba(245, 158, 11, 0.4)', padding: '3px 8px',
+                    borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.5
+                  }}>ON HOLD</span>
+                </div>
+              </div>
+              <div className="completed-banner" style={{ background: 'rgba(245, 158, 11, 0.08)', borderColor: 'rgba(245, 158, 11, 0.3)' }}>
+                <div className="completed-banner-content">
+                  <div className="completed-icon-badge" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b' }}>⏸</div>
+                  <div className="completed-text-content">
+                    <span className="completed-title" style={{ color: '#fbbf24' }}>Order Currently On Hold</span>
+                    <span className="completed-subtitle" style={{ color: '#fef3c7' }}>Production and flow tasks are paused. Click to view process flow logs.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        if (order.status === 'cancelled') {
+          if (currentFilter !== 'all') {
+            const hasMatchingDept = order.steps.some(s => s.dept === currentFilter);
+            if (!hasMatchingDept && order.steps.length > 0) return null;
+          }
+
+          return (
+            <div 
+              key={order.id} 
+              className="completed-order-row"
+              style={{ borderColor: '#ef4444' }}
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
+                onSetView('flow');
+              }}
+            >
+              <div className="completed-order-header">
+                <h3 className="board-order-title">
+                  {order.order_number} {order.company_name && <span className="board-order-company">— {order.company_name}</span>}
+                </h3>
+                <div className="completed-badges-row">
+                  {order.delivery_date && (
+                    <div className="delivery-badge">
+                      <span className="icon">Delivery:</span> {new Date(order.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+                  )}
+                  <span style={{
+                    background: 'rgba(239, 68, 68, 0.22)', color: '#ef4444',
+                    border: '1px solid rgba(239, 68, 68, 0.4)', padding: '3px 8px',
+                    borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.5
+                  }}>CANCELLED</span>
+                </div>
+              </div>
+              <div className="completed-banner" style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+                <div className="completed-banner-content">
+                  <div className="completed-icon-badge" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444' }}>✕</div>
+                  <div className="completed-text-content">
+                    <span className="completed-title" style={{ color: '#f87171' }}>Order Cancelled</span>
+                    <span className="completed-subtitle" style={{ color: '#fee2e2' }}>This order has been cancelled. Click to view process flow logs.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         let displaySteps = [];
         let orderDepts = [];
 
         // Find the specific active steps for the entire order
-        displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review'].includes(s.status));
+        displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review', 'hold', 'cancelled'].includes(s.status));
         
         // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
         if (displaySteps.length === 0) {

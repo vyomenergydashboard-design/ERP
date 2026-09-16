@@ -316,12 +316,81 @@ export default function FlowView({
   const depts = currentFilter === 'all' ? sortedDepts : sortedDepts.filter((d) => d.id === currentFilter);
 
   const selectedUnit = selectedOrder?.units?.find(u => String(u.id) === String(selectedUnitId));
+  const isOrderOnHold = selectedOrder?.hold_status === 'Approved' || String(selectedOrder?.status || '').toLowerCase().startsWith('hold');
+  const isOrderCancelled = String(selectedOrder?.status || '').toLowerCase().startsWith('cancel');
   const isSelectedUnitOnHold = selectedUnit && (selectedUnit.hold_status === 'Hold' || String(selectedUnit.status || '').startsWith('Hold'));
   const isSelectedUnitCancelled = selectedUnit && (selectedUnit.hold_status === 'Cancelled' || String(selectedUnit.status || '').startsWith('Cancel'));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
       {renderUnitSelector()}
+
+      {/* Prominent Order Hold Alert Banner */}
+      {isOrderOnHold && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.28) 0%, rgba(245, 158, 11, 0.14) 100%)',
+          border: '2px solid #f59e0b',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 6px 24px rgba(245, 158, 11, 0.25)',
+          animation: 'hold-pulse 2s infinite ease-in-out'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%', background: 'rgba(245, 158, 11, 0.25)',
+              border: '2px solid #f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '22px', flexShrink: 0
+            }}>
+              ⏸
+            </div>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#fbbf24', letterSpacing: '0.5px' }}>
+                ORDER #{selectedOrder?.order_number} IS CURRENTLY ON HOLD
+              </div>
+              <div style={{ fontSize: '13px', color: '#fef3c7', marginTop: '4px' }}>
+                Production updates and process flow are paused across all departments.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Prominent Order Cancelled Alert Banner */}
+      {isOrderCancelled && (
+        <div style={{
+          background: 'linear-gradient(90deg, rgba(239, 68, 68, 0.28) 0%, rgba(239, 68, 68, 0.14) 100%)',
+          border: '2px solid #ef4444',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          boxShadow: '0 6px 24px rgba(239, 68, 68, 0.25)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: '50%', background: 'rgba(239, 68, 68, 0.25)',
+              border: '2px solid #ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '22px', flexShrink: 0
+            }}>
+              ✕
+            </div>
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#f87171', letterSpacing: '0.5px' }}>
+                ORDER #{selectedOrder?.order_number} HAS BEEN CANCELLED
+              </div>
+              <div style={{ fontSize: '13px', color: '#fee2e2', marginTop: '4px' }}>
+                This order and all associated unit workflows have been cancelled.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Prominent Unit Hold Alert Banner */}
       {selectedUnit && isSelectedUnitOnHold && (

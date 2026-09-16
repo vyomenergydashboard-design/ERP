@@ -18,7 +18,13 @@ function OrderStats({ steps, currentFilter, selectedOrder }) {
 
   let orderStatus = 'PENDING';
   let statusColor = 'var(--accent)';
-  if (total === 0)         { orderStatus = 'NO TASKS';    statusColor = 'var(--text3)'; }
+  if (selectedOrder?.hold_status === 'Approved' || String(selectedOrder?.status || '').toLowerCase().startsWith('hold')) {
+    orderStatus = 'ON HOLD';
+    statusColor = '#f59e0b';
+  } else if (String(selectedOrder?.status || '').toLowerCase().startsWith('cancel')) {
+    orderStatus = 'CANCELLED';
+    statusColor = '#ef4444';
+  } else if (total === 0)         { orderStatus = 'NO TASKS';    statusColor = 'var(--text3)'; }
   else if (done === total) { orderStatus = 'COMPLETE';    statusColor = 'var(--green)'; }
   else if (blocked > 0)   { orderStatus = 'BLOCKED';     statusColor = 'var(--red)';   }
   else if (done > 0 || ip > 0) { orderStatus = 'IN PROGRESS'; statusColor = 'var(--blue)'; }

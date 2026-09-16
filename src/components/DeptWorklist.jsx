@@ -72,12 +72,18 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   const allDone = doneCount === steps.length && steps.length > 0;
   const hasBlocked = steps.some(s => s.status === 'blocked');
 
+  const isHold = unit.hold_status === 'Hold' || 
+                 unit.order_hold_status === 'Approved' || 
+                 String(unit.order_status || '').toLowerCase().startsWith('hold') || 
+                 String(unit.unit_status || '').toLowerCase().startsWith('hold');
+  const isCancelled = unit.hold_status === 'Cancelled' || 
+                      String(unit.order_status || '').toLowerCase().startsWith('cancel') || 
+                      String(unit.unit_status || '').toLowerCase().startsWith('cancel');
+
   const getCanEditStep = (step) => {
+    if (isHold || isCancelled) return false;
     return ['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
   };
-
-  const isHold = unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
-  const isCancelled = unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
 
   const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
   const rowBg = isCancelled 
@@ -129,12 +135,12 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
               borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
               color: '#fbbf24', fontSize: 10, fontWeight: 700
             }}>
-              <span>⏸</span> HOLD @ {unit.hold_step_name || 'Step'}
+              <span>⏸</span> HOLD {unit.hold_step_name ? `@ ${unit.hold_step_name}` : (unit.order_hold_status === 'Approved' ? '(Order Level)' : (unit.hold_dept ? `@ ${unit.hold_dept}` : ''))}
             </div>
           )}
-          {isHold && unit.hold_reason && (
+          {isHold && (unit.hold_reason || unit.order_hold_status === 'Approved') && (
             <div style={{ fontSize: 10, color: '#fef3c7', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
-              {unit.hold_reason}
+              {unit.hold_reason || (unit.order_hold_status === 'Approved' ? 'Order placed on hold' : '')}
             </div>
           )}
           {isCancelled && (
@@ -143,12 +149,12 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
               borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
               color: '#f87171', fontSize: 10, fontWeight: 700
             }}>
-              <span>✕</span> CANCELLED @ {unit.cancelled_step_name || 'Step'}
+              <span>✕</span> CANCELLED {unit.cancelled_step_name ? `@ ${unit.cancelled_step_name}` : (String(unit.order_status || '').toLowerCase().startsWith('cancel') ? '(Order Level)' : (unit.cancelled_dept ? `@ ${unit.cancelled_dept}` : ''))}
             </div>
           )}
-          {isCancelled && unit.cancelled_reason && (
+          {isCancelled && (unit.cancelled_reason || String(unit.order_status || '').toLowerCase().startsWith('cancel')) && (
             <div style={{ fontSize: 10, color: '#fee2e2', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
-              {unit.cancelled_reason}
+              {unit.cancelled_reason || 'Order cancelled'}
             </div>
           )}
         </td>
@@ -281,6 +287,19 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
                 );
               })}
             </div>
+          </td>
+        </tr>
+      )}
+
+      {expanded && steps.length === 0 && (
+        <tr style={{ background: 'var(--bg3)' }}>
+          <td colSpan={8} style={{ padding: '14px 24px', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
+            {isHold 
+              ? `This unit is currently ON HOLD ${unit.hold_dept ? `in ${unit.hold_dept}` : ''}${unit.hold_step_name ? ` @ ${unit.hold_step_name}` : ''}${unit.hold_reason ? ` (Reason: ${unit.hold_reason})` : ''}. No active tasks for ${dept}.`
+              : isCancelled 
+              ? `This unit is CANCELLED ${unit.cancelled_dept ? `in ${unit.cancelled_dept}` : ''}${unit.cancelled_step_name ? ` @ ${unit.cancelled_step_name}` : ''}${unit.cancelled_reason ? ` (Reason: ${unit.cancelled_reason})` : ''}.`
+              : `No steps currently assigned to ${dept} on this unit.`
+            }
           </td>
         </tr>
       )}
@@ -445,23 +464,39 @@ export default function DeptWorklist({ dept }) {
       );
       if (!matchesAllTokens) return false;
     }
+    const isUnitHold = u.hold_status === 'Hold' || 
+                       u.order_hold_status === 'Approved' || 
+                       String(u.order_status || '').toLowerCase().startsWith('hold') || 
+                       String(u.unit_status || '').toLowerCase().startsWith('hold') || 
+                       (u.dept_steps || []).some(s => s.status === 'hold');
+
+    const isUnitCancelled = u.hold_status === 'Cancelled' || 
+                            String(u.order_status || '').toLowerCase().startsWith('cancel') || 
+                            String(u.unit_status || '').toLowerCase().startsWith('cancel') || 
+                            (u.dept_steps || []).some(s => s.status === 'cancelled');
+
     if (filter === 'done') {
+      if (isUnitHold || isUnitCancelled) return false;
       const steps = u.dept_steps || [];
       return steps.length > 0 && steps.every(s => s.status === 'done');
     }
     if (filter === 'inprogress') {
+      if (isUnitHold || isUnitCancelled) return false;
       const steps = u.dept_steps || [];
       const anyDone = steps.some(s => s.status === 'done');
       const allDone = steps.length > 0 && steps.every(s => s.status === 'done');
       return steps.some(s => s.status === 'inprogress' || s.status === 'review') || (anyDone && !allDone);
     }
     if (filter === 'pending') {
+      if (isUnitHold || isUnitCancelled) return false;
       const steps = u.dept_steps || [];
       return steps.every(s => s.status === 'pending') || steps.length === 0;
     }
     if (filter === 'hold') {
-      const steps = u.dept_steps || [];
-      return u.hold_status === 'Hold' || String(u.unit_status || '').toLowerCase().startsWith('hold') || steps.some(s => s.status === 'hold');
+      return isUnitHold;
+    }
+    if (filter === 'cancelled') {
+      return isUnitCancelled;
     }
     return true;
   });
@@ -523,9 +558,14 @@ export default function DeptWorklist({ dept }) {
 
 
   const totalUnits = units.length;
-  const doneUnits = units.filter(u => (u.dept_steps || []).every(s => s.status === 'done') && (u.dept_steps || []).length > 0).length;
-  const inProgUnits = units.filter(u => (u.dept_steps || []).some(s => s.status === 'inprogress')).length;
-  const blockedUnits = units.filter(u => (u.dept_steps || []).some(s => s.status === 'blocked')).length;
+  const isHoldUnit = (u) => u.hold_status === 'Hold' || u.order_hold_status === 'Approved' || String(u.order_status || '').toLowerCase().startsWith('hold') || String(u.unit_status || '').toLowerCase().startsWith('hold') || (u.dept_steps || []).some(s => s.status === 'hold');
+  const isCancelledUnit = (u) => u.hold_status === 'Cancelled' || String(u.order_status || '').toLowerCase().startsWith('cancel') || String(u.unit_status || '').toLowerCase().startsWith('cancel') || (u.dept_steps || []).some(s => s.status === 'cancelled');
+
+  const doneUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).every(s => s.status === 'done') && (u.dept_steps || []).length > 0).length;
+  const inProgUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).some(s => s.status === 'inprogress')).length;
+  const blockedUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).some(s => s.status === 'blocked')).length;
+  const holdUnits = units.filter(isHoldUnit).length;
+  const cancelledUnits = units.filter(isCancelledUnit).length;
 
   if (loading) {
     return (
@@ -556,7 +596,7 @@ export default function DeptWorklist({ dept }) {
             <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 2 }}>
               {dept === 'Sales' 
                 ? `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total in system`
-                : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} currently in ${dept}`
+                : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} visible in ${dept}`
               }
             </div>
           </div>
@@ -578,17 +618,19 @@ export default function DeptWorklist({ dept }) {
       </div>
 
       {/* Stats strip */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
         {[
           { label: 'Total Units', value: totalUnits, color: deptColor },
-          { label: 'In Progress', value: inProgUnits, color: '#f59e0b' },
+          { label: 'In Progress', value: inProgUnits, color: '#3b82f6' },
           { label: 'Completed',   value: doneUnits,   color: '#10b981' },
           { label: 'Blocked',     value: blockedUnits, color: '#ef4444' },
+          { label: 'On Hold',     value: holdUnits,    color: '#f59e0b' },
+          { label: 'Cancelled',   value: cancelledUnits, color: '#ef4444' },
         ].map(stat => (
           <div key={stat.label} style={{
             background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
             padding: '14px 16px', textAlign: 'center',
-            borderTop: `2px solid ${stat.color}55`,
+            borderTop: `2px solid ${stat.color}88`,
           }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: stat.color }}>{stat.value}</div>
             <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{stat.label}</div>
@@ -612,7 +654,7 @@ export default function DeptWorklist({ dept }) {
           onBlur={e => e.target.style.borderColor = 'var(--border2)'}
         />
         <div style={{ display: 'flex', background: 'var(--bg4)', border: '1px solid var(--border2)', borderRadius: 8, overflow: 'hidden' }}>
-          {['all', 'pending', 'inprogress', 'done', 'hold'].map(f => (
+          {['all', 'pending', 'inprogress', 'done', 'hold', 'cancelled'].map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -623,7 +665,7 @@ export default function DeptWorklist({ dept }) {
                 textTransform: 'capitalize', transition: 'all 0.15s',
               }}
             >
-              {f === 'inprogress' ? 'In Progress' : f === 'hold' ? 'On Hold' : f.charAt(0).toUpperCase() + f.slice(1)}
+              {f === 'inprogress' ? 'In Progress' : f === 'hold' ? 'On Hold' : f === 'cancelled' ? 'Cancelled' : f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
         </div>

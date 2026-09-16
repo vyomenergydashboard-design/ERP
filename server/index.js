@@ -2107,7 +2107,7 @@ app.get('/api/board', authorize(), async (req, res) => {
   try {
     const ordersResult = await pool.query(
       `SELECT o.id, o.order_number, o.po_number, o.delivery_date, o.priority, o.notes,
-              o.reference_number, o.end_client_name, o.classification, o.hold_status,
+              o.reference_number, o.end_client_name, o.classification, o.hold_status, o.status as order_status,
               c.name AS company_name, l.city AS company_city,
               (SELECT COUNT(*) FROM order_units ou WHERE ou.order_id = o.id) AS unit_count,
               (SELECT COUNT(*) FROM order_line_items oli WHERE oli.order_id = o.id) AS line_item_count,
@@ -2156,7 +2156,11 @@ app.get('/api/board', authorize(), async (req, res) => {
       const allSteps = [...oSteps, ...uSteps];
 
       let status = 'incomplete';
-      if (allSteps.length === 0) {
+      if (o.hold_status === 'Approved' || String(o.order_status || '').toLowerCase().startsWith('hold')) {
+        status = 'hold';
+      } else if (String(o.order_status || '').toLowerCase().startsWith('cancel')) {
+        status = 'cancelled';
+      } else if (allSteps.length === 0) {
         status = 'no_steps';
       } else if (allSteps.every(s => s.status === 'done')) {
         status = 'completed';
@@ -3883,6 +3887,12 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       )
       WHERE $1 = 'Sales' 
          OR ou.current_dept = $1 
+         OR ou.hold_status IN ('Hold', 'Cancelled')
+         OR ou.status = 'Cancelled'
+         OR ou.status ILIKE 'hold%'
+         OR o.hold_status = 'Approved'
+         OR o.status = 'Cancelled'
+         OR o.status ILIKE 'hold%'
          OR ($1 = 'Design' AND EXISTS (SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND us.dept = 'Design' AND (us.status = 'done' OR us.status = 'completed')))
          OR ($1 = 'Production' AND (
            ou.current_dept = 'Production'
