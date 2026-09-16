@@ -90,7 +90,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
     ? (expanded ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
     : isHold
     ? (expanded ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.18)')
-    : (expanded ? 'var(--bg3)' : 'transparent');
+    : (expanded ? 'rgba(37, 99, 235, 0.22)' : 'transparent');
 
   return (
     <>
@@ -102,7 +102,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
           background: rowBg,
           transition: 'background 0.15s',
         }}
-        className="worklist-row"
+        className={`worklist-row${expanded ? ' row-selected' : ''}`}
       >
         {/* Order Info */}
         <td style={{ padding: '10px 14px' }}>
@@ -731,7 +731,13 @@ export default function DeptWorklist({ dept }) {
       )}
 
       <style>{`
-        .worklist-row:hover { background: rgba(255,255,255,0.03) !important; }
+        .worklist-row:hover td { 
+          background-color: rgba(37, 99, 235, 0.22) !important; 
+          box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.35), inset 0 -1px 0 rgba(59, 130, 246, 0.35);
+        }
+        .worklist-row:hover td:first-child {
+          border-left: 5px solid #3b82f6 !important;
+        }
         @keyframes spin { to { transform: rotate(360deg); } }
         .worklist-table-container {
           cursor: grab;

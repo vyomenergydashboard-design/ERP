@@ -517,10 +517,10 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         const sizeVal = ps.panel_size || ps.size_name;
                         const labelParts = [];
                         if (ps.panel_code) labelParts.push(`[${ps.panel_code}]`);
-                        labelParts.push(sizeVal);
-                        if (ps.ip_rating) labelParts.push(`· ${ps.ip_rating}`);
+                        if (ps.ip_rating) labelParts.push(`[${ps.ip_rating}]`);
                         const comment = ps.comments || ps.description;
                         if (comment) labelParts.push(`(${comment})`);
+                        labelParts.push(sizeVal);
                         return (
                           <option key={ps.id} value={sizeVal}>
                             {labelParts.join(' ')}

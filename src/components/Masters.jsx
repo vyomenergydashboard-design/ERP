@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DEPTS } from '../data/planningData';
+import ExcelSheetViewer from './ExcelSheetViewer';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -375,8 +376,11 @@ export default function Masters() {
     e.preventDefault();
     if (!activeUploadTarget || !docUploadFile) return;
 
-    if (!docUploadFile.name.toLowerCase().endsWith('.pdf') && docUploadFile.type !== 'application/pdf') {
-      alert('Only PDF files are allowed.');
+    const isBOM = activeUploadTarget.docType === 'BOM';
+    const allowedExts = isBOM ? ['.pdf', '.xlsx', '.xls', '.csv'] : ['.pdf'];
+    const ext = '.' + docUploadFile.name.split('.').pop().toLowerCase();
+    if (!allowedExts.includes(ext)) {
+      alert(isBOM ? 'Only Excel (.xlsx, .xls, .csv) and PDF files are allowed.' : 'Only PDF files are allowed.');
       return;
     }
 
@@ -1162,9 +1166,9 @@ export default function Masters() {
                                 });
                               }}
                               style={{
-                                background: 'rgba(59, 130, 246, 0.1)',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                color: 'var(--blue)',
+                                background: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.12)',
+                                border: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                                color: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'var(--blue)' : '#10b981',
                                 borderRadius: '5px',
                                 cursor: 'pointer',
                                 padding: '3px 8px',
@@ -1172,8 +1176,26 @@ export default function Masters() {
                                 fontWeight: '600'
                               }}
                             >
-                              View PDF
+                              {part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'View PDF' : 'View Excel'}
                             </button>
+                            <a
+                              href={getDocUrl(part.bom)}
+                              download={part.bom.file_name}
+                              title="Download BOM file"
+                              style={{
+                                background: 'var(--bg3)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--text2)',
+                                borderRadius: '5px',
+                                padding: '3px 8px',
+                                fontSize: '11px',
+                                fontWeight: '500',
+                                textDecoration: 'none',
+                                display: 'inline-block'
+                              }}
+                            >
+                              Download
+                            </a>
                             {canEditPartMaster && (
                               <button
                                 onClick={() => {
@@ -1241,7 +1263,7 @@ export default function Masters() {
                                 alignSelf: 'flex-start'
                               }}
                             >
-                              Upload PDF
+                              Upload BOM
                             </button>
                           )}
                         </div>
@@ -1827,15 +1849,17 @@ export default function Masters() {
                     </div>
 
                     <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>BOM PDF (Optional - will be R0)</label>
+                      <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>BOM (Excel / PDF) (Optional - will be R0)</label>
                       <input
                         type="file"
-                        accept=".pdf,application/pdf"
+                        accept=".pdf,application/pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           if (file) {
-                            if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-                              alert('Only PDF files are allowed.');
+                            const allowedExts = ['.pdf', '.xlsx', '.xls', '.csv'];
+                            const ext = '.' + file.name.split('.').pop().toLowerCase();
+                            if (!allowedExts.includes(ext)) {
+                              alert('Only Excel (.xlsx, .xls, .csv) and PDF files are allowed.');
                               e.target.value = '';
                               setNewPartBomFile(null);
                               return;
@@ -1916,22 +1940,27 @@ export default function Masters() {
 
               {activeUploadTarget.currentDoc && (
                 <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: 'var(--text2)', fontSize: '12px' }}>
-                  ⚠️ Uploading a new PDF will create revision <strong>R{(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}</strong>. The current revision will be preserved in Revision History.
+                  ⚠️ Uploading a new {activeUploadTarget.docType === 'BOM' ? 'file' : 'PDF'} will create revision <strong>R{(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}</strong>. The current revision will be preserved in Revision History.
                 </div>
               )}
 
               <form onSubmit={handleUploadDocumentSubmit}>
                 <div className="modal-field" style={{ marginBottom: '18px' }}>
-                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Choose PDF File *</label>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>
+                    Choose {activeUploadTarget.docType === 'BOM' ? 'BOM File (Excel or PDF)' : 'PDF File'} *
+                  </label>
                   <input
                     type="file"
-                    accept=".pdf,application/pdf"
+                    accept={activeUploadTarget.docType === 'BOM' ? '.pdf,application/pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv' : '.pdf,application/pdf'}
                     required
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
-                          alert('Only PDF files are allowed.');
+                        const isBOM = activeUploadTarget.docType === 'BOM';
+                        const allowedExts = isBOM ? ['.pdf', '.xlsx', '.xls', '.csv'] : ['.pdf'];
+                        const ext = '.' + file.name.split('.').pop().toLowerCase();
+                        if (!allowedExts.includes(ext)) {
+                          alert(isBOM ? 'Only Excel (.xlsx, .xls, .csv) and PDF files are allowed.' : 'Only PDF files are allowed.');
                           e.target.value = '';
                           setDocUploadFile(null);
                           return;
@@ -1958,7 +1987,7 @@ export default function Masters() {
                     }}
                   />
                   <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-                    Only PDF files are allowed (Max 20MB)
+                    {activeUploadTarget.docType === 'BOM' ? 'Excel (.xlsx, .xls, .csv) or PDF files are allowed (Max 20MB)' : 'Only PDF files are allowed (Max 20MB)'}
                   </div>
                 </div>
 
@@ -2072,9 +2101,9 @@ export default function Masters() {
                             });
                           }}
                           style={{
-                            background: 'rgba(59, 130, 246, 0.1)',
-                            border: '1px solid rgba(59, 130, 246, 0.3)',
-                            color: 'var(--blue)',
+                            background: doc.file_name?.toLowerCase().endsWith('.pdf') ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.12)',
+                            border: doc.file_name?.toLowerCase().endsWith('.pdf') ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
+                            color: doc.file_name?.toLowerCase().endsWith('.pdf') ? 'var(--blue)' : '#10b981',
                             padding: '5px 12px',
                             borderRadius: '6px',
                             fontSize: '12px',
@@ -2082,7 +2111,7 @@ export default function Masters() {
                             fontWeight: '600'
                           }}
                         >
-                          View PDF
+                          {doc.file_name?.toLowerCase().endsWith('.pdf') ? 'View PDF' : 'View Excel'}
                         </button>
                         <a
                           href={getDocUrl(doc)}
@@ -2113,8 +2142,15 @@ export default function Masters() {
         </div>
       )}
 
-      {/* In-App PDF Viewer Modal */}
-      {pdfViewerDoc && (
+      {/* In-App Document Viewer (Excel or PDF) */}
+      {pdfViewerDoc && !pdfViewerDoc.file_name?.toLowerCase().endsWith('.pdf') ? (
+        <ExcelSheetViewer
+          url={getDocUrl(pdfViewerDoc)}
+          fileName={pdfViewerDoc.file_name}
+          title={pdfViewerDoc.title || `BOM (${pdfViewerDoc.revision_label || 'R0'})`}
+          onClose={() => setPdfViewerDoc(null)}
+        />
+      ) : pdfViewerDoc ? (
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setPdfViewerDoc(null); }}>
           <div className="modal" style={{ maxWidth: '960px', width: '92vw', height: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -2157,7 +2193,7 @@ export default function Masters() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Panel Size Master Modal */}
       {showPanelSizeModal && (
