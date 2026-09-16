@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import ExcelSheetViewer from './ExcelSheetViewer';
 import { 
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
@@ -110,24 +111,62 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
-  const [coords, setCoords] = useState({ top: 0, left: 0, width: 240 });
+  const [coords, setCoords] = useState({ top: 0, bottom: 'auto', left: 0, width: 380, maxHeight: 370, opensUpward: false });
   const triggerRef = useRef(null);
   const dropdownRef = useRef(null);
   const inputRef = useRef(null);
 
   const currentValue = unit.panel_type_size || '';
 
+  const calculatePosition = () => {
+    if (!triggerRef.current) return null;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = 370;
+    const dropdownWidth = Math.max(rect.width, 380);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Open upwards if space below is too tight and there is more room above
+    const opensUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+
+    let left = rect.left;
+    if (left + dropdownWidth > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - dropdownWidth - 8);
+    }
+
+    if (opensUpward) {
+      return {
+        top: 'auto',
+        bottom: window.innerHeight - rect.top + 4,
+        left,
+        width: dropdownWidth,
+        maxHeight: Math.max(160, Math.min(370, rect.top - 12)),
+        opensUpward: true
+      };
+    } else {
+      return {
+        top: rect.bottom + 4,
+        bottom: 'auto',
+        left,
+        width: dropdownWidth,
+        maxHeight: Math.max(160, Math.min(370, window.innerHeight - rect.bottom - 12)),
+        opensUpward: false
+      };
+    }
+  };
+
   const openDropdown = (e) => {
     if (!canEdit) return;
     e?.preventDefault();
-    e?.stopPropagation();
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setCoords({
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: Math.max(rect.width, 260)
-      });
+    if (isOpen) {
+      setIsOpen(false);
+      return;
+    }
+    // Close any other open dropdowns in the table immediately
+    window.dispatchEvent(new CustomEvent('vyom-close-panel-pickers', { detail: unit.id }));
+    const pos = calculatePosition();
+    if (pos) {
+      setCoords(pos);
     }
     // Start with empty search query so all master dimensions from Masters -> Panel Sizes are visible immediately
     setQuery('');
@@ -136,16 +175,24 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
   };
 
   useEffect(() => {
+    const handleCloseOthers = (e) => {
+      if (e.detail !== unit.id) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener('vyom-close-panel-pickers', handleCloseOthers);
+    return () => {
+      window.removeEventListener('vyom-close-panel-pickers', handleCloseOthers);
+    };
+  }, [unit.id]);
+
+  useEffect(() => {
     if (!isOpen) return;
 
     const updatePos = () => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        setCoords({
-          top: rect.bottom + 4,
-          left: rect.left,
-          width: Math.max(rect.width, 240)
-        });
+      const pos = calculatePosition();
+      if (pos) {
+        setCoords(pos);
       }
     };
 
@@ -233,27 +280,29 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
   };
 
   const renderHighlighted = (text, highlight) => {
-    if (!highlight || !text) return text;
-    const parts = [];
-    const lowerText = text.toLowerCase();
+    if (!highlight || text === undefined || text === null) return text;
+    const str = String(text);
+    const lowerText = str.toLowerCase();
     const lowerHighlight = highlight.toLowerCase();
     let startIndex = 0;
     let index = lowerText.indexOf(lowerHighlight, startIndex);
+    if (index === -1) return str;
 
+    const parts = [];
     while (index !== -1) {
       if (index > startIndex) {
-        parts.push(text.substring(startIndex, index));
+        parts.push(str.substring(startIndex, index));
       }
       parts.push(
         <span key={index} style={{ color: '#38bdf8', fontWeight: 700, textDecoration: 'underline' }}>
-          {text.substring(index, index + highlight.length)}
+          {str.substring(index, index + highlight.length)}
         </span>
       );
       startIndex = index + highlight.length;
       index = lowerText.indexOf(lowerHighlight, startIndex);
     }
-    if (startIndex < text.length) {
-      parts.push(text.substring(startIndex));
+    if (startIndex < str.length) {
+      parts.push(str.substring(startIndex));
     }
     return parts;
   };
@@ -272,7 +321,6 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
         ref={triggerRef}
         className="no-canvas-drag"
         onClick={openDropdown}
-        onMouseDown={(e) => e.stopPropagation()}
         title="Click to select or change panel size (Design)"
         style={{
           display: 'inline-flex',
@@ -320,11 +368,14 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
       {isOpen && createPortal(
         <div
           ref={dropdownRef}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
             top: coords.top,
+            bottom: coords.bottom,
             left: coords.left,
-            width: Math.max(coords.width, 260),
+            width: Math.max(coords.width, 380),
             zIndex: 99999,
             background: 'var(--bg2)',
             border: '1px solid var(--border)',
@@ -333,10 +384,9 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
             overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-            maxHeight: 280,
+            maxHeight: coords.maxHeight || 370,
             animation: 'fadeIn 0.12s ease'
           }}
-          onClick={(e) => e.stopPropagation()}
         >
           {/* Search Input */}
           <div style={{
@@ -386,7 +436,8 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
           <div style={{
             overflowY: 'auto',
             padding: '4px',
-            maxHeight: 220,
+            flex: 1,
+            minHeight: 0,
             display: 'flex',
             flexDirection: 'column',
             gap: 2
@@ -405,6 +456,7 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
             {options.map((opt, idx) => {
               const isSelected = opt.size_name === currentValue;
               const isHighlighted = idx === highlightIndex;
+              const hasMeta = Boolean(opt.panel_code || opt.ip_rating || opt.comments || opt.description);
 
               return (
                 <div
@@ -419,59 +471,87 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                     border: isHighlighted ? '1px solid rgba(59,130,246,0.35)' : '1px solid transparent',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: 2,
+                    gap: 3,
                     transition: 'background 0.1s'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      {opt.panel_code && (
+                  {hasMeta ? (
+                    <>
+                      {/* Row 1: Panel Code, Green IP Rating, Comments / Single Door, and Checkmark */}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flexWrap: 'wrap' }}>
+                          {opt.panel_code && (
+                            <span style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 10.5,
+                              fontWeight: 700,
+                              color: '#c084fc',
+                              background: 'rgba(168, 85, 247, 0.15)',
+                              border: '1px solid rgba(168, 85, 247, 0.3)',
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              flexShrink: 0
+                            }}>
+                              {renderHighlighted(opt.panel_code, cleanQ)}
+                            </span>
+                          )}
+                          {opt.ip_rating && (
+                            <span style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 10.5,
+                              fontWeight: 600,
+                              color: '#10b981',
+                              background: 'rgba(16, 185, 129, 0.12)',
+                              border: '1px solid rgba(16, 185, 129, 0.28)',
+                              padding: '1px 5px',
+                              borderRadius: 4,
+                              flexShrink: 0
+                            }}>
+                              {renderHighlighted(opt.ip_rating, cleanQ)}
+                            </span>
+                          )}
+                          {(opt.comments || opt.description) && (
+                            <span style={{
+                              fontSize: 11,
+                              fontWeight: 500,
+                              color: isHighlighted ? 'var(--text)' : 'var(--text2)',
+                              fontStyle: opt.isCustom ? 'italic' : 'normal',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              maxWidth: 220
+                            }} title={opt.comments || opt.description}>
+                              {renderHighlighted(opt.comments || opt.description, cleanQ)}
+                            </span>
+                          )}
+                        </div>
+                        {isSelected && <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />}
+                      </div>
+
+                      {/* Row 2: Panel Dimensions */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 1 }}>
                         <span style={{
                           fontFamily: 'var(--font-mono)',
-                          fontSize: 10.5,
-                          fontWeight: 700,
-                          color: '#c084fc',
-                          background: 'rgba(168, 85, 247, 0.15)',
-                          border: '1px solid rgba(168, 85, 247, 0.3)',
-                          padding: '1px 5px',
-                          borderRadius: 4
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: isHighlighted ? '#60a5fa' : 'var(--text)'
                         }}>
-                          {opt.panel_code}
+                          {opt.isCustom ? `+ Use: "${opt.size_name}"` : renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
                         </span>
-                      )}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{
                         fontFamily: 'var(--font-mono)',
                         fontSize: 12,
                         fontWeight: 600,
                         color: isHighlighted ? '#60a5fa' : 'var(--text)'
                       }}>
-                        {opt.isCustom ? `+ Use: "${opt.size_name}"` : renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
+                        {renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
                       </span>
-                      {opt.ip_rating && (
-                        <span style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 10.5,
-                          fontWeight: 600,
-                          color: '#10b981',
-                          background: 'rgba(16, 185, 129, 0.12)',
-                          border: '1px solid rgba(16, 185, 129, 0.28)',
-                          padding: '1px 5px',
-                          borderRadius: 4
-                        }}>
-                          {opt.ip_rating}
-                        </span>
-                      )}
+                      {isSelected && <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />}
                     </div>
-                    {isSelected && <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />}
-                  </div>
-                  {(opt.comments || opt.description) && (
-                    <span style={{
-                      fontSize: 10.5,
-                      color: isHighlighted ? 'var(--text2)' : 'var(--text3)',
-                      fontStyle: opt.isCustom ? 'italic' : 'normal'
-                    }}>
-                      {opt.comments || opt.description}
-                    </span>
                   )}
                 </div>
               );
@@ -589,7 +669,7 @@ function TechnicalDocsModal({
   const handleUploadStandard = async (targetType) => {
     const docTypeToUpload = targetType || uploadDocType || 'Drawing';
     if (filesToUpload.length === 0) {
-      setUploadError(`Please select a ${docTypeToUpload} file (PDF) to upload.`);
+      setUploadError(`Please select a ${docTypeToUpload} file (${docTypeToUpload === 'BOM' ? 'Excel or PDF' : 'PDF'}) to upload.`);
       return;
     }
     setIsUploading(true);
@@ -824,12 +904,12 @@ function TechnicalDocsModal({
           Click to browse or drag & drop technical files
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-          {isStandard ? 'PDF documents only (Up to 10 files)' : 'Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)'}
+          {isStandard ? (uploadDocType === 'BOM' ? 'Excel (.xlsx, .xls, .csv) or PDF documents (Up to 10 files)' : 'PDF documents only (Up to 10 files)') : 'Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)'}
         </div>
         <input
           ref={fileInputRef}
           type="file"
-          accept={isStandard ? '.pdf,application/pdf' : undefined}
+          accept={isStandard ? (uploadDocType === 'BOM' ? '.pdf,application/pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv' : '.pdf,application/pdf') : undefined}
           multiple
           style={{ display: 'none' }}
           onChange={handleFileSelect}
@@ -1801,8 +1881,15 @@ function TechnicalDocsModal({
         </div>
       </div>
 
-      {/* In-App PDF Viewer Modal */}
-      {pdfViewerDoc && (
+      {/* In-App Document Viewer (Excel or PDF) */}
+      {pdfViewerDoc && !pdfViewerDoc.file_name?.toLowerCase().endsWith('.pdf') ? (
+        <ExcelSheetViewer
+          url={getDocUrl(pdfViewerDoc)}
+          fileName={pdfViewerDoc.file_name}
+          title={pdfViewerDoc.title || `Document Viewer - ${pdfViewerDoc.file_name}`}
+          onClose={() => setPdfViewerDoc(null)}
+        />
+      ) : pdfViewerDoc ? (
         <div className="modal-overlay open" style={{ zIndex: 1200 }} onClick={(e) => { if (e.target.className.includes('modal-overlay')) setPdfViewerDoc(null); }}>
           <div className="modal" style={{ maxWidth: '920px', width: '92vw', height: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
             <div className="modal-header" style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
@@ -1846,7 +1933,7 @@ function TechnicalDocsModal({
             </div>
           </div>
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -3624,10 +3711,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
 
               const hoverBg = isCancelled
-                ? 'rgba(239, 68, 68, 0.32)'
+                ? 'rgba(239, 68, 68, 0.28)'
                 : isHold
-                ? 'rgba(245, 158, 11, 0.32)'
-                : 'var(--bg4)';
+                ? 'rgba(245, 158, 11, 0.28)'
+                : 'rgba(37, 99, 235, 0.22)';
 
               const borderBottomColor = isCancelled
                 ? 'rgba(239, 68, 68, 0.45)'
@@ -3635,10 +3722,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 ? 'rgba(245, 158, 11, 0.45)'
                 : 'var(--border)';
 
+              const rowClass = [
+                isCancelled ? 'row-cancelled' : '',
+                isHold ? 'row-hold' : ''
+              ].filter(Boolean).join(' ');
+
               return (
                 <tr
                   key={unit.unit_id}
-                  className={isCancelled ? 'row-cancelled' : (isHold ? 'row-hold' : '')}
+                  className={rowClass}
                   style={{
                     background: defaultBg,
                     cursor: 'default',
@@ -3647,22 +3739,25 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                   }}
                   onMouseEnter={e => {
                     e.currentTarget.style.background = hoverBg;
-                    if (isCancelled || isHold) {
-                      const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
-                      stickyTds.forEach(td => td.style.background = hoverBg);
-                    }
+                    const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
+                    stickyTds.forEach(td => td.style.background = hoverBg);
                   }}
                   onMouseLeave={e => {
                     e.currentTarget.style.background = defaultBg;
-                    if (isCancelled || isHold) {
-                      const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
-                      stickyTds.forEach(td => td.style.background = defaultBg);
-                    }
+                    const stickyTds = e.currentTarget.querySelectorAll('td[style*="position: sticky"]');
+                    const pinnedDefaultBg = isCancelled
+                      ? (isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)')
+                      : isHold
+                      ? (isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)')
+                      : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
+                    stickyTds.forEach(td => td.style.background = pinnedDefaultBg);
                   }}
                 >
                   {visibleCols.map((c, cIdx) => {
                     const style = getColStyle(c.key, false, isAltRow, rowHighlight);
-                    const leftBorder = cIdx === 0 && (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : undefined);
+                    const leftBorder = cIdx === 0
+                      ? (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent')
+                      : undefined;
                     return (
                       <td
                         key={c.key}
@@ -3707,14 +3802,33 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           cursor: grabbing;
           user-select: none;
         }
+        .table-responsive-scroll tbody tr {
+          transition: background-color 0.12s ease;
+        }
+
+        /* ── Hovering over any row (cursor on row) - Little Dark Color Highlight ── */
         .table-responsive-scroll tbody tr:hover td {
-          background-color: var(--bg4) !important;
+          background-color: rgba(37, 99, 235, 0.22) !important;
+          box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.35), inset 0 -1px 0 rgba(59, 130, 246, 0.35);
         }
-        .table-responsive-scroll tbody tr.row-cancelled:hover td {
-          background-color: rgba(239, 68, 68, 0.18) !important;
+        .table-responsive-scroll tbody tr:hover td:first-child {
+          border-left: 5px solid #3b82f6 !important;
         }
+
         .table-responsive-scroll tbody tr.row-hold:hover td {
-          background-color: rgba(245, 158, 11, 0.18) !important;
+          background-color: rgba(245, 158, 11, 0.28) !important;
+          box-shadow: inset 0 1px 0 rgba(245, 158, 11, 0.45), inset 0 -1px 0 rgba(245, 158, 11, 0.45);
+        }
+        .table-responsive-scroll tbody tr.row-hold:hover td:first-child {
+          border-left: 5px solid #f59e0b !important;
+        }
+
+        .table-responsive-scroll tbody tr.row-cancelled:hover td {
+          background-color: rgba(239, 68, 68, 0.28) !important;
+          box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.45), inset 0 -1px 0 rgba(239, 68, 68, 0.45);
+        }
+        .table-responsive-scroll tbody tr.row-cancelled:hover td:first-child {
+          border-left: 5px solid #ef4444 !important;
         }
         .drag-handle {
           color: var(--text3, #5a6070);

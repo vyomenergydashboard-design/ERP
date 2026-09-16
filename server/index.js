@@ -1258,10 +1258,11 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
           const masterId = pCheck.rows[0].id;
           const pDocs = await client.query('SELECT * FROM part_number_documents WHERE part_number_id = $1 AND is_current = true', [masterId]);
           for (const doc of pDocs.rows) {
+            const masterDocType = doc.doc_type || 'Drawing';
             await client.query(
               `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
-               VALUES ('Order', $1, 'Drawing', $2, $3, $4)`,
-              [order.id, `[Master Drawing] ${doc.file_name}`, doc.file_path, req.user.id]
+               VALUES ('Order', $1, $2, $3, $4, $5)`,
+              [order.id, masterDocType, `[Master ${masterDocType}] ${doc.file_name}`, doc.file_path, req.user.id]
             );
           }
         }
@@ -4658,14 +4659,23 @@ app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager'
       targetDocType = 'BOM';
     }
 
-    // Validate each file is strictly a PDF
+    // Validate file extensions: Drawing must be PDF; BOM can be Excel or PDF
     for (const file of files) {
-      const isPdfExt = path.extname(file.originalname).toLowerCase() === '.pdf';
-      const isPdfMime = (file.mimetype || '').toLowerCase().includes('pdf');
-      if (!isPdfExt || !isPdfMime) {
-        // Cleanup uploaded files
-        try { fs.unlinkSync(file.path); } catch (e) {}
-        return res.status(400).json({ error: 'Only PDF files are allowed.' });
+      const ext = path.extname(file.originalname).toLowerCase();
+      if (targetDocType === 'BOM') {
+        const allowedBOMExts = ['.pdf', '.xlsx', '.xls', '.csv'];
+        if (!allowedBOMExts.includes(ext)) {
+          // Cleanup uploaded files
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          return res.status(400).json({ error: 'For BOM, only Excel (.xlsx, .xls, .csv) and PDF files are allowed.' });
+        }
+      } else {
+        const isPdfExt = ext === '.pdf';
+        if (!isPdfExt) {
+          // Cleanup uploaded files
+          try { fs.unlinkSync(file.path); } catch (e) {}
+          return res.status(400).json({ error: 'Only PDF files are allowed for Drawings.' });
+        }
       }
     }
 
