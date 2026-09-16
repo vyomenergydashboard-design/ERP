@@ -33,7 +33,9 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS cancelled_dept TEXT,
       ADD COLUMN IF NOT EXISTS cancelled_reason TEXT,
       ADD COLUMN IF NOT EXISTS cancelled_by_name TEXT,
-      ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE;
+      ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS po_number TEXT,
+      ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL;
 
       ALTER TABLE unit_steps
       ADD COLUMN IF NOT EXISTS hold_reason TEXT,
@@ -163,7 +165,7 @@ export async function runDeploymentMigrations(clientParam) {
         const yr = order.order_date ? new Date(order.order_date).getFullYear() : (order.created_at ? new Date(order.created_at).getFullYear() : new Date().getFullYear());
         const startYr = String(yr % 100).padStart(2, '0');
         const endYr = String((yr + 1) % 100).padStart(2, '0');
-        
+
         let seq = 1;
         const parts = order.order_number.replace(/^TEMP-ORD-/, '').split('-');
         if (parts.length >= 2) {

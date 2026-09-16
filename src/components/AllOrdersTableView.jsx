@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import ExcelSheetViewer from './ExcelSheetViewer';
-import { 
+import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square
@@ -11,41 +11,41 @@ const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
 const PRIORITY_STYLES = {
   Urgent: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
-  High:   { bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.35)' },
-  Medium: { bg: 'rgba(234,179,8,0.12)',  color: '#eab308', border: 'rgba(234,179,8,0.35)' },
-  Low:    { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', border: 'rgba(99,102,241,0.35)' },
+  High: { bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.35)' },
+  Medium: { bg: 'rgba(234,179,8,0.12)', color: '#eab308', border: 'rgba(234,179,8,0.35)' },
+  Low: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', border: 'rgba(99,102,241,0.35)' },
 };
 
 const STATUS_STYLES = {
-  Completed:    { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
-  Blocked:      { bg: 'rgba(239,68,68,0.12)',  color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
-  'In Progress':{ bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
+  Completed: { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
+  Blocked: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
+  'In Progress': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
   'In Process': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
-  Pending:      { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-  'Not Started':{ bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-  Hold:         { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
-  'On Hold':    { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
-  Cancelled:    { bg: 'rgba(239,68,68,0.15)',  color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
+  Pending: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+  'Not Started': { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
+  Hold: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
+  'On Hold': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
+  Cancelled: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
 };
 
 const BASE_COLUMNS = [
-  { key: 'order_number',          label: 'Order #',       align: 'left' },
-  { key: 'short_serial',          label: 'Serial No.',    align: 'left', alias: 'unit_serial' },
-  { key: 'company_name',          label: 'Customer',      align: 'left' },
-  { key: 'project_name',          label: 'Project Name',  align: 'left' },
-  { key: 'po_number',             label: 'PO Number',     align: 'left' },
-  { key: 'reference_number',      label: 'Ref #',         align: 'left' },
-  { key: 'end_client_name',       label: 'End Client',    align: 'left' },
-  { key: 'part_number',           label: 'Part Number',   align: 'left' },
-  { key: 'panel_code',            label: 'Panel Code',    align: 'center' },
-  { key: 'panel_type_size',       label: 'Panel Size',    align: 'left' },
-  { key: 'panel_ip_rating',       label: 'IP Rating',     align: 'center' },
-  { key: 'panel_comments',        label: 'Comments',      align: 'left' },
-  { key: 'material_description',  label: 'Description',   align: 'left' },
-  { key: 'classification',        label: 'Type (Design)', align: 'center' },
-  { key: 'priority',              label: 'Priority',      align: 'center' },
-  { key: 'delivery_date',         label: 'Delivery',      align: 'left' },
-  { key: 'unit_status',           label: 'Status',        align: 'center' },
+  { key: 'order_number', label: 'Order #', align: 'left' },
+  { key: 'short_serial', label: 'Serial No.', align: 'left', alias: 'unit_serial' },
+  { key: 'company_name', label: 'Customer', align: 'left' },
+  { key: 'project_name', label: 'Project Name', align: 'left' },
+  { key: 'po_number', label: 'PO Number', align: 'left' },
+  { key: 'reference_number', label: 'Ref #', align: 'left' },
+  { key: 'end_client_name', label: 'End Client', align: 'left' },
+  { key: 'part_number', label: 'Part Number', align: 'left' },
+  { key: 'panel_code', label: 'Panel Code', align: 'center' },
+  { key: 'panel_type_size', label: 'Panel Size', align: 'left' },
+  { key: 'panel_ip_rating', label: 'IP Rating', align: 'center' },
+  { key: 'panel_comments', label: 'Comments', align: 'left' },
+  { key: 'material_description', label: 'Description', align: 'left' },
+  { key: 'classification', label: 'Type (Design)', align: 'center' },
+  { key: 'priority', label: 'Priority', align: 'center' },
+  { key: 'delivery_date', label: 'Delivery', align: 'left' },
+  { key: 'unit_status', label: 'Status', align: 'center' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -618,15 +618,15 @@ function TechnicalDocsModal({
   const bomHistory = selectedPart.bomHistory && selectedPart.bomHistory.length > 0
     ? selectedPart.bomHistory
     : [...boms].reverse();
-  
-  const customDrawings = orderDocs.filter(d => 
-    (d.doc_type || '').toLowerCase() === 'drawing' || 
+
+  const customDrawings = orderDocs.filter(d =>
+    (d.doc_type || '').toLowerCase() === 'drawing' ||
     (d.doc_type || '').toLowerCase() === 'technical specification' ||
     (d.doc_type || '').toLowerCase() === 'spec'
   );
-  const otherOrderDocs = orderDocs.filter(d => 
-    (d.doc_type || '').toLowerCase() !== 'drawing' && 
-    (d.doc_type || '').toLowerCase() !== 'technical specification' && 
+  const otherOrderDocs = orderDocs.filter(d =>
+    (d.doc_type || '').toLowerCase() !== 'drawing' &&
+    (d.doc_type || '').toLowerCase() !== 'technical specification' &&
     (d.doc_type || '').toLowerCase() !== 'spec'
   );
 
@@ -1033,7 +1033,7 @@ function TechnicalDocsModal({
   return (
     <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') onClose(); }}>
       <div className="modal" style={{ maxWidth: '800px', width: '92vw', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: '12px', overflow: 'hidden' }}>
-        
+
         {/* Modal Header */}
         <div className="modal-header" style={{ borderBottom: '1px solid var(--border)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
@@ -1053,7 +1053,7 @@ function TechnicalDocsModal({
 
         {/* Modal Body */}
         <div className="modal-body" style={{ padding: '20px', maxHeight: '72vh', overflowY: 'auto' }}>
-          
+
           {/* Classification & Order Banner */}
           <div style={{
             marginBottom: '18px',
@@ -1083,8 +1083,8 @@ function TechnicalDocsModal({
                 {isStandard ? 'STANDARD' : 'NON-STANDARD'}
               </span>
               <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
-                {isStandard 
-                  ? 'Master catalog drawings & BOM apply to this unit. The latest revisions are shown below.' 
+                {isStandard
+                  ? 'Master catalog drawings & BOM apply to this unit. The latest revisions are shown below.'
                   : `Custom specification unit (${selectedPart.unitSerial || 'Custom'}). Upload tailored drawings below.`}
               </span>
             </div>
@@ -1959,7 +1959,7 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
 
   // 1. Cancelled orders/units
   if (
-    rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' || 
+    rawUnitStatus === 'cancelled' || rawUnitStatus === 'canceled' ||
     rawUnitStatus.startsWith('cancel') ||
     rawHoldStatus === 'cancelled' ||
     unit.hold_status === 'Cancelled' ||
@@ -1970,9 +1970,9 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
 
   // 2. Hold orders/units
   if (
-    rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' || 
+    rawUnitStatus === 'hold' || rawUnitStatus === 'on hold' ||
     rawUnitStatus.startsWith('hold') ||
-    rawHoldStatus === 'approved' || rawHoldStatus === 'hold' || 
+    rawHoldStatus === 'approved' || rawHoldStatus === 'hold' ||
     unit.hold_status === 'Hold' ||
     rawOrderStatus === 'hold' || rawOrderStatus === 'on hold'
   ) {
@@ -1990,9 +1990,9 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
 
   if (stepsToCheck && stepsToCheck.length > 0) {
     const allDone = stepsToCheck.every(s => isStatusDone(s.status));
-    const releaseDocStep = stepsToCheck.find(s => 
-      s.name === 'Release Documents' || 
-      s.special === 'design' || 
+    const releaseDocStep = stepsToCheck.find(s =>
+      s.name === 'Release Documents' ||
+      s.special === 'design' ||
       String(s.name || '').toLowerCase().includes('design')
     );
     const isReleaseDocDone = releaseDocStep && isStatusDone(releaseDocStep.status);
@@ -2009,12 +2009,12 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
     return 'Pending';
   }
 
-  const hasInprogress = 
+  const hasInprogress =
     Number(unit.inprogress_step_count || 0) > 0 ||
     Number(unit.order_inprogress_step_count || 0) > 0 ||
     unit.dept_steps?.some(s => isStatusInProgress(s.status));
 
-  const hasDone = 
+  const hasDone =
     Number(unit.done_step_count || 0) > 0 ||
     Number(unit.order_done_step_count || 0) > 0 ||
     unit.dept_steps?.some(s => isStatusDone(s.status));
@@ -2052,7 +2052,7 @@ function renderCellContent({
   switch (colKey) {
     case 'order_number':
       return (
-        <span 
+        <span
           onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
           style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
           title="Click to view Process Flow"
@@ -2064,8 +2064,8 @@ function renderCellContent({
     case 'short_serial':
     case 'unit_serial':
       return (
-        <div 
-          onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }} 
+        <div
+          onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
           title="Click to view Process Flow for this Serial No."
         >
@@ -2077,7 +2077,7 @@ function renderCellContent({
 
     case 'company_name':
       return (
-        <div 
+        <div
           style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           title={unit.company_name ? `${unit.company_name}${unit.company_city ? ` · ${unit.company_city}` : ''}` : undefined}
         >
@@ -2154,7 +2154,7 @@ function renderCellContent({
         const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
         const holdTooltip = `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? new Date(unit.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
         return (
-          <span 
+          <span
             title={holdTooltip}
             style={{
               fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
@@ -2172,7 +2172,7 @@ function renderCellContent({
         const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
         const cancelTooltip = `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? new Date(unit.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
         return (
-          <span 
+          <span
             title={cancelTooltip}
             style={{
               fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
@@ -2261,7 +2261,7 @@ function renderCellContent({
 
     case 'panel_code': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m => 
+      const master = panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
@@ -2298,7 +2298,7 @@ function renderCellContent({
 
     case 'panel_ip_rating': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m => 
+      const master = panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
@@ -2325,7 +2325,7 @@ function renderCellContent({
 
     case 'panel_comments': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m => 
+      const master = panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
@@ -2723,16 +2723,16 @@ const TableRow = memo(function TableRow({
   const defaultBg = isSelected
     ? 'rgba(59, 130, 246, 0.16)'
     : isCancelled
-    ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
-    : isHold
-    ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
-    : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
+      ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
+      : isHold
+        ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
+        : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
 
   const borderBottomColor = isCancelled
     ? 'rgba(239, 68, 68, 0.45)'
     : isHold
-    ? 'rgba(245, 158, 11, 0.45)'
-    : (isSelected ? 'rgba(59, 130, 246, 0.4)' : 'var(--border)');
+      ? 'rgba(245, 158, 11, 0.45)'
+      : (isSelected ? 'rgba(59, 130, 246, 0.4)' : 'var(--border)');
 
   const rowClass = [
     isCancelled ? 'row-cancelled' : '',
@@ -2774,7 +2774,7 @@ const TableRow = memo(function TableRow({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => {}}
+          onChange={() => { }}
           style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14, pointerEvents: 'none' }}
         />
       </td>
@@ -2870,9 +2870,9 @@ const PoUploadBar = memo(function PoUploadBar({
   const poInputRef = useRef(null);
 
   useEffect(() => {
-    if (externalPoNumber !== undefined && externalPoNumber !== null && externalPoNumber !== '') {
+    if (externalPoNumber !== undefined && externalPoNumber !== null) {
       setPoNumber(externalPoNumber);
-      if (poInputRef.current) {
+      if (externalPoNumber && poInputRef.current) {
         poInputRef.current.focus();
         poInputRef.current.select();
       }
@@ -2901,8 +2901,11 @@ const PoUploadBar = memo(function PoUploadBar({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const currentPo = poNumber.trim();
     e.target.value = '';
-    onUploadPo(poNumber.trim(), file);
+    setPoNumber('');
+    if (setExternalPoNumber) setExternalPoNumber('');
+    onUploadPo(currentPo, file);
   };
 
   return (
@@ -3009,8 +3012,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     const handleMouseDown = (e) => {
       if (
-        ['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'TH'].includes(e.target.tagName) || 
-        e.target.closest('th') || 
+        ['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'TH'].includes(e.target.tagName) ||
+        e.target.closest('th') ||
         e.target.closest('button') ||
         e.target.closest('.no-canvas-drag')
       ) {
@@ -3159,7 +3162,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         }
         return valid;
       }
-    } catch (e) {}
+    } catch (e) { }
     return DEFAULT_COLUMN_KEYS;
   });
 
@@ -3183,7 +3186,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     try {
       const saved = localStorage.getItem('erp_all_pinned_keys');
       if (saved) return JSON.parse(saved);
-    } catch (e) {}
+    } catch (e) { }
     return ['order_number', 'short_serial'];
   });
 
@@ -3265,7 +3268,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const togglePin = (colKey, e) => {
     e?.stopPropagation();
-    setPinnedKeys(prev => 
+    setPinnedKeys(prev =>
       prev.includes(colKey)
         ? prev.filter(k => k !== colKey)
         : [...prev, colKey]
@@ -3312,7 +3315,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     try {
       const u = JSON.parse(localStorage.getItem('user') || '{}');
       if (u && u.role) return u.role;
-    } catch (e) {}
+    } catch (e) { }
     return localStorage.getItem('userRole') || 'Sales';
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
@@ -3354,7 +3357,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (!doc) return '#';
     let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
     if (!pathStr) return '#';
-    
+
     pathStr = pathStr.replace(/\\/g, '/');
     const uploadsIdx = pathStr.indexOf('uploads/');
     let relPath = '';
@@ -3368,7 +3371,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const authToken = localStorage.getItem('token');
     const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
     const baseUrl = window.API_BASE || '';
-    
+
     return `${baseUrl}/uploads/${relPath}${tokenParam}`;
   };
 
@@ -3376,7 +3379,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const handlePartNumberClick = async (unit) => {
     const pNum = unit.part_number;
-    const match = partMasters.find(p => 
+    const match = partMasters.find(p =>
       p.part_number && pNum && p.part_number.trim().toLowerCase() === pNum.trim().toLowerCase()
     ) || partMasters.find(p => p.part_number === pNum);
     let masterDocs = match?.documents || [];
@@ -3547,7 +3550,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     fetchUnits();
     fetchPartMasters();
     fetchPanelSizeMasters();
-    
+
     const handleUpdate = () => {
       fetchUnits(true);
       fetchColumnVisibility();
@@ -3689,7 +3692,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
 
       if (priorityFilter !== 'all' && (u.priority || 'Medium').toLowerCase() !== priorityFilter) return false;
-      
+
       // Status filter dropdown (when in All Orders tab)
       if (activeTab === 'all') {
         if ((statusFilter === 'incomplete' || statusFilter === 'active') && (status === 'Completed' || status === 'Cancelled')) return false;
@@ -3700,7 +3703,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         if (statusFilter === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
         if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
       }
-      
+
       if (searchTerm) {
         const q = searchTerm.toLowerCase();
         const customMatches = Object.values(u.custom_fields || {}).some(
@@ -3831,7 +3834,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const handleRowMouseEnter = useCallback((unitId, idx, e) => {
     if (!isDraggingSelectRef.current || dragStartIdxRef.current === null) return;
-    
+
     const start = Math.min(dragStartIdxRef.current, idx);
     const end = Math.max(dragStartIdxRef.current, idx);
     const targetState = dragSelectTargetStateRef.current;
@@ -4198,28 +4201,27 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
             background: statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.12)' :
-                        statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
-                        statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
-                        statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
+                statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
+                  statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
             color: statCardFilter === 'priority' ? '#f97316' :
-                   statCardFilter === 'inprogress' ? '#3b82f6' :
-                   statCardFilter === 'blocked' ? '#ef4444' :
-                   statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
-            border: `1px solid ${
-              statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
-              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
-              statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
-              statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
-            }`,
+              statCardFilter === 'inprogress' ? '#3b82f6' :
+                statCardFilter === 'blocked' ? '#ef4444' :
+                  statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
+            border: `1px solid ${statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
+                statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
+                  statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
+                    statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
+              }`,
             borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600,
             whiteSpace: 'nowrap'
           }}>
             <span>
               Card Filter: {
                 statCardFilter === 'priority' ? 'Urgent / High' :
-                statCardFilter === 'inprogress' ? 'In Progress' :
-                statCardFilter === 'blocked' ? 'Blocked' :
-                statCardFilter === 'due' ? 'Due This Week' : 'All Active'
+                  statCardFilter === 'inprogress' ? 'In Progress' :
+                    statCardFilter === 'blocked' ? 'Blocked' :
+                      statCardFilter === 'due' ? 'Due This Week' : 'All Active'
               }
             </span>
             <button
@@ -4253,7 +4255,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       </div>
 
       {/* ── Table ───────────────────────────────────────────────── */}
-      <div 
+      <div
         ref={tableContainerRef}
         className="table-responsive-scroll"
         style={{ overflowX: 'auto', overflowY: 'auto', flex: 1 }}
@@ -4338,7 +4340,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 4, width: '100%' }}>
-                      <div 
+                      <div
                         onClick={() => handleSort(colKey)}
                         style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', overflow: 'hidden', flex: 1 }}
                       >
@@ -4428,8 +4430,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     {activeTab === 'hold'
                       ? 'No orders are currently on hold'
                       : activeTab === 'cancelled'
-                      ? 'No cancelled orders found'
-                      : 'No units match the current filters'}
+                        ? 'No cancelled orders found'
+                        : 'No units match the current filters'}
                   </div>
                 </td>
               </tr>
@@ -4550,7 +4552,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           )}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .table-responsive-scroll {
           cursor: grab;
         }
