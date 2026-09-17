@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import PartNumberSearchSelect from './PartNumberSearchSelect.jsx';
+import AddPartMasterModal from './AddPartMasterModal.jsx';
 
 const getTodayDateStr = () => {
   const today = new Date();
@@ -51,6 +53,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
   const [partMasters, setPartMasters] = useState([]);
   const [panelSizeMasters, setPanelSizeMasters] = useState([]);
+  const [partModalLineIdx, setPartModalLineIdx] = useState(null);
+  const [partModalInitialQuery, setPartModalInitialQuery] = useState('');
 
   useEffect(() => {
     fetch(window.API_BASE + "/api/companies", {
@@ -136,10 +140,38 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   };
 
   const removeLineItem = (index) => {
+    if (formData.lineItems.length === 1) return;
     setFormData(prev => ({
       ...prev,
       lineItems: prev.lineItems.filter((_, i) => i !== index)
     }));
+  };
+
+  const handleOpenAddPartModal = (lineIdx, query = '') => {
+    setPartModalLineIdx(lineIdx);
+    setPartModalInitialQuery(query || '');
+  };
+
+  const handlePartCreated = (newPart) => {
+    // 1. Add to local part masters array so all line items have immediate access
+    setPartMasters(prev => {
+      const exists = prev.some(p => p.id === newPart.id || p.part_number === newPart.part_number);
+      if (exists) return prev;
+      return [newPart, ...prev];
+    });
+
+    // 2. Select this new part for the target line item
+    if (partModalLineIdx !== null) {
+      handleLineItemChange(partModalLineIdx, 'part_number', newPart.part_number);
+      // If line item's material_description is empty and new part has description, fill it
+      const currentDesc = formData.lineItems[partModalLineIdx]?.material_description;
+      if (!currentDesc && newPart.description) {
+        handleLineItemChange(partModalLineIdx, 'material_description', newPart.description);
+      }
+    }
+
+    // 3. Close modal
+    setPartModalLineIdx(null);
   };
 
   const handleFiles = (selectedFiles, type) => {
@@ -496,21 +528,19 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                       <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
                         Part Number Master *
                       </label>
-                      <select
-                        className="form-select"
+                      <PartNumberSearchSelect
                         value={li.part_number}
+                        partMasters={partMasters}
                         required
-                        onChange={(e) => {
-                          handleLineItemChange(idx, 'part_number', e.target.value);
+                        placeholder="Search or choose Part #..."
+                        onChange={(partNo, matchedPart) => {
+                          handleLineItemChange(idx, 'part_number', partNo);
+                          if (matchedPart?.description && !li.material_description) {
+                            handleLineItemChange(idx, 'material_description', matchedPart.description);
+                          }
                         }}
-                      >
-                        <option value="">-- Choose Master Part Number --</option>
-                        {partMasters.map(pm => (
-                          <option key={pm.id} value={pm.part_number}>
-                            {pm.part_number} {pm.description ? `(${pm.description})` : ''} — [{pm.documents?.length || 0} drawings]
-                          </option>
-                        ))}
-                      </select>
+                        onAddNew={(query) => handleOpenAddPartModal(idx, query)}
+                      />
                       {(() => {
                         const match = partMasters.find(p => p.part_number === li.part_number);
                         if (match && match.documents && match.documents.length > 0) {
@@ -715,6 +745,18 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </button>
           </div>
         </form>
+
+        {/* In-Place Part Number Master Creation Modal */}
+        {partModalLineIdx !== null && (
+          <AddPartMasterModal
+            isOpen={true}
+            onClose={() => setPartModalLineIdx(null)}
+            initialPartNumber={partModalInitialQuery}
+            initialClientName={formData.end_client_name || companies.find(c => c.locations?.some(l => l.id === Number(formData.company_location_id)))?.name || ''}
+            initialProject={formData.project_name || ''}
+            onPartCreated={handlePartCreated}
+          />
+        )}
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
