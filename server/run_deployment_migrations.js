@@ -84,6 +84,32 @@ export async function runDeploymentMigrations(clientParam) {
       SET ip_rating = 'IP55'
       WHERE ip_rating IS NULL OR ip_rating = '';
 
+      CREATE TABLE IF NOT EXISTS part_number_masters (
+        id SERIAL PRIMARY KEY,
+        part_number TEXT UNIQUE NOT NULL,
+        client_name TEXT,
+        project TEXT,
+        description TEXT,
+        category TEXT NOT NULL DEFAULT 'Standard',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS part_number_documents (
+        id SERIAL PRIMARY KEY,
+        part_number_id INTEGER NOT NULL REFERENCES part_number_masters(id) ON DELETE CASCADE,
+        doc_type TEXT NOT NULL DEFAULT 'Drawing',
+        revision_number INTEGER NOT NULL DEFAULT 0,
+        revision_label TEXT NOT NULL DEFAULT 'R0',
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
+        file_type TEXT,
+        file_size BIGINT DEFAULT 0,
+        is_current BOOLEAN NOT NULL DEFAULT true,
+        uploaded_by_id INTEGER REFERENCES users(id),
+        uploaded_by_name TEXT,
+        uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+
       ALTER TABLE part_number_masters
       ADD COLUMN IF NOT EXISTS client_name TEXT,
       ADD COLUMN IF NOT EXISTS project TEXT;
