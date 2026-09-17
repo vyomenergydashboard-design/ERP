@@ -1113,18 +1113,15 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     // 1. Generate Order Number
     const order_number = await generateOrderNumber(client);
 
-    // Automatically calculate delivery_date = order_date + 4 weeks (28 days)
     const resolved_order_date = order_date || new Date().toISOString().split('T')[0];
     const orderDateObj = new Date(resolved_order_date);
     const year = orderDateObj.getFullYear();
-    const deliveryDateObj = new Date(orderDateObj);
-    deliveryDateObj.setDate(orderDateObj.getDate() + 28);
-    const calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
+    const resolved_delivery_date = (delivery_date && typeof delivery_date === 'string' && delivery_date.trim()) ? delivery_date.trim() : null;
 
     const orderResult = await client.query(
       `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification, project_name) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [order_number, company_location_id || null, resolved_order_date, calculated_delivery_date, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard', project_name || null]
+      [order_number, company_location_id || null, resolved_order_date, resolved_delivery_date, notes, priority || 'Medium', po_number || null, packaging_type || null, req.user.id, end_client_name || null, gst_number || null, reference_number || null, classification || 'Standard', project_name || null]
     );
     const order = orderResult.rows[0];
 
@@ -1142,10 +1139,12 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       const assigned_li_number = `${order_number}-${String(itemIdx).padStart(2, '0')}`;
       itemIdx++;
 
+      const cleanTag = (li.tag && typeof li.tag === 'string' && li.tag.trim()) ? li.tag.trim() : null;
+      const li_delivery_date = (li.delivery_date && typeof li.delivery_date === 'string' && li.delivery_date.trim()) ? li.delivery_date.trim() : resolved_delivery_date;
       const liResult = await client.query(
-        `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, calculated_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes, li.project_name || order.project_name || null]
+        `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, li_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes, li.project_name || order.project_name || null, cleanTag]
       );
       const lineItem = liResult.rows[0];
       totalUnits += qty;
@@ -1154,8 +1153,8 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         const unit_id = formatOrderNumber(year, globalUnitCounter);
         const short_serial = unit_id;
         const unitResult = await client.query(
-          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-          [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard']
+          `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification, tag) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+          [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard', cleanTag]
         );
         createdUnits.push(unitResult.rows[0].id);
         globalUnitCounter++;
@@ -1241,6 +1240,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         }
         else if (field.includes('quotation')) docType = 'Quotation';
         else if (field.includes('approved')) docType = 'Approved';
+        else if (field.includes('indent')) docType = 'Indent';
         
         await client.query(
           `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by) 
@@ -1454,16 +1454,12 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
     const { order_number, order_date: existing_order_date } = checkOrder.rows[0];
 
     const resolved_order_date = order_date || (existing_order_date ? (existing_order_date instanceof Date ? existing_order_date.toISOString().split('T')[0] : String(existing_order_date).split('T')[0]) : new Date().toISOString().split('T')[0]);
-    const orderDateObj = new Date(resolved_order_date);
-    const deliveryDateObj = new Date(orderDateObj);
-    deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
-    const calculated_delivery_date = delivery_date || deliveryDateObj.toISOString().split('T')[0];
 
-    if (delivery_date) {
+    if (delivery_date !== undefined) {
       // Auto-update all line items' delivery dates if delivery_date was explicitly changed
       await pool.query(
         'UPDATE order_line_items SET delivery_date = $1 WHERE order_id = $2',
-        [calculated_delivery_date, req.params.id]
+        [delivery_date || null, req.params.id]
       );
     }
 
@@ -1540,6 +1536,7 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
     unit_price,
     delivery_date,
     notes,
+    tag,
   } = req.body;
 
   try {
@@ -1600,17 +1597,16 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
       values.push(total);
     }
     if (delivery_date !== undefined) {
-      // If delivery_date is passed, or calculate from order_date
-      let calculated_delivery_date = delivery_date;
-      if (!calculated_delivery_date) {
-        const resolved_order_date = order_date ? (order_date instanceof Date ? order_date.toISOString().split('T')[0] : String(order_date).split('T')[0]) : new Date().toISOString().split('T')[0];
-        const orderDateObj = new Date(resolved_order_date);
-        const deliveryDateObj = new Date(orderDateObj);
-        deliveryDateObj.setDate(orderDateObj.getDate() + 28);
-        calculated_delivery_date = deliveryDateObj.toISOString().split('T')[0];
-      }
+      const cleanDeliveryDate = (delivery_date && typeof delivery_date === 'string' && delivery_date.trim()) ? delivery_date.trim() : null;
       updates.push(`delivery_date = $${idx++}`);
-      values.push(calculated_delivery_date);
+      values.push(cleanDeliveryDate);
+    }
+    if (tag !== undefined) {
+      const cleanTag = (tag && typeof tag === 'string' && tag.trim()) ? tag.trim() : null;
+      updates.push(`tag = $${idx++}`);
+      values.push(cleanTag);
+      // Synchronize tag to all units associated with this line item
+      await pool.query('UPDATE order_units SET tag = $1 WHERE line_item_id = $2', [cleanTag, liId]);
     }
     if (notes !== undefined) {
       updates.push(`notes = $${idx++}`);
@@ -1974,14 +1970,15 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           throw new Error(`Total price for line item must be a valid number between 0 and 9,999,999,999,999.99.`);
         }
 
+        const cleanLiTag = li['tag'] && typeof li['tag'] === 'string' && li['tag'].trim() ? li['tag'].trim() : null;
         const liResult = await client.query(
           `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number,
-            panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+            panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
           [order.id, li_number, li['material_description'] || '', li['part_number'] || '',
            li['panel_type_size'] || '', delivery_date,
            qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null,
-           li['project_name'] || li['project'] || order.project_name || null]
+           li['project_name'] || li['project'] || order.project_name || null, cleanLiTag]
         );
         const lineItem = liResult.rows[0];
         totalUnits += qty;
@@ -1990,8 +1987,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           const unit_id = formatOrderNumber(new Date().getFullYear(), globalUnitCounter);
           const short_serial = unit_id;
           const unitResult = await client.query(
-            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-            [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard']
+            `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification, tag) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+            [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard', cleanLiTag]
           );
           createdUnits.push(unitResult.rows[0].id);
           globalUnitCounter++;
@@ -2089,11 +2086,19 @@ app.get('/api/orders', authorize(), async (req, res) => {
        (SELECT count(*) FROM order_units WHERE order_id = o.id) as unit_count,
        (SELECT count(*) FROM order_units WHERE order_id = o.id AND status = 'Dispatched') as dispatched_unit_count,
        (SELECT count(*) FROM order_line_items WHERE order_id = o.id) as line_item_count,
-       c.name as company_name, l.city as company_city
+       c.name as company_name, l.city as company_city,
+       oindentdoc.file_path as indent_file_path, oindentdoc.file_name as indent_file_name
        FROM orders o 
        LEFT JOIN users u ON o.created_by = u.id 
        LEFT JOIN company_locations l ON o.company_location_id = l.id
        LEFT JOIN companies c ON l.company_id = c.id
+       LEFT JOIN LATERAL (
+         SELECT file_path, file_name 
+         FROM documents 
+         WHERE entity_type = 'Order' AND entity_id = o.id AND doc_type = 'Indent' 
+         ORDER BY uploaded_at DESC 
+         LIMIT 1
+       ) oindentdoc ON true
        ORDER BY o.created_at DESC`
     );
     res.json(result.rows);
@@ -2712,12 +2717,15 @@ app.get('/api/planning', authorize(), async (req, res) => {
           oli.id as line_item_id,
           o.id as order_id,
           o.order_number,
-          o.po_number,
-          o.delivery_date,
+          COALESCE(o.po_number, (SELECT ou.po_number FROM order_units ou WHERE ou.line_item_id = oli.id AND ou.po_number IS NOT NULL LIMIT 1)) AS po_number,
+          COALESCE(oli.delivery_date, o.delivery_date) AS delivery_date,
           o.priority,
           o.notes,
           o.end_client_name,
           o.reference_number,
+          oli.tag,
+          oindentdoc.file_path AS indent_file_path,
+          oindentdoc.file_name AS indent_file_name,
           o.hold_status,
           oli.planned_dispatch_date,
           oli.wiring_assigned_date,
@@ -2804,6 +2812,13 @@ app.get('/api/planning', authorize(), async (req, res) => {
       JOIN orders o ON oli.order_id = o.id
       LEFT JOIN company_locations l ON o.company_location_id = l.id
       LEFT JOIN companies c ON l.company_id = c.id
+      LEFT JOIN LATERAL (
+        SELECT file_path, file_name 
+        FROM documents 
+        WHERE entity_type = 'Order' AND entity_id = o.id AND doc_type = 'Indent' 
+        ORDER BY uploaded_at DESC 
+        LIMIT 1
+      ) oindentdoc ON true
       ORDER BY o.created_at DESC, oli.id ASC`
     );
     res.json(result.rows);
@@ -3660,7 +3675,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   if (await isUnitOnHold(id) && req.body.po_number === undefined) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { panel_type_size, classification, custom_fields, po_number } = req.body;
+  const { panel_type_size, classification, custom_fields, po_number, tag } = req.body;
 
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
@@ -3696,6 +3711,12 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (po_number !== undefined) {
       updates.push(`po_number = $${idx++}`);
       values.push(po_number ? String(po_number).trim() : null);
+    }
+
+    if (tag !== undefined) {
+      const cleanTag = (tag && typeof tag === 'string' && tag.trim()) ? tag.trim() : null;
+      updates.push(`tag = $${idx++}`);
+      values.push(cleanTag);
     }
 
     if (custom_fields !== undefined) {
@@ -3812,6 +3833,10 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         COALESCE(podoc.file_path, opodoc.file_path) AS po_file_path,
         COALESCE(podoc.file_name, opodoc.file_name) AS po_file_name,
         o.reference_number,
+        COALESCE(ou.tag, oli.tag) AS tag,
+        oindentdoc.file_path AS indent_file_path,
+        oindentdoc.file_name AS indent_file_name,
+        oindentdoc.id AS indent_doc_id,
         o.end_client_name,
         o.priority,
         o.delivery_date,
@@ -3905,6 +3930,13 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ORDER BY uploaded_at DESC 
         LIMIT 1
       ) opodoc ON true
+      LEFT JOIN LATERAL (
+        SELECT id, file_path, file_name 
+        FROM documents 
+        WHERE entity_type = 'Order' AND entity_id = o.id AND doc_type = 'Indent' 
+        ORDER BY uploaded_at DESC 
+        LIMIT 1
+      ) oindentdoc ON true
       WHERE $1 = 'Sales' 
          OR ou.current_dept = $1 
          OR ou.hold_status IN ('Hold', 'Cancelled')
@@ -3956,21 +3988,26 @@ app.get('/api/companies', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/companies', authorize(['Admin']), async (req, res) => {
-  const { name, locations } = req.body;
+app.post('/api/companies', authorize(['Admin', 'Manager']), async (req, res) => {
+  const { name, gst_number, locations } = req.body;
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const compRes = await client.query('INSERT INTO companies (name) VALUES ($1) RETURNING *', [name]);
+    const cleanGst = (typeof gst_number === 'string' && gst_number.trim()) ? gst_number.trim() : null;
+    const compRes = await client.query(
+      'INSERT INTO companies (name, gst_number) VALUES ($1, $2) RETURNING *', 
+      [name ? name.trim() : '', cleanGst]
+    );
     const company = compRes.rows[0];
     const savedLocations = [];
     
     if (locations && locations.length > 0) {
       for (const loc of locations) {
+        if (!loc.city || !loc.city.trim()) continue;
         const locRes = await client.query(
           `INSERT INTO company_locations (company_id, address, city, person_in_charge, contact_number, email) 
            VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-          [company.id, loc.address, loc.city, loc.person_in_charge, loc.contact_number, loc.email]
+          [company.id, loc.address || null, loc.city.trim(), loc.person_in_charge || null, loc.contact_number || null, loc.email || null]
         );
         savedLocations.push(locRes.rows[0]);
       }
@@ -3980,7 +4017,81 @@ app.post('/api/companies', authorize(['Admin']), async (req, res) => {
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Failed to create company' });
+    res.status(500).json({ error: 'Failed to create company: ' + (err.message || err) });
+  } finally {
+    client.release();
+  }
+});
+
+app.put('/api/companies/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+  const { name, gst_number, locations } = req.body;
+  const companyId = req.params.id;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const cleanGst = (typeof gst_number === 'string' && gst_number.trim()) ? gst_number.trim() : null;
+    const compRes = await client.query(
+      `UPDATE companies 
+       SET name = COALESCE($1, name), 
+           gst_number = $2 
+       WHERE id = $3 
+       RETURNING *`,
+      [name ? name.trim() : null, cleanGst, companyId]
+    );
+    if (compRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    const company = compRes.rows[0];
+
+    if (locations && Array.isArray(locations)) {
+      const existingLocs = await client.query('SELECT id FROM company_locations WHERE company_id = $1', [companyId]);
+      const incomingIds = locations.map(l => l.id).filter(Boolean);
+
+      for (const ex of existingLocs.rows) {
+        if (!incomingIds.includes(ex.id)) {
+          const orderRef = await client.query('SELECT id FROM orders WHERE company_location_id = $1 LIMIT 1', [ex.id]);
+          if (orderRef.rows.length === 0) {
+            await client.query('DELETE FROM company_locations WHERE id = $1', [ex.id]);
+          }
+        }
+      }
+
+      const savedLocations = [];
+      for (const loc of locations) {
+        if (!loc.city || !loc.city.trim()) continue;
+        if (loc.id) {
+          const locRes = await client.query(
+            `UPDATE company_locations 
+             SET address = $1, city = $2, person_in_charge = $3, contact_number = $4, email = $5 
+             WHERE id = $6 AND company_id = $7 
+             RETURNING *`,
+            [loc.address || null, loc.city.trim(), loc.person_in_charge || null, loc.contact_number || null, loc.email || null, loc.id, companyId]
+          );
+          if (locRes.rows.length > 0) {
+            savedLocations.push(locRes.rows[0]);
+          }
+        } else {
+          const locRes = await client.query(
+            `INSERT INTO company_locations (company_id, address, city, person_in_charge, contact_number, email) 
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+            [companyId, loc.address || null, loc.city.trim(), loc.person_in_charge || null, loc.contact_number || null, loc.email || null]
+          );
+          savedLocations.push(locRes.rows[0]);
+        }
+      }
+      company.locations = savedLocations;
+    } else {
+      const locRes = await client.query('SELECT * FROM company_locations WHERE company_id = $1', [companyId]);
+      company.locations = locRes.rows;
+    }
+
+    await client.query('COMMIT');
+    res.json(company);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to update company:', err);
+    res.status(500).json({ error: 'Failed to update company: ' + (err.message || err) });
   } finally {
     client.release();
   }
@@ -4138,8 +4249,44 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Accounts', 'Admin', 'Manage
       [cleanPo, savedDoc.id, unit_ids]
     );
 
-    // 3. Activity log for affected orders
+    // 3. Update orders table po_number if not already set
     const orderIds = [...new Set(unitRes.rows.map(u => u.order_id).filter(Boolean))];
+    if (orderIds.length > 0) {
+      await pool.query(
+        `UPDATE orders SET po_number = $1 WHERE id = ANY($2::int[]) AND (po_number IS NULL OR po_number = '')`,
+        [cleanPo, orderIds]
+      );
+
+      // Ensure Order-level document entry exists so order documents list shows PO copy
+      for (const ordId of orderIds) {
+        const checkOrdDoc = await pool.query("SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1", [ordId]);
+        if (checkOrdDoc.rows.length === 0) {
+          await pool.query(
+            `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
+             VALUES ('Order', $1, 'PO', $2, $3, $4, $5, $6)`,
+            [ordId, req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
+          );
+        }
+      }
+
+      // Auto-resolve 'Upload PO' milestone in order_steps
+      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      await pool.query(
+        `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = ANY($3::int[]) AND name = 'Upload PO'`,
+        [`PO #${cleanPo} uploaded.`, updatedStr, orderIds]
+      );
+    }
+
+    // 4. Re-derive unit status for all affected units so they transition out of Sales gating
+    for (const uId of unit_ids) {
+      try {
+        await deriveUnitStatus(uId, pool);
+      } catch (dErr) {
+        console.warn('deriveUnitStatus warn in batch-po:', dErr);
+      }
+    }
+
+    // 5. Activity log for affected orders
     const serialList = unitRes.rows.map(u => u.unit_id).join(', ');
     for (const ordId of orderIds) {
       await pool.query(
@@ -4930,6 +5077,7 @@ const templateHandler = (req, res) => {
     ['Line Item','total_price','135000','AUTO','quantity x unit_price (leave blank — auto-calculated)'],
     ['Line Item','line_item_delivery_date','2026-06-30','NO','YYYY-MM-DD; defaults to delivery_date'],
     ['Line Item','line_item_notes','FAT required before dispatch','NO','Item-level notes'],
+    ['Line Item','tag','TG-01','NO','Line item tag (combined with reference_number as Ref/Tag)'],
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(ref);
   ws1['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 42 }, { wch: 12 }, { wch: 60 }];
@@ -4942,7 +5090,7 @@ const templateHandler = (req, res) => {
     'gst_number','reference_number','classification',
     'line_item_number','material_description','part_number','panel_type_size',
     'quantity','unit','unit_price','total_price',
-    'line_item_delivery_date','line_item_notes'
+    'line_item_delivery_date','line_item_notes','tag'
   ];
 
   // Visual group-label row so users understand which columns are order-level vs item-level
@@ -4950,19 +5098,19 @@ const templateHandler = (req, res) => {
     '<-- ORDER LEVEL: repeat these 13 columns on every row of the same PO -->',
     '','','','','','','','','','','','',
     '<-- LINE ITEM LEVEL: one row = one item in the order -->',
-    '','','','','','','','',''
+    '','','','','','','','','',''
   ];
 
   const exampleRows = [
     // ORDER 1 — PO-2026-1001 — 3 line items (same PO groups them into 1 order)
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','800x600x300 mm',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','1600x800x400 mm',2,'Nos',72000,144000,'2026-07-15',''],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','1000x800x300 mm',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','800x600x300 mm',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch','TG-01'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','1600x800x400 mm',2,'Nos',72000,144000,'2026-07-15','','TG-02'],
+    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','1000x800x300 mm',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank','TG-03'],
     // ORDER 2 — PO-2026-1002 — 1 line item
-    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','Solar Grid System','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400x300 mm',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300'],
+    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','Solar Grid System','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400x300 mm',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300','PLC-01'],
     // ORDER 3 — PO-2026-1003 — 2 line items
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','500x400x200 mm',5,'Nos',12000,60000,'2026-09-01',''],
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','500x400x200 mm',5,'Nos',12000,60000,'2026-09-01','',''],
+    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01','',''],
   ];
 
   // Pre-allocate 2000 blank rows so the sheet is bulk-paste ready

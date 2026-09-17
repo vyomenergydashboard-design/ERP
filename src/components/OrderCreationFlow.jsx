@@ -1,9 +1,17 @@
 import { useState, useEffect } from 'react';
 
+const getTodayDateStr = () => {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 export default function OrderCreationFlow({ onOrderCreated }) {
   const [formData, setFormData] = useState({
     company_location_id: '',
-    order_date: '',
+    order_date: getTodayDateStr(),
     delivery_date: '',
     notes: '',
     priority: 'Medium',
@@ -15,6 +23,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     reference_number: '',
     classification: 'Standard',
     lineItems: [{
+      tag: '',
       material_description: '',
       part_number: '',
       panel_type_size: '',
@@ -30,12 +39,14 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   const [files, setFiles] = useState({
     po: null,
     quotation: null,
-    approved_docs: []
+    approved_docs: [],
+    indent: null
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draggingPo, setDraggingPo] = useState(false);
   const [draggingQuotation, setDraggingQuotation] = useState(false);
   const [draggingDocs, setDraggingDocs] = useState(false);
+  const [draggingIndent, setDraggingIndent] = useState(false);
   const token = localStorage.getItem('token');
 
   const [partMasters, setPartMasters] = useState([]);
@@ -64,31 +75,20 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     .catch(err => console.error(err));
   }, [token]);
 
-  useEffect(() => {
-    if (formData.order_date) {
-      const d = new Date(formData.order_date);
-      d.setDate(d.getDate() + 28);
-      const calculated = d.toISOString().split('T')[0];
-      if (formData.delivery_date !== calculated) {
-        setFormData(prev => ({ 
-          ...prev, 
-          delivery_date: calculated,
-          lineItems: prev.lineItems.map(li => ({ ...li, delivery_date: calculated }))
-        }));
-      }
-    } else {
-      if (formData.delivery_date !== '') {
-        setFormData(prev => ({ 
-          ...prev, 
-          delivery_date: '',
-          lineItems: prev.lineItems.map(li => ({ ...li, delivery_date: '' }))
-        }));
-      }
-    }
-  }, [formData.order_date]);
+
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'company_location_id') {
+      const locId = Number(value);
+      const matchedComp = companies.find(c => c.locations?.some(loc => loc.id === locId));
+      setFormData(prev => ({
+        ...prev,
+        company_location_id: value,
+        gst_number: matchedComp?.gst_number || ''
+      }));
+      return;
+    }
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -120,6 +120,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       lineItems: [
         ...prev.lineItems,
         {
+          tag: '',
           material_description: '',
           part_number: '',
           panel_type_size: '',
@@ -218,6 +219,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
     if (files.po) data.append('po', files.po);
     if (files.quotation) data.append('quotation', files.quotation);
+    if (files.indent) data.append('indent', files.indent);
     if (files.approved_docs && files.approved_docs.length > 0) {
       files.approved_docs.forEach(file => data.append('approved', file));
     }
@@ -238,7 +240,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         // Reset form
         setFormData({
           company_location_id: '',
-          order_date: '',
+          order_date: getTodayDateStr(),
           delivery_date: '',
           notes: '',
           priority: 'Medium',
@@ -250,6 +252,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           reference_number: '',
           classification: 'Standard',
           lineItems: [{
+            tag: '',
             material_description: '',
             part_number: '',
             panel_type_size: '',
@@ -261,7 +264,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             notes: ''
           }]
         });
-        setFiles({ po: null, quotation: null, approved_docs: [] });
+        setFiles({ po: null, quotation: null, approved_docs: [], indent: null });
       } else {
         const err = await res.json();
         alert(err.error || 'Failed to create order');
@@ -273,6 +276,10 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       setIsSubmitting(false);
     }
   };
+
+  const selectedLocId = Number(formData.company_location_id);
+  const selectedCompany = companies.find(c => c.locations?.some(loc => loc.id === selectedLocId));
+  const isAutoFilledGst = Boolean(selectedCompany?.gst_number && formData.gst_number === selectedCompany.gst_number);
 
   return (
     <div className="order-creation-container">
@@ -314,13 +321,22 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
-              <label>Overall Delivery Date <span style={{ fontSize: '11px', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
+              <label>Overall Delivery Date (Optional)</label>
               <input 
                 type="date" 
                 name="delivery_date" 
                 value={formData.delivery_date} 
-                disabled
-                style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    delivery_date: val,
+                    lineItems: prev.lineItems.map(li => ({
+                      ...li,
+                      delivery_date: (!li.delivery_date || li.delivery_date === prev.delivery_date) ? val : li.delivery_date
+                    }))
+                  }));
+                }} 
               />
             </div>
 
@@ -385,7 +401,14 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
-              <label>GST Number (Optional)</label>
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>GST Number (Optional)</span>
+                {isAutoFilledGst && (
+                  <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '500' }}>
+                    ✓ Auto-copied from company
+                  </span>
+                )}
+              </label>
               <input 
                 type="text" 
                 name="gst_number" 
@@ -444,8 +467,25 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 )}
                 <div className="line-item-grid-1">
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item # <span style={{ color: '#888', fontStyle: 'italic' }}>(auto-assigned)</span></label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item # <span style={{ color: '#888', fontStyle: 'italic' }}>(auto)</span></label>
                     <input type="text" className="form-input" value={`Item ${idx + 1}`} readOnly style={{ background: 'var(--bg4)', opacity: 0.6, cursor: 'not-allowed' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
+                      Tag <span style={{ color: '#888', fontStyle: 'italic' }}>(Optional)</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      placeholder="e.g. TG-01" 
+                      value={li.tag || ''} 
+                      onChange={e => handleLineItemChange(idx, 'tag', e.target.value)} 
+                    />
+                    {(formData.reference_number || li.tag) && (
+                      <div style={{ fontSize: '10px', color: '#f59e0b', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={`Ref/Tag: ${formData.reference_number || 'REF'}/${li.tag || 'TAG'}`}>
+                        Ref/Tag: <strong>{formData.reference_number || '—'}/{li.tag || '—'}</strong>
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Material Description</label>
@@ -564,9 +604,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <input 
                       type="date" 
                       className="form-input" 
-                      value={li.delivery_date} 
-                      disabled
-                      style={{ opacity: 0.7, cursor: 'not-allowed' }}
+                      value={li.delivery_date || ''} 
+                      onChange={e => handleLineItemChange(idx, 'delivery_date', e.target.value)}
                     />
                   </div>
                 </div>
@@ -582,38 +621,11 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
 
           <div className="file-upload-section">
-            <h3 className="section-title">Required Documents</h3>
+            <h3 className="section-title">Order Documents</h3>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '16px' }}>
-              Only <strong style={{ color: 'var(--text2)' }}>one</strong> PO copy and one Quotation allowed. To replace after submission, delete the existing file first.
+              Only <strong style={{ color: 'var(--text2)' }}>one</strong> Quotation allowed. To replace after submission, delete the existing file first.
             </div>
             <div className="file-grid">
-
-              {/* Customer PO Copy — single file only */}
-              <div 
-                className={`file-input-wrapper${draggingPo ? ' dragging' : ''}`}
-                onDragOver={(e) => handleDragOver(e, setDraggingPo)}
-                onDragLeave={() => handleDragLeave(setDraggingPo)}
-                onDrop={(e) => handleDrop(e, 'po', setDraggingPo)}
-              >
-                <label>Customer PO Copy</label>
-                {files.po ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>Done</span>
-                    <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.po.name}</span>
-                    <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                      Replace
-                      <input id="file-input-po" type="file" hidden onChange={(e) => handleFileChange(e, 'po')} />
-                    </label>
-                    <button type="button" onClick={() => removeSingleFile('po')} className="remove-file-btn" title="Remove">✕</button>
-                  </div>
-                ) : (
-                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
-                    <span>Drag file here or</span>
-                    <span style={{ color: 'var(--blue)' }}>browse files</span>
-                    <input id="file-input-po" type="file" hidden onChange={(e) => handleFileChange(e, 'po')} />
-                  </label>
-                )}
-              </div>
 
               {/* Quotation — single file only */}
               <div 
@@ -638,6 +650,33 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <span>Drag file here or</span>
                     <span style={{ color: 'var(--blue)' }}>browse files</span>
                     <input id="file-input-quotation" type="file" hidden onChange={(e) => handleFileChange(e, 'quotation')} />
+                  </label>
+                )}
+              </div>
+
+              {/* Indent Document — single file (PDF, Word, Excel) */}
+              <div 
+                className={`file-input-wrapper${draggingIndent ? ' dragging' : ''}`}
+                onDragOver={(e) => handleDragOver(e, setDraggingIndent)}
+                onDragLeave={() => handleDragLeave(setDraggingIndent)}
+                onDrop={(e) => handleDrop(e, 'indent', setDraggingIndent)}
+              >
+                <label>Details</label>
+                {files.indent ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>Done</span>
+                    <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.indent.name}</span>
+                    <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Replace
+                      <input id="file-input-indent" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" hidden onChange={(e) => handleFileChange(e, 'indent')} />
+                    </label>
+                    <button type="button" onClick={() => removeSingleFile('indent')} className="remove-file-btn" title="Remove">✕</button>
+                  </div>
+                ) : (
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <span>Drag file here or</span>
+                    <span style={{ color: 'var(--blue)' }}>browse files</span>
+                    <input id="file-input-indent" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" hidden onChange={(e) => handleFileChange(e, 'indent')} />
                   </label>
                 )}
               </div>
@@ -721,7 +760,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           border-top: 1px solid var(--border);
         }
         .section-title { font-size: 16px; color: var(--text); margin-bottom: 16px; }
-        .file-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .file-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
         
         .file-input-wrapper { 
           display: flex; flex-direction: column; gap: 12px;
@@ -770,7 +809,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
         .line-item-grid-1 {
           display: grid;
-          grid-template-columns: 100px 1fr 1fr 1fr;
+          grid-template-columns: 80px 130px 1.2fr 1.2fr 1fr;
           gap: 16px;
           margin-bottom: 16px;
         }

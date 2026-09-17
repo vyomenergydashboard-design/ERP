@@ -34,7 +34,7 @@ const BASE_COLUMNS = [
   { key: 'company_name', label: 'Customer', align: 'left' },
   { key: 'project_name', label: 'Project Name', align: 'left' },
   { key: 'po_number', label: 'PO Number', align: 'left' },
-  { key: 'reference_number', label: 'Ref #', align: 'left' },
+  { key: 'reference_number', label: 'Ref / Tag', align: 'left' },
   { key: 'end_client_name', label: 'End Client', align: 'left' },
   { key: 'part_number', label: 'Part Number', align: 'left' },
   { key: 'panel_code', label: 'Panel Code', align: 'center' },
@@ -93,7 +93,7 @@ const DEFAULT_COL_WIDTHS = {
   company_name: 175,
   project_name: 140,
   po_number: 110,
-  reference_number: 95,
+  reference_number: 115,
   end_client_name: 125,
   part_number: 145,
   panel_code: 115,
@@ -105,6 +105,28 @@ const DEFAULT_COL_WIDTHS = {
   priority: 95,
   delivery_date: 110,
   unit_status: 105,
+};
+
+export const getDocUrl = (doc) => {
+  if (!doc) return '#';
+  let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
+  if (!pathStr) return '#';
+
+  pathStr = pathStr.replace(/\\/g, '/');
+  const uploadsIdx = pathStr.indexOf('uploads/');
+  let relPath = '';
+  if (uploadsIdx !== -1) {
+    relPath = pathStr.substring(uploadsIdx + 8);
+  } else {
+    relPath = pathStr.split('/').pop();
+  }
+  relPath = relPath.replace(/^\/+/, '');
+
+  const authToken = localStorage.getItem('token');
+  const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
+  const baseUrl = window.API_BASE || '';
+
+  return `${baseUrl}/uploads/${relPath}${tokenParam}`;
 };
 
 function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
@@ -2467,6 +2489,118 @@ function renderCellContent({
       );
     }
 
+    case 'reference_number': {
+      const ref = (unit.reference_number || '').trim();
+      const tag = (unit.tag || '').trim();
+      const combinedVal = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
+      const hasIndentDoc = Boolean(unit.indent_file_path);
+
+      if (editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'reference_number') {
+        return (
+          <input
+            type="text"
+            autoFocus
+            defaultValue={editingCell.value}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={() => onSaveInlineCell(unit, 'reference_number', editingCell.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveInlineCell(unit, 'reference_number', editingCell.value);
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+            }}
+          />
+        );
+      }
+
+      if (hasIndentDoc) {
+        const isPdf = String(unit.indent_file_path).toLowerCase().endsWith('.pdf') || String(unit.indent_file_name || '').toLowerCase().endsWith('.pdf');
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isPdf && setPoPdfViewer) {
+                  setPoPdfViewer({
+                    file_path: unit.indent_file_path,
+                    file_name: unit.indent_file_name || `Details_${combinedVal || unit.order_number}.pdf`,
+                    title: `Details - ${combinedVal || unit.order_number}`,
+                    subtitle: `Order: ${unit.order_number}${unit.company_name ? ` · ${unit.company_name}` : ''}`
+                  });
+                } else {
+                  window.open(getDocUrl(unit.indent_file_path), '_blank');
+                }
+              }}
+              title={`Click to open Details (${unit.indent_file_name || 'Details'})`}
+              style={{
+                background: 'rgba(245, 158, 11, 0.12)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderRadius: 5,
+                padding: '2px 7px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                cursor: 'pointer',
+                color: '#f59e0b',
+                fontSize: 12,
+                fontWeight: 600,
+                maxWidth: 140,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <FileText size={12} style={{ flexShrink: 0 }} />
+              <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {combinedVal || 'Details'}
+              </span>
+            </button>
+            {canEdit && (
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
+                }}
+                title="Click to edit Reference Number"
+                style={{ fontSize: 10, color: 'var(--text3)', cursor: 'pointer', opacity: 0.6, flexShrink: 0 }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+              >
+                ✏️
+              </span>
+            )}
+          </div>
+        );
+      }
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
+            }
+          }}
+          title={canEdit ? "Click to edit Reference Number" : (combinedVal || undefined)}
+          style={{
+            color: '#f59e0b',
+            fontSize: 12,
+            fontWeight: combinedVal ? 600 : 400,
+            cursor: canEdit ? 'pointer' : 'default',
+            display: 'block',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap'
+          }}
+        >
+          {combinedVal || '—'}
+        </span>
+      );
+    }
+
     default:
       const customCol = customColumnDefs?.find(c => c.col_key === colKey);
       if (customCol) {
@@ -2664,7 +2798,7 @@ function renderCellContent({
         );
       }
 
-      const isEditableTextCol = ['project_name', 'end_client_name', 'reference_number', 'material_description'].includes(colKey);
+      const isEditableTextCol = ['project_name', 'end_client_name', 'material_description'].includes(colKey);
 
       return (
         <span
@@ -2676,7 +2810,7 @@ function renderCellContent({
           }}
           title={canEdit && isEditableTextCol ? "Click to edit" : (currentVal ? String(currentVal) : undefined)}
           style={{
-            color: colKey === 'reference_number' ? '#f59e0b' : (colKey === 'project_name' ? '#38bdf8' : 'var(--text2)'),
+            color: colKey === 'project_name' ? '#38bdf8' : 'var(--text2)',
             fontSize: 12,
             cursor: canEdit && isEditableTextCol ? 'pointer' : 'default',
             display: 'block',
@@ -3717,6 +3851,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           (u.company_name || '').toLowerCase().includes(q) ||
           (u.end_client_name || '').toLowerCase().includes(q) ||
           (u.reference_number || '').toLowerCase().includes(q) ||
+          (u.tag || '').toLowerCase().includes(q) ||
+          ((u.reference_number && u.tag) ? `${u.reference_number}/${u.tag}`.toLowerCase().includes(q) : false) ||
           (u.material_description || '').toLowerCase().includes(q) ||
           (u.part_number || '').toLowerCase().includes(q) ||
           (u.panel_type_size || '').toLowerCase().includes(q) ||
@@ -3758,7 +3894,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       } else {
         let aVal = a[sortKey];
         let bVal = b[sortKey];
-        if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
+        if (sortKey === 'reference_number') {
+          aVal = (a.reference_number && a.tag) ? `${a.reference_number}/${a.tag}` : (a.reference_number || a.tag || '');
+          bVal = (b.reference_number && b.tag) ? `${b.reference_number}/${b.tag}` : (b.reference_number || b.tag || '');
+        } else if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
           if (!aVal) {
             const masterA = panelSizeMasters.find(m => (m.panel_size || m.size_name) === a.panel_type_size || m.panel_code === a.panel_type_size);
             aVal = sortKey === 'panel_code' ? masterA?.panel_code : sortKey === 'panel_ip_rating' ? masterA?.ip_rating : (masterA?.comments || masterA?.description);

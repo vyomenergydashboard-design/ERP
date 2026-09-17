@@ -35,7 +35,8 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS cancelled_by_name TEXT,
       ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE,
       ADD COLUMN IF NOT EXISTS po_number TEXT,
-      ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL;
+      ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL,
+      ADD COLUMN IF NOT EXISTS tag TEXT;
 
       ALTER TABLE unit_steps
       ADD COLUMN IF NOT EXISTS hold_reason TEXT,
@@ -53,12 +54,16 @@ export async function runDeploymentMigrations(clientParam) {
       ALTER TABLE order_line_items
       ADD COLUMN IF NOT EXISTS panel_type_size TEXT,
       ADD COLUMN IF NOT EXISTS project_name TEXT,
+      ADD COLUMN IF NOT EXISTS tag TEXT,
       ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 
       ALTER TABLE orders
       ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
       ADD COLUMN IF NOT EXISTS hold_status TEXT DEFAULT 'None',
       ADD COLUMN IF NOT EXISTS project_name TEXT;
+
+      ALTER TABLE companies
+      ADD COLUMN IF NOT EXISTS gst_number TEXT;
 
       ALTER TABLE panel_size_masters
       ADD COLUMN IF NOT EXISTS panel_code TEXT,
