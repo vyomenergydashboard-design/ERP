@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import ExcelSheetViewer from './ExcelSheetViewer';
+import EditRefTagModal from './EditRefTagModal.jsx';
 import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
@@ -2063,7 +2064,8 @@ function renderCellContent({
   onSaveInlineCell,
   onSingleUnitPoClick,
   onPartNumberClick,
-  setPoPdfViewer
+  setPoPdfViewer,
+  onEditRefTag
 }) {
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
   const priority = unit.priority || 'Medium';
@@ -2495,26 +2497,6 @@ function renderCellContent({
       const combinedVal = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
       const hasIndentDoc = Boolean(unit.indent_file_path);
 
-      if (editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'reference_number') {
-        return (
-          <input
-            type="text"
-            autoFocus
-            defaultValue={editingCell.value}
-            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-            onBlur={() => onSaveInlineCell(unit, 'reference_number', editingCell.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') onSaveInlineCell(unit, 'reference_number', editingCell.value);
-              if (e.key === 'Escape') setEditingCell(null);
-            }}
-            style={{
-              width: '100%', padding: '2px 6px', fontSize: 12, background: 'var(--bg3)',
-              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
-            }}
-          />
-        );
-      }
-
       if (hasIndentDoc) {
         const isPdf = String(unit.indent_file_path).toLowerCase().endsWith('.pdf') || String(unit.indent_file_name || '').toLowerCase().endsWith('.pdf');
         return (
@@ -2562,12 +2544,12 @@ function renderCellContent({
               <span
                 onClick={(e) => {
                   e.stopPropagation();
-                  setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
+                  onEditRefTag ? onEditRefTag(unit) : setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
                 }}
-                title="Click to edit Reference Number"
-                style={{ fontSize: 10, color: 'var(--text3)', cursor: 'pointer', opacity: 0.6, flexShrink: 0 }}
-                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; }}
+                title="Edit Reference & Tag (Serial numbers unchanged)"
+                style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer', opacity: 0.7, flexShrink: 0, padding: '1px 3px' }}
+                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--blue)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = 'var(--text3)'; }}
               >
                 ✏️
               </span>
@@ -2581,22 +2563,27 @@ function renderCellContent({
           onClick={(e) => {
             if (canEdit) {
               e.stopPropagation();
-              setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
+              onEditRefTag ? onEditRefTag(unit) : setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
             }
           }}
-          title={canEdit ? "Click to edit Reference Number" : (combinedVal || undefined)}
+          title={canEdit ? "Click to edit Reference & Tag (Serial numbers unchanged)" : (combinedVal || undefined)}
           style={{
             color: '#f59e0b',
             fontSize: 12,
             fontWeight: combinedVal ? 600 : 400,
             cursor: canEdit ? 'pointer' : 'default',
-            display: 'block',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap'
           }}
         >
-          {combinedVal || '—'}
+          <span>{combinedVal || '—'}</span>
+          {canEdit && (
+            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }} title="Edit Ref & Tag">✏️</span>
+          )}
         </span>
       );
     }
@@ -2847,7 +2834,8 @@ const TableRow = memo(function TableRow({
   onSaveInlineCell,
   onSingleUnitPoClick,
   onPartNumberClick,
-  setPoPdfViewer
+  setPoPdfViewer,
+  onEditRefTag
 }) {
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
@@ -2963,7 +2951,8 @@ const TableRow = memo(function TableRow({
               onSaveInlineCell,
               onSingleUnitPoClick,
               onPartNumberClick,
-              setPoPdfViewer
+              setPoPdfViewer,
+              onEditRefTag
             })}
           </td>
         );
@@ -3464,6 +3453,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [panelSizeMasters, setPanelSizeMasters] = useState([]);
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedPartForDocs, setSelectedPartForDocs] = useState(null);
+  const [editingRefTagUnit, setEditingRefTagUnit] = useState(null);
 
   const fetchPartMasters = async () => {
     try {
@@ -4558,6 +4548,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 onSingleUnitPoClick={handleSingleUnitPoClick}
                 onPartNumberClick={handlePartNumberClick}
                 setPoPdfViewer={setPoPdfViewer}
+                onEditRefTag={setEditingRefTagUnit}
               />
             ))}
 
@@ -4824,6 +4815,47 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           getDocUrl={getDocUrl}
           onUpdatePartMasters={fetchPartMasters}
           onUpdateSelectedPart={setSelectedPartForDocs}
+        />
+      )}
+
+      {/* ── Edit Reference & Tag Number Modal (Admin / Manager / Sales) ── */}
+      {editingRefTagUnit && (
+        <EditRefTagModal
+          isOpen={true}
+          unit={editingRefTagUnit}
+          onClose={() => setEditingRefTagUnit(null)}
+          onSave={async ({ reference_number, tag }) => {
+            // Optimistic UI update so table view reflects changes immediately
+            setUnits(prev => prev.map(u => {
+              let updated = u;
+              if (u.unit_id === editingRefTagUnit.unit_id || u.id === editingRefTagUnit.id) {
+                updated = { ...updated, tag };
+              }
+              if (u.order_id === editingRefTagUnit.order_id) {
+                updated = { ...updated, reference_number };
+              }
+              return updated;
+            }));
+
+            // Persist to backend without touching unit serial numbers
+            const uId = editingRefTagUnit.id || editingRefTagUnit.unit_id;
+            const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ reference_number, tag })
+            });
+
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || 'Failed to save Reference & Tag');
+            }
+
+            window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: editingRefTagUnit.order_id } }));
+            fetchUnits(true);
+          }}
         />
       )}
     </div>

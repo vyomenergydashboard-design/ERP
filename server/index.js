@@ -3672,10 +3672,10 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });
   }
-  if (await isUnitOnHold(id) && req.body.po_number === undefined) {
+  if (await isUnitOnHold(id) && req.body.po_number === undefined && req.body.reference_number === undefined && req.body.tag === undefined) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { panel_type_size, classification, custom_fields, po_number, tag } = req.body;
+  const { panel_type_size, classification, custom_fields, po_number, tag, reference_number } = req.body;
 
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
@@ -3692,6 +3692,12 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     const updates = [];
     const values = [];
     let idx = 1;
+
+    // Admin/Manager update of Customer Reference Number on parent order (without touching serial numbers)
+    if (reference_number !== undefined) {
+      const cleanRef = (reference_number && typeof reference_number === 'string' && reference_number.trim()) ? reference_number.trim() : null;
+      await pool.query('UPDATE orders SET reference_number = $1 WHERE id = $2', [cleanRef, unit.order_id]);
+    }
 
     if (panel_type_size !== undefined) {
       updates.push(`panel_type_size = $${idx++}`);
@@ -3713,10 +3719,16 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(po_number ? String(po_number).trim() : null);
     }
 
+    // Admin/Manager update of Tag Number on unit and parent line item (without touching serial numbers)
     if (tag !== undefined) {
       const cleanTag = (tag && typeof tag === 'string' && tag.trim()) ? tag.trim() : null;
       updates.push(`tag = $${idx++}`);
       values.push(cleanTag);
+
+      // Keep line item in sync if unit is linked to a line item
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET tag = $1 WHERE id = $2', [cleanTag, unit.line_item_id]);
+      }
     }
 
     if (custom_fields !== undefined) {
@@ -3724,27 +3736,36 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields));
     }
 
-    if (updates.length === 0) {
+    if (updates.length === 0 && reference_number === undefined) {
       return res.json({ success: true, message: 'No changes provided' });
     }
 
-    values.push(realId);
-    const result = await pool.query(
-      `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-      values
-    );
+    let updatedUnit;
+    if (updates.length > 0) {
+      values.push(realId);
+      const result = await pool.query(
+        `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      updatedUnit = result.rows[0];
+    } else {
+      const refreshedUnit = await pool.query('SELECT * FROM order_units WHERE id = $1', [realId]);
+      updatedUnit = refreshedUnit.rows[0];
+    }
 
     let logAction = `Updated unit ${unit.unit_id}`;
     if (panel_type_size !== undefined) logAction += ` panel size: "${panel_type_size}"`;
     if (classification !== undefined) logAction += ` classification: "${classification}"`;
     if (po_number !== undefined) logAction += ` po_number: "${po_number}"`;
+    if (reference_number !== undefined) logAction += ` ref: "${reference_number}"`;
+    if (tag !== undefined) logAction += ` tag: "${tag}"`;
 
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
       [req.user.id, req.user.role, logAction, unit.order_id]
     );
 
-    res.json({ success: true, unit: result.rows[0] });
+    res.json({ success: true, unit: updatedUnit });
   } catch (err) {
     console.error('Failed to update unit:', err);
     res.status(500).json({ error: 'Failed to update unit' });

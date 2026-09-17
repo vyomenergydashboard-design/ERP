@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { DEPTS } from '../data/planningData';
 import { Clock, ChevronLeft } from 'lucide-react';
+import EditRefTagModal from './EditRefTagModal.jsx';
 
 function relativeTime(isoString) {
   if (!isoString) return null;
@@ -17,6 +19,8 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const token = localStorage.getItem('token');
   const canEditClassification = ['Admin', 'Manager', 'Design', 'Sales'].includes(user.role);
+  const canEditRefTag = ['Admin', 'Manager', 'Sales'].includes(user.role);
+  const [showEditRefTagModal, setShowEditRefTagModal] = useState(false);
 
   const handleClassificationChange = async (newVal) => {
     if (!selectedOrder?.id) return;
@@ -112,12 +116,26 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                     <span className="detail-val">{selectedOrder.po_number}</span>
                   </div>
                 )}
-                {selectedOrder.reference_number && (
-                  <div className="detail-row">
-                    <span className="detail-key">Cust. Ref #</span>
-                    <span className="detail-val">{selectedOrder.reference_number}</span>
+                <div className="detail-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="detail-key">Ref / Tag</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="detail-val" style={{ color: '#f59e0b', fontWeight: 600 }}>
+                      {(selectedOrder.reference_number && (selectedStep?.tag || selectedOrder.line_items?.[0]?.tag))
+                        ? `${selectedOrder.reference_number}/${selectedStep?.tag || selectedOrder.line_items?.[0]?.tag}`
+                        : (selectedOrder.reference_number || selectedStep?.tag || selectedOrder.line_items?.[0]?.tag || '—')}
+                    </span>
+                    {canEditRefTag && (
+                      <button
+                        type="button"
+                        onClick={() => setShowEditRefTagModal(true)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', padding: 0 }}
+                        title="Edit Reference & Tag (Serial numbers unchanged)"
+                      >
+                        ✏️
+                      </button>
+                    )}
                   </div>
-                )}
+                </div>
                 {selectedOrder.line_items?.[0]?.panel_type_size && (
                   <div className="detail-row">
                     <span className="detail-key">Panel Size</span>
@@ -248,6 +266,56 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
 
         </div>{/* end rp-content */}
       </div>{/* end rp-inner */}
+
+      {/* ── Edit Reference & Tag Modal (Admin / Manager / Sales) ── */}
+      {showEditRefTagModal && selectedOrder && (
+        <EditRefTagModal
+          isOpen={true}
+          unit={{
+            id: selectedStep?.id || selectedStep?.unit_id || selectedOrder.units?.[0]?.id || selectedOrder.id,
+            unit_id: selectedStep?.unit_id || selectedOrder.units?.[0]?.unit_id || 'N/A',
+            short_serial: selectedStep?.short_serial || selectedStep?.unit_serial || selectedOrder.units?.[0]?.short_serial || selectedOrder.units?.[0]?.unit_id || `Order #${selectedOrder.order_number}`,
+            order_id: selectedOrder.id,
+            order_number: selectedOrder.order_number,
+            company_name: selectedOrder.company_name,
+            reference_number: selectedOrder.reference_number || '',
+            tag: selectedStep?.tag || selectedOrder.line_items?.[0]?.tag || selectedOrder.units?.[0]?.tag || ''
+          }}
+          onClose={() => setShowEditRefTagModal(false)}
+          onSave={async ({ reference_number, tag }) => {
+            const targetUnitId = selectedStep?.id || selectedStep?.unit_id || selectedOrder.units?.[0]?.id || selectedOrder.units?.[0]?.unit_id;
+            if (targetUnitId) {
+              const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ reference_number, tag })
+              });
+              if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to save Reference & Tag');
+              }
+            } else {
+              const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}`, {
+                method: 'PUT',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ reference_number })
+              });
+              if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to save Reference Number');
+              }
+            }
+            window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+            setShowEditRefTagModal(false);
+          }}
+        />
+      )}
     </div>
   );
 }
