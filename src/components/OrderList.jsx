@@ -52,6 +52,7 @@ export default function OrderList({ initialSelectedId }) {
     unit_price: '',
     delivery_date: '',
     notes: '',
+    tag: '',
   });
   const [isSubmittingLineItemEdit, setIsSubmittingLineItemEdit] = useState(false);
 
@@ -152,6 +153,7 @@ export default function OrderList({ initialSelectedId }) {
       unit_price: li.unit_price || '',
       delivery_date: li.delivery_date ? li.delivery_date.split('T')[0] : '',
       notes: li.notes || '',
+      tag: li.tag || '',
     });
     setEditingLineItem(li);
   };
@@ -698,6 +700,11 @@ export default function OrderList({ initialSelectedId }) {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', borderBottom: '1px solid var(--border2)', paddingBottom: '8px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                         <strong>{li.line_item_number}</strong>: {li.material_description} {li.part_number ? `(${li.part_number})` : ''}
+                        {(li.tag || selectedOrder.reference_number) && (
+                          <span style={{ fontSize: '11px', padding: '2px 7px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '4px', fontWeight: 600 }}>
+                            Ref/Tag: {(selectedOrder.reference_number && li.tag) ? `${selectedOrder.reference_number}/${li.tag}` : (selectedOrder.reference_number || li.tag)}
+                          </span>
+                        )}
                         {['admin', 'manager', 'production', 'sales', 'design', 'purchase', 'stores', 'qc', 'dispatch', 'accounts', 'planning'].includes(currentUser.role?.toLowerCase()) && (
                           <button 
                             className="vbtn" 
@@ -1205,7 +1212,15 @@ export default function OrderList({ initialSelectedId }) {
                       className="form-select"
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
                       value={editOrderForm.company_location_id} 
-                      onChange={(e) => setEditOrderForm({...editOrderForm, company_location_id: e.target.value})}
+                      onChange={(e) => {
+                        const locId = Number(e.target.value);
+                        const matched = companiesList.find(c => c.locations?.some(l => l.id === locId));
+                        setEditOrderForm(prev => ({
+                          ...prev,
+                          company_location_id: e.target.value,
+                          ...(matched?.gst_number ? { gst_number: matched.gst_number } : {})
+                        }));
+                      }}
                       required
                     >
                       <option value="">-- None --</option>
@@ -1227,30 +1242,17 @@ export default function OrderList({ initialSelectedId }) {
                       type="date" 
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
                       value={editOrderForm.order_date} 
-                      onChange={(e) => {
-                        const newOrderDate = e.target.value;
-                        let newDeliveryDate = editOrderForm.delivery_date;
-                        if (newOrderDate) {
-                          const d = new Date(newOrderDate);
-                          d.setDate(d.getDate() + 28);
-                          newDeliveryDate = d.toISOString().split('T')[0];
-                        }
-                        setEditOrderForm({
-                          ...editOrderForm, 
-                          order_date: newOrderDate,
-                          delivery_date: newDeliveryDate
-                        });
-                      }}
+                      onChange={(e) => setEditOrderForm({ ...editOrderForm, order_date: e.target.value })}
                     />
                   </div>
 
                   <div className="form-group">
-                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Delivery Date <span style={{ textTransform: 'none', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Overall Delivery Date</label>
                     <input 
                       type="date" 
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', opacity: 0.7, cursor: 'not-allowed' }}
-                      value={editOrderForm.delivery_date} 
-                      disabled
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}
+                      value={editOrderForm.delivery_date || ''} 
+                      onChange={(e) => setEditOrderForm({ ...editOrderForm, delivery_date: e.target.value })}
                     />
                   </div>
 
@@ -1453,13 +1455,29 @@ export default function OrderList({ initialSelectedId }) {
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Line Item Delivery Date <span style={{ textTransform: 'none', color: 'var(--text3)' }}>(Auto-calculated)</span></label>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Line Item Delivery Date</label>
                     <input
                       type="date"
-                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box', opacity: 0.7, cursor: 'not-allowed' }}
-                      value={editLineItemForm.delivery_date}
-                      disabled
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.delivery_date || ''}
+                      onChange={(e) => handleEditLineItemChange('delivery_date', e.target.value)}
                     />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Tag (Optional)</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={editLineItemForm.tag || ''}
+                      onChange={(e) => handleEditLineItemChange('tag', e.target.value)}
+                      placeholder="e.g. 1A, FE-01"
+                    />
+                    {(selectedOrder?.reference_number || editLineItemForm.tag) && (
+                      <div style={{ fontSize: '10px', color: '#f59e0b', marginTop: '3px' }}>
+                        Ref/Tag: <strong>{(selectedOrder?.reference_number && editLineItemForm.tag) ? `${selectedOrder.reference_number}/${editLineItemForm.tag}` : (selectedOrder?.reference_number || editLineItemForm.tag)}</strong>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ gridColumn: 'span 2' }}>

@@ -139,8 +139,10 @@ export default function Masters() {
   // Companies State
   const [companies, setCompanies] = useState([]);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
+  const [editingCompanyId, setEditingCompanyId] = useState(null);
   const [companyFormData, setCompanyFormData] = useState({
     name: '',
+    gst_number: '',
     locations: [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }]
   });
 
@@ -526,6 +528,12 @@ export default function Masters() {
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault(); // Prevent standard browser Alt+N shortcut behavior
         if (activeTab === 'companies' && canEditMasters) {
+          setEditingCompanyId(null);
+          setCompanyFormData({
+            name: '',
+            gst_number: '',
+            locations: [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }]
+          });
           setShowCompanyModal(true);
         } else if (activeTab === 'tasks' && canEditMasters) {
           setEditingTaskId(null);
@@ -578,20 +586,54 @@ export default function Masters() {
     });
   };
 
+  const removeLocation = (index) => {
+    if (companyFormData.locations.length <= 1) return;
+    setCompanyFormData({
+      ...companyFormData,
+      locations: companyFormData.locations.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleEditCompanyClick = (comp) => {
+    setEditingCompanyId(comp.id);
+    setCompanyFormData({
+      name: comp.name || '',
+      gst_number: comp.gst_number || '',
+      locations: comp.locations && comp.locations.length > 0
+        ? comp.locations.map(loc => ({
+            id: loc.id,
+            city: loc.city || '',
+            address: loc.address || '',
+            person_in_charge: loc.person_in_charge || '',
+            contact_number: loc.contact_number || '',
+            email: loc.email || ''
+          }))
+        : [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }]
+    });
+    setShowCompanyModal(true);
+  };
+
   const handleCompanySubmit = async (e) => {
     e.preventDefault();
+    const isEdit = !!editingCompanyId;
+    const url = isEdit ? `${window.API_BASE}/api/companies/${editingCompanyId}` : `${window.API_BASE}/api/companies`;
+    const method = isEdit ? 'PUT' : 'POST';
     try {
-      const res = await fetch(window.API_BASE + "/api/companies", {
-        method: 'POST',
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(companyFormData)
       });
       if (res.ok) {
         setShowCompanyModal(false);
-        setCompanyFormData({ name: '', locations: [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }] });
+        setEditingCompanyId(null);
+        setCompanyFormData({ name: '', gst_number: '', locations: [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }] });
         fetchCompanies();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to save company');
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { console.error(err); alert('Error saving company'); }
   };
 
   const handleTaskSubmit = async (e) => {
@@ -699,13 +741,59 @@ export default function Masters() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
             <h2 style={{ margin: 0, color: 'var(--text)' }}>Company Masters</h2>
-            {canEditMasters && <button className="vbtn" onClick={() => setShowCompanyModal(true)}>+ Register Company (Alt+N)</button>}
+            {canEditMasters && (
+              <button 
+                className="vbtn" 
+                onClick={() => {
+                  setEditingCompanyId(null);
+                  setCompanyFormData({
+                    name: '',
+                    gst_number: '',
+                    locations: [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }]
+                  });
+                  setShowCompanyModal(true);
+                }}
+              >
+                + Register Company (Alt+N)
+              </button>
+            )}
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {companies.map(comp => (
               <div key={comp.id} style={{ background: 'var(--bg2)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)' }}>{comp.name}</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    <h3 style={{ margin: 0, color: 'var(--text)' }}>{comp.name}</h3>
+                    {comp.gst_number ? (
+                      <span style={{
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        color: '#10b981',
+                        background: 'rgba(16, 185, 129, 0.12)',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontFamily: 'var(--font-mono)'
+                      }}>
+                        GST: {comp.gst_number}
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '11px', color: 'var(--text3)', fontStyle: 'italic' }}>
+                        (No GST)
+                      </span>
+                    )}
+                  </div>
+                  {canEditMasters && (
+                    <button
+                      className="vbtn"
+                      style={{ padding: '4px 12px', fontSize: '12px', background: 'var(--bg3)', border: '1px solid var(--border)' }}
+                      onClick={() => handleEditCompanyClick(comp)}
+                    >
+                      ✏️ Edit
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                   {comp.locations.map(loc => (
                     <div key={loc.id} style={{ background: 'var(--bg3)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -1437,18 +1525,46 @@ export default function Masters() {
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowCompanyModal(false); }}>
           <div className="modal" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
-              <div className="modal-title">Register Company</div>
+              <div className="modal-title">{editingCompanyId ? 'Edit Company' : 'Register Company'}</div>
               <button className="modal-close" onClick={() => setShowCompanyModal(false)}>✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleCompanySubmit}>
                 <div className="modal-field">
-                  <label>Company Name</label>
-                  <input type="text" className="form-input" required value={companyFormData.name} onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })} />
+                  <label>Company Name *</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    required 
+                    value={companyFormData.name} 
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })} 
+                  />
+                </div>
+                <div className="modal-field" style={{ marginTop: '12px' }}>
+                  <label>GST Number (Optional)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="e.g. 27AAAAA1111A1Z1" 
+                    value={companyFormData.gst_number || ''} 
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, gst_number: e.target.value.toUpperCase() })} 
+                  />
                 </div>
                 <div style={{ marginTop: '24px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px', color: 'var(--text)' }}>Locations</div>
                 {companyFormData.locations.map((loc, idx) => (
                   <div key={idx} style={{ background: 'var(--bg3)', padding: '16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>Location #{idx + 1}</span>
+                      {companyFormData.locations.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => removeLocation(idx)}
+                          style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}
+                        >
+                          ✕ Remove Location
+                        </button>
+                      )}
+                    </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
                       <div><label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>City *</label><input type="text" className="form-input" required value={loc.city} onChange={e => handleLocationChange(idx, 'city', e.target.value)} /></div>
                       <div><label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Person in Charge</label><input type="text" className="form-input" value={loc.person_in_charge} onChange={e => handleLocationChange(idx, 'person_in_charge', e.target.value)} /></div>
@@ -1463,7 +1579,7 @@ export default function Masters() {
                 <button type="button" onClick={addLocation} style={{ background: 'transparent', border: '1px dashed var(--border2)', color: 'var(--text3)', width: '100%', padding: '12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '24px' }}>+ Add Another Location</button>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button type="button" className="vbtn" style={{ background: 'var(--bg4)' }}  onClick={() => setShowCompanyModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">Save Company</button>
+                  <button type="submit" className="vbtn">{editingCompanyId ? 'Update Company' : 'Save Company'}</button>
                 </div>
               </form>
             </div>

@@ -1,7 +1,29 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin, Eye } from 'lucide-react';
+import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin, Eye, FileText } from 'lucide-react';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
+const getDocUrl = (doc) => {
+  if (!doc) return '#';
+  let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
+  if (!pathStr) return '#';
+
+  pathStr = pathStr.replace(/\\/g, '/');
+  const uploadsIdx = pathStr.indexOf('uploads/');
+  let relPath = '';
+  if (uploadsIdx !== -1) {
+    relPath = pathStr.substring(uploadsIdx + 8);
+  } else {
+    relPath = pathStr.split('/').pop();
+  }
+  relPath = relPath.replace(/^\/+/, '');
+
+  const authToken = localStorage.getItem('token');
+  const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
+  const baseUrl = window.API_BASE || '';
+
+  return `${baseUrl}/uploads/${relPath}${tokenParam}`;
+};
 
 const DEFAULT_COLUMNS = [
   'sr_no',
@@ -255,7 +277,7 @@ export default function PlanningModule() {
       case 'order_number': return 'Order Number';
       case 'unit_number': return 'Serial No.';
       case 'po_number': return 'PO Number';
-      case 'reference_number': return 'Cust. Ref #';
+      case 'reference_number': return 'Ref / Tag';
       case 'part_number': return 'Part Number';
       case 'client_name': return 'Client Name';
       case 'end_client_name': return 'End Client Name';
@@ -511,10 +533,36 @@ export default function PlanningModule() {
         );
       case 'po_number':
         return order.po_number || <span className="dim text-xs">—</span>;
-      case 'reference_number':
-        return order.reference_number
-          ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>{order.reference_number}</span>
-          : <span className="dim text-xs">—</span>;
+      case 'reference_number': {
+        const ref = (order.reference_number || '').trim();
+        const tag = (order.tag || '').trim();
+        const combined = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
+        if (!combined) return <span className="dim text-xs">—</span>;
+        if (order.indent_file_path) {
+          const docUrl = getDocUrl(order.indent_file_path);
+          return (
+            <a
+              href={docUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={`Open Details (${order.indent_file_name || 'Details'})`}
+              style={{
+                color: '#f59e0b',
+                fontWeight: 600,
+                textDecoration: 'underline',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FileText size={12} style={{ flexShrink: 0 }} />
+              <span>{combined}</span>
+            </a>
+          );
+        }
+        return <span style={{ color: '#f59e0b', fontWeight: 600 }}>{combined}</span>;
+      }
       case 'part_number':
         return order.part_number || <span className="dim text-xs">—</span>;
       case 'client_name':
@@ -889,6 +937,9 @@ export default function PlanningModule() {
       const orderNumSpaceless = `${order.order_number || ''}/${order.line_item_number || ''}`.toLowerCase();
       const orderNumSpacelessOnly = `${order.order_number || ''}${order.line_item_number || ''}`.toLowerCase();
       const poNum = (order.po_number || '').toLowerCase();
+      const refNum = (order.reference_number || '').toLowerCase();
+      const tagVal = (order.tag || '').toLowerCase();
+      const refTag = (order.reference_number && order.tag) ? `${order.reference_number}/${order.tag}`.toLowerCase() : '';
       const partNum = (order.part_number || '').toLowerCase();
       const compName = (order.company_name || '').toLowerCase();
       const endClient = (order.end_client_name || '').toLowerCase();
@@ -905,6 +956,9 @@ export default function PlanningModule() {
         orderNumSpaceless.includes(token) ||
         orderNumSpacelessOnly.includes(token) ||
         poNum.includes(token) ||
+        refNum.includes(token) ||
+        tagVal.includes(token) ||
+        refTag.includes(token) ||
         partNum.includes(token) ||
         compName.includes(token) ||
         endClient.includes(token) ||
@@ -973,6 +1027,15 @@ export default function PlanningModule() {
         av = String(aVal).toLowerCase();
         bv = String(bVal).toLowerCase();
       }
+    } else if (sortKey === 'reference_number') {
+      const aRef = (a.reference_number || '').trim();
+      const aTag = (a.tag || '').trim();
+      const aComb = (aRef && aTag) ? `${aRef}/${aTag}` : (aRef || aTag || '');
+      const bRef = (b.reference_number || '').trim();
+      const bTag = (b.tag || '').trim();
+      const bComb = (bRef && bTag) ? `${bRef}/${bTag}` : (bRef || bTag || '');
+      av = aComb.toLowerCase();
+      bv = bComb.toLowerCase();
     } else {
       av = (a[sortKey] || '').toString().toLowerCase();
       bv = (b[sortKey] || '').toString().toLowerCase();

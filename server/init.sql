@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS activity_logs (
 CREATE TABLE IF NOT EXISTS companies (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    gst_number TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -68,7 +69,8 @@ CREATE TABLE IF NOT EXISTS order_line_items (
     unit TEXT,
     unit_price NUMERIC(15, 2) NOT NULL,
     total_price NUMERIC(15, 2) NOT NULL,
-    notes TEXT
+    notes TEXT,
+    tag TEXT
 );
 
 CREATE TABLE IF NOT EXISTS order_units (
@@ -83,6 +85,7 @@ CREATE TABLE IF NOT EXISTS order_units (
     barcode TEXT,
     panel_type_size TEXT,
     classification TEXT DEFAULT 'Standard',
+    tag TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
