@@ -1207,7 +1207,7 @@ export default function OrderList({ initialSelectedId }) {
               <div className="modal-body">
                 <div className="form-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div className="form-group" style={{ gridColumn: 'span 2' }}>
-                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Select Company & Location</label>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Select Client & Location</label>
                     <select 
                       className="form-select"
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)' }}

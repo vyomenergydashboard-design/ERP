@@ -144,7 +144,7 @@ export default function OrderImport({ onImportComplete }) {
               <li>Download the template using the button above.</li>
               <li>Open the <strong>"Import Template"</strong> sheet and fill in your data.</li>
               <li>Each row = one line item. Rows with the same <code>po_number</code> are grouped into one order.</li>
-              <li>Company name &amp; city must match entries in <strong>Masters → Companies</strong>.</li>
+              <li>Client name &amp; city must match entries in <strong>Masters → Clients</strong>.</li>
               <li>Dates must be in <strong>YYYY-MM-DD</strong> format or a proper Excel date.</li>
               <li>Save as <code>.xlsx</code> and upload here.</li>
             </ol>

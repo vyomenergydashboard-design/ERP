@@ -282,6 +282,7 @@ CREATE TABLE IF NOT EXISTS part_number_masters (
 
 ALTER TABLE part_number_masters ADD COLUMN IF NOT EXISTS client_name TEXT;
 ALTER TABLE part_number_masters ADD COLUMN IF NOT EXISTS project TEXT;
+ALTER TABLE part_number_masters ADD COLUMN IF NOT EXISTS panel_code TEXT;
 
 CREATE TABLE IF NOT EXISTS part_number_documents (
     id SERIAL PRIMARY KEY,

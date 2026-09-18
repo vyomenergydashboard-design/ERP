@@ -227,7 +227,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           <input 
             type="text"
             className="order-search-input"
-            placeholder="Search Serial No., Order #, PO, Customer..."
+            placeholder="Search Serial No., Order #, PO, Client..."
             value={searchQuery}
             onFocus={() => setIsDropdownOpen(true)}
             onChange={(e) => {
