@@ -231,7 +231,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   <div style={{ fontSize: '10px', color: '#3b82f6', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>Order Reference</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
                     {step.order_fields.map(key => {
-                      const labelMap = { order_number: 'Order #', company_name: 'Company', delivery_date: 'Delivery Date', po_number: 'PO Number', packaging_type: 'Packaging', priority: 'Priority', notes: 'Order Notes' };
+                      const labelMap = { order_number: 'Order #', company_name: 'Client', delivery_date: 'Delivery Date', po_number: 'PO Number', packaging_type: 'Packaging', priority: 'Priority', notes: 'Order Notes' };
                       let val = selectedOrder[key];
                       if (key === 'delivery_date' && val) val = new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
                       return (

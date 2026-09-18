@@ -179,7 +179,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           <Search size={14} className="board-search-icon" />
           <input
             type="text"
-            placeholder="Search by Order, PO, Company or Task..."
+            placeholder="Search by Order, PO, Client or Task..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="board-search-input"

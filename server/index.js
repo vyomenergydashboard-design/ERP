@@ -4748,6 +4748,7 @@ app.get('/api/part-number-masters', authorize(), async (req, res) => {
         ...m,
         client_name: m.client_name || '',
         project: m.project || '',
+        panel_code: m.panel_code || '',
         drawing: currentDrawing,
         bom: currentBOM,
         drawing_history: [...drawings].reverse(),
@@ -4765,7 +4766,7 @@ app.get('/api/part-number-masters', authorize(), async (req, res) => {
 
 app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
-    const { part_number, client_name, project, description, category } = req.body;
+    const { part_number, client_name, project, description, category, panel_code } = req.body;
     if (!part_number || !part_number.trim()) {
       return res.status(400).json({ error: 'Part Number is required' });
     }
@@ -4776,9 +4777,9 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
     }
 
     const newPart = await pool.query(
-      `INSERT INTO part_number_masters (part_number, client_name, project, description, category)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard']
+      `INSERT INTO part_number_masters (part_number, client_name, project, description, category, panel_code)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard', (panel_code || '').trim() || null]
     );
 
     await pool.query(
@@ -4790,6 +4791,7 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
       ...newPart.rows[0],
       client_name: newPart.rows[0].client_name || '',
       project: newPart.rows[0].project || '',
+      panel_code: newPart.rows[0].panel_code || '',
       drawing: null,
       bom: null,
       drawing_history: [],
@@ -4804,7 +4806,7 @@ app.post('/api/part-number-masters', authorize(['Admin', 'Manager', 'Design', 'S
 
 app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
   try {
-    const { part_number, client_name, project, description, category } = req.body;
+    const { part_number, client_name, project, description, category, panel_code } = req.body;
     if (!part_number || !part_number.trim()) {
       return res.status(400).json({ error: 'Part Number is required' });
     }
@@ -4816,13 +4818,18 @@ app.put('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Design',
 
     const updated = await pool.query(
       `UPDATE part_number_masters
-       SET part_number = $1, client_name = $2, project = $3, description = $4, category = $5
-       WHERE id = $6 RETURNING *`,
-      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard', req.params.id]
+       SET part_number = $1, client_name = $2, project = $3, description = $4, category = $5, panel_code = $6
+       WHERE id = $7 RETURNING *`,
+      [part_number.trim(), (client_name || '').trim(), (project || '').trim(), (description || '').trim(), category || 'Standard', (panel_code || '').trim() || null, req.params.id]
     );
 
     if (updated.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
-    res.json(updated.rows[0]);
+    res.json({
+      ...updated.rows[0],
+      client_name: updated.rows[0].client_name || '',
+      project: updated.rows[0].project || '',
+      panel_code: updated.rows[0].panel_code || ''
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to update Part Number Master' });
@@ -5295,7 +5302,8 @@ const seedSayaUser = async () => {
 
       ALTER TABLE part_number_masters 
       ADD COLUMN IF NOT EXISTS client_name TEXT,
-      ADD COLUMN IF NOT EXISTS project TEXT;
+      ADD COLUMN IF NOT EXISTS project TEXT,
+      ADD COLUMN IF NOT EXISTS panel_code TEXT;
 
       ALTER TABLE part_number_documents 
       ADD COLUMN IF NOT EXISTS doc_type TEXT DEFAULT 'Drawing',

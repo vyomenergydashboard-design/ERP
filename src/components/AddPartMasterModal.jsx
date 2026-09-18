@@ -8,6 +8,7 @@ export default function AddPartMasterModal({
   initialPartNumber = '',
   initialClientName = '',
   initialProject = '',
+  panelSizeMasters = [],
   onPartCreated
 }) {
   const [formData, setFormData] = useState({
@@ -15,12 +16,29 @@ export default function AddPartMasterModal({
     description: '',
     client_name: '',
     project: '',
-    category: 'Standard'
+    category: 'Standard',
+    panel_code: ''
   });
+  const [fetchedPanelSizes, setFetchedPanelSizes] = useState([]);
   const [drawingFile, setDrawingFile] = useState(null);
   const [bomFile, setBomFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Fetch panel sizes if not supplied via props
+  useEffect(() => {
+    if (isOpen && (!panelSizeMasters || panelSizeMasters.length === 0)) {
+      const token = localStorage.getItem('token');
+      fetch(`${window.API_BASE}/api/panel-size-masters`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => setFetchedPanelSizes(Array.isArray(data) ? data : []))
+        .catch(err => console.error('Failed to load panel sizes in modal:', err));
+    }
+  }, [isOpen, panelSizeMasters]);
+
+  const availablePanelSizes = (panelSizeMasters && panelSizeMasters.length > 0) ? panelSizeMasters : fetchedPanelSizes;
 
   // Pre-fill initial values when modal opens or initialPartNumber changes
   useEffect(() => {
@@ -30,7 +48,8 @@ export default function AddPartMasterModal({
         description: '',
         client_name: initialClientName || '',
         project: initialProject || '',
-        category: 'Standard'
+        category: 'Standard',
+        panel_code: ''
       });
       setDrawingFile(null);
       setBomFile(null);
@@ -197,7 +216,7 @@ export default function AddPartMasterModal({
           {/* Client Name */}
           <div>
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
-              Client / Company (Optional)
+              Client (Optional)
             </label>
             <input
               type="text"
@@ -220,6 +239,33 @@ export default function AddPartMasterModal({
               value={formData.project}
               onChange={(e) => setFormData({ ...formData, project: e.target.value })}
             />
+          </div>
+
+          {/* Linked Standard Panel Code / Size */}
+          <div style={{ gridColumn: 'span 2' }}>
+            <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
+              Standard Panel Code / Size (Optional)
+            </label>
+            <select
+              className="form-select"
+              value={formData.panel_code}
+              onChange={(e) => setFormData({ ...formData, panel_code: e.target.value })}
+            >
+              <option value="">-- No linked panel size --</option>
+              {availablePanelSizes.map(ps => {
+                const sizeVal = ps.panel_size || ps.size_name || '';
+                let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
+                if (ps.comments && !ipRatingClean.includes(ps.comments)) {
+                  ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
+                }
+                const label = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean).join(' | ');
+                return (
+                  <option key={ps.id} value={ps.panel_code || sizeVal}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
           </div>
 
           {/* Optional Drawing Upload */}

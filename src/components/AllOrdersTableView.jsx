@@ -32,7 +32,7 @@ const STATUS_STYLES = {
 const BASE_COLUMNS = [
   { key: 'order_number', label: 'Order #', align: 'left' },
   { key: 'short_serial', label: 'Serial No.', align: 'left', alias: 'unit_serial' },
-  { key: 'company_name', label: 'Customer', align: 'left' },
+  { key: 'company_name', label: 'Client', align: 'left' },
   { key: 'project_name', label: 'Project Name', align: 'left' },
   { key: 'po_number', label: 'PO Number', align: 'left' },
   { key: 'reference_number', label: 'Ref / Tag', align: 'left' },
@@ -4261,7 +4261,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search serial no., PO, description, customer..."
+            placeholder="Search serial no., PO, description, client..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{

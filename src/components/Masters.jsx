@@ -22,12 +22,12 @@ const DATAKEY_OPTIONS = [
   { key: 'orders.hold_status',            label: 'Hold Status' },
   { key: 'orders.order_status',           label: 'Order Status' },
   { key: 'orders.notes',                  label: 'Order Notes' },
-  // ── Company ────────────────────────────────────────────
-  { key: 'company_name',                  label: 'Company Name' },
-  { key: 'company_city',                  label: 'Company City' },
+  // ── Client ─────────────────────────────────────────────
+  { key: 'company_name',                  label: 'Client Name' },
+  { key: 'company_city',                  label: 'Client City' },
   { key: 'person_in_charge',              label: 'Person In Charge' },
   { key: 'contact_number',               label: 'Contact Number' },
-  { key: 'company_email',                 label: 'Company Email' },
+  { key: 'company_email',                 label: 'Client Email' },
   // ── Planning Dates ─────────────────────────────────────
   { key: 'orders.wiring_assigned_date',   label: 'Wiring Assigned Date' },
   { key: 'orders.wiring_expected_date',   label: 'Wiring Expected Date' },
@@ -125,7 +125,7 @@ const describeCondition = (condition, datakey) => {
 
 const ORDER_FIELDS = [
   { key: 'order_number',   label: 'Order Number' },
-  { key: 'company_name',   label: 'Company Name' },
+  { key: 'company_name',   label: 'Client Name' },
   { key: 'delivery_date',  label: 'Delivery Date' },
   { key: 'po_number',      label: 'PO Number' },
   { key: 'packaging_type', label: 'Packaging Type' },
@@ -177,7 +177,7 @@ export default function Masters() {
   const [partMasters, setPartMasters] = useState([]);
   const [showPartModal, setShowPartModal] = useState(false);
   const [editingPartId, setEditingPartId] = useState(null);
-  const [partFormData, setPartFormData] = useState({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+  const [partFormData, setPartFormData] = useState({ part_number: '', client_name: '', project: '', description: '', category: 'Standard', panel_code: '' });
   const [newPartDrawingFile, setNewPartDrawingFile] = useState(null);
   const [newPartBomFile, setNewPartBomFile] = useState(null);
   const [partSearch, setPartSearch] = useState('');
@@ -348,7 +348,7 @@ export default function Masters() {
 
         setShowPartModal(false);
         setEditingPartId(null);
-        setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+        setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard', panel_code: '' });
         setNewPartDrawingFile(null);
         setNewPartBomFile(null);
         fetchPartNumberMasters();
@@ -730,7 +730,7 @@ export default function Masters() {
   return (
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
-        <button className={`vbtn ${activeTab === 'companies' ? 'active' : ''}`} onClick={() => setActiveTab('companies')}>Companies</button>
+        <button className={`vbtn ${activeTab === 'companies' ? 'active' : ''}`} onClick={() => setActiveTab('companies')}>Clients</button>
         <button className={`vbtn ${activeTab === 'part_masters' ? 'active' : ''}`} onClick={() => setActiveTab('part_masters')}>Part Number Masters</button>
         <button className={`vbtn ${activeTab === 'panel_sizes' ? 'active' : ''}`} onClick={() => setActiveTab('panel_sizes')}>Panel Size Masters</button>
         <button className={`vbtn ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>Task Masters</button>
@@ -740,7 +740,7 @@ export default function Masters() {
       {activeTab === 'companies' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-            <h2 style={{ margin: 0, color: 'var(--text)' }}>Company Masters</h2>
+            <h2 style={{ margin: 0, color: 'var(--text)' }}>Client Masters</h2>
             {canEditMasters && (
               <button 
                 className="vbtn" 
@@ -754,7 +754,7 @@ export default function Masters() {
                   setShowCompanyModal(true);
                 }}
               >
-                + Register Company (Alt+N)
+                + Register Client (Alt+N)
               </button>
             )}
           </div>
@@ -1035,7 +1035,7 @@ export default function Masters() {
             {canEditPartMaster && (
               <button className="vbtn" onClick={() => {
                 setEditingPartId(null);
-                setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard' });
+                setPartFormData({ part_number: '', client_name: '', project: '', description: '', category: 'Standard', panel_code: '' });
                 setNewPartDrawingFile(null);
                 setNewPartBomFile(null);
                 setShowPartModal(true);
@@ -1061,10 +1061,11 @@ export default function Masters() {
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
                   <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '180px' }}>Part No.</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '220px' }}>Client Name</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '200px' }}>Project</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '240px' }}>Drawing</th>
-                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '240px' }}>BOM</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '200px' }}>Client Name</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '180px' }}>Project</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '220px' }}>Standard Panel</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '220px' }}>Drawing</th>
+                  <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text2)', width: '220px' }}>BOM</th>
                 </tr>
               </thead>
               <tbody>
@@ -1091,7 +1092,8 @@ export default function Masters() {
                                 client_name: part.client_name || '',
                                 project: part.project || '',
                                 description: part.description || '',
-                                category: part.category || 'Standard'
+                                category: part.category || 'Standard',
+                                panel_code: part.panel_code || ''
                               });
                               setShowPartModal(true);
                             }}
@@ -1124,6 +1126,28 @@ export default function Masters() {
                       ) : (
                         <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>
                       )}
+                    </td>
+                    <td style={{ padding: '12px 16px', color: 'var(--text)' }}>
+                      {(() => {
+                        if (!part.panel_code) return <span style={{ color: 'var(--text3)', fontStyle: 'italic' }}>—</span>;
+                        const matched = panelSizes.find(ps => ps.panel_code === part.panel_code);
+                        if (matched) {
+                          const sizeVal = matched.panel_size || matched.size_name || '';
+                          let ipRatingClean = (matched.ip_rating || '').replace(/,\s*/g, ' ').trim();
+                          if (matched.comments && !ipRatingClean.includes(matched.comments)) {
+                            ipRatingClean = ipRatingClean ? `${ipRatingClean} ${matched.comments}` : matched.comments;
+                          }
+                          return (
+                            <div style={{ fontSize: '12px' }}>
+                              <div style={{ fontWeight: 600, color: 'var(--text)' }}>{sizeVal}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
+                                {[ipRatingClean, matched.panel_code].filter(Boolean).join(' · ')}
+                              </div>
+                            </div>
+                          );
+                        }
+                        return <span style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}>{part.panel_code}</span>;
+                      })()}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       {part.drawing ? (
@@ -1525,13 +1549,13 @@ export default function Masters() {
         <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowCompanyModal(false); }}>
           <div className="modal" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
-              <div className="modal-title">{editingCompanyId ? 'Edit Company' : 'Register Company'}</div>
+              <div className="modal-title">{editingCompanyId ? 'Edit Client' : 'Register Client'}</div>
               <button className="modal-close" onClick={() => setShowCompanyModal(false)}>✕</button>
             </div>
             <div className="modal-body">
               <form onSubmit={handleCompanySubmit}>
                 <div className="modal-field">
-                  <label>Company Name *</label>
+                  <label>Client Name *</label>
                   <input 
                     type="text" 
                     className="form-input" 
@@ -1579,7 +1603,7 @@ export default function Masters() {
                 <button type="button" onClick={addLocation} style={{ background: 'transparent', border: '1px dashed var(--border2)', color: 'var(--text3)', width: '100%', padding: '12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '24px' }}>+ Add Another Location</button>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   <button type="button" className="vbtn" style={{ background: 'var(--bg4)' }}  onClick={() => setShowCompanyModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">{editingCompanyId ? 'Update Company' : 'Save Company'}</button>
+                  <button type="submit" className="vbtn">{editingCompanyId ? 'Update Client' : 'Save Client'}</button>
                 </div>
               </form>
             </div>
@@ -1937,6 +1961,30 @@ export default function Masters() {
                     value={partFormData.project || ''}
                     onChange={(e) => setPartFormData({ ...partFormData, project: e.target.value })}
                   />
+                </div>
+
+                <div className="modal-field" style={{ marginBottom: '14px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Standard Panel Code / Size (Optional)</label>
+                  <select
+                    className="form-select"
+                    value={partFormData.panel_code || ''}
+                    onChange={(e) => setPartFormData({ ...partFormData, panel_code: e.target.value })}
+                  >
+                    <option value="">-- No linked panel size --</option>
+                    {panelSizes.map(ps => {
+                      const sizeVal = ps.panel_size || ps.size_name || '';
+                      let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
+                      if (ps.comments && !ipRatingClean.includes(ps.comments)) {
+                        ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
+                      }
+                      const label = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean).join(' | ');
+                      return (
+                        <option key={ps.id} value={ps.panel_code || sizeVal}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
 
                 {!editingPartId && (

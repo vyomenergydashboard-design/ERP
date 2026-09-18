@@ -17,7 +17,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     delivery_date: '',
     notes: '',
     priority: 'Medium',
-    po_number: '',
     packaging_type: '',
     end_client_name: '',
     project_name: '',
@@ -85,7 +84,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     const { name, value } = e.target;
     if (name === 'company_location_id') {
       const locId = Number(value);
-      const matchedComp = companies.find(c => c.locations?.some(loc => loc.id === locId));
+      const matchedComp = companies.find(c => c.locations?.some(loc => loc.id === locId) || c.id === locId);
       setFormData(prev => ({
         ...prev,
         company_location_id: value,
@@ -162,12 +161,18 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
     // 2. Select this new part for the target line item
     if (partModalLineIdx !== null) {
-      handleLineItemChange(partModalLineIdx, 'part_number', newPart.part_number);
-      // If line item's material_description is empty and new part has description, fill it
+      const updates = { part_number: newPart.part_number };
       const currentDesc = formData.lineItems[partModalLineIdx]?.material_description;
       if (!currentDesc && newPart.description) {
-        handleLineItemChange(partModalLineIdx, 'material_description', newPart.description);
+        updates.material_description = newPart.description;
       }
+      if (newPart.panel_code) {
+        const matchedPanel = panelSizeMasters.find(ps => ps.panel_code === newPart.panel_code);
+        if (matchedPanel) {
+          updates.panel_type_size = matchedPanel.panel_size || matchedPanel.size_name;
+        }
+      }
+      handleLineItemChanges(partModalLineIdx, updates);
     }
 
     // 3. Close modal
@@ -230,7 +235,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.company_location_id || formData.lineItems.length === 0) {
-      alert('Please select a company and add at least one line item.');
+      alert('Please select a client and add at least one line item.');
       return;
     }
 
@@ -241,7 +246,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('delivery_date', formData.delivery_date);
     data.append('notes', formData.notes);
     data.append('priority', formData.priority);
-    data.append('po_number', formData.po_number);
     data.append('end_client_name', formData.end_client_name || '');
     data.append('project_name', formData.project_name || '');
     data.append('gst_number', formData.gst_number || '');
@@ -276,7 +280,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           delivery_date: '',
           notes: '',
           priority: 'Medium',
-          po_number: '',
           packaging_type: '',
           end_client_name: '',
           project_name: '',
@@ -310,7 +313,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   };
 
   const selectedLocId = Number(formData.company_location_id);
-  const selectedCompany = companies.find(c => c.locations?.some(loc => loc.id === selectedLocId));
+  const selectedCompany = companies.find(c => c.locations?.some(loc => loc.id === selectedLocId) || c.id === selectedLocId);
   const isAutoFilledGst = Boolean(selectedCompany?.gst_number && formData.gst_number === selectedCompany.gst_number);
 
   return (
@@ -322,7 +325,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         <form onSubmit={handleSubmit} className="order-form">
           <div className="form-grid">
             <div className="form-group full-width">
-              <label>Select Company & Location</label>
+              <label>Select Client & Location</label>
               <select 
                 name="company_location_id" 
                 value={formData.company_location_id} 
@@ -388,16 +391,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
-              <label>Customer PO Number</label>
-              <input 
-                type="text" 
-                name="po_number" 
-                value={formData.po_number} 
-                onChange={handleInputChange} 
-              />
-            </div>
-
-            <div className="form-group">
               <label>Dispatch / Packaging</label>
               <select 
                 name="packaging_type" 
@@ -437,7 +430,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 <span>GST Number (Optional)</span>
                 {isAutoFilledGst && (
                   <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '500' }}>
-                    ✓ Auto-copied from company
+                    ✓ Auto-copied from client
                   </span>
                 )}
               </label>
@@ -534,10 +527,20 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         required
                         placeholder="Search or choose Part #..."
                         onChange={(partNo, matchedPart) => {
-                          handleLineItemChange(idx, 'part_number', partNo);
-                          if (matchedPart?.description && !li.material_description) {
-                            handleLineItemChange(idx, 'material_description', matchedPart.description);
+                          const partObj = matchedPart || partMasters.find(p => p.part_number === partNo);
+                          const updates = { part_number: partNo };
+                          if (partObj?.description && !li.material_description) {
+                            updates.material_description = partObj.description;
                           }
+                          // Automatically select linked standard panel size if part has panel_code (can be overwritten)
+                          if (partObj?.panel_code) {
+                            const matchedPanel = panelSizeMasters.find(ps => ps.panel_code === partObj.panel_code);
+                            if (matchedPanel) {
+                              updates.panel_type_size = matchedPanel.panel_size || matchedPanel.size_name;
+                              updates.is_custom_panel = false;
+                            }
+                          }
+                          handleLineItemChanges(idx, updates);
                         }}
                         onAddNew={(query) => handleOpenAddPartModal(idx, query)}
                       />
@@ -569,37 +572,58 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     </div>
                   )}
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Type / Size</label>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text3)' }}>Panel Type / Size</label>
+                      {(() => {
+                        const match = partMasters.find(p => p.part_number === li.part_number);
+                        if (match?.panel_code) {
+                          const linkedPanel = panelSizeMasters.find(ps => ps.panel_code === match.panel_code);
+                          const linkedSize = linkedPanel ? (linkedPanel.panel_size || linkedPanel.size_name) : match.panel_code;
+                          const isCustomized = li.panel_type_size && li.panel_type_size !== linkedSize;
+                          return (
+                            <span style={{ fontSize: '10px', color: isCustomized ? '#f59e0b' : '#10b981' }}>
+                              {isCustomized ? '✎ Overwritten' : '⚡ Linked by Part #'}
+                            </span>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
                     <select
                       className="form-select"
-                      value={panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size) ? li.panel_type_size : (li.panel_type_size ? '__custom__' : '')}
+                      value={
+                        li.is_custom_panel
+                          ? '__custom__'
+                          : (panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size)
+                              ? li.panel_type_size
+                              : (li.panel_type_size ? '__custom__' : ''))
+                      }
                       onChange={e => {
                         const val = e.target.value;
                         if (val === '__custom__') {
-                          handleLineItemChange(idx, 'panel_type_size', '');
+                          handleLineItemChanges(idx, { is_custom_panel: true, panel_type_size: '' });
                         } else {
-                          handleLineItemChange(idx, 'panel_type_size', val);
+                          handleLineItemChanges(idx, { is_custom_panel: false, panel_type_size: val });
                         }
                       }}
                     >
                       <option value="">-- Select Master Panel Size --</option>
                       {panelSizeMasters.map(ps => {
-                        const sizeVal = ps.panel_size || ps.size_name;
-                        const labelParts = [];
-                        if (ps.panel_code) labelParts.push(`[${ps.panel_code}]`);
-                        if (ps.ip_rating) labelParts.push(`[${ps.ip_rating}]`);
-                        const comment = ps.comments || ps.description;
-                        if (comment) labelParts.push(`(${comment})`);
-                        labelParts.push(sizeVal);
+                        const sizeVal = ps.panel_size || ps.size_name || '';
+                        let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
+                        if (ps.comments && !ipRatingClean.includes(ps.comments)) {
+                          ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
+                        }
+                        const labelParts = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean);
                         return (
                           <option key={ps.id} value={sizeVal}>
-                            {labelParts.join(' ')}
+                            {labelParts.join(' | ')}
                           </option>
                         );
                       })}
                       <option value="__custom__">Custom Panel Dimensions…</option>
                     </select>
-                    {(!panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size) || li.panel_type_size === '') && (
+                    {(li.is_custom_panel || (li.panel_type_size && !panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size))) && (
                       <input
                         type="text"
                         className="form-input"
@@ -752,8 +776,9 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             isOpen={true}
             onClose={() => setPartModalLineIdx(null)}
             initialPartNumber={partModalInitialQuery}
-            initialClientName={formData.end_client_name || companies.find(c => c.locations?.some(l => l.id === Number(formData.company_location_id)))?.name || ''}
+            initialClientName={selectedCompany?.name || ''}
             initialProject={formData.project_name || ''}
+            panelSizeMasters={panelSizeMasters}
             onPartCreated={handlePartCreated}
           />
         )}

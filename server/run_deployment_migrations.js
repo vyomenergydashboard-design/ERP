@@ -112,7 +112,8 @@ export async function runDeploymentMigrations(clientParam) {
 
       ALTER TABLE part_number_masters
       ADD COLUMN IF NOT EXISTS client_name TEXT,
-      ADD COLUMN IF NOT EXISTS project TEXT;
+      ADD COLUMN IF NOT EXISTS project TEXT,
+      ADD COLUMN IF NOT EXISTS panel_code TEXT;
 
       ALTER TABLE part_number_documents
       ADD COLUMN IF NOT EXISTS doc_type TEXT DEFAULT 'Drawing',
