@@ -11,32 +11,58 @@ const getTodayDateStr = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function OrderCreationFlow({ onOrderCreated }) {
-  const [formData, setFormData] = useState({
-    company_location_id: '',
-    order_date: getTodayDateStr(),
+const DRAFT_STORAGE_KEY = 'vyom_order_creation_draft_v1';
+
+const getDefaultFormData = () => ({
+  company_location_id: '',
+  order_date: getTodayDateStr(),
+  delivery_date: '',
+  notes: '',
+  priority: 'Medium',
+  packaging_type: '',
+  end_client_name: '',
+  project_name: '',
+  gst_number: '',
+  reference_number: '',
+  classification: 'Standard',
+  lineItems: [{
+    tag: '',
+    material_description: '',
+    part_number: '',
+    panel_type_size: '',
     delivery_date: '',
-    notes: '',
-    priority: 'Medium',
-    packaging_type: '',
-    end_client_name: '',
-    project_name: '',
-    gst_number: '',
-    reference_number: '',
-    classification: 'Standard',
-    lineItems: [{
-      tag: '',
-      material_description: '',
-      part_number: '',
-      panel_type_size: '',
-      delivery_date: '',
-      quantity: 1,
-      unit: 'Nos',
-      unit_price: '',
-      total_price: '',
-      notes: ''
-    }]
-  });
+    quantity: 1,
+    unit: 'Nos',
+    unit_price: '',
+    total_price: '',
+    notes: ''
+  }]
+});
+
+const getInitialFormData = () => {
+  const defaultData = getDefaultFormData();
+  try {
+    const saved = localStorage.getItem(DRAFT_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') {
+        return {
+          ...defaultData,
+          ...parsed,
+          lineItems: Array.isArray(parsed.lineItems) && parsed.lineItems.length > 0
+            ? parsed.lineItems
+            : defaultData.lineItems
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Failed to parse saved order draft:', err);
+  }
+  return defaultData;
+};
+
+export default function OrderCreationFlow({ onOrderCreated }) {
+  const [formData, setFormData] = useState(getInitialFormData);
   const [companies, setCompanies] = useState([]);
   const [files, setFiles] = useState({
     po: null,
@@ -79,7 +105,25 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       .catch(err => console.error(err));
   }, [token]);
 
+  // Auto-save form draft to localStorage whenever formData changes
+  useEffect(() => {
+    try {
+      const hasContent = Boolean(
+        formData.company_location_id ||
+        formData.end_client_name ||
+        formData.project_name ||
+        formData.reference_number ||
+        formData.notes ||
+        (formData.lineItems && formData.lineItems.some(li => li.material_description || li.part_number || li.panel_type_size || li.tag || li.unit_price))
+      );
 
+      if (hasContent) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+      }
+    } catch (err) {
+      console.error('Failed to save order draft to localStorage:', err);
+    }
+  }, [formData]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -273,33 +317,14 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       if (res.ok) {
         const result = await res.json();
         alert(result.message);
+        try {
+          localStorage.removeItem(DRAFT_STORAGE_KEY);
+        } catch (e) {
+          console.error(e);
+        }
         if (onOrderCreated) onOrderCreated(result.order);
         // Reset form
-        setFormData({
-          company_location_id: '',
-          order_date: getTodayDateStr(),
-          delivery_date: '',
-          notes: '',
-          priority: 'Medium',
-          packaging_type: '',
-          end_client_name: '',
-          project_name: '',
-          gst_number: '',
-          reference_number: '',
-          classification: 'Standard',
-          lineItems: [{
-            tag: '',
-            material_description: '',
-            part_number: '',
-            panel_type_size: '',
-            delivery_date: '',
-            quantity: 1,
-            unit: 'Nos',
-            unit_price: '',
-            total_price: '',
-            notes: ''
-          }]
-        });
+        setFormData(getDefaultFormData());
         setFiles({ po: null, quotation: null, approved_docs: [], indent: null });
       } else {
         const err = await res.json();
