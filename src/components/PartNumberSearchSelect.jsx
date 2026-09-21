@@ -171,7 +171,7 @@ export default function PartNumberSearchSelect({
   return (
     <div
       ref={containerRef}
-      style={{ position: 'relative', width: '100%' }}
+      style={{ position: 'relative', width: '100%', minWidth: 0 }}
       onKeyDown={handleKeyDown}
     >
       {/* Hidden input for HTML5 required form validation if empty */}
@@ -179,13 +179,13 @@ export default function PartNumberSearchSelect({
         type="text"
         required={required}
         value={value || ''}
-        onChange={() => {}}
+        onChange={() => { }}
         style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, width: 0 }}
         tabIndex={-1}
       />
 
       {/* Standard Form Input Wrapper matching exact form-input / form-select format */}
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', width: '100%', minWidth: 0 }}>
         <input
           ref={inputRef}
           type="text"
@@ -197,6 +197,9 @@ export default function PartNumberSearchSelect({
           disabled={disabled}
           autoComplete="off"
           style={{
+            width: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
             paddingRight: (value || searchTerm) ? '54px' : '32px',
             fontFamily: value ? 'var(--font-mono)' : 'inherit',
             fontWeight: value ? 600 : 'normal'

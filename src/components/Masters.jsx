@@ -8,97 +8,97 @@ const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdow
 // Known DB fields admins can pick from (grouped by category)
 const DATAKEY_OPTIONS = [
   // ── Order ──────────────────────────────────────────────
-  { key: 'orders.order_number',           label: 'Order #' },
-  { key: 'orders.po_number',              label: 'PO Number' },
-  { key: 'orders.order_date',             label: 'Order Date' },
-  { key: 'orders.delivery_date',          label: 'Delivery Date' },
-  { key: 'orders.planned_dispatch_date',  label: 'Planned Dispatch Date' },
-  { key: 'orders.priority',               label: 'Priority' },
-  { key: 'orders.classification',         label: 'Classification' },
-  { key: 'orders.packaging_type',         label: 'Packaging Type' },
-  { key: 'orders.end_client_name',        label: 'End Client Name' },
-  { key: 'orders.project_name',           label: 'Project Name' },
-  { key: 'orders.reference_number',       label: 'Reference Number' },
-  { key: 'orders.gst_number',             label: 'GST Number' },
-  { key: 'orders.hold_status',            label: 'Hold Status' },
-  { key: 'orders.order_status',           label: 'Order Status' },
-  { key: 'orders.notes',                  label: 'Order Notes' },
+  { key: 'orders.order_number', label: 'Order #' },
+  { key: 'orders.po_number', label: 'PO Number' },
+  { key: 'orders.order_date', label: 'Order Date' },
+  { key: 'orders.delivery_date', label: 'Delivery Date' },
+  { key: 'orders.planned_dispatch_date', label: 'Planned Dispatch Date' },
+  { key: 'orders.priority', label: 'Priority' },
+  { key: 'orders.classification', label: 'Classification' },
+  { key: 'orders.packaging_type', label: 'Packaging Type' },
+  { key: 'orders.end_client_name', label: 'End Client Name' },
+  { key: 'orders.project_name', label: 'Project Name' },
+  { key: 'orders.reference_number', label: 'Reference Number' },
+  { key: 'orders.gst_number', label: 'GST Number' },
+  { key: 'orders.hold_status', label: 'Hold Status' },
+  { key: 'orders.order_status', label: 'Order Status' },
+  { key: 'orders.notes', label: 'Order Notes' },
   // ── Client ─────────────────────────────────────────────
-  { key: 'company_name',                  label: 'Client Name' },
-  { key: 'company_city',                  label: 'Client City' },
-  { key: 'person_in_charge',              label: 'Person In Charge' },
-  { key: 'contact_number',               label: 'Contact Number' },
-  { key: 'company_email',                 label: 'Client Email' },
+  { key: 'company_name', label: 'Client Name' },
+  { key: 'company_city', label: 'Client City' },
+  { key: 'person_in_charge', label: 'Person In Charge' },
+  { key: 'contact_number', label: 'Contact Number' },
+  { key: 'company_email', label: 'Client Email' },
   // ── Planning Dates ─────────────────────────────────────
-  { key: 'orders.wiring_assigned_date',   label: 'Wiring Assigned Date' },
-  { key: 'orders.wiring_expected_date',   label: 'Wiring Expected Date' },
-  { key: 'orders.expected_qc_date',       label: 'Expected QC Date' },
-  { key: 'orders.qc_date',               label: 'QC Date' },
-  { key: 'orders.qc_status',             label: 'QC Status' },
+  { key: 'orders.wiring_assigned_date', label: 'Wiring Assigned Date' },
+  { key: 'orders.wiring_expected_date', label: 'Wiring Expected Date' },
+  { key: 'orders.expected_qc_date', label: 'Expected QC Date' },
+  { key: 'orders.qc_date', label: 'QC Date' },
+  { key: 'orders.qc_status', label: 'QC Status' },
   // ── Line Item ──────────────────────────────────────────
-  { key: 'li.material_description',       label: 'Material Description' },
-  { key: 'li.part_number',               label: 'Part Number' },
-  { key: 'li.panel_type_size',           label: 'Panel Type / Size' },
-  { key: 'li.delivery_date',             label: 'Line Item Delivery Date' },
-  { key: 'li.quantity',                  label: 'Quantity' },
-  { key: 'li.unit',                      label: 'Unit' },
-  { key: 'li.unit_price',               label: 'Unit Price' },
-  { key: 'li.total_price',              label: 'Total Price' },
+  { key: 'li.material_description', label: 'Material Description' },
+  { key: 'li.part_number', label: 'Part Number' },
+  { key: 'li.panel_type_size', label: 'Panel Type / Size' },
+  { key: 'li.delivery_date', label: 'Line Item Delivery Date' },
+  { key: 'li.quantity', label: 'Quantity' },
+  { key: 'li.unit', label: 'Unit' },
+  { key: 'li.unit_price', label: 'Unit Price' },
+  { key: 'li.total_price', label: 'Total Price' },
   // ── Documents ──────────────────────────────────────────
-  { key: 'docs.any',                    label: 'Any document uploaded' },
-  { key: 'docs.PO',                     label: 'PO document uploaded' },
-  { key: 'docs.Drawing',                label: 'Drawing uploaded' },
-  { key: 'docs.BOM',                    label: 'BOM uploaded' },
-  { key: 'docs.QC',                     label: 'QC document uploaded' },
-  { key: 'docs.Dispatch',               label: 'Dispatch document uploaded' },
-  { key: 'docs.Quotation',              label: 'Quotation uploaded' },
-  { key: 'docs.General',                label: 'General document uploaded' },
-  { key: 'docs.TaskUpload',             label: 'Task upload present' },
+  { key: 'docs.any', label: 'Any document uploaded' },
+  { key: 'docs.PO', label: 'PO document uploaded' },
+  { key: 'docs.Drawing', label: 'Drawing uploaded' },
+  { key: 'docs.BOM', label: 'BOM uploaded' },
+  { key: 'docs.QC', label: 'QC document uploaded' },
+  { key: 'docs.Dispatch', label: 'Dispatch document uploaded' },
+  { key: 'docs.Quotation', label: 'Quotation uploaded' },
+  { key: 'docs.General', label: 'General document uploaded' },
+  { key: 'docs.TaskUpload', label: 'Task upload present' },
   // ── Unit (unit-level tasks only) ───────────────────────
-  { key: 'unit_serial',                  label: 'Serial No.' },
-  { key: 'short_serial',                 label: 'Short Serial' },
-  { key: 'current_dept',                 label: 'Current Department' },
-  { key: 'unit_status',                  label: 'Unit Status' },
+  { key: 'unit_serial', label: 'Serial No.' },
+  { key: 'short_serial', label: 'Short Serial' },
+  { key: 'current_dept', label: 'Current Department' },
+  { key: 'unit_status', label: 'Unit Status' },
   // ── Custom ─────────────────────────────────────────────
-  { key: '__custom__',                   label: 'Custom key…' },
+  { key: '__custom__', label: 'Custom key…' },
 ];
 
 // Condition operators for the visual if-statement builder
 const OPERATORS = [
-  { value: '',                           label: '— No condition (any non-empty) —', needsValue: false },
-  { value: 'IS_NOT_EMPTY',               label: 'is not empty',                     needsValue: false },
-  { value: 'IS_EMPTY',                   label: 'is empty',                         needsValue: false },
-  { value: 'HAS_DOCS',                   label: 'has documents (count > 0)',      needsValue: false },
-  { value: 'NO_DOCS',                    label: 'has no documents (count = 0)',   needsValue: false },
-  { value: 'EQUALS',                     label: '= equals',                         needsValue: true  },
-  { value: 'NOT_EQUALS',                 label: '≠ not equals',                     needsValue: true  },
-  { value: 'CONTAINS',                   label: 'contains',                         needsValue: true  },
-  { value: 'GT',                         label: '> greater than',                   needsValue: true  },
-  { value: 'GTE',                        label: '≥ greater than or equal',          needsValue: true  },
-  { value: 'LT',                         label: '< less than',                      needsValue: true  },
-  { value: 'LTE',                        label: '≤ less than or equal',             needsValue: true  },
-  { value: 'DATE_FUTURE',                label: 'date is in the future',            needsValue: false },
-  { value: 'DATE_PAST',                  label: 'date is today or past',            needsValue: false },
+  { value: '', label: '— No condition (any non-empty) —', needsValue: false },
+  { value: 'IS_NOT_EMPTY', label: 'is not empty', needsValue: false },
+  { value: 'IS_EMPTY', label: 'is empty', needsValue: false },
+  { value: 'HAS_DOCS', label: 'has documents (count > 0)', needsValue: false },
+  { value: 'NO_DOCS', label: 'has no documents (count = 0)', needsValue: false },
+  { value: 'EQUALS', label: '= equals', needsValue: true },
+  { value: 'NOT_EQUALS', label: '≠ not equals', needsValue: true },
+  { value: 'CONTAINS', label: 'contains', needsValue: true },
+  { value: 'GT', label: '> greater than', needsValue: true },
+  { value: 'GTE', label: '≥ greater than or equal', needsValue: true },
+  { value: 'LT', label: '< less than', needsValue: true },
+  { value: 'LTE', label: '≤ less than or equal', needsValue: true },
+  { value: 'DATE_FUTURE', label: 'date is in the future', needsValue: false },
+  { value: 'DATE_PAST', label: 'date is today or past', needsValue: false },
 ];
 
 // Build a JS condition string from visual builder inputs
 const buildCondition = (operator, conditionValue) => {
   switch (operator) {
-    case '':             return '';
+    case '': return '';
     case 'IS_NOT_EMPTY': return '$val !== "" && $val !== null && $val !== undefined';
-    case 'IS_EMPTY':     return '$val === "" || $val === null || $val === undefined';
-    case 'HAS_DOCS':     return 'Number($val) > 0';
-    case 'NO_DOCS':      return 'Number($val) === 0 || $val === ""';
-    case 'EQUALS':       return `String($val).toLowerCase() === ${JSON.stringify(String(conditionValue).toLowerCase())}`;
-    case 'NOT_EQUALS':   return `String($val).toLowerCase() !== ${JSON.stringify(String(conditionValue).toLowerCase())}`;
-    case 'CONTAINS':     return `String($val).toLowerCase().includes(${JSON.stringify(String(conditionValue).toLowerCase())})`;
-    case 'GT':           return `Number($val) > ${Number(conditionValue) || 0}`;
-    case 'GTE':          return `Number($val) >= ${Number(conditionValue) || 0}`;
-    case 'LT':           return `Number($val) < ${Number(conditionValue) || 0}`;
-    case 'LTE':          return `Number($val) <= ${Number(conditionValue) || 0}`;
-    case 'DATE_FUTURE':  return 'new Date($val) > new Date()';
-    case 'DATE_PAST':    return 'new Date($val) <= new Date()';
-    default:             return '';
+    case 'IS_EMPTY': return '$val === "" || $val === null || $val === undefined';
+    case 'HAS_DOCS': return 'Number($val) > 0';
+    case 'NO_DOCS': return 'Number($val) === 0 || $val === ""';
+    case 'EQUALS': return `String($val).toLowerCase() === ${JSON.stringify(String(conditionValue).toLowerCase())}`;
+    case 'NOT_EQUALS': return `String($val).toLowerCase() !== ${JSON.stringify(String(conditionValue).toLowerCase())}`;
+    case 'CONTAINS': return `String($val).toLowerCase().includes(${JSON.stringify(String(conditionValue).toLowerCase())})`;
+    case 'GT': return `Number($val) > ${Number(conditionValue) || 0}`;
+    case 'GTE': return `Number($val) >= ${Number(conditionValue) || 0}`;
+    case 'LT': return `Number($val) < ${Number(conditionValue) || 0}`;
+    case 'LTE': return `Number($val) <= ${Number(conditionValue) || 0}`;
+    case 'DATE_FUTURE': return 'new Date($val) > new Date()';
+    case 'DATE_PAST': return 'new Date($val) <= new Date()';
+    default: return '';
   }
 };
 
@@ -107,36 +107,36 @@ const describeCondition = (condition, datakey) => {
   if (!condition) return 'auto-done when not empty';
   const fieldLabel = DATAKEY_OPTIONS.find(o => o.key === datakey)?.label || datakey;
   // Document checks
-  if (condition === 'Number($val) > 0')                      return `${fieldLabel} → at least 1 document`;
-  if (condition.includes('Number($val) === 0'))              return `${fieldLabel} → no documents`;
+  if (condition === 'Number($val) > 0') return `${fieldLabel} → at least 1 document`;
+  if (condition.includes('Number($val) === 0')) return `${fieldLabel} → no documents`;
   // Standard checks
-  if (condition.includes('!== ""'))   return `${fieldLabel} is not empty`;
-  if (condition.includes('=== ""'))   return `${fieldLabel} is empty`;
-  if (condition.includes('.includes('))return `${fieldLabel} contains value`;
-  if (condition.includes('new Date($val) > new Date()'))  return `${fieldLabel} is in the future`;
+  if (condition.includes('!== ""')) return `${fieldLabel} is not empty`;
+  if (condition.includes('=== ""')) return `${fieldLabel} is empty`;
+  if (condition.includes('.includes(')) return `${fieldLabel} contains value`;
+  if (condition.includes('new Date($val) > new Date()')) return `${fieldLabel} is in the future`;
   if (condition.includes('new Date($val) <= new Date()')) return `${fieldLabel} is today or past`;
-  if (condition.includes('=== '))  return `${fieldLabel} equals value`;
-  if (condition.includes('!== '))  return `${fieldLabel} does not equal value`;
-  if (condition.includes('> '))    return `${fieldLabel} > value`;
-  if (condition.includes('>= '))   return `${fieldLabel} >= value`;
-  if (condition.includes('< '))    return `${fieldLabel} < value`;
-  if (condition.includes('<= '))   return `${fieldLabel} <= value`;
+  if (condition.includes('=== ')) return `${fieldLabel} equals value`;
+  if (condition.includes('!== ')) return `${fieldLabel} does not equal value`;
+  if (condition.includes('> ')) return `${fieldLabel} > value`;
+  if (condition.includes('>= ')) return `${fieldLabel} >= value`;
+  if (condition.includes('< ')) return `${fieldLabel} < value`;
+  if (condition.includes('<= ')) return `${fieldLabel} <= value`;
   return condition;
 };
 
 const ORDER_FIELDS = [
-  { key: 'order_number',   label: 'Order Number' },
-  { key: 'company_name',   label: 'Client Name' },
-  { key: 'delivery_date',  label: 'Delivery Date' },
-  { key: 'po_number',      label: 'PO Number' },
+  { key: 'order_number', label: 'Order Number' },
+  { key: 'company_name', label: 'Client Name' },
+  { key: 'delivery_date', label: 'Delivery Date' },
+  { key: 'po_number', label: 'PO Number' },
   { key: 'packaging_type', label: 'Packaging Type' },
-  { key: 'priority',       label: 'Priority' },
-  { key: 'notes',          label: 'Order Notes' },
+  { key: 'priority', label: 'Priority' },
+  { key: 'notes', label: 'Order Notes' },
 ];
 
 export default function Masters() {
   const [activeTab, setActiveTab] = useState('companies');
-  
+
   // Companies State
   const [companies, setCompanies] = useState([]);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
@@ -311,7 +311,7 @@ export default function Masters() {
     e.preventDefault();
     if (!partFormData.part_number.trim()) return alert('Part Number is required');
     try {
-      const url = editingPartId 
+      const url = editingPartId
         ? `${window.API_BASE}/api/part-number-masters/${editingPartId}`
         : `${window.API_BASE}/api/part-number-masters`;
       const method = editingPartId ? 'PUT' : 'POST';
@@ -322,7 +322,7 @@ export default function Masters() {
       });
       if (res.ok) {
         const savedPart = await res.json();
-        
+
         // If initial Drawing PDF was chosen during creation
         if (!editingPartId && newPartDrawingFile) {
           const drawBody = new FormData();
@@ -602,13 +602,13 @@ export default function Masters() {
       gst_number: comp.gst_number || '',
       locations: comp.locations && comp.locations.length > 0
         ? comp.locations.map(loc => ({
-            id: loc.id,
-            city: loc.city || '',
-            address: loc.address || '',
-            person_in_charge: loc.person_in_charge || '',
-            contact_number: loc.contact_number || '',
-            email: loc.email || ''
-          }))
+          id: loc.id,
+          city: loc.city || '',
+          address: loc.address || '',
+          person_in_charge: loc.person_in_charge || '',
+          contact_number: loc.contact_number || '',
+          email: loc.email || ''
+        }))
         : [{ address: '', city: '', person_in_charge: '', contact_number: '', email: '' }]
     });
     setShowCompanyModal(true);
@@ -644,13 +644,13 @@ export default function Masters() {
     const method = isEdit ? 'PUT' : 'POST';
 
     // Strip values from field definitions before saving to template
-    const fieldDefs = taskCustomFields.map(({ id, label, type, options, datakey, condition }) => ({ 
-      id, 
-      label, 
-      type, 
-      options: options || [], 
-      datakey: datakey || '', 
-      condition: condition || '' 
+    const fieldDefs = taskCustomFields.map(({ id, label, type, options, datakey, condition }) => ({
+      id,
+      label,
+      type,
+      options: options || [],
+      datakey: datakey || '',
+      condition: condition || ''
     }));
 
     try {
@@ -743,8 +743,8 @@ export default function Masters() {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
             <h2 style={{ margin: 0, color: 'var(--text)' }}>Client Masters</h2>
             {canEditMasters && (
-              <button 
-                className="vbtn" 
+              <button
+                className="vbtn"
                 onClick={() => {
                   setEditingCompanyId(null);
                   setCompanyFormData({
@@ -833,14 +833,14 @@ export default function Masters() {
             {DEPTS.map(dept => {
               const deptTasks = tasks.filter(t => t.dept === dept.id);
               if (deptTasks.length === 0) return null;
-              
+
               return (
                 <div key={dept.id}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                     <div style={{ width: '4px', height: '16px', background: dept.color, borderRadius: '2px' }} />
                     <h3 style={{ margin: 0, color: 'var(--text)', fontSize: '15px' }}>{dept.label}</h3>
                   </div>
-                  
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
                     {deptTasks.map(task => (
                       <div key={task.id} style={{ background: 'var(--bg2)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
@@ -852,7 +852,7 @@ export default function Masters() {
                         </div>
                         <div style={{ color: 'var(--text)', fontWeight: '500', marginBottom: '4px' }}>{task.name}</div>
                         <div style={{ color: 'var(--text3)', fontSize: '12px', marginBottom: '12px' }}>{task.sub || 'No description'}</div>
-                        
+
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
                           <div style={{ display: 'flex', gap: '8px' }}>
                             {task.requires_upload && <span style={{ fontSize: '10px', background: '#f59e0b44', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px' }}>Requires: {task.default_doc_type || 'General'}</span>}
@@ -860,11 +860,11 @@ export default function Masters() {
                           </div>
                           {canEditMasters && (
                             <div style={{ display: 'flex', gap: '4px' }}>
-                              <button 
+                              <button
                                 style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
                                 onClick={() => handleEditTaskClick(task)}
                               >Edit</button>
-                              <button 
+                              <button
                                 style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
                                 onClick={() => handleDeleteTaskClick(task.id)}
                               >Delete</button>
@@ -918,7 +918,7 @@ export default function Masters() {
           {/* Department Visibility Matrix Table */}
           <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '20px', marginBottom: '32px' }}>
             <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '16px' }}>Department Column Visibility Matrix</h3>
-            
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
@@ -977,7 +977,7 @@ export default function Masters() {
           {/* Column Master Registry List */}
           <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '20px' }}>
             <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '16px' }}>Column Registry & Custom Fields</h3>
-            
+
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
@@ -1579,7 +1579,7 @@ export default function Masters() {
 
       {/* Company Modal */}
       {showCompanyModal && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowCompanyModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowCompanyModal(false); }}>
           <div className="modal" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <div className="modal-title">{editingCompanyId ? 'Edit Client' : 'Register Client'}</div>
@@ -1589,22 +1589,22 @@ export default function Masters() {
               <form onSubmit={handleCompanySubmit}>
                 <div className="modal-field">
                   <label>Client Name *</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    required 
-                    value={companyFormData.name} 
-                    onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })} 
+                  <input
+                    type="text"
+                    className="form-input"
+                    required
+                    value={companyFormData.name}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, name: e.target.value })}
                   />
                 </div>
                 <div className="modal-field" style={{ marginTop: '12px' }}>
                   <label>GST Number (Optional)</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. 27AAAAA1111A1Z1" 
-                    value={companyFormData.gst_number || ''} 
-                    onChange={(e) => setCompanyFormData({ ...companyFormData, gst_number: e.target.value.toUpperCase() })} 
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. 27AAAAA1111A1Z1"
+                    value={companyFormData.gst_number || ''}
+                    onChange={(e) => setCompanyFormData({ ...companyFormData, gst_number: e.target.value.toUpperCase() })}
                   />
                 </div>
                 <div style={{ marginTop: '24px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px', color: 'var(--text)' }}>Locations</div>
@@ -1613,8 +1613,8 @@ export default function Masters() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>Location #{idx + 1}</span>
                       {companyFormData.locations.length > 1 && (
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => removeLocation(idx)}
                           style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}
                         >
@@ -1635,7 +1635,7 @@ export default function Masters() {
                 ))}
                 <button type="button" onClick={addLocation} style={{ background: 'transparent', border: '1px dashed var(--border2)', color: 'var(--text3)', width: '100%', padding: '12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '24px' }}>+ Add Another Location</button>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button type="button" className="vbtn" style={{ background: 'var(--bg4)' }}  onClick={() => setShowCompanyModal(false)}>Cancel</button>
+                  <button type="button" className="vbtn" style={{ background: 'var(--bg4)' }} onClick={() => setShowCompanyModal(false)}>Cancel</button>
                   <button type="submit" className="vbtn">{editingCompanyId ? 'Update Client' : 'Save Client'}</button>
                 </div>
               </form>
@@ -1646,7 +1646,7 @@ export default function Masters() {
 
       {/* Task Modal */}
       {showTaskModal && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowTaskModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowTaskModal(false); }}>
           <div className="modal" style={{ maxWidth: '520px', width: '95%' }}>
             <div className="modal-header">
               <div className="modal-title">{editingTaskId ? 'Edit Task Master' : 'New Task Master'}</div>
@@ -1679,9 +1679,9 @@ export default function Masters() {
                 {taskFormData.requires_upload && (
                   <div className="modal-field" style={{ marginLeft: '24px', marginTop: '8px' }}>
                     <label style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Default Document Type</label>
-                    <select 
-                      className="form-select" 
-                      value={taskFormData.default_doc_type || 'General'} 
+                    <select
+                      className="form-select"
+                      value={taskFormData.default_doc_type || 'General'}
                       onChange={(e) => setTaskFormData({ ...taskFormData, default_doc_type: e.target.value })}
                       style={{ fontSize: '13px', width: '100%', padding: '6px 12px' }}
                     >
@@ -1851,7 +1851,7 @@ export default function Masters() {
 
       {/* Add Custom Column Modal */}
       {showColModal && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowColModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowColModal(false); }}>
           <div className="modal" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
               <div className="modal-title">Add Custom Column Master</div>
@@ -1948,7 +1948,7 @@ export default function Masters() {
 
       {/* Part Number Master Add / Edit Modal */}
       {showPartModal && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPartModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowPartModal(false); }}>
           <div className="modal" style={{ width: '520px', maxWidth: '95vw' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPartId ? 'Edit Master Part Number' : 'Add Master Part Number'}</div>
@@ -2085,7 +2085,7 @@ export default function Masters() {
 
       {/* Upload / Update Document Modal */}
       {showDocUploadModal && activeUploadTarget && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowDocUploadModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowDocUploadModal(false); }}>
           <div className="modal" style={{ width: '480px', maxWidth: '95vw' }}>
             <div className="modal-header">
               <div className="modal-title">
@@ -2201,7 +2201,7 @@ export default function Masters() {
 
       {/* Revision History Modal */}
       {canViewRevisionHistory && showDocHistoryModal && activeHistoryTarget && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowDocHistoryModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowDocHistoryModal(false); }}>
           <div className="modal" style={{ width: '680px', maxWidth: '95vw', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div>
@@ -2334,7 +2334,7 @@ export default function Masters() {
           onClose={() => setPdfViewerDoc(null)}
         />
       ) : pdfViewerDoc ? (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setPdfViewerDoc(null); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setPdfViewerDoc(null); }}>
           <div className="modal" style={{ maxWidth: '960px', width: '92vw', height: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
@@ -2380,7 +2380,7 @@ export default function Masters() {
 
       {/* Panel Size Master Modal */}
       {showPanelSizeModal && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setShowPanelSizeModal(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowPanelSizeModal(false); }}>
           <div className="modal" style={{ maxWidth: '520px' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPanelSizeId ? 'Edit Panel Size Master' : 'New Panel Size Master'}</div>

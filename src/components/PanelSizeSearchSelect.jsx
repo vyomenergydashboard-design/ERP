@@ -299,7 +299,7 @@ export default function PanelSizeSearchSelect({
   };
 
   return (
-    <div style={{ position: 'relative', width: '100%', ...style }}>
+    <div style={{ position: 'relative', width: '100%', minWidth: 0, maxWidth: '100%', ...style }}>
       {/* Trigger Box */}
       <div
         ref={triggerRef}
@@ -307,18 +307,20 @@ export default function PanelSizeSearchSelect({
         title={selectedItem ? 'Click to change panel size' : 'Click to select standard panel size'}
         style={{
           width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
           height: '38px',
           minHeight: '38px',
           maxHeight: '38px',
           background: 'var(--bg3)',
           border: isOpen ? '1px solid var(--blue)' : '1px solid var(--border2)',
           borderRadius: '8px',
-          padding: '0 10px',
+          padding: '0 8px',
           cursor: disabled ? 'not-allowed' : 'pointer',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '6px',
+          gap: '4px',
           transition: 'all 0.15s ease',
           boxShadow: isOpen
             ? '0 0 0 3px var(--blue-dim)'
@@ -329,18 +331,19 @@ export default function PanelSizeSearchSelect({
         }}
       >
         {selectedItem ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1, overflow: 'hidden', flexWrap: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0, flex: 1, overflow: 'hidden', flexWrap: 'nowrap' }}>
             {/* Dimension */}
             <span
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: '12px',
+                fontSize: '11.5px',
                 fontWeight: 700,
                 color: 'var(--text)',
                 whiteSpace: 'nowrap',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                flexShrink: 1
+                flexShrink: 1,
+                minWidth: '50px'
               }}
             >
               {formatSize(selectedItem) || 'Standard Panel'}
@@ -351,12 +354,12 @@ export default function PanelSizeSearchSelect({
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '9.5px',
                   fontWeight: 700,
                   color: 'var(--purple)',
                   background: 'var(--purple-dim)',
                   border: '1px solid rgba(167, 139, 250, 0.3)',
-                  padding: '1px 5px',
+                  padding: '1px 4px',
                   borderRadius: '4px',
                   whiteSpace: 'nowrap',
                   flexShrink: 0
@@ -371,15 +374,17 @@ export default function PanelSizeSearchSelect({
               <span
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '10px',
+                  fontSize: '9.5px',
                   fontWeight: 700,
                   color: 'var(--green)',
                   background: 'var(--green-dim)',
                   border: '1px solid rgba(34, 197, 94, 0.3)',
-                  padding: '1px 5px',
+                  padding: '1px 4px',
                   borderRadius: '4px',
                   whiteSpace: 'nowrap',
-                  flexShrink: 0
+                  flexShrink: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}
               >
                 {formatIp(selectedItem)}
@@ -390,14 +395,14 @@ export default function PanelSizeSearchSelect({
             {formatComments(selectedItem) && (
               <span
                 style={{
-                  fontSize: '10.5px',
+                  fontSize: '10px',
                   color: 'var(--text3)',
                   background: 'var(--bg4)',
                   border: '1px solid var(--border)',
-                  padding: '1px 5px',
+                  padding: '1px 4px',
                   borderRadius: '4px',
                   whiteSpace: 'nowrap',
-                  maxWidth: '90px',
+                  maxWidth: '75px',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   flexShrink: 2
