@@ -24,7 +24,7 @@ export default function UserManagement() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [deletingUser, setDeletingUser] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  
+
   const token = localStorage.getItem('token');
 
   const ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Planning', 'Viewer'];
@@ -60,7 +60,7 @@ export default function UserManagement() {
       const { confirmPassword, ...signupData } = newUser;
       const res = await fetch(window.API_BASE + "/api/auth/signup", {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -88,7 +88,7 @@ export default function UserManagement() {
     try {
       const res = await fetch(`${window.API_BASE}/api/users/${userId}/role`, {
         method: 'PATCH',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -133,7 +133,7 @@ export default function UserManagement() {
       const { confirmPassword, ...updateData } = editUserForm;
       const res = await fetch(`${window.API_BASE}/api/users/${editingUser.id}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -161,7 +161,7 @@ export default function UserManagement() {
     try {
       const res = await fetch(`${window.API_BASE}/api/users/${userToDelete.id}`, {
         method: 'DELETE',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`
         }
       });
@@ -203,11 +203,11 @@ export default function UserManagement() {
                 <label>Username</label>
                 <div className="input-wrapper">
                   <User size={14} className="input-icon" />
-                  <input 
-                    type="text" 
-                    placeholder="johndoe" 
+                  <input
+                    type="text"
+                    placeholder="johndoe"
                     value={newUser.username}
-                    onChange={(e) => setNewUser({...newUser, username: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
                     required
                   />
                 </div>
@@ -216,11 +216,11 @@ export default function UserManagement() {
                 <label>Email Address</label>
                 <div className="input-wrapper">
                   <Mail size={14} className="input-icon" />
-                  <input 
-                    type="email" 
-                    placeholder="john@example.com" 
+                  <input
+                    type="email"
+                    placeholder="john@example.com"
                     value={newUser.email}
-                    onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
                     required
                   />
                 </div>
@@ -229,11 +229,11 @@ export default function UserManagement() {
                 <label>Password</label>
                 <div className="input-wrapper">
                   <Lock size={14} className="input-icon" />
-                  <input 
-                    type={showAddPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
+                  <input
+                    type={showAddPassword ? "text" : "password"}
+                    placeholder="••••••••"
                     value={newUser.password}
-                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
                     required
                   />
                   <button
@@ -250,11 +250,11 @@ export default function UserManagement() {
                 <label>Confirm Password</label>
                 <div className="input-wrapper">
                   <Lock size={14} className="input-icon" />
-                  <input 
-                    type={showAddConfirmPassword ? "text" : "password"} 
-                    placeholder="••••••••" 
+                  <input
+                    type={showAddConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
                     value={newUser.confirmPassword}
-                    onChange={(e) => setNewUser({...newUser, confirmPassword: e.target.value})}
+                    onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                     required
                   />
                   <button
@@ -269,10 +269,10 @@ export default function UserManagement() {
               </div>
               <div className="input-group">
                 <label>Assign Role</label>
-                <select 
-                  className="auth-select" 
+                <select
+                  className="auth-select"
                   value={newUser.role}
-                  onChange={(e) => setNewUser({...newUser, role: e.target.value})}
+                  onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
                 >
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -306,7 +306,7 @@ export default function UserManagement() {
                 </td>
                 <td>
                   <div className="action-buttons-cell" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button 
+                    <button
                       className="vbtn"
                       onClick={() => openEditModal(u)}
                       style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', gap: '6px' }}
@@ -314,17 +314,17 @@ export default function UserManagement() {
                       <Edit size={14} />
                       Edit
                     </button>
-                    <button 
+                    <button
                       className="vbtn"
                       onClick={() => {
                         setDeleteError('');
                         setUserToDelete(u);
                       }}
-                      style={{ 
-                        padding: '6px 10px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px', 
+                      style={{
+                        padding: '6px 10px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
                         borderColor: 'rgba(239,68,68,0.3)',
                         color: 'var(--red)'
                       }}
@@ -354,30 +354,30 @@ export default function UserManagement() {
             <form onSubmit={handleUpdateUser} className="modal-body">
               <div className="modal-field">
                 <label>Username</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
+                <input
+                  type="text"
+                  className="form-input"
                   value={editUserForm.username}
-                  onChange={(e) => setEditUserForm({...editUserForm, username: e.target.value})}
-                  required 
+                  onChange={(e) => setEditUserForm({ ...editUserForm, username: e.target.value })}
+                  required
                 />
               </div>
               <div className="modal-field">
                 <label>Email Address</label>
-                <input 
-                  type="email" 
-                  className="form-input" 
+                <input
+                  type="email"
+                  className="form-input"
                   value={editUserForm.email}
-                  onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})}
-                  required 
+                  onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
+                  required
                 />
               </div>
               <div className="modal-field">
                 <label>Role</label>
-                <select 
-                  className="form-select" 
+                <select
+                  className="form-select"
                   value={editUserForm.role}
-                  onChange={(e) => setEditUserForm({...editUserForm, role: e.target.value})}
+                  onChange={(e) => setEditUserForm({ ...editUserForm, role: e.target.value })}
                 >
                   {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
                 </select>
@@ -386,12 +386,12 @@ export default function UserManagement() {
                 <label>New Password (leave blank to keep current)</label>
                 <div className="input-wrapper">
                   <Lock size={14} className="input-icon" style={{ left: '12px' }} />
-                  <input 
-                    type={showEditPassword ? "text" : "password"} 
-                    className="form-input" 
-                    placeholder="••••••••" 
+                  <input
+                    type={showEditPassword ? "text" : "password"}
+                    className="form-input"
+                    placeholder="••••••••"
                     value={editUserForm.password}
-                    onChange={(e) => setEditUserForm({...editUserForm, password: e.target.value})}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, password: e.target.value })}
                     style={{ paddingLeft: '32px', paddingRight: '32px' }}
                   />
                   <button
@@ -409,12 +409,12 @@ export default function UserManagement() {
                 <label>Confirm New Password</label>
                 <div className="input-wrapper">
                   <Lock size={14} className="input-icon" style={{ left: '12px' }} />
-                  <input 
-                    type={showEditConfirmPassword ? "text" : "password"} 
-                    className="form-input" 
-                    placeholder="••••••••" 
+                  <input
+                    type={showEditConfirmPassword ? "text" : "password"}
+                    className="form-input"
+                    placeholder="••••••••"
                     value={editUserForm.confirmPassword || ''}
-                    onChange={(e) => setEditUserForm({...editUserForm, confirmPassword: e.target.value})}
+                    onChange={(e) => setEditUserForm({ ...editUserForm, confirmPassword: e.target.value })}
                     style={{ paddingLeft: '32px', paddingRight: '32px' }}
                   />
                   <button
@@ -453,17 +453,17 @@ export default function UserManagement() {
             </div>
             <div className="modal-body">
               <p style={{ fontSize: '13px', color: 'var(--text2)', lineHeight: '1.5' }}>
-                Deleting <strong>{userToDelete.username}</strong> ({userToDelete.email}) will remove their account immediately. 
+                Deleting <strong>{userToDelete.username}</strong> ({userToDelete.email}) will remove their account immediately.
                 Any documents uploaded, orders created, or panels assigned to this user will have their references cleared safely.
               </p>
               {deleteError && <div className="form-error" style={{ marginTop: '8px' }}>{deleteError}</div>}
               <div className="modal-actions" style={{ marginTop: '16px' }}>
                 <button type="button" className="btn-cancel" onClick={() => setUserToDelete(null)} disabled={deletingUser}>Cancel</button>
-                <button 
-                  type="button" 
-                  className="btn-save" 
-                  style={{ background: 'var(--red)', color: '#fff' }} 
-                  onClick={handleDeleteUser} 
+                <button
+                  type="button"
+                  className="btn-save"
+                  style={{ background: 'var(--red)', color: '#fff' }}
+                  onClick={handleDeleteUser}
                   disabled={deletingUser}
                 >
                   {deletingUser ? <Loader2 size={16} className="animate-spin" /> : 'Delete Account'}

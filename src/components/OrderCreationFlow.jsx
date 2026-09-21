@@ -59,23 +59,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     fetch(window.API_BASE + "/api/companies", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(res => res.json())
-    .then(data => setCompanies(data))
-    .catch(err => console.error(err));
+      .then(res => res.json())
+      .then(data => setCompanies(data))
+      .catch(err => console.error(err));
 
     fetch(window.API_BASE + "/api/part-number-masters", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(res => res.json())
-    .then(data => setPartMasters(Array.isArray(data) ? data : []))
-    .catch(err => console.error(err));
+      .then(res => res.json())
+      .then(data => setPartMasters(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
 
     fetch(window.API_BASE + "/api/panel-size-masters", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(res => res.json())
-    .then(data => setPanelSizeMasters(Array.isArray(data) ? data : []))
-    .catch(err => console.error(err));
+      .then(res => res.json())
+      .then(data => setPanelSizeMasters(Array.isArray(data) ? data : []))
+      .catch(err => console.error(err));
   }, [token]);
 
 
@@ -326,9 +326,9 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           <div className="form-grid">
             <div className="form-group full-width">
               <label>Select Client & Location</label>
-              <select 
-                name="company_location_id" 
-                value={formData.company_location_id} 
+              <select
+                name="company_location_id"
+                value={formData.company_location_id}
                 onChange={handleInputChange}
                 className="form-select"
               >
@@ -347,20 +347,20 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
             <div className="form-group">
               <label>Order Date</label>
-              <input 
-                type="date" 
-                name="order_date" 
-                value={formData.order_date} 
-                onChange={handleInputChange} 
+              <input
+                type="date"
+                name="order_date"
+                value={formData.order_date}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="form-group">
               <label>Overall Delivery Date (Optional)</label>
-              <input 
-                type="date" 
-                name="delivery_date" 
-                value={formData.delivery_date} 
+              <input
+                type="date"
+                name="delivery_date"
+                value={formData.delivery_date}
                 onChange={(e) => {
                   const val = e.target.value;
                   setFormData(prev => ({
@@ -371,15 +371,15 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                       delivery_date: (!li.delivery_date || li.delivery_date === prev.delivery_date) ? val : li.delivery_date
                     }))
                   }));
-                }} 
+                }}
               />
             </div>
 
             <div className="form-group">
               <label>Priority</label>
-              <select 
-                name="priority" 
-                value={formData.priority} 
+              <select
+                name="priority"
+                value={formData.priority}
                 onChange={handleInputChange}
                 className="form-input"
               >
@@ -392,9 +392,9 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
             <div className="form-group">
               <label>Dispatch / Packaging</label>
-              <select 
-                name="packaging_type" 
-                value={formData.packaging_type} 
+              <select
+                name="packaging_type"
+                value={formData.packaging_type}
                 onChange={handleInputChange}
                 className="form-input"
               >
@@ -406,21 +406,21 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
             <div className="form-group">
               <label>End Client Name (Optional)</label>
-              <input 
-                type="text" 
-                name="end_client_name" 
-                value={formData.end_client_name} 
-                onChange={handleInputChange} 
+              <input
+                type="text"
+                name="end_client_name"
+                value={formData.end_client_name}
+                onChange={handleInputChange}
               />
             </div>
 
             <div className="form-group">
               <label>Project Name (Optional)</label>
-              <input 
-                type="text" 
-                name="project_name" 
-                value={formData.project_name} 
-                onChange={handleInputChange} 
+              <input
+                type="text"
+                name="project_name"
+                value={formData.project_name}
+                onChange={handleInputChange}
                 placeholder="e.g. Mooviboost Project"
               />
             </div>
@@ -434,31 +434,31 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </span>
                 )}
               </label>
-              <input 
-                type="text" 
-                name="gst_number" 
-                value={formData.gst_number} 
-                onChange={handleInputChange} 
+              <input
+                type="text"
+                name="gst_number"
+                value={formData.gst_number}
+                onChange={handleInputChange}
                 placeholder="e.g. 27AAAAA1111A1Z1"
               />
             </div>
 
             <div className="form-group">
               <label>Customer Reference Number (Optional)</label>
-              <input 
-                type="text" 
-                name="reference_number" 
-                value={formData.reference_number} 
-                onChange={handleInputChange} 
+              <input
+                type="text"
+                name="reference_number"
+                value={formData.reference_number}
+                onChange={handleInputChange}
                 placeholder="e.g. REF-2026-99"
               />
             </div>
 
             <div className="form-group">
               <label>Classification</label>
-              <select 
-                name="classification" 
-                value={formData.classification || 'Standard'} 
+              <select
+                name="classification"
+                value={formData.classification || 'Standard'}
                 onChange={handleInputChange}
                 style={{ width: '100%', padding: '8px 12px', background: 'var(--bg4)', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--text2)', fontSize: '13px' }}
               >
@@ -469,10 +469,10 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
             <div className="form-group full-width">
               <label>Overall Order Notes</label>
-              <textarea 
-                name="notes" 
-                value={formData.notes} 
-                onChange={handleInputChange} 
+              <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleInputChange}
               />
             </div>
           </div>
@@ -484,7 +484,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 + Add Line Item
               </button>
             </div>
-            
+
             {formData.lineItems.map((li, idx) => (
               <div key={idx} style={{ background: 'var(--bg3)', padding: '20px', borderRadius: '12px', border: '1px solid var(--border)', marginBottom: '16px', position: 'relative' }}>
                 {formData.lineItems.length > 1 && (
@@ -499,12 +499,12 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
                       Tag <span style={{ color: '#888', fontStyle: 'italic' }}>(Optional)</span>
                     </label>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="e.g. TG-01" 
-                      value={li.tag || ''} 
-                      onChange={e => handleLineItemChange(idx, 'tag', e.target.value)} 
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. TG-01"
+                      value={li.tag || ''}
+                      onChange={e => handleLineItemChange(idx, 'tag', e.target.value)}
                     />
                     {(formData.reference_number || li.tag) && (
                       <div style={{ fontSize: '10px', color: '#f59e0b', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={`Ref/Tag: ${formData.reference_number || 'REF'}/${li.tag || 'TAG'}`}>
@@ -595,8 +595,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         li.is_custom_panel
                           ? '__custom__'
                           : (panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size)
-                              ? li.panel_type_size
-                              : (li.panel_type_size ? '__custom__' : ''))
+                            ? li.panel_type_size
+                            : (li.panel_type_size ? '__custom__' : ''))
                       }
                       onChange={e => {
                         const val = e.target.value;
@@ -655,10 +655,10 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Delivery Date</label>
-                    <input 
-                      type="date" 
-                      className="form-input" 
-                      value={li.delivery_date || ''} 
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={li.delivery_date || ''}
                       onChange={e => handleLineItemChange(idx, 'delivery_date', e.target.value)}
                     />
                   </div>
@@ -682,7 +682,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             <div className="file-grid">
 
               {/* Quotation — single file only */}
-              <div 
+              <div
                 className={`file-input-wrapper${draggingQuotation ? ' dragging' : ''}`}
                 onDragOver={(e) => handleDragOver(e, setDraggingQuotation)}
                 onDragLeave={() => handleDragLeave(setDraggingQuotation)}
@@ -709,7 +709,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               </div>
 
               {/* Indent Document — single file (PDF, Word, Excel) */}
-              <div 
+              <div
                 className={`file-input-wrapper${draggingIndent ? ' dragging' : ''}`}
                 onDragOver={(e) => handleDragOver(e, setDraggingIndent)}
                 onDragLeave={() => handleDragLeave(setDraggingIndent)}
@@ -736,7 +736,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               </div>
 
               {/* Approved Documents — multiple files */}
-              <div 
+              <div
                 className={`file-input-wrapper${draggingDocs ? ' dragging' : ''}`}
                 onDragOver={(e) => handleDragOver(e, setDraggingDocs)}
                 onDragLeave={() => handleDragLeave(setDraggingDocs)}
@@ -784,7 +784,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         )}
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .order-creation-container {
           padding: 24px;
           max-width: 900px;
