@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
 import { STATUS_BADGE_MAP } from '../data/planningData';
+import { FileText, ExternalLink, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 
 // Ensure dates are always in yyyy-MM-dd format for <input type="date">
 const toDateInput = (val) => {
@@ -26,6 +27,9 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
   const [showHoldBox, setShowHoldBox] = useState(false);
   const [showCancelBox, setShowCancelBox] = useState(false);
   const [actionReason, setActionReason] = useState('');
+  const [unitRefDocs, setUnitRefDocs] = useState(null);
+
+  const token = localStorage.getItem('token');
 
   const canEditStructure = ['Admin', 'Manager'].includes(userRole);
   const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) && selectedOrder?.hold_status !== 'Approved' : false;
@@ -50,13 +54,31 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
         setCustomFields([]);
       }
     }
-  }, [step]);
+
+    if (step?.order_unit_id) {
+      fetch(`${window.API_BASE}/api/units/${step.order_unit_id}/reference-documents`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => setUnitRefDocs(data))
+      .catch(err => {
+        console.error('Failed to load reference docs in StepModal', err);
+        setUnitRefDocs(null);
+      });
+    } else {
+      setUnitRefDocs(null);
+    }
+  }, [step, token]);
 
   if (!isOpen || !step) return null;
 
   const handleSave = async () => {
     if (!canEditStep) return;
-    if (step.requires_upload && status === 'done' && docCount === 0) {
+    const isDesign = (step.dept || '').toLowerCase() === 'design';
+    const isStd = (selectedOrder?.classification || unitRefDocs?.classification || '').toLowerCase() === 'standard';
+    const hasMaster = (unitRefDocs?.master_documents?.length || 0) > 0;
+    const exemptFromUpload = isDesign && (isStd || hasMaster);
+    if (step.requires_upload && status === 'done' && docCount === 0 && !exemptFromUpload) {
       alert('You must upload at least one document to complete this task.');
       return;
     }
@@ -518,24 +540,179 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           )}
 
           {/* ── TAB: DOCUMENTS ── */}
-          {activeTab === 'documents' && (
-            <div>
-              {step.requires_upload && (
-                <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, color: '#fbbf24', fontSize: 13 }}>
-                   This task requires at least one document to be marked as Done.
-                </div>
-              )}
-              <DocumentManager
-                entityType="Step"
-                entityId={step.id}
-                initialDocs={[]}
-                onDocsUpdate={(docs) => setDocCount(docs.length)}
-                readOnly={!canEditStep}
-                defaultDocType={step.default_doc_type || 'General'}
-                userRole={userRole}
-              />
-            </div>
-          )}
+          {activeTab === 'documents' && (() => {
+            const isDesign = (step.dept || '').toLowerCase() === 'design';
+            const masterDocs = isDesign ? (unitRefDocs?.master_documents || []) : [];
+            const orderDocs = isDesign ? (unitRefDocs?.order_documents || []) : [];
+            const hasInherited = masterDocs.length > 0 || orderDocs.length > 0;
+
+            return (
+              <div>
+                {/* Inherited Reference Documents from Part Number & Order (Design only) */}
+                {hasInherited && (
+                  <div style={{
+                    marginBottom: 18,
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    padding: '14px 16px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <Layers size={16} color="var(--blue)" />
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
+                          Master Documents (Inherited from Part Number)
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {unitRefDocs?.part_number && (
+                          <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: 600, color: '#60a5fa', background: 'rgba(59,130,246,0.15)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(59,130,246,0.3)' }}>
+                            Part: {unitRefDocs.part_number}
+                          </span>
+                        )}
+                        <span style={{
+                          fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
+                          padding: '2px 8px', borderRadius: 4,
+                          background: (unitRefDocs?.classification || '').toLowerCase() === 'standard' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)',
+                          color: (unitRefDocs?.classification || '').toLowerCase() === 'standard' ? '#10b981' : '#fbbf24',
+                          border: `1px solid ${(unitRefDocs?.classification || '').toLowerCase() === 'standard' ? 'rgba(16,185,129,0.3)' : 'rgba(245,158,11,0.3)'}`
+                        }}>
+                          {unitRefDocs?.classification || 'Standard'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {masterDocs.length > 0 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {masterDocs.map(mdoc => {
+                          const isDrawing = (mdoc.doc_type || '').toLowerCase() === 'drawing';
+                          const badgeColor = isDrawing ? '#60a5fa' : '#34d399';
+                          const badgeBg = isDrawing ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
+                          const badgeBorder = isDrawing ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)';
+                          const docDownloadUrl = `${window.API_BASE}/uploads/${mdoc.file_path.split(/[\/\\]/).pop()}?token=${token}`;
+                          
+                          return (
+                            <div key={`smdoc-${mdoc.id}`} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '10px 12px', background: 'var(--bg4)',
+                              border: '1px solid var(--border2)', borderRadius: 8, gap: 12
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                                <FileText size={18} color={badgeColor} style={{ flexShrink: 0 }} />
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                    <span style={{ fontSize: 11, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: badgeBg, color: badgeColor, border: `1px solid ${badgeBorder}` }}>
+                                      Master {mdoc.doc_type}
+                                    </span>
+                                    {mdoc.revision_label && (
+                                      <span style={{ fontSize: 10, fontWeight: 800, padding: '1px 5px', borderRadius: 3, background: 'rgba(139,92,246,0.15)', color: '#a78bfa', border: '1px solid rgba(139,92,246,0.3)' }}>
+                                        {mdoc.revision_label}
+                                      </span>
+                                    )}
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={mdoc.file_name}>
+                                      {mdoc.file_name}
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                                    {mdoc.file_size ? `${(mdoc.file_size / 1024).toFixed(1)} KB` : ''} 
+                                    {mdoc.uploaded_by_name ? ` · Uploaded by ${mdoc.uploaded_by_name}` : ''}
+                                  </div>
+                                </div>
+                              </div>
+                              <a
+                                href={docDownloadUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="vbtn"
+                                style={{
+                                  fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5,
+                                  textDecoration: 'none', background: 'rgba(59,130,246,0.12)', color: '#60a5fa',
+                                  border: '1px solid rgba(59,130,246,0.3)', borderRadius: 5, flexShrink: 0
+                                }}
+                              >
+                                <ExternalLink size={12} />
+                                <span>View</span>
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {orderDocs.length > 0 && (
+                      <div style={{ marginTop: masterDocs.length > 0 ? 12 : 0, paddingTop: masterDocs.length > 0 ? 10 : 0, borderTop: masterDocs.length > 0 ? '1px solid var(--border)' : 'none' }}>
+                        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text2)', marginBottom: 6 }}>
+                          Order Attachments ({orderDocs.length})
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {orderDocs.map(odoc => (
+                            <div key={`sodoc-${odoc.id}`} style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                              padding: '6px 10px', background: 'var(--bg4)', borderRadius: 6, fontSize: 12
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                                <span style={{ fontSize: 10, padding: '1px 5px', borderRadius: 3, background: 'rgba(245,158,11,0.15)', color: '#fbbf24' }}>
+                                  {odoc.doc_type}
+                                </span>
+                                <span style={{ color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={odoc.file_name}>
+                                  {odoc.file_name}
+                                </span>
+                              </div>
+                              <a
+                                href={`${window.API_BASE}/uploads/${odoc.file_path.split(/[\/\\]/).pop()}?token=${token}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ fontSize: 11, color: '#60a5fa', textDecoration: 'none', marginLeft: 8 }}
+                              >
+                                View
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Upload Required Banner */}
+                {step.requires_upload && (
+                  (() => {
+                    const isStd = (selectedOrder?.classification || unitRefDocs?.classification || '').toLowerCase() === 'standard';
+                    const hasMaster = masterDocs.length > 0;
+                    if (isDesign && (isStd || hasMaster)) {
+                      return (
+                        <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, color: '#10b981', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckCircle2 size={16} />
+                          <span>Standard Panel: Master Drawing & BOM are inherited. Additional task uploads below are optional.</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ marginBottom: 16, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, color: '#fbbf24', fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AlertCircle size={16} />
+                        <span>This task requires at least one document to be marked as Done.</span>
+                      </div>
+                    );
+                  })()
+                )}
+
+                {hasInherited && (
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)', marginBottom: 6 }}>
+                    Step-Specific Uploads & Notes:
+                  </div>
+                )}
+                <DocumentManager
+                  entityType={step.isUnitStep ? 'UnitStep' : 'OrderStep'}
+                  entityId={step.id}
+                  initialDocs={[]}
+                  onDocsUpdate={(docs) => setDocCount(docs.length)}
+                  readOnly={!canEditStep}
+                  defaultDocType={step.default_doc_type || 'General'}
+                  userRole={userRole}
+                />
+              </div>
+            );
+          })()}
 
           {/* Actions */}
           <div className="modal-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>

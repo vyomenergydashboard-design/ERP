@@ -2653,6 +2653,49 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
       `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
       [req.user.id, req.params.orderId, step.dept, `Updated step "${result.rows[0].name}" (Status: ${status})`]
     );
+
+    // Auto-complete Step 2 (Release Documents) on Order level when Step 1 (Review & Classify) is Standard and marked Done
+    if (step.dept === 'Design' && (result.rows[0].name === 'Review & Classify' || result.rows[0].name.toLowerCase().includes('classify'))) {
+      let resolvedClassification = null;
+      if (Array.isArray(custom_fields)) {
+        const classField = custom_fields.find(f => f.datakey === 'classification' || f.id === 'classification' || f.label?.toLowerCase() === 'classification');
+        if (classField && classField.value) {
+          resolvedClassification = String(classField.value).trim();
+        }
+      }
+      if (!resolvedClassification) {
+        const oCheck = await pool.query('SELECT classification FROM orders WHERE id = $1', [req.params.orderId]);
+        if (oCheck.rows.length > 0) {
+          resolvedClassification = oCheck.rows[0].classification;
+        }
+      }
+
+      if (resolvedClassification && resolvedClassification.toLowerCase() === 'standard' && status === 'done') {
+        const step2Res = await pool.query(
+          `SELECT id, status, notes FROM order_steps 
+           WHERE order_id = $1 AND dept = 'Design' 
+             AND (name = 'Release Documents' OR special = 'design') 
+           LIMIT 1`,
+          [req.params.orderId]
+        );
+        if (step2Res.rows.length > 0) {
+          const step2 = step2Res.rows[0];
+          const autoNote = 'Auto-completed: Standard master drawings & BOM applied.';
+          const finalNotes = step2.notes ? step2.notes : autoNote;
+          await pool.query(
+            `UPDATE order_steps 
+             SET status = 'done', notes = $1, updated = $2 
+             WHERE id = $3`,
+            [finalNotes, updated, step2.id]
+          );
+          await pool.query(
+            `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+             VALUES ($1, $2, 'Design', $3)`,
+            [req.user.id, req.params.orderId, `Order: Step "Release Documents" auto-completed (Standard Panel)`]
+          );
+        }
+      }
+    }
     
     if (step.dept === 'QC' && status === 'blocked') {
       const { qcFailTarget } = req.body;
@@ -3606,6 +3649,79 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
           [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: Updated step "${step.name}" (Status: ${newStatus})`]
         );
 
+        // Auto-complete Step 2 (Release Documents) when Step 1 (Review & Classify) is Standard and marked Done
+        if (step.dept === 'Design' && (step.name === 'Review & Classify' || step.name.toLowerCase().includes('classify'))) {
+          let resolvedClassification = null;
+          if (Array.isArray(custom_fields)) {
+            const classField = custom_fields.find(f => f.datakey === 'classification' || f.id === 'classification' || f.label?.toLowerCase() === 'classification');
+            if (classField && classField.value) {
+              resolvedClassification = String(classField.value).trim();
+            }
+          }
+          if (!resolvedClassification) {
+            const uCheck = await client.query('SELECT classification FROM order_units WHERE id = $1', [tu.id]);
+            if (uCheck.rows.length > 0) {
+              resolvedClassification = uCheck.rows[0].classification;
+            }
+          }
+
+          if (resolvedClassification && resolvedClassification.toLowerCase() === 'standard' && newStatus === 'done') {
+            const step2Res = await client.query(
+              `SELECT id, status, notes FROM unit_steps 
+               WHERE order_unit_id = $1 AND dept = 'Design' 
+                 AND (name = 'Release Documents' OR name ILIKE '%release%') 
+               LIMIT 1`,
+              [tu.id]
+            );
+            if (step2Res.rows.length > 0) {
+              const step2 = step2Res.rows[0];
+              const autoNote = 'Auto-completed: Standard master drawings & BOM applied.';
+              const finalNotes = step2.notes ? step2.notes : autoNote;
+              await client.query(
+                `UPDATE unit_steps 
+                 SET status = 'done', notes = $1, updated = $2 
+                 WHERE id = $3`,
+                [finalNotes, updated, step2.id]
+              );
+              await client.query(
+                `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+                 VALUES ($1, $2, 'Design', $3)`,
+                [req.user.id, step.order_id, `Unit ${tu.short_serial}: Step "Release Documents" auto-completed (Standard Panel)`]
+              );
+            }
+          } else if (resolvedClassification && resolvedClassification.toLowerCase() === 'non-standard') {
+            // If classification changed to Non-Standard, revert auto-completed Release Documents step back to pending
+            const step2Res = await client.query(
+              `SELECT id, status, notes FROM unit_steps 
+               WHERE order_unit_id = $1 AND dept = 'Design' 
+                 AND (name = 'Release Documents' OR name ILIKE '%release%') 
+               LIMIT 1`,
+              [tu.id]
+            );
+            if (step2Res.rows.length > 0) {
+              const step2 = step2Res.rows[0];
+              const s2Docs = await client.query(
+                `SELECT COUNT(*) as count FROM documents WHERE entity_type = 'UnitStep' AND entity_id = $1`,
+                [step2.id]
+              );
+              const hasStepDocs = parseInt(s2Docs.rows[0]?.count || '0') > 0;
+              if (step2.notes && step2.notes.includes('Standard master') && !hasStepDocs) {
+                await client.query(
+                  `UPDATE unit_steps 
+                   SET status = 'pending', notes = 'Non-Standard classified: custom drawings and BOM required.', updated = $1 
+                   WHERE id = $2`,
+                  [updated, step2.id]
+                );
+                await client.query(
+                  `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+                   VALUES ($1, $2, 'Design', $3)`,
+                  [req.user.id, step.order_id, `Unit ${tu.short_serial}: Step "Release Documents" reverted to Pending (Non-Standard)`]
+                );
+              }
+            }
+          }
+        }
+
         if (step.dept === 'QC' && newStatus === 'blocked') {
           const { qcFailTarget } = req.body;
           const target = qcFailTarget === 'design' ? 'Design' : 'Production';
@@ -4420,6 +4536,86 @@ app.get('/api/documents/:entityType/:entityId', authorize(), async (req, res) =>
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch documents' });
+  }
+});
+
+// Reference documents for a unit (Part Number Master Drawings & BOM + Order Attachments)
+app.get('/api/units/:unitId/reference-documents', authorize(), async (req, res) => {
+  try {
+    const { unitId } = req.params;
+    const unitRes = await pool.query(
+      `SELECT ou.id, ou.order_id, ou.short_serial, ou.unit_id, ou.classification,
+              oli.part_number, oli.material_description,
+              o.order_number, o.po_number
+       FROM order_units ou
+       LEFT JOIN order_line_items oli ON ou.line_item_id = oli.id
+       LEFT JOIN orders o ON ou.order_id = o.id
+       WHERE ou.id = $1`,
+      [unitId]
+    );
+
+    if (unitRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+
+    const unit = unitRes.rows[0];
+    let masterPart = null;
+    let masterDocs = [];
+
+    if (unit.part_number && unit.part_number.trim()) {
+      const partRes = await pool.query(
+        `SELECT id, part_number, client_name, project, description, category, panel_code
+         FROM part_number_masters
+         WHERE LOWER(TRIM(part_number)) = LOWER(TRIM($1)) LIMIT 1`,
+        [unit.part_number.trim()]
+      );
+
+      if (partRes.rows.length > 0) {
+        masterPart = partRes.rows[0];
+        const pDocsRes = await pool.query(
+          `SELECT d.id, d.part_number_id, d.doc_type, d.revision_number, d.revision_label,
+                  d.file_name, d.file_path, d.file_size, d.is_current, d.uploaded_at,
+                  COALESCE(d.uploaded_by_name, u.username, 'System') as uploaded_by_name
+           FROM part_number_documents d
+           LEFT JOIN users u ON d.uploaded_by_id = u.id
+           WHERE d.part_number_id = $1
+           ORDER BY d.is_current DESC, d.revision_number DESC, d.id DESC`,
+          [masterPart.id]
+        );
+        masterDocs = pDocsRes.rows;
+      }
+    }
+
+    // Fetch order-level and unit-level documents
+    const docsRes = await pool.query(
+      `SELECT id, entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_at
+       FROM documents
+       WHERE (entity_type = 'Order' AND entity_id = $1)
+          OR (entity_type = 'Unit' AND entity_id = $2)
+       ORDER BY uploaded_at DESC`,
+      [unit.order_id, unit.id]
+    );
+
+    let orderDocs = docsRes.rows;
+    const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
+    if (!isSalesOrAccounts) {
+      orderDocs = orderDocs.filter(d => d.doc_type !== 'PO');
+    }
+
+    res.json({
+      unit_id: unit.unit_id,
+      short_serial: unit.short_serial,
+      part_number: unit.part_number,
+      material_description: unit.material_description,
+      classification: unit.classification,
+      order_number: unit.order_number,
+      master_part: masterPart,
+      master_documents: masterDocs,
+      order_documents: orderDocs
+    });
+  } catch (err) {
+    console.error('Error fetching reference documents:', err);
+    res.status(500).json({ error: 'Failed to fetch reference documents' });
   }
 });
 
