@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
 import BulkImportModal from './BulkImportModal';
+import OrderDocumentsModal from './OrderDocumentsModal';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 
 export default function OrderList({ initialSelectedId }) {
@@ -16,6 +17,7 @@ export default function OrderList({ initialSelectedId }) {
   const [users, setUsers] = useState([]);
   const [expandedStepId, setExpandedStepId] = useState(null);
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const [orderDocsModalOrder, setOrderDocsModalOrder] = useState(null);
 
   const [bulkUpdateLi, setBulkUpdateLi] = useState(null);
   const [bulkDept, setBulkDept] = useState('');
@@ -545,6 +547,16 @@ export default function OrderList({ initialSelectedId }) {
                       Amend Order
                     </button>
                   )}
+
+                  <button 
+                    type="button"
+                    className="vbtn" 
+                    style={{ padding: '4px 12px', fontSize: '12px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    onClick={() => setOrderDocsModalOrder(selectedOrder)}
+                    title="Upload or manage Quotation, Details, and Approved Documents"
+                  >
+                    <span style={{ color: 'var(--blue)' }}>📎</span> Order Documents
+                  </button>
 
                   {currentUser.role?.toLowerCase() === 'admin' && (
                     <button 
@@ -1501,6 +1513,22 @@ export default function OrderList({ initialSelectedId }) {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Order Documents Modal (Quotation, Details, Approved Documents) */}
+      {orderDocsModalOrder && (
+        <OrderDocumentsModal
+          isOpen={true}
+          orderId={orderDocsModalOrder.id}
+          orderNumber={orderDocsModalOrder.order_number}
+          clientName={orderDocsModalOrder.company_name}
+          projectName={orderDocsModalOrder.project_name}
+          readOnly={orderDocsModalOrder.hold_status === 'Approved'}
+          onClose={() => setOrderDocsModalOrder(null)}
+          onDocumentsUpdated={() => {
+            fetchOrders();
+          }}
+        />
       )}
     </div>
   );

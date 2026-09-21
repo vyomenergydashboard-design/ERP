@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DEPTS } from '../data/planningData';
 import ExcelSheetViewer from './ExcelSheetViewer';
+import PanelSizeSearchSelect from './PanelSizeSearchSelect';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -1134,14 +1135,46 @@ export default function Masters() {
                         if (matched) {
                           const sizeVal = matched.panel_size || matched.size_name || '';
                           let ipRatingClean = (matched.ip_rating || '').replace(/,\s*/g, ' ').trim();
-                          if (matched.comments && !ipRatingClean.includes(matched.comments)) {
-                            ipRatingClean = ipRatingClean ? `${ipRatingClean} ${matched.comments}` : matched.comments;
-                          }
+                          const comments = (matched.comments || matched.description || '').trim();
                           return (
-                            <div style={{ fontSize: '12px' }}>
-                              <div style={{ fontWeight: 600, color: 'var(--text)' }}>{sizeVal}</div>
-                              <div style={{ fontSize: '11px', color: 'var(--text3)' }}>
-                                {[ipRatingClean, matched.panel_code].filter(Boolean).join(' · ')}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                              <div style={{ fontWeight: 600, fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'var(--text)' }}>
+                                {sizeVal}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
+                                {matched.panel_code && (
+                                  <span style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    color: 'var(--purple)',
+                                    background: 'var(--purple-dim)',
+                                    border: '1px solid rgba(167, 139, 250, 0.3)',
+                                    padding: '0 4px',
+                                    borderRadius: '3px'
+                                  }}>
+                                    {matched.panel_code}
+                                  </span>
+                                )}
+                                {ipRatingClean && (
+                                  <span style={{
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '10px',
+                                    fontWeight: 700,
+                                    color: 'var(--green)',
+                                    background: 'var(--green-dim)',
+                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                    padding: '0 4px',
+                                    borderRadius: '3px'
+                                  }}>
+                                    {ipRatingClean}
+                                  </span>
+                                )}
+                                {comments && comments.toLowerCase() !== ipRatingClean.toLowerCase() && (
+                                  <span style={{ fontSize: '10.5px', color: 'var(--text3)' }}>
+                                    {comments}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           );
@@ -1965,26 +1998,12 @@ export default function Masters() {
 
                 <div className="modal-field" style={{ marginBottom: '14px' }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Standard Panel Code / Size (Optional)</label>
-                  <select
-                    className="form-select"
+                  <PanelSizeSearchSelect
                     value={partFormData.panel_code || ''}
-                    onChange={(e) => setPartFormData({ ...partFormData, panel_code: e.target.value })}
-                  >
-                    <option value="">-- No linked panel size --</option>
-                    {panelSizes.map(ps => {
-                      const sizeVal = ps.panel_size || ps.size_name || '';
-                      let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
-                      if (ps.comments && !ipRatingClean.includes(ps.comments)) {
-                        ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
-                      }
-                      const label = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean).join(' | ');
-                      return (
-                        <option key={ps.id} value={ps.panel_code || sizeVal}>
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
+                    onChange={(val) => setPartFormData({ ...partFormData, panel_code: val })}
+                    panelSizes={panelSizes}
+                    placeholder="-- No linked panel size (Click to search / select) --"
+                  />
                 </div>
 
                 {!editingPartId && (

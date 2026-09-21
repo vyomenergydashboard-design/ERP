@@ -4626,8 +4626,8 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
     
     const doc = result.rows[0];
     
-    // Optional: Only allow the uploader, Admin, Manager, or Design to delete
-    if (doc.uploaded_by !== req.user.id && !['Admin', 'Manager', 'Design'].includes(req.user.role)) {
+    // Only allow the uploader, Admin, Manager, Design, Sales, or Accounts to delete
+    if (doc.uploaded_by !== req.user.id && !['Admin', 'Manager', 'Design', 'Sales', 'Accounts'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
 

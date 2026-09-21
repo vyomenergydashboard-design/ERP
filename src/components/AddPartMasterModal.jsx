@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from './Modal.jsx';
 import { UploadCloud, FileText, Check, AlertCircle, X } from 'lucide-react';
+import PanelSizeSearchSelect from './PanelSizeSearchSelect.jsx';
 
 export default function AddPartMasterModal({
   isOpen,
@@ -246,26 +247,12 @@ export default function AddPartMasterModal({
             <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
               Standard Panel Code / Size (Optional)
             </label>
-            <select
-              className="form-select"
-              value={formData.panel_code}
-              onChange={(e) => setFormData({ ...formData, panel_code: e.target.value })}
-            >
-              <option value="">-- No linked panel size --</option>
-              {availablePanelSizes.map(ps => {
-                const sizeVal = ps.panel_size || ps.size_name || '';
-                let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
-                if (ps.comments && !ipRatingClean.includes(ps.comments)) {
-                  ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
-                }
-                const label = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean).join(' | ');
-                return (
-                  <option key={ps.id} value={ps.panel_code || sizeVal}>
-                    {label}
-                  </option>
-                );
-              })}
-            </select>
+            <PanelSizeSearchSelect
+              value={formData.panel_code || ''}
+              onChange={(val) => setFormData({ ...formData, panel_code: val })}
+              panelSizes={availablePanelSizes}
+              placeholder="-- No linked panel size (Click to search / select) --"
+            />
           </div>
 
           {/* Optional Drawing Upload */}

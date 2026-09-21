@@ -5,8 +5,9 @@ import EditRefTagModal from './EditRefTagModal.jsx';
 import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
-  Eye, History, Download, Upload, CheckSquare, Square
+  Eye, History, Download, Upload, CheckSquare, Square, Paperclip
 } from 'lucide-react';
+import OrderDocumentsModal from './OrderDocumentsModal';
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -2065,7 +2066,8 @@ function renderCellContent({
   onSingleUnitPoClick,
   onPartNumberClick,
   setPoPdfViewer,
-  onEditRefTag
+  onEditRefTag,
+  onOpenOrderDocs
 }) {
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
   const priority = unit.priority || 'Medium';
@@ -2076,13 +2078,51 @@ function renderCellContent({
   switch (colKey) {
     case 'order_number':
       return (
-        <span
-          onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
-          style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
-          title="Click to view Process Flow"
-        >
-          {unit.order_number}
-        </span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+          <span
+            onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
+            style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
+            title="Click to view Process Flow"
+          >
+            {unit.order_number}
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenOrderDocs?.({
+                orderId: unit.order_id,
+                orderNumber: unit.order_number,
+                clientName: unit.company_name,
+                projectName: unit.project_name
+              });
+            }}
+            title="Order Documents (Quotation, Details, Approved Docs)"
+            style={{
+              background: 'rgba(59, 130, 246, 0.09)',
+              border: '1px solid rgba(59, 130, 246, 0.25)',
+              cursor: 'pointer',
+              padding: '2px 4px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--blue, #3b82f6)',
+              borderRadius: '4px',
+              transition: 'all 0.15s',
+              lineHeight: 1
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.22)';
+              e.currentTarget.style.borderColor = 'var(--blue, #3b82f6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.09)';
+              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.25)';
+            }}
+          >
+            <Paperclip size={11} />
+          </button>
+        </div>
       );
 
     case 'short_serial':
@@ -2835,7 +2875,8 @@ const TableRow = memo(function TableRow({
   onSingleUnitPoClick,
   onPartNumberClick,
   setPoPdfViewer,
-  onEditRefTag
+  onEditRefTag,
+  onOpenOrderDocs
 }) {
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
@@ -2952,7 +2993,8 @@ const TableRow = memo(function TableRow({
               onSingleUnitPoClick,
               onPartNumberClick,
               setPoPdfViewer,
-              onEditRefTag
+              onEditRefTag,
+              onOpenOrderDocs
             })}
           </td>
         );
@@ -3454,6 +3496,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedPartForDocs, setSelectedPartForDocs] = useState(null);
   const [editingRefTagUnit, setEditingRefTagUnit] = useState(null);
+  const [orderDocsModalData, setOrderDocsModalData] = useState(null);
 
   const fetchPartMasters = async () => {
     try {
@@ -4549,6 +4592,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 onPartNumberClick={handlePartNumberClick}
                 setPoPdfViewer={setPoPdfViewer}
                 onEditRefTag={setEditingRefTagUnit}
+                onOpenOrderDocs={setOrderDocsModalData}
               />
             ))}
 
@@ -4854,6 +4898,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             }
 
             window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: editingRefTagUnit.order_id } }));
+            fetchUnits(true);
+          }}
+        />
+      )}
+
+      {/* ── Order Documents Modal (Quotation, Details, Approved Documents) ── */}
+      {orderDocsModalData && (
+        <OrderDocumentsModal
+          isOpen={true}
+          orderId={orderDocsModalData.orderId}
+          orderNumber={orderDocsModalData.orderNumber}
+          clientName={orderDocsModalData.clientName}
+          projectName={orderDocsModalData.projectName}
+          onClose={() => setOrderDocsModalData(null)}
+          onDocumentsUpdated={() => {
             fetchUnits(true);
           }}
         />
