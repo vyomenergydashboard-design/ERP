@@ -315,7 +315,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
   const selectedLocId = Number(formData.company_location_id);
   const selectedCompany = companies.find(c => c.locations?.some(loc => loc.id === selectedLocId) || c.id === selectedLocId);
-  const isAutoFilledGst = Boolean(selectedCompany?.gst_number && formData.gst_number === selectedCompany.gst_number);
 
   return (
     <div className="order-creation-container">
@@ -427,14 +426,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
             </div>
 
             <div className="form-group">
-              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span>GST Number (Optional)</span>
-                {isAutoFilledGst && (
-                  <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '500' }}>
-                    ✓ Auto-copied from client
-                  </span>
-                )}
-              </label>
+              <label>GST Number (Optional)</label>
               <input
                 type="text"
                 name="gst_number"
@@ -493,7 +485,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                 )}
                 <div className="line-item-grid-1">
                   <div>
-                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item # <span style={{ color: '#888', fontStyle: 'italic' }}>(auto)</span></label>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Line Item</label>
                     <input type="text" className="form-input" value={`Item ${idx + 1}`} readOnly style={{ background: 'var(--bg4)', opacity: 0.6, cursor: 'not-allowed' }} />
                   </div>
                   <div>
@@ -515,7 +507,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Material Description</label>
-                    <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} />
+                    <input type="text" className="form-input" value={li.material_description} onChange={e => handleLineItemChange(idx, 'material_description', e.target.value)} style={{ width: '100%', boxSizing: 'border-box' }} />
                   </div>
                   {formData.classification === 'Standard' ? (
                     <div>
@@ -758,7 +750,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
         __html: `
         .order-creation-container {
           padding: 24px;
-          max-width: 900px;
+          max-width: 1040px;
           margin: 0 auto;
         }
         .form-card {
@@ -847,15 +839,23 @@ export default function OrderCreationFlow({ onOrderCreated }) {
 
         .line-item-grid-1 {
           display: grid;
-          grid-template-columns: 80px 130px 1.2fr 1.2fr 1fr;
-          gap: 16px;
+          grid-template-columns: 80px 120px minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.4fr);
+          gap: 14px;
           margin-bottom: 16px;
+          align-items: start;
         }
         .line-item-grid-2 {
           display: grid;
-          grid-template-columns: 100px 100px 1fr 1fr 1fr;
-          gap: 16px;
+          grid-template-columns: 85px 85px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+          gap: 14px;
           margin-bottom: 16px;
+          align-items: start;
+        }
+        .line-item-grid-1 > div,
+        .line-item-grid-2 > div {
+          min-width: 0;
+          width: 100%;
+          box-sizing: border-box;
         }
 
         @media (max-width: 768px) {
