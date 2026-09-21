@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PartNumberSearchSelect from './PartNumberSearchSelect.jsx';
 import AddPartMasterModal from './AddPartMasterModal.jsx';
+import PanelSizeSearchSelect from './PanelSizeSearchSelect.jsx';
 
 const getTodayDateStr = () => {
   const today = new Date();
@@ -519,7 +520,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                   {formData.classification === 'Standard' ? (
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
-                        Part Number Master *
+                        Part Number Master
                       </label>
                       <PartNumberSearchSelect
                         value={li.part_number}
@@ -544,22 +545,11 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         }}
                         onAddNew={(query) => handleOpenAddPartModal(idx, query)}
                       />
-                      {(() => {
-                        const match = partMasters.find(p => p.part_number === li.part_number);
-                        if (match && match.documents && match.documents.length > 0) {
-                          return (
-                            <div style={{ fontSize: '11px', color: '#10b981', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              ✓ Inherits {match.documents.length} Master Drawing{match.documents.length === 1 ? '' : 's'}
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
                   ) : (
                     <div>
                       <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
-                        Custom Part Number * <span style={{ fontSize: '11px', color: '#f59e0b' }}>(Custom Drawing)</span>
+                        Custom Part Number <span style={{ fontSize: '11px', color: '#f59e0b' }}>(Custom Drawing)</span>
                       </label>
                       <input
                         type="text"
@@ -572,57 +562,37 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                     </div>
                   )}
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                      <label style={{ fontSize: '12px', color: 'var(--text3)' }}>Panel Type / Size</label>
-                      {(() => {
-                        const match = partMasters.find(p => p.part_number === li.part_number);
-                        if (match?.panel_code) {
-                          const linkedPanel = panelSizeMasters.find(ps => ps.panel_code === match.panel_code);
-                          const linkedSize = linkedPanel ? (linkedPanel.panel_size || linkedPanel.size_name) : match.panel_code;
-                          const isCustomized = li.panel_type_size && li.panel_type_size !== linkedSize;
-                          return (
-                            <span style={{ fontSize: '10px', color: isCustomized ? '#f59e0b' : '#10b981' }}>
-                              {isCustomized ? '✎ Overwritten' : '⚡ Linked by Part #'}
-                            </span>
-                          );
-                        }
-                        return null;
-                      })()}
-                    </div>
-                    <select
-                      className="form-select"
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>
+                      Panel Type / Size
+                    </label>
+                    <PanelSizeSearchSelect
                       value={
                         li.is_custom_panel
-                          ? '__custom__'
+                          ? (li.panel_type_size || '__custom__')
                           : (panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size)
                             ? li.panel_type_size
                             : (li.panel_type_size ? '__custom__' : ''))
                       }
-                      onChange={e => {
-                        const val = e.target.value;
-                        if (val === '__custom__') {
-                          handleLineItemChanges(idx, { is_custom_panel: true, panel_type_size: '' });
+                      isCustom={li.is_custom_panel}
+                      onChange={(val, item, isCustom) => {
+                        if (isCustom || val === '__custom__') {
+                          handleLineItemChanges(idx, {
+                            is_custom_panel: true,
+                            panel_type_size: val === '__custom__' ? '' : val
+                          });
                         } else {
-                          handleLineItemChanges(idx, { is_custom_panel: false, panel_type_size: val });
+                          handleLineItemChanges(idx, {
+                            is_custom_panel: false,
+                            panel_type_size: val
+                          });
                         }
                       }}
-                    >
-                      <option value="">-- Select Master Panel Size --</option>
-                      {panelSizeMasters.map(ps => {
-                        const sizeVal = ps.panel_size || ps.size_name || '';
-                        let ipRatingClean = (ps.ip_rating || '').replace(/,\s*/g, ' ').trim();
-                        if (ps.comments && !ipRatingClean.includes(ps.comments)) {
-                          ipRatingClean = ipRatingClean ? `${ipRatingClean} ${ps.comments}` : ps.comments;
-                        }
-                        const labelParts = [sizeVal, ipRatingClean, ps.panel_code].filter(Boolean);
-                        return (
-                          <option key={ps.id} value={sizeVal}>
-                            {labelParts.join(' | ')}
-                          </option>
-                        );
-                      })}
-                      <option value="__custom__">Custom Panel Dimensions…</option>
-                    </select>
+                      panelSizes={panelSizeMasters}
+                      valueKey="panel_size"
+                      placeholder="-- Select Master Panel Size --"
+                      clearLabel="-- Select Master Panel Size --"
+                      allowCustom={true}
+                    />
                     {(li.is_custom_panel || (li.panel_type_size && !panelSizeMasters.some(ps => (ps.panel_size || ps.size_name) === li.panel_type_size))) && (
                       <input
                         type="text"
