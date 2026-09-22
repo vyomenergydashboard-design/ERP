@@ -204,6 +204,7 @@ export default function Masters() {
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const canEditMasters = !user.role || ['admin', 'manager'].includes(user.role?.toLowerCase());
+  const canEditClients = !user.role || ['admin', 'manager', 'sales'].includes(user.role?.toLowerCase());
   const canEditPartMaster = !user.role || ['admin', 'manager', 'design', 'sales'].includes(user.role?.toLowerCase());
   const isDesignUser = (user.role || '').trim().toLowerCase() === 'design';
   const canViewRevisionHistory = !isDesignUser;
@@ -528,7 +529,7 @@ export default function Masters() {
       // Check if Alt+N is pressed
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault(); // Prevent standard browser Alt+N shortcut behavior
-        if (activeTab === 'companies' && canEditMasters) {
+        if (activeTab === 'companies' && canEditClients) {
           setEditingCompanyId(null);
           setCompanyFormData({
             name: '',
@@ -554,7 +555,7 @@ export default function Masters() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [activeTab, canEditMasters]);
+  }, [activeTab, canEditMasters, canEditClients]);
 
   const fetchCompanies = async () => {
     try {
@@ -742,7 +743,7 @@ export default function Masters() {
         <>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
             <h2 style={{ margin: 0, color: 'var(--text)' }}>Client Masters</h2>
-            {canEditMasters && (
+            {canEditClients && (
               <button
                 className="vbtn"
                 onClick={() => {
@@ -785,7 +786,7 @@ export default function Masters() {
                       </span>
                     )}
                   </div>
-                  {canEditMasters && (
+                  {canEditClients && (
                     <button
                       className="vbtn"
                       style={{ padding: '4px 12px', fontSize: '12px', background: 'var(--bg3)', border: '1px solid var(--border)' }}

@@ -17,6 +17,7 @@ const getDefaultFormData = () => ({
   company_location_id: '',
   order_date: getTodayDateStr(),
   delivery_date: '',
+  po_number: '',
   notes: '',
   priority: 'Medium',
   packaging_type: '',
@@ -295,6 +296,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     data.append('project_name', formData.project_name || '');
     data.append('gst_number', formData.gst_number || '');
     data.append('reference_number', formData.reference_number || '');
+    data.append('po_number', formData.po_number || '');
     data.append('classification', formData.classification || 'Standard');
     data.append('lineItems', JSON.stringify(formData.lineItems));
 
@@ -485,6 +487,17 @@ export default function OrderCreationFlow({ onOrderCreated }) {
               </select>
             </div>
 
+            <div className="form-group">
+              <label>PO Number (Optional)</label>
+              <input
+                type="text"
+                name="po_number"
+                value={formData.po_number || ''}
+                onChange={handleInputChange}
+                placeholder="e.g. PO-2026-001"
+              />
+            </div>
+
             <div className="form-group full-width">
               <label>Overall Order Notes</label>
               <textarea
@@ -664,9 +677,36 @@ export default function OrderCreationFlow({ onOrderCreated }) {
           <div className="file-upload-section">
             <h3 className="section-title">Order Documents</h3>
             <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '16px' }}>
-              Only <strong style={{ color: 'var(--text2)' }}>one</strong> Quotation allowed. To replace after submission, delete the existing file first.
+              Only <strong style={{ color: 'var(--text2)' }}>one</strong> PO and <strong style={{ color: 'var(--text2)' }}>one</strong> Quotation allowed. To replace after submission, delete the existing file first.
             </div>
             <div className="file-grid">
+
+              {/* Purchase Order (PO) — single file */}
+              <div
+                className={`file-input-wrapper${draggingPo ? ' dragging' : ''}`}
+                onDragOver={(e) => handleDragOver(e, setDraggingPo)}
+                onDragLeave={() => handleDragLeave(setDraggingPo)}
+                onDrop={(e) => handleDrop(e, 'po', setDraggingPo)}
+              >
+                <label>Purchase Order (PO)</label>
+                {files.po ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px 10px', width: '100%', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 'bold' }}>Done</span>
+                    <span className="file-name-hint" style={{ flex: 1, maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{files.po.name}</span>
+                    <label style={{ fontSize: '10px', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                      Replace
+                      <input id="file-input-po" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" hidden onChange={(e) => handleFileChange(e, 'po')} />
+                    </label>
+                    <button type="button" onClick={() => removeSingleFile('po')} className="remove-file-btn" title="Remove">✕</button>
+                  </div>
+                ) : (
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', marginTop: '8px', border: '1px dashed var(--border2)', borderRadius: '6px', padding: '16px', cursor: 'pointer', color: 'var(--text3)', fontSize: '12px', width: '100%', boxSizing: 'border-box' }}>
+                    <span>Drag file here or</span>
+                    <span style={{ color: 'var(--blue)' }}>browse files</span>
+                    <input id="file-input-po" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" hidden onChange={(e) => handleFileChange(e, 'po')} />
+                  </label>
+                )}
+              </div>
 
               {/* Quotation — single file only */}
               <div

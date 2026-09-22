@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import DocumentManager from './DocumentManager';
 import BulkImportModal from './BulkImportModal';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 
-export default function OrderList({ initialSelectedId }) {
+export default function OrderList({ initialSelectedId, onSelectOrder }) {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedUnit, setSelectedUnit] = useState(null);
@@ -57,6 +57,21 @@ export default function OrderList({ initialSelectedId }) {
     tag: '',
   });
   const [isSubmittingLineItemEdit, setIsSubmittingLineItemEdit] = useState(false);
+
+  // Add Line Item states
+  const [isAddingLineItem, setIsAddingLineItem] = useState(false);
+  const [addLineItemForm, setAddLineItemForm] = useState({
+    material_description: '',
+    part_number: '',
+    panel_type_size: '',
+    quantity: 1,
+    unit: 'Nos',
+    unit_price: '',
+    delivery_date: '',
+    notes: '',
+    tag: '',
+  });
+  const [isSubmittingAddLineItem, setIsSubmittingAddLineItem] = useState(false);
 
   const fetchCompanies = async () => {
     try {
@@ -133,6 +148,8 @@ export default function OrderList({ initialSelectedId }) {
       if (res.ok) {
         alert('Order deleted and remaining orders resequenced successfully!');
         setSelectedOrder(null);
+        localStorage.removeItem('erp_selectedOrderId');
+        if (onSelectOrder) onSelectOrder(null);
         await fetchOrders();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: null } }));
       } else {
@@ -195,6 +212,55 @@ export default function OrderList({ initialSelectedId }) {
       }
       return updated;
     });
+  };
+
+  const handleStartAddLineItem = () => {
+    setAddLineItemForm({
+      material_description: '',
+      part_number: '',
+      panel_type_size: '',
+      quantity: 1,
+      unit: 'Nos',
+      unit_price: '',
+      delivery_date: selectedOrder?.delivery_date ? selectedOrder.delivery_date.split('T')[0] : '',
+      notes: '',
+      tag: '',
+    });
+    setIsAddingLineItem(true);
+  };
+
+  const handleAddLineItemChange = (field, value) => {
+    setAddLineItemForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddLineItemSubmit = async (e) => {
+    e.preventDefault();
+    if (!selectedOrder) return;
+    setIsSubmittingAddLineItem(true);
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/line-items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(addLineItemForm)
+      });
+      if (res.ok) {
+        setIsAddingLineItem(false);
+        await fetchOrderDetails(selectedOrder.id);
+        await fetchOrders();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrder.id } }));
+      } else {
+        const data = await res.json();
+        alert(data.error || 'Failed to add line item.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Network error, please try again.');
+    } finally {
+      setIsSubmittingAddLineItem(false);
+    }
   };
 
   const handleHoldAction = async (action) => {
@@ -325,9 +391,21 @@ export default function OrderList({ initialSelectedId }) {
     }
   };
 
+  const initialLoadedRef = useRef(false);
+
   useEffect(() => {
-    if (initialSelectedId && orders.length > 0) {
-      fetchOrderDetails(initialSelectedId);
+    const targetId = initialSelectedId || localStorage.getItem('erp_selectedOrderId');
+    if (targetId && orders.length > 0 && !initialLoadedRef.current) {
+      const found = orders.find(o => o.id.toString() === targetId.toString());
+      if (found) {
+        initialLoadedRef.current = true;
+        if (found.status === 'Completed' && orderTab !== 'completed') {
+          setOrderTab('completed');
+        } else if (found.status !== 'Completed' && orderTab === 'inprogress') {
+          setOrderTab('inprogress');
+        }
+        fetchOrderDetails(found.id);
+      }
     }
   }, [initialSelectedId, orders]);
 
@@ -355,6 +433,8 @@ export default function OrderList({ initialSelectedId }) {
       if (res.ok) {
         const data = await res.json();
         setSelectedOrder(data);
+        localStorage.setItem('erp_selectedOrderId', String(id));
+        if (onSelectOrder) onSelectOrder(id);
         if (selectedUnit) {
           const freshUnit = data.units?.find(u => u.id === selectedUnit.id);
           if (freshUnit) setSelectedUnit(freshUnit);
@@ -706,7 +786,37 @@ export default function OrderList({ initialSelectedId }) {
             </div>
 
             <div className="line-items-section" style={{ marginTop: '24px' }}>
-              <h3>Line Items & Units</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0 }}>Line Items & Units</h3>
+                {['admin', 'manager', 'sales'].includes(currentUser.role?.toLowerCase()) && (
+                  <button
+                    className="vbtn"
+                    title="Add Line Item to Order"
+                    style={{
+                      padding: '4px 12px',
+                      fontSize: '12px',
+                      background: '#10b981',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontWeight: 600,
+                      color: '#fff'
+                    }}
+                    onClick={() => {
+                      if (selectedOrder.hold_status === 'Approved') {
+                        alert('Order is currently on hold. Adding line items is disabled.');
+                        return;
+                      }
+                      handleStartAddLineItem();
+                    }}
+                  >
+                    + Add Line Item
+                  </button>
+                )}
+              </div>
               {selectedOrder.line_items?.map(li => {
                 const liUnits = selectedOrder.units?.filter(u => u.line_item_id === li.id) || [];
                 return (
@@ -1511,6 +1621,162 @@ export default function OrderList({ initialSelectedId }) {
                 <button type="button" className="vbtn" style={{ background: '#64748b', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setEditingLineItem(null)}>Cancel</button>
                 <button type="submit" className="vbtn" style={{ background: '#7c3aed', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} disabled={isSubmittingLineItemEdit}>
                   {isSubmittingLineItemEdit ? 'Saving...' : 'Save Line Item'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Line Item Modal */}
+      {isAddingLineItem && (
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setIsAddingLineItem(false); }}>
+          <div className="modal" style={{ maxWidth: '640px', width: '95%' }}>
+            <div className="modal-header">
+              <div>
+                <div className="modal-title">Add Line Item</div>
+                <div className="modal-sub">Order: {selectedOrder?.order_number} {selectedOrder?.company_name ? `· ${selectedOrder.company_name}` : ''}</div>
+              </div>
+              <button className="modal-close" onClick={() => setIsAddingLineItem(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddLineItemSubmit}>
+              <div className="modal-body">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                      Material Description <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.material_description}
+                      onChange={(e) => handleAddLineItemChange('material_description', e.target.value)}
+                      placeholder="e.g. VFD Control Panel 22kW"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Part Number</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.part_number}
+                      onChange={(e) => handleAddLineItemChange('part_number', e.target.value)}
+                      placeholder="e.g. VFD-22K-STD"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Panel Type / Size</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.panel_type_size}
+                      onChange={(e) => handleAddLineItemChange('panel_type_size', e.target.value)}
+                      placeholder="e.g. 800x600"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                      Quantity <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.quantity}
+                      onChange={(e) => handleAddLineItemChange('quantity', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Unit</label>
+                    <select
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.unit}
+                      onChange={(e) => handleAddLineItemChange('unit', e.target.value)}
+                    >
+                      {['Nos', 'Sets', 'Pcs', 'Units', 'Lot'].map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>
+                      Unit Price (₹) <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="9999999999999.99"
+                      step="0.01"
+                      required
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.unit_price}
+                      onChange={(e) => handleAddLineItemChange('unit_price', e.target.value)}
+                      placeholder="0.00"
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Total Price (₹)</label>
+                    <div style={{
+                      padding: '8px',
+                      borderRadius: '6px',
+                      background: 'var(--bg2)',
+                      border: '1px solid var(--border)',
+                      color: '#10b981',
+                      fontWeight: 600,
+                      fontSize: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: '35px',
+                      boxSizing: 'border-box'
+                    }}>
+                      ₹ {((parseFloat(addLineItemForm.unit_price) || 0) * (parseInt(addLineItemForm.quantity) || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Delivery Date</label>
+                    <input
+                      type="date"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.delivery_date}
+                      onChange={(e) => handleAddLineItemChange('delivery_date', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Ref / Tag Number</label>
+                    <input
+                      type="text"
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
+                      value={addLineItemForm.tag}
+                      onChange={(e) => handleAddLineItemChange('tag', e.target.value)}
+                      placeholder="e.g. TAG-01"
+                    />
+                  </div>
+
+                  <div style={{ gridColumn: 'span 2' }}>
+                    <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Notes</label>
+                    <textarea
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', height: '72px', resize: 'vertical', boxSizing: 'border-box' }}
+                      value={addLineItemForm.notes}
+                      onChange={(e) => handleAddLineItemChange('notes', e.target.value)}
+                      placeholder="Item-specific notes..."
+                    />
+                  </div>
+
+                </div>
+              </div>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', padding: '16px', borderTop: '1px solid var(--border)' }}>
+                <button type="button" className="vbtn" style={{ background: '#64748b', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} onClick={() => setIsAddingLineItem(false)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: '#10b981', border: 'none', color: '#fff', padding: '8px 18px', borderRadius: '4px', cursor: 'pointer' }} disabled={isSubmittingAddLineItem}>
+                  {isSubmittingAddLineItem ? 'Adding Line Item...' : 'Add Line Item'}
                 </button>
               </div>
             </form>
