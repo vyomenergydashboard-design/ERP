@@ -47,6 +47,7 @@ function getFileType(fileName) {
 function getDocCategoryLabel(docType) {
   const type = (docType || '').toLowerCase();
   if (type === 'quotation') return 'Quotation';
+  if (type === 'po') return 'Purchase Order (PO)';
   if (type === 'indent' || type === 'details') return 'Details';
   if (type === 'approved' || type === 'general') return 'Approved Document';
   return docType || 'Document';
@@ -80,9 +81,11 @@ export default function OrderDocumentsModal({
   const [excelSearch, setExcelSearch] = useState('');
 
   const quotationInputRef = useRef(null);
+  const poInputRef = useRef(null);
   const detailsInputRef = useRef(null);
   const approvedInputRef = useRef(null);
   const replaceQuotationInputRef = useRef(null);
+  const replacePoInputRef = useRef(null);
   const replaceDetailsInputRef = useRef(null);
 
   const token = localStorage.getItem('token');
@@ -219,7 +222,18 @@ export default function OrderDocumentsModal({
 
   if (!isOpen) return null;
 
+  const userRole = (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      if (u && u.role) return u.role;
+    } catch (e) { }
+    return localStorage.getItem('userRole') || 'Sales';
+  })();
+  const roleUpper = (userRole || '').trim().toUpperCase();
+  const canSeePo = ['ADMIN', 'MANAGER', 'SALES', 'ACCOUNTS'].includes(roleUpper);
+
   // Categorize documents
+  const poDoc = documents.find(d => (d.doc_type || '').toLowerCase() === 'po');
   const quotationDoc = documents.find(d => (d.doc_type || '').toLowerCase() === 'quotation');
   const detailsDoc = documents.find(d => {
     const type = (d.doc_type || '').toLowerCase();
@@ -265,6 +279,7 @@ export default function OrderDocumentsModal({
       }
 
       let docType = 'Approved';
+      if (category === 'po') docType = 'PO';
       if (category === 'quotation') docType = 'Quotation';
       if (category === 'details') docType = 'Indent';
 
@@ -363,7 +378,13 @@ export default function OrderDocumentsModal({
     const droppedFiles = e.dataTransfer?.files;
     if (!droppedFiles || droppedFiles.length === 0) return;
 
-    if (cat === 'quotation') {
+    if (cat === 'po') {
+      if (poDoc) {
+        uploadFiles('po', [droppedFiles[0]], true, poDoc.id);
+      } else {
+        uploadFiles('po', [droppedFiles[0]]);
+      }
+    } else if (cat === 'quotation') {
       if (quotationDoc) {
         uploadFiles('quotation', [droppedFiles[0]], true, quotationDoc.id);
       } else {
@@ -604,14 +625,224 @@ export default function OrderDocumentsModal({
                 transition: 'width 0.25s ease'
               }}
             >
-              {/* When preview is closed, show the 3 cards in a spacious responsive layout */}
+              {/* Show cards in a responsive layout (4 cards if PO visible, 3 otherwise) */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: isPreviewActive ? '1fr' : 'repeat(3, minmax(0, 1fr))',
+                  gridTemplateColumns: isPreviewActive ? '1fr' : (canSeePo ? 'repeat(auto-fit, minmax(210px, 1fr))' : 'repeat(3, minmax(0, 1fr))'),
                   gap: '16px'
                 }}
               >
+                {/* ── CARD 0: Purchase Order (PO) (Visible to Admin, Manager, Sales, Accounts) ── */}
+                {canSeePo && (
+                  <div
+                    style={{
+                      background: 'var(--bg3, #1e2230)',
+                      border: `1px solid ${draggingCategory === 'po' ? 'var(--blue, #3b82f6)' : poDoc && selectedDocForPreview?.id === poDoc.id ? 'var(--blue, #3b82f6)' : 'var(--border, #2d3748)'}`,
+                      borderRadius: '12px',
+                      padding: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: isPreviewActive ? 'auto' : '200px',
+                      transition: 'all 0.15s ease',
+                      boxShadow: poDoc && selectedDocForPreview?.id === poDoc.id ? '0 0 0 1px var(--blue, #3b82f6)' : 'none'
+                    }}
+                    onDragOver={(e) => handleDragOver(e, 'po')}
+                    onDragLeave={(e) => handleDragLeave(e, 'po')}
+                    onDrop={(e) => handleDrop(e, 'po')}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.15)', color: 'var(--blue, #3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <FileText size={15} />
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: 'var(--text)' }}>
+                              Purchase Order (PO)
+                            </h4>
+                            <div style={{ fontSize: '11px', color: 'var(--text3)' }}>Order-level PO document</div>
+                          </div>
+                        </div>
+                        {poDoc && (
+                          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: '700', background: 'rgba(16, 185, 129, 0.15)', padding: '2px 7px', borderRadius: '4px' }}>
+                            ✓ Done
+                          </span>
+                        )}
+                      </div>
+
+                      {uploadingCategory === 'po' ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', gap: '8px' }}>
+                          <Loader2 size={18} className="animate-spin" style={{ color: 'var(--blue)' }} />
+                          <span style={{ fontSize: '12px', color: 'var(--text2)' }}>Uploading PO...</span>
+                        </div>
+                      ) : poDoc ? (
+                        <div
+                          onClick={() => setSelectedDocForPreview(poDoc)}
+                          style={{
+                            background: selectedDocForPreview?.id === poDoc.id ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg2, #181b26)',
+                            border: '1px solid var(--border, #2d3748)',
+                            borderRadius: '8px',
+                            padding: '10px 12px',
+                            marginTop: '8px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)', wordBreak: 'break-word', lineHeight: '1.4' }} title={poDoc.file_name}>
+                            {poDoc.file_name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                            {formatFileSize(poDoc.file_size)}
+                            {poDoc.uploaded_at && ` · ${new Date(poDoc.uploaded_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}`}
+                          </div>
+                        </div>
+                      ) : (
+                        <label
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            border: '1px dashed var(--border2, #3b4256)',
+                            borderRadius: '8px',
+                            padding: '24px 12px',
+                            marginTop: '8px',
+                            cursor: readOnly ? 'not-allowed' : 'pointer',
+                            color: 'var(--text3, #64748b)',
+                            fontSize: '12px',
+                            textAlign: 'center',
+                            background: draggingCategory === 'po' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          <UploadCloud size={22} style={{ color: 'var(--blue, #3b82f6)', opacity: 0.8 }} />
+                          <span>Drag file here or <span style={{ color: 'var(--blue, #3b82f6)', fontWeight: '600' }}>browse files</span></span>
+                          <input
+                            ref={poInputRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx,.xls,.xlsx"
+                            hidden
+                            disabled={readOnly}
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files[0]) {
+                                uploadFiles('po', [e.target.files[0]]);
+                                e.target.value = '';
+                              }
+                            }}
+                          />
+                        </label>
+                      )}
+                    </div>
+
+                    {/* Actions for PO when uploaded */}
+                    {poDoc && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '12px', flexWrap: 'nowrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDocForPreview(poDoc)}
+                          style={{
+                            flex: 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '5px',
+                            padding: '6px 10px',
+                            fontSize: '12px',
+                            fontWeight: '600',
+                            background: selectedDocForPreview?.id === poDoc.id ? 'var(--blue, #3b82f6)' : 'rgba(59, 130, 246, 0.14)',
+                            color: selectedDocForPreview?.id === poDoc.id ? '#ffffff' : 'var(--blue, #3b82f6)',
+                            border: '1px solid rgba(59, 130, 246, 0.3)',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          <Eye size={13} />
+                          <span>{selectedDocForPreview?.id === poDoc.id ? 'Previewing' : 'Preview'}</span>
+                        </button>
+
+                        <a
+                          href={getDocumentUrl(poDoc.file_path)}
+                          download={poDoc.file_name}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '6px 9px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid var(--border, #2d3748)',
+                            borderRadius: '6px',
+                            color: 'var(--text2, #cbd5e1)',
+                            cursor: 'pointer',
+                            textDecoration: 'none'
+                          }}
+                          title="Download"
+                        >
+                          <Download size={13} />
+                        </a>
+
+                        {!readOnly && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => replacePoInputRef.current?.click()}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6px 9px',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                border: '1px solid rgba(59, 130, 246, 0.25)',
+                                borderRadius: '6px',
+                                color: 'var(--blue, #3b82f6)',
+                                cursor: 'pointer'
+                              }}
+                              title="Replace file"
+                            >
+                              <RefreshCw size={13} />
+                            </button>
+                            <input
+                              ref={replacePoInputRef}
+                              type="file"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx"
+                              hidden
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  uploadFiles('po', [e.target.files[0]], true, poDoc.id);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+
+                            <button
+                              type="button"
+                              onClick={() => deleteDocument(poDoc.id, poDoc.file_name)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '6px 9px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                borderRadius: '6px',
+                                color: '#ef4444',
+                                cursor: 'pointer'
+                              }}
+                              title="Delete file"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* ── CARD 1: Quotation ── */}
                 <div
                   style={{

@@ -1270,6 +1270,15 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
     }
 
     if (hasPO) {
+      if ((!po_number || !po_number.trim()) && req.files) {
+        const poFile = req.files.find(f => f.fieldname && f.fieldname.toLowerCase().includes('po'));
+        if (poFile) {
+          const derivedPo = poFile.originalname.replace(/\.[^/.]+$/, '').trim();
+          await client.query('UPDATE orders SET po_number = $1 WHERE id = $2', [derivedPo, order.id]);
+          order.po_number = derivedPo;
+        }
+      }
+
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       await client.query(
         `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
@@ -1279,6 +1288,10 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
         [req.user.id, order.id, 'Sales', 'Completed: Upload PO (System Auto-Check)']
       );
+      // Re-derive unit status for all units in this order so they advance out of Sales gating
+      for (const unitDbId of createdUnits) {
+        await deriveUnitStatus(unitDbId, client);
+      }
     }
 
     await client.query(
@@ -1525,7 +1538,7 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
 });
 
 // Amend a single line item's core details
-app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
+app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { orderId, liId } = req.params;
   const {
     material_description,
@@ -1635,6 +1648,196 @@ app.put('/api/orders/:orderId/line-items/:liId', authorize(['Admin', 'Manager', 
   } catch (err) {
     console.error('Failed to amend line item:', err);
     res.status(500).json({ error: 'Failed to amend line item' });
+  }
+});
+
+// Add a new line item (and corresponding units & steps) to an existing order
+app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
+  const { orderId } = req.params;
+  const {
+    material_description,
+    part_number,
+    panel_type_size,
+    quantity,
+    unit,
+    unit_price,
+    delivery_date,
+    notes,
+    tag,
+  } = req.body;
+
+  if (!material_description || typeof material_description !== 'string' || !material_description.trim()) {
+    return res.status(400).json({ error: 'Material description is required.' });
+  }
+
+  const qty = parseInt(quantity, 10);
+  if (isNaN(qty) || qty < 1) {
+    return res.status(400).json({ error: 'Quantity must be at least 1.' });
+  }
+
+  const uPrice = parseFloat(unit_price) || 0;
+  if (isNaN(uPrice) || uPrice < 0 || uPrice > 9999999999999.99) {
+    return res.status(400).json({ error: 'Unit price must be a valid number between 0 and 9,999,999,999,999.99.' });
+  }
+
+  let tPrice = req.body.total_price !== undefined ? parseFloat(req.body.total_price) : (qty * uPrice);
+  if (isNaN(tPrice) || tPrice < 0 || tPrice > 9999999999999.99) {
+    return res.status(400).json({ error: 'Total price must be a valid number between 0 and 9,999,999,999,999.99.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verify the order exists and is not on hold
+    const orderCheck = await client.query(
+      'SELECT id, order_number, hold_status, order_date, delivery_date, classification, project_name FROM orders WHERE id = $1',
+      [orderId]
+    );
+    if (orderCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    const order = orderCheck.rows[0];
+    if (order.hold_status === 'Approved') {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Order is on hold. Adding line items is disabled.' });
+    }
+
+    // 2. Determine next line item number suffix
+    const existingLis = await client.query(
+      'SELECT line_item_number FROM order_line_items WHERE order_id = $1',
+      [order.id]
+    );
+    let maxItemIdx = 0;
+    for (const row of existingLis.rows) {
+      const match = String(row.line_item_number || '').match(/-(\d+)$/);
+      if (match) {
+        const parsed = parseInt(match[1], 10);
+        if (parsed > maxItemIdx) maxItemIdx = parsed;
+      }
+    }
+    const nextItemIdx = maxItemIdx > 0 ? maxItemIdx + 1 : (existingLis.rows.length + 1);
+    const assigned_li_number = `${order.order_number}-${String(nextItemIdx).padStart(2, '0')}`;
+
+    const cleanTag = (tag && typeof tag === 'string' && tag.trim()) ? tag.trim() : null;
+    const resolvedDeliveryDate = (delivery_date && typeof delivery_date === 'string' && delivery_date.trim())
+      ? delivery_date.trim()
+      : (order.delivery_date ? new Date(order.delivery_date).toISOString().split('T')[0] : null);
+
+    // 3. Insert line item
+    const liResult = await client.query(
+      `INSERT INTO order_line_items (
+        order_id, line_item_number, material_description, part_number, panel_type_size,
+        delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      RETURNING *`,
+      [
+        order.id,
+        assigned_li_number,
+        material_description.trim(),
+        part_number ? part_number.trim() : null,
+        panel_type_size ? panel_type_size.trim() : null,
+        resolvedDeliveryDate,
+        qty,
+        unit || 'Nos',
+        uPrice,
+        tPrice,
+        notes || null,
+        order.project_name || null,
+        cleanTag,
+      ]
+    );
+    const lineItem = liResult.rows[0];
+
+    // 4. Determine starting unit serial sequence
+    let year = new Date().getFullYear();
+    if (order.order_date) {
+      const d = new Date(order.order_date);
+      if (!isNaN(d.getFullYear())) year = d.getFullYear();
+    } else if (order.order_number && /^\d{8,}$/.test(order.order_number)) {
+      const yy = parseInt(order.order_number.substring(0, 2), 10);
+      if (!isNaN(yy)) year = 2000 + yy;
+    }
+
+    const maxUnitRes = await client.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
+    let max_unit_seq = parseOrderCounter(maxUnitRes.rows[0]?.max_unit);
+    let order_seq = parseOrderCounter(order.order_number);
+    let globalUnitCounter = Math.max(max_unit_seq > 0 ? max_unit_seq + 1 : 1, order_seq);
+
+    // 5. Create units
+    const createdUnits = [];
+    for (let i = 0; i < qty; i++) {
+      const unit_id = formatOrderNumber(year, globalUnitCounter);
+      const short_serial = unit_id;
+      const unitResult = await client.query(
+        `INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, panel_type_size, classification, tag)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+        [order.id, lineItem.id, unit_id, short_serial, lineItem.panel_type_size || null, order.classification || 'Standard', cleanTag]
+      );
+      createdUnits.push(unitResult.rows[0].id);
+      globalUnitCounter++;
+    }
+
+    // 6. Assign mandatory unit-level steps
+    const tasksResult = await client.query(`
+      SELECT * FROM task_masters 
+      WHERE is_mandatory = true AND level = 'unit'
+      ORDER BY 
+        CASE dept
+          WHEN 'Sales' THEN 1
+          WHEN 'Design' THEN 2
+          WHEN 'Purchase' THEN 3
+          WHEN 'Stores' THEN 4
+          WHEN 'Planning' THEN 5
+          WHEN 'Production' THEN 6
+          WHEN 'QC' THEN 7
+          WHEN 'Dispatch' THEN 8
+          WHEN 'Accounts' THEN 9
+          ELSE 10
+        END ASC,
+        id ASC
+    `);
+    let unitTasks = tasksResult.rows;
+    if (unitTasks.length === 0) {
+      unitTasks = DEFAULT_STEPS.filter(t => t.level === 'unit');
+    }
+
+    for (const unitDbId of createdUnits) {
+      for (let i = 0; i < unitTasks.length; i++) {
+        const task = unitTasks[i];
+        let fieldDefs = [];
+        if (task.id) {
+          try {
+            const raw = Array.isArray(task.custom_fields) ? task.custom_fields : JSON.parse(task.custom_fields || '[]');
+            fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+          } catch { fieldDefs = []; }
+        }
+
+        await client.query(
+          `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, default_doc_type, custom_fields, step_order) 
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`,
+          [unitDbId, task.id || null, task.dept, task.name, task.sub, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs), i]
+        );
+      }
+      // Derive initial unit status
+      await deriveUnitStatus(unitDbId, client);
+    }
+
+    // 7. Activity Log
+    await client.query(
+      'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
+      [req.user.id, req.user.role, `Added line item ${assigned_li_number} (${qty} units) to order ${order.order_number}`, order.id]
+    );
+
+    await client.query('COMMIT');
+    res.status(201).json({ success: true, line_item: lineItem, units_created: createdUnits.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to add line item to order:', err);
+    res.status(500).json({ error: err.message || 'Failed to add line item to order' });
+  } finally {
+    client.release();
   }
 });
 
@@ -2760,7 +2963,7 @@ app.get('/api/planning', authorize(), async (req, res) => {
           oli.id as line_item_id,
           o.id as order_id,
           o.order_number,
-          COALESCE(o.po_number, (SELECT ou.po_number FROM order_units ou WHERE ou.line_item_id = oli.id AND ou.po_number IS NOT NULL LIMIT 1)) AS po_number,
+          COALESCE((SELECT ou.po_number FROM order_units ou WHERE ou.line_item_id = oli.id AND ou.po_number IS NOT NULL LIMIT 1), o.po_number) AS po_number,
           COALESCE(oli.delivery_date, o.delivery_date) AS delivery_date,
           o.priority,
           o.notes,
@@ -3831,8 +4034,13 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     }
 
     if (po_number !== undefined) {
+      const cleanPo = (po_number && typeof po_number === 'string' && po_number.trim()) ? po_number.trim() : null;
       updates.push(`po_number = $${idx++}`);
-      values.push(po_number ? String(po_number).trim() : null);
+      values.push(cleanPo);
+      if (!cleanPo) {
+        updates.push(`po_doc_id = $${idx++}`);
+        values.push(null);
+      }
     }
 
     // Admin/Manager update of Tag Number on unit and parent line item (without touching serial numbers)
@@ -4125,7 +4333,7 @@ app.get('/api/companies', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/companies', authorize(['Admin', 'Manager']), async (req, res) => {
+app.post('/api/companies', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { name, gst_number, locations } = req.body;
   const client = await pool.connect();
   try {
@@ -4160,7 +4368,7 @@ app.post('/api/companies', authorize(['Admin', 'Manager']), async (req, res) => 
   }
 });
 
-app.put('/api/companies/:id', authorize(['Admin', 'Manager']), async (req, res) => {
+app.put('/api/companies/:id', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   const { name, gst_number, locations } = req.body;
   const companyId = req.params.id;
   const client = await pool.connect();
@@ -4292,6 +4500,17 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
     }
 
     if (hasPO && entity_type === 'Order') {
+      const poNum = req.body.po_number;
+      if (poNum && poNum.trim()) {
+        await pool.query('UPDATE orders SET po_number = $1 WHERE id = $2', [poNum.trim(), entity_id]);
+      } else if (req.files && req.files.length > 0) {
+        const defaultName = req.files[0].originalname.replace(/\.[^/.]+$/, '').trim();
+        await pool.query(
+          `UPDATE orders SET po_number = $1 WHERE id = $2 AND (po_number IS NULL OR po_number = '')`,
+          [defaultName, entity_id]
+        );
+      }
+
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       await pool.query(
         `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
@@ -4301,6 +4520,14 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
         [req.user.id, entity_id, 'Sales', 'Completed: Upload PO (System Auto-Check on Upload)']
       );
+      const uRes = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
+      for (const u of uRes.rows) {
+        try {
+          await deriveUnitStatus(u.id, pool);
+        } catch (dErr) {
+          console.warn('deriveUnitStatus warn in upload doc PO:', dErr);
+        }
+      }
     }
     res.status(201).json(savedDocs);
   } catch (err) {
@@ -4386,32 +4613,39 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Accounts', 'Admin', 'Manage
       [cleanPo, savedDoc.id, unit_ids]
     );
 
-    // 3. Update orders table po_number if not already set
+    // 3. Update orders table po_number if not already set AND all units in this order are included
     const orderIds = [...new Set(unitRes.rows.map(u => u.order_id).filter(Boolean))];
     if (orderIds.length > 0) {
-      await pool.query(
-        `UPDATE orders SET po_number = $1 WHERE id = ANY($2::int[]) AND (po_number IS NULL OR po_number = '')`,
-        [cleanPo, orderIds]
-      );
-
-      // Ensure Order-level document entry exists so order documents list shows PO copy
       for (const ordId of orderIds) {
-        const checkOrdDoc = await pool.query("SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1", [ordId]);
-        if (checkOrdDoc.rows.length === 0) {
-          await pool.query(
-            `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
-             VALUES ('Order', $1, 'PO', $2, $3, $4, $5, $6)`,
-            [ordId, req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
-          );
-        }
-      }
+        const totalUnitsRes = await pool.query('SELECT COUNT(*) as total FROM order_units WHERE order_id = $1', [ordId]);
+        const totalUnits = parseInt(totalUnitsRes.rows[0]?.total || 0);
+        const selectedUnitsInOrder = unitRes.rows.filter(u => u.order_id === ordId).length;
 
-      // Auto-resolve 'Upload PO' milestone in order_steps
-      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-      await pool.query(
-        `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = ANY($3::int[]) AND name = 'Upload PO'`,
-        [`PO #${cleanPo} uploaded.`, updatedStr, orderIds]
-      );
+        // Only update order-level PO if all units of this order are included
+        if (selectedUnitsInOrder >= totalUnits) {
+          await pool.query(
+            `UPDATE orders SET po_number = $1 WHERE id = $2 AND (po_number IS NULL OR po_number = '')`,
+            [cleanPo, ordId]
+          );
+
+          // Ensure Order-level document entry exists so order documents list shows PO copy
+          const checkOrdDoc = await pool.query("SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1", [ordId]);
+          if (checkOrdDoc.rows.length === 0) {
+            await pool.query(
+              `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
+               VALUES ('Order', $1, 'PO', $2, $3, $4, $5, $6)`,
+              [ordId, req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
+            );
+          }
+        }
+
+        // Auto-resolve 'Upload PO' milestone in order_steps
+        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        await pool.query(
+          `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
+          [`PO #${cleanPo} uploaded.`, updatedStr, ordId]
+        );
+      }
     }
 
     // 4. Re-derive unit status for all affected units so they transition out of Sales gating

@@ -60,8 +60,11 @@ function Dashboard() {
   const [designType, setDesignType] = useState('Standard');
   const [selectedStepId, setSelectedStepId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const selectedOrderIdRef = useRef(null); // ref so closures always see latest value
+  const [selectedOrderId, setSelectedOrderId] = useState(() => {
+    const saved = localStorage.getItem('erp_selectedOrderId');
+    return saved ? parseInt(saved, 10) || null : null;
+  });
+  const selectedOrderIdRef = useRef(selectedOrderId); // ref so closures always see latest value
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
@@ -126,9 +129,11 @@ function Dashboard() {
 
   useEffect(() => {
     if (selectedOrderId) {
+      localStorage.setItem('erp_selectedOrderId', String(selectedOrderId));
       fetchOrderSteps(selectedOrderId);
       fetchOrderDetails(selectedOrderId);
     } else {
+      localStorage.removeItem('erp_selectedOrderId');
       setSteps([]);
       setSelectedOrder(null);
     }
@@ -488,7 +493,13 @@ function Dashboard() {
               onClearStatFilter={() => setStatCardFilter(null)}
             />
           ) : currentView === 'orders' ? (
-            <OrderList initialSelectedId={selectedOrderId} />
+            <OrderList 
+              initialSelectedId={selectedOrderId} 
+              onSelectOrder={(id) => {
+                setSelectedOrderId(id);
+                selectedOrderIdRef.current = id;
+              }}
+            />
           ) : currentView === 'documents' ? (
             <DocumentDirectory />
           ) : currentView === 'new-order' ? (
