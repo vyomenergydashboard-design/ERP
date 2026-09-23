@@ -385,12 +385,12 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               {showHoldBox && (
                 <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid #f59e0b', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '12px', fontWeight: '700', color: '#fbbf24', marginBottom: '6px' }}>
-                    Reason for placing on hold:
+                    Reason for placing on hold (optional):
                   </div>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Enter reason..."
+                    placeholder="Enter reason (optional)..."
                     value={actionReason}
                     onChange={e => setActionReason(e.target.value)}
                     style={{ fontSize: '12px', marginBottom: '8px' }}
@@ -398,10 +398,10 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   <button
                     type="button"
                     onClick={() => {
-                      if (!actionReason.trim()) { alert('Please enter a hold reason'); return; }
+                      const finalNotes = actionReason.trim() || notes || 'On hold';
                       setStatus('hold');
-                      setNotes(actionReason);
-                      onSave({ status: 'hold', notes: actionReason });
+                      setNotes(finalNotes);
+                      onSave({ status: 'hold', notes: finalNotes });
                       setShowHoldBox(false);
                     }}
                     style={{ background: '#f59e0b', color: '#000', fontWeight: '700', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', cursor: 'pointer' }}
@@ -414,12 +414,12 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
               {showCancelBox && (
                 <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid #ef4444', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
                   <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '6px' }}>
-                    Reason for cancellation:
+                    Reason for cancellation (optional):
                   </div>
                   <input
                     type="text"
                     className="form-input"
-                    placeholder="Enter reason..."
+                    placeholder="Enter reason (optional)..."
                     value={actionReason}
                     onChange={e => setActionReason(e.target.value)}
                     style={{ fontSize: '12px', marginBottom: '8px' }}
@@ -427,11 +427,10 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   <button
                     type="button"
                     onClick={() => {
-                      if (!actionReason.trim()) { alert('Please enter a cancellation reason'); return; }
-                      if (!confirm('Are you sure you want to cancel this task?')) return;
+                      const finalNotes = actionReason.trim() || notes || 'Cancelled';
                       setStatus('cancelled');
-                      setNotes(actionReason);
-                      onSave({ status: 'cancelled', notes: actionReason });
+                      setNotes(finalNotes);
+                      onSave({ status: 'cancelled', notes: finalNotes });
                       setShowCancelBox(false);
                     }}
                     style={{ background: '#ef4444', color: '#fff', fontWeight: '700', border: 'none', borderRadius: '6px', padding: '6px 14px', fontSize: '12px', cursor: 'pointer' }}

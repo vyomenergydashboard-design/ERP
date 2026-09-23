@@ -2064,6 +2064,7 @@ function renderCellContent({
   onRowClick,
   onSaveInlineCell,
   onSingleUnitPoClick,
+  onDeleteUnitPoDoc,
   onPartNumberClick,
   setPoPdfViewer,
   onEditRefTag,
@@ -2436,6 +2437,7 @@ function renderCellContent({
                 onClick={(e) => {
                   e.stopPropagation();
                   setPoPdfViewer({
+                    unit: unit,
                     file_path: unit.po_file_path,
                     file_name: unit.po_file_name || `${unit.po_number}.pdf`,
                     title: `PO Document - ${unit.po_number}`,
@@ -2503,29 +2505,54 @@ function renderCellContent({
           )}
 
           {canUploadPo && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onSingleUnitPoClick(unit);
-              }}
-              title={hasPoNum ? (hasPdf ? "Change PO / Re-upload PDF for this serial" : "Upload PDF for this PO") : "Enter PO & Upload PDF for this serial"}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 2,
-                cursor: 'pointer',
-                color: 'var(--text3)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                opacity: 0.6,
-                flexShrink: 0
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--blue)'; e.currentTarget.style.opacity = '1'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
-            >
-              <UploadCloud size={12} />
-            </button>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSingleUnitPoClick(unit);
+                }}
+                title={hasPoNum ? (hasPdf ? "Change PO / Re-upload PDF for this serial" : "Upload PDF for this PO") : "Enter PO & Upload PDF for this serial"}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 2,
+                  cursor: 'pointer',
+                  color: 'var(--text3)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  opacity: 0.6
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--blue)'; e.currentTarget.style.opacity = '1'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
+              >
+                <UploadCloud size={12} />
+              </button>
+              {hasPdf && onDeleteUnitPoDoc && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteUnitPoDoc(unit);
+                  }}
+                  title="Delete attached PO PDF (keeps PO Number as text)"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 2,
+                    cursor: 'pointer',
+                    color: 'var(--text3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    opacity: 0.6
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
           )}
         </div>
       );
@@ -2873,6 +2900,7 @@ const TableRow = memo(function TableRow({
   onRowClick,
   onSaveInlineCell,
   onSingleUnitPoClick,
+  onDeleteUnitPoDoc,
   onPartNumberClick,
   setPoPdfViewer,
   onEditRefTag,
@@ -2991,6 +3019,7 @@ const TableRow = memo(function TableRow({
               onRowClick,
               onSaveInlineCell,
               onSingleUnitPoClick,
+              onDeleteUnitPoDoc,
               onPartNumberClick,
               setPoPdfViewer,
               onEditRefTag,
@@ -3046,7 +3075,7 @@ const PoUploadBar = memo(function PoUploadBar({
 
   const handleUploadClick = () => {
     if (!canUploadPo) {
-      alert("Only Sales, Accounts, Admin, and Manager roles can upload PO documents.");
+      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
       return;
     }
     if (selectedCount === 0) {
@@ -3487,7 +3516,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
-  const canUploadPo = ['ADMIN', 'MANAGER', 'SALES', 'ACCOUNTS'].includes(roleUpper);
+  const canUploadPo = ['ADMIN', 'MANAGER', 'SALES'].includes(roleUpper);
 
   const [colVisibility, setColVisibility] = useState({});
   const [editingCell, setEditingCell] = useState(null);
@@ -4079,12 +4108,42 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const handleSingleUnitPoClick = useCallback((unit) => {
     if (!canUploadPo) {
-      alert("Only Sales, Accounts, Admin, and Manager roles can upload PO documents.");
+      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
       return;
     }
     setSelectedUnitIds(new Set([unit.unit_id]));
     setExternalPoNumber(unit.po_number || '');
   }, [canUploadPo]);
+
+  const handleDeleteUnitPoDoc = useCallback(async (unit) => {
+    if (!canUploadPo) {
+      alert("Only Sales, Admin, and Manager roles can remove PO documents.");
+      return;
+    }
+    const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
+    if (!window.confirm(`Are you sure you want to remove the PO PDF document for serial ${serial}? The PO number will be kept as text.`)) {
+      return;
+    }
+
+    const uId = unit.id || unit.unit_id;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/units/${uId}/po-document`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to remove PO document');
+      }
+
+      setPoSuccessMsg(`✓ PO PDF removed for serial ${serial}`);
+      setTimeout(() => setPoSuccessMsg(''), 4000);
+      await fetchUnits(true);
+    } catch (err) {
+      console.error('Error removing PO PDF:', err);
+      alert(err.message || 'Failed to remove PO PDF document.');
+    }
+  }, [canUploadPo, token, fetchUnits]);
 
   const SortIcon = ({ col }) => {
     if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: 4 }} />;
@@ -4589,6 +4648,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 onRowClick={handleRowClick}
                 onSaveInlineCell={handleSaveInlineCell}
                 onSingleUnitPoClick={handleSingleUnitPoClick}
+                onDeleteUnitPoDoc={handleDeleteUnitPoDoc}
                 onPartNumberClick={handlePartNumberClick}
                 setPoPdfViewer={setPoPdfViewer}
                 onEditRefTag={setEditingRefTagUnit}
@@ -4830,6 +4890,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 >
                   <Download size={14} /> Download
                 </a>
+                {canUploadPo && poPdfViewer.unit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      const u = poPdfViewer.unit;
+                      setPoPdfViewer(null);
+                      handleDeleteUnitPoDoc(u);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                    title="Delete attached PO PDF document"
+                  >
+                    <Trash2 size={14} color="#ef4444" /> Delete PDF
+                  </button>
+                )}
                 <button
                   className="modal-close"
                   onClick={() => setPoPdfViewer(null)}
