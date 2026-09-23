@@ -51,19 +51,36 @@ const DEFAULT_COLUMNS = [
 const isDateTimeType = (type) => ['date & time', 'date and time', 'datetime'].includes((type || '').toLowerCase());
 const isDateType = (type) => (type || '').toLowerCase() === 'date';
 
-const formatDateTime = (dateStr) => {
-  if (!dateStr) return '—';
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return String(dateStr);
-  return date.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const formatFastDate = (val) => {
+  if (!val) return '—';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const parts = val.split('-');
+    const mIdx = parseInt(parts[1], 10) - 1;
+    return `${parseInt(parts[2], 10)} ${MONTH_NAMES[mIdx] || parts[1]} ${parts[0]}`;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 };
+
+const formatFastDateTime = (val) => {
+  if (!val) return '—';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  const day = d.getDate();
+  const month = MONTH_NAMES[d.getMonth()];
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${day} ${month} ${year}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+};
+
+const formatDateTime = formatFastDateTime;
 
 export default function PlanningModule() {
   const token = localStorage.getItem('token');
@@ -164,59 +181,30 @@ export default function PlanningModule() {
 
   const COL_WIDTHS = {
     sr_no: 70,
-    order_number: 130,
-    unit_number: 140,
-    po_number: 130,
-    reference_number: 140,
-    part_number: 140,
-    client_name: 150,
-    end_client_name: 150,
-    planned_dispatch: 130,
-    mounting_start: 130,
-    mounting_complete: 130,
-    wiring_assigned: 130,
-    wiring_expected: 130,
-    expected_qc: 120,
-    priority: 100,
-    status: 120,
-    qc_status: 120,
-    qc_date: 120,
+    order_number: 145,
+    unit_number: 150,
+    po_number: 175,
+    reference_number: 165,
+    part_number: 165,
+    client_name: 185,
+    end_client_name: 165,
+    planned_dispatch: 160,
+    mounting_start: 155,
+    mounting_complete: 165,
+    wiring_assigned: 155,
+    wiring_expected: 155,
+    expected_qc: 145,
+    priority: 115,
+    status: 130,
+    qc_status: 130,
+    qc_date: 135,
     progress: 140,
     action: 90
   };
 
-  const getColStyle = (colId, isHeader = false, isAltRow = false, rowHighlight = null) => {
-    const isPinned = pinnedCols.includes(colId);
-    if (!isPinned) return {};
-
-    const visiblePinned = activeColumns.filter(k => pinnedCols.includes(k));
-    const idxInPinned = visiblePinned.indexOf(colId);
-    if (idxInPinned === -1) return {};
-
-    let leftOffset = canEdit ? 40 : 0;
-    for (let i = 0; i < idxInPinned; i++) {
-      const k = visiblePinned[i];
-      const customK = customColumns.find(c => c.col_key === k);
-      leftOffset += COL_WIDTHS[k] || (isDateTimeType(customK?.field_type) ? 170 : 130);
-    }
-
-    const isLastPinned = idxInPinned === visiblePinned.length - 1;
-
-    let pinnedBg = isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)';
-    if (rowHighlight === 'cancelled') {
-      pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
-    } else if (rowHighlight === 'hold') {
-      pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
-    }
-
-    return {
-      position: 'sticky',
-      left: `${leftOffset}px`,
-      zIndex: isHeader ? 30 : 5,
-      background: isHeader ? 'var(--bg3, #1e222d)' : pinnedBg,
-      boxShadow: isLastPinned ? '4px 0 8px -2px rgba(0,0,0,0.4)' : 'none'
-    };
-  };
+  const customColumnMap = useMemo(() => {
+    return new Map((customColumns || []).map(c => [c.col_key, c]));
+  }, [customColumns]);
 
   const [draggedColId, setDraggedColId] = useState(null);
   const [dragOverColId, setDragOverColId] = useState(null);
@@ -317,6 +305,53 @@ export default function PlanningModule() {
       return true;
     });
   })();
+
+  const pinnedColOffsets = useMemo(() => {
+    const visiblePinned = activeColumns.filter(k => pinnedCols.includes(k));
+    const offsets = {};
+    let left = canEdit ? 40 : 0;
+    for (const k of visiblePinned) {
+      offsets[k] = left;
+      const cK = customColumnMap.get(k);
+      left += COL_WIDTHS[k] || (isDateTimeType(cK?.field_type) ? 175 : 145);
+    }
+    return offsets;
+  }, [activeColumns, pinnedCols, canEdit, customColumnMap]);
+
+  const getColStyle = (colId, isHeader = false, isAltRow = false, rowHighlight = null) => {
+    const isPinned = pinnedCols.includes(colId);
+    const customK = customColumnMap.get(colId);
+    const colWidth = COL_WIDTHS[colId] || (isDateTimeType(customK?.field_type) ? 175 : 145);
+
+    const baseStyle = {
+      width: `${colWidth}px`,
+      minWidth: `${colWidth}px`,
+      boxSizing: 'border-box'
+    };
+
+    if (!isPinned) return baseStyle;
+
+    const leftOffset = pinnedColOffsets[colId] ?? (canEdit ? 40 : 0);
+    const visiblePinned = activeColumns.filter(k => pinnedCols.includes(k));
+    const isLastPinned = visiblePinned[visiblePinned.length - 1] === colId;
+
+    const baseBg = isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)';
+    let pinnedBg = baseBg;
+    if (rowHighlight === 'cancelled') {
+      pinnedBg = isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)';
+    } else if (rowHighlight === 'hold') {
+      pinnedBg = isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)';
+    }
+
+    return {
+      ...baseStyle,
+      position: 'sticky',
+      left: `${leftOffset}px`,
+      zIndex: isHeader ? 30 : 5,
+      background: isHeader ? 'var(--bg3, #1e222d)' : pinnedBg,
+      boxShadow: isLastPinned ? '4px 0 8px -2px rgba(0,0,0,0.4)' : 'none'
+    };
+  };
 
   const renderCell = (columnId, order, globalIdx, progressPct) => {
     const isEditing = editingCell && editingCell.colId === columnId && (editingCell.unitId ? editingCell.unitId === order.specific_unit_id : editingCell.lineItemId === order.line_item_id);
@@ -515,15 +550,31 @@ export default function PlanningModule() {
     switch (columnId) {
       case 'sr_no':
         return globalIdx;
-      case 'order_number':
+      case 'order_number': {
+        const orderTooltip = [
+          `Order #: ${order.order_number}`,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          order.project_name ? `Project: ${order.project_name}` : null,
+          order.po_number ? `PO Number: ${order.po_number}` : null,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
         return (
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+          <span title={orderTooltip} style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
             {order.order_number}
           </span>
         );
-      case 'unit_number':
+      }
+      case 'unit_number': {
+        const serialTooltip = [
+          order.specific_unit_serial ? `Serial Number: ${order.specific_unit_serial}` : 'Serial: None',
+          `Order #: ${order.order_number}`,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          order.part_number ? `Part No: ${order.part_number}` : null,
+          order.material_description ? `Description: ${order.material_description}` : null
+        ].filter(Boolean).join('\n');
         return order.specific_unit_serial ? (
           <span 
+            title={serialTooltip}
             style={{ fontFamily: 'var(--font-mono)', color: 'var(--blue)', fontWeight: 600, fontSize: '13px' }}
           >
             {order.specific_unit_serial}
@@ -531,13 +582,58 @@ export default function PlanningModule() {
         ) : (
           <span className="dim text-xs">—</span>
         );
-      case 'po_number':
-        return order.po_number || <span className="dim text-xs">—</span>;
+      }
+      case 'po_number': {
+        const poNum = order.po_number;
+        const hasPdf = Boolean(order.po_file_path);
+        if (!poNum && !hasPdf) return <span className="dim text-xs">—</span>;
+        const poTooltip = [
+          poNum ? `PO Number: ${poNum}` : 'PO Number: Not Assigned',
+          order.po_file_name ? `Attached File: ${order.po_file_name}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          hasPdf ? 'Click to open PO Document' : null
+        ].filter(Boolean).join('\n');
+        if (hasPdf) {
+          const docUrl = getDocUrl(order.po_file_path);
+          return (
+            <a
+              href={docUrl}
+              target="_blank"
+              rel="noreferrer"
+              title={poTooltip}
+              style={{
+                color: 'var(--blue)',
+                fontWeight: 600,
+                textDecoration: 'underline',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <FileText size={12} style={{ flexShrink: 0 }} />
+              <span>{poNum || 'View PO'}</span>
+            </a>
+          );
+        }
+        return <span title={poTooltip} style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--text)' }}>{poNum}</span>;
+      }
       case 'reference_number': {
         const ref = (order.reference_number || '').trim();
         const tag = (order.tag || '').trim();
         const combined = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
-        if (!combined) return <span className="dim text-xs">—</span>;
+        const refTooltip = [
+          ref ? `Customer Ref: ${ref}` : null,
+          tag ? `Tag: ${tag}` : null,
+          (!ref && !tag && combined) ? `Ref/Tag: ${combined}` : null,
+          (!ref && !tag && !combined) ? 'Reference / Tag: Not Specified' : null,
+          order.indent_file_name ? `Attached File: ${order.indent_file_name}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null,
+          order.indent_file_path ? 'Click to open Details document' : null
+        ].filter(Boolean).join('\n');
         if (order.indent_file_path) {
           const docUrl = getDocUrl(order.indent_file_path);
           return (
@@ -545,7 +641,7 @@ export default function PlanningModule() {
               href={docUrl}
               target="_blank"
               rel="noreferrer"
-              title={`Open Details (${order.indent_file_name || 'Details'})`}
+              title={refTooltip}
               style={{
                 color: '#f59e0b',
                 fontWeight: 600,
@@ -557,14 +653,24 @@ export default function PlanningModule() {
               onClick={(e) => e.stopPropagation()}
             >
               <FileText size={12} style={{ flexShrink: 0 }} />
-              <span>{combined}</span>
+              <span>{combined || order.indent_file_name || 'Details'}</span>
             </a>
           );
         }
-        return <span style={{ color: '#f59e0b', fontWeight: 600 }}>{combined}</span>;
+        if (!combined) return <span className="dim text-xs">—</span>;
+        return <span title={refTooltip} style={{ color: '#f59e0b', fontWeight: 600 }}>{combined}</span>;
       }
-      case 'part_number':
-        return order.part_number || <span className="dim text-xs">—</span>;
+      case 'part_number': {
+        const partTooltip = [
+          order.part_number ? `Part Number: ${order.part_number}` : 'Part Number: Not Assigned',
+          order.material_description ? `Description: ${order.material_description}` : null,
+          order.panel_size ? `Size: ${order.panel_size}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+        return order.part_number ? (
+          <span title={partTooltip}>{order.part_number}</span>
+        ) : <span className="dim text-xs">—</span>;
+      }
       case 'client_name':
         return order.company_name;
       case 'end_client_name':
@@ -581,35 +687,56 @@ export default function PlanningModule() {
         return formatDate(order.wiring_expected_date);
       case 'expected_qc':
         return formatDate(order.expected_qc_date);
-      case 'priority':
+      case 'priority': {
+        const priorityTooltip = [
+          `Priority: ${order.priority || 'Medium'}`,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
         return (
-          <span className={`priority-badge ${order.priority?.toLowerCase() || 'medium'}`}>
+          <span title={priorityTooltip} className={`priority-badge ${order.priority?.toLowerCase() || 'medium'}`}>
             {order.priority}
           </span>
         );
+      }
       case 'status': {
         const isUnitHold = order.hold_status === 'Hold' || order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
         const isUnitCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
+        const holdTooltip = `Held by: ${order.held_by_name || 'User'} on ${order.held_at ? new Date(order.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${order.hold_reason || 'No reason specified'}`;
+        const cancelTooltip = `Cancelled by: ${order.cancelled_by_name || 'User'} on ${order.cancelled_at ? new Date(order.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${order.cancelled_reason || 'No reason specified'}`;
+        const normalStatusTooltip = [
+          `Status: ${order.status || 'Not Started'}`,
+          order.active_dept ? `Active Dept: ${order.active_dept}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {isUnitHold ? (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
-                borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
-                color: '#fbbf24', fontSize: 11, fontWeight: 700
-              }}>
+              <span
+                title={holdTooltip}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
+                  borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
+                  color: '#fbbf24', fontSize: 11, fontWeight: 700, cursor: 'help'
+                }}
+              >
                 ⏸ HOLD {order.hold_step_name ? `@ ${order.hold_step_name}` : (order.hold_status === 'Approved' ? '(Order Level)' : '')}
               </span>
             ) : isUnitCancelled ? (
-              <span style={{
-                display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
-                borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
-                color: '#f87171', fontSize: 11, fontWeight: 700
-              }}>
+              <span
+                title={cancelTooltip}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px',
+                  borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
+                  color: '#f87171', fontSize: 11, fontWeight: 700, cursor: 'help'
+                }}
+              >
                 ✕ CANCELLED {order.cancelled_step_name ? `@ ${order.cancelled_step_name}` : ''}
               </span>
             ) : (
-              <span className={`status-badge ${(order.status || 'Not Started').toLowerCase().replace(/\s+/g, '-')}`}>
+              <span title={normalStatusTooltip} className={`status-badge ${(order.status || 'Not Started').toLowerCase().replace(/\s+/g, '-')}`}>
                 {order.status || 'Not Started'}
               </span>
             )}
@@ -1353,6 +1480,157 @@ export default function PlanningModule() {
     return hierarchy;
   };
 
+  const getPlanningCellTooltip = (colId, order) => {
+    if (!order) return undefined;
+    switch (colId) {
+      case 'sr_no':
+        return `Serial Row #: ${order.order_number}`;
+
+      case 'order_number':
+        return [
+          `Order #: ${order.order_number}`,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          order.project_name ? `Project: ${order.project_name}` : null,
+          order.po_number ? `PO Number: ${order.po_number}` : null,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
+
+      case 'unit_number':
+        return [
+          order.specific_unit_serial ? `Serial Number: ${order.specific_unit_serial}` : 'Serial: None',
+          `Order #: ${order.order_number}`,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          order.part_number ? `Part No: ${order.part_number}` : null,
+          order.material_description ? `Description: ${order.material_description}` : null
+        ].filter(Boolean).join('\n');
+
+      case 'po_number': {
+        const poNum = order.po_number;
+        const hasPdf = Boolean(order.po_file_path);
+        return [
+          poNum ? `PO Number: ${poNum}` : 'PO Number: Not Assigned',
+          order.po_file_name ? `Attached File: ${order.po_file_name}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null,
+          order.company_name ? `Client: ${order.company_name}` : null,
+          hasPdf ? 'Click to open PO Document' : null
+        ].filter(Boolean).join('\n');
+      }
+
+      case 'reference_number': {
+        const ref = (order.reference_number || '').trim();
+        const tag = (order.tag || '').trim();
+        const combined = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
+        return [
+          ref ? `Customer Ref: ${ref}` : null,
+          tag ? `Tag: ${tag}` : null,
+          (!ref && !tag && combined) ? `Ref/Tag: ${combined}` : null,
+          (!ref && !tag && !combined) ? 'Reference / Tag: Not Specified' : null,
+          order.indent_file_name ? `Attached File: ${order.indent_file_name}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null,
+          order.indent_file_path ? 'Click to open Details document' : null
+        ].filter(Boolean).join('\n');
+      }
+
+      case 'part_number':
+        return [
+          order.part_number ? `Part Number: ${order.part_number}` : 'Part Number: Not Assigned',
+          order.material_description ? `Description: ${order.material_description}` : null,
+          order.panel_size ? `Size: ${order.panel_size}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'material_description':
+        return [
+          order.material_description ? `Description: ${order.material_description}` : 'Description: None',
+          order.part_number ? `Part No: ${order.part_number}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'client_name':
+        return [
+          order.company_name ? `Client: ${order.company_name}` : null,
+          order.end_client_name ? `End Client: ${order.end_client_name}` : null,
+          order.project_name ? `Project: ${order.project_name}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'end_client_name':
+        return [
+          order.end_client_name ? `End Client: ${order.end_client_name}` : 'End Client: Unspecified',
+          order.company_name ? `Client: ${order.company_name}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'priority':
+        return [
+          `Priority: ${order.priority || 'Medium'}`,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
+
+      case 'status': {
+        const isUnitHold = order.hold_status === 'Hold' || order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
+        const isUnitCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
+        if (isUnitHold) {
+          return `Held by: ${order.held_by_name || 'User'} on ${order.held_at ? formatFastDateTime(order.held_at) : 'N/A'}\nReason: ${order.hold_reason || 'No reason specified'}`;
+        }
+        if (isUnitCancelled) {
+          return `Cancelled by: ${order.cancelled_by_name || 'User'} on ${order.cancelled_at ? formatFastDateTime(order.cancelled_at) : 'N/A'}\nReason: ${order.cancelled_reason || 'No reason specified'}`;
+        }
+        return [
+          `Status: ${order.status || 'Not Started'}`,
+          order.active_dept ? `Active Dept: ${order.active_dept}` : null,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
+      }
+
+      case 'qc_status':
+        return [
+          `QC Status: ${order.qc_status || 'Pending'}`,
+          order.qc_date ? `QC Date: ${formatDate(order.qc_date)}` : null,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'delivery_date':
+        return [
+          `Delivery Date: ${formatDate(order.delivery_date)}`,
+          `Order #: ${order.order_number}`
+        ].filter(Boolean).join('\n');
+
+      case 'planned_dispatch':
+      case 'mounting_start':
+      case 'mounting_complete':
+      case 'wiring_assigned':
+      case 'wiring_expected':
+      case 'expected_qc':
+      case 'qc_date': {
+        const label = getColumnLabel(colId);
+        const val = order[`${colId}_date`] || order[colId];
+        return [
+          `${label}: ${formatDate(val)}`,
+          `Order #: ${order.order_number}`,
+          order.specific_unit_serial ? `Serial: ${order.specific_unit_serial}` : null
+        ].filter(Boolean).join('\n');
+      }
+
+      default: {
+        const customCol = customColumnMap?.get ? customColumnMap.get(colId) : customColumns.find(c => c.col_key === colId);
+        if (customCol) {
+          const val = order.custom_fields?.[colId];
+          const displayVal = isDateTimeType(customCol.field_type) ? formatFastDateTime(val) : isDateType(customCol.field_type) ? formatDate(val) : (val || 'Not Specified');
+          return [
+            `${customCol.label || colId}: ${displayVal}`,
+            `Order #: ${order.order_number}`
+          ].filter(Boolean).join('\n');
+        }
+        return undefined;
+      }
+    }
+  };
+
   const renderRow = (order, globalIdx, progressPct) => {
     const isRowSelected = selectedRowIds.includes(order.line_item_id);
     const isCancelled = order.hold_status === 'Cancelled' || String(order.status || '').toLowerCase().startsWith('cancel');
@@ -1361,17 +1639,22 @@ export default function PlanningModule() {
 
     const isAltRow = globalIdx % 2 === 1;
 
+    const baseRowBg = isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)';
     const defaultBg = isCancelled
-      ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
+      ? (isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)')
       : isHold
-      ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
-      : (isAltRow ? 'var(--bg2, #181b24)' : 'var(--bg, #12141c)');
+      ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
+      : isRowSelected
+      ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
+      : baseRowBg;
 
     const borderLeft = isCancelled
       ? '5px solid #ef4444'
       : isHold
       ? '5px solid #f59e0b'
       : undefined;
+
+    const cbBg = defaultBg;
 
     return (
       <tr 
@@ -1392,11 +1675,7 @@ export default function PlanningModule() {
               minWidth: '40px', 
               textAlign: 'center', 
               left: 0,
-              background: isCancelled
-                ? (isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)')
-                : isHold
-                ? (isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)')
-                : undefined
+              background: cbBg
             }} 
             onClick={(e) => e.stopPropagation()}
           >
@@ -1421,7 +1700,7 @@ export default function PlanningModule() {
 
           let tdStyle = {};
           if (colId === 'part_number') {
-            tdStyle = { maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
+            tdStyle = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' };
           }
 
           const stickyStyle = getColStyle(colId, false, isAltRow, rowHighlight);
@@ -1431,7 +1710,9 @@ export default function PlanningModule() {
               key={colId}
               className={tdClass.trim()}
               style={{ ...tdStyle, ...stickyStyle }}
-              title={colId === 'part_number' ? order.part_number : undefined}
+              onMouseEnter={(e) => {
+                e.currentTarget.title = getPlanningCellTooltip(colId, order, customColumnMap);
+              }}
               onClick={(e) => handleCellClick(e, colId, order)}
             >
               {renderCell(colId, order, globalIdx, progressPct)}

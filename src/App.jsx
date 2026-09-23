@@ -71,7 +71,18 @@ function Dashboard() {
   const [sidenavCollapsed, setSidenavCollapsed] = useState(() => window.innerWidth < 1200);
   const [statCardFilter, setStatCardFilter] = useState(null); // 'all' | 'priority' | 'inprogress' | 'blocked' | 'due'
 
-  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [selectedUnitId, setSelectedUnitId] = useState(() => {
+    return localStorage.getItem('erp_selectedUnitId') || '';
+  });
+
+  useEffect(() => {
+    if (selectedUnitId) {
+      localStorage.setItem('erp_selectedUnitId', selectedUnitId);
+    } else {
+      localStorage.removeItem('erp_selectedUnitId');
+    }
+  }, [selectedUnitId]);
+
   const [unitSteps, setUnitSteps] = useState([]);
   const lastInitializedOrderIdRef = useRef(null);
   const requestedUnitIdRef = useRef(null);
@@ -149,8 +160,11 @@ function Dashboard() {
 
     if (lastInitializedOrderIdRef.current !== selectedOrder.id) {
       const units = selectedOrder.units || [];
+      const savedUnitId = localStorage.getItem('erp_selectedUnitId');
       if (requestedUnitIdRef.current && units.some(u => u.id.toString() === requestedUnitIdRef.current.toString())) {
         setSelectedUnitId(requestedUnitIdRef.current.toString());
+      } else if (savedUnitId && units.some(u => u.id.toString() === savedUnitId.toString())) {
+        setSelectedUnitId(savedUnitId.toString());
       } else if (units.length > 0) {
         setSelectedUnitId(units[0].id.toString());
       } else {

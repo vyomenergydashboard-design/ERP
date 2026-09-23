@@ -4,8 +4,8 @@ import { LogOut, User, Search, Sun, Moon, Menu } from 'lucide-react';
 export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
   const [orders, setOrders] = useState([]);
-  const [selectedOrderId, setSelectedOrderId] = useState('');
-  const [selectedUnitId, setSelectedUnitId] = useState('');
+  const [selectedOrderId, setSelectedOrderId] = useState(() => localStorage.getItem('erp_selectedOrderId') || '');
+  const [selectedUnitId, setSelectedUnitId] = useState(() => localStorage.getItem('erp_selectedUnitId') || '');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const searchRef = useRef(null);

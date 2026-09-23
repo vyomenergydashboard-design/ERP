@@ -56,6 +56,14 @@
   /* Modal backdrop */
   --modal-overlay-bg: rgba(0, 0, 0, 0.75);
 
+  /* Solid row highlight colors for high-performance rendering */
+  --row-cancelled-bg: #221417;
+  --row-cancelled-bg-alt: #28181c;
+  --row-hold-bg: #241c10;
+  --row-hold-bg-alt: #2c2214;
+  --row-selected-bg: #122038;
+  --row-selected-bg-alt: #162846;
+
   /* Theme toggle icon */
   --theme-icon: '️';
 
@@ -117,6 +125,14 @@
   /* Modal backdrop */
   --modal-overlay-bg: rgba(0, 0, 0, 0.45);
 
+  /* Solid row highlight colors for high-performance rendering */
+  --row-cancelled-bg: #fee2e2;
+  --row-cancelled-bg-alt: #fecaca;
+  --row-hold-bg: #fef3c7;
+  --row-hold-bg-alt: #fde68a;
+  --row-selected-bg: #dbeafe;
+  --row-selected-bg-alt: #bfdbfe;
+
   /* Theme toggle icon */
   --theme-icon: '';
 
@@ -124,8 +140,8 @@
   --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
 }
 
-/* Smooth theme transitions */
-*, *::before, *::after {
+/* Scoped theme transitions (avoid global wildcard on table cells to ensure 60fps scrolling) */
+body, header, nav, .card, .modal-card, .vbtn {
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.1s ease, box-shadow 0.2s ease;
 }
 

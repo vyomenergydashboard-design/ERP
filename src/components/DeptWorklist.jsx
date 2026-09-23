@@ -116,12 +116,12 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
           )}
           {unit.po_number && (
             <div style={{ color: 'var(--text3)', fontSize: 11, marginTop: 1, fontFamily: 'monospace' }}>
-              PO: {unit.po_number}
+              PO: <span style={{ color: 'var(--text)', fontWeight: 600 }}>{unit.po_number}</span>
             </div>
           )}
-          {unit.reference_number && (
+          {(unit.reference_number || unit.tag) && (
             <div style={{ color: '#f59e0b', fontSize: 10, marginTop: 1, fontWeight: 600 }}>
-              Ref: {unit.reference_number}
+              Ref/Tag: {(unit.reference_number && unit.tag) ? `${unit.reference_number}/${unit.tag}` : (unit.reference_number || unit.tag)}
             </div>
           )}
         </td>

@@ -64,49 +64,76 @@ const isDateType = (type) => {
   return lower === 'date';
 };
 
-const formatCustomDateTime = (val) => {
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const formatFastDate = (val) => {
   if (!val) return '—';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const parts = val.split('-');
+    const mIdx = parseInt(parts[1], 10) - 1;
+    return `${parseInt(parts[2], 10)} ${MONTH_NAMES[mIdx] || parts[1]} ${parts[0]}`;
+  }
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
-  return d.toLocaleString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  });
+  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-const formatCustomDate = (val) => {
+const formatFastDateTime = (val) => {
   if (!val) return '—';
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
-  return d.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+  const day = d.getDate();
+  const month = MONTH_NAMES[d.getMonth()];
+  const year = d.getFullYear();
+  let hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  return `${day} ${month} ${year}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
 };
+
+const formatCustomDateTime = formatFastDateTime;
+const formatCustomDate = formatFastDate;
 
 const DEFAULT_COL_WIDTHS = {
-  order_number: 105,
-  short_serial: 120,
-  company_name: 175,
+  order_number: 140,
+  short_serial: 130,
+  company_name: 185,
+  project_name: 160,
+  po_number: 175,
+  reference_number: 165,
+  end_client_name: 145,
+  part_number: 165,
+  panel_code: 135,
+  panel_type_size: 175,
+  panel_ip_rating: 120,
+  panel_comments: 200,
+  material_description: 230,
+  classification: 145,
+  priority: 115,
+  delivery_date: 130,
+  unit_status: 130,
+};
+
+const MIN_COL_WIDTHS = {
+  order_number: 135,
+  short_serial: 125,
+  company_name: 160,
   project_name: 140,
-  po_number: 110,
-  reference_number: 115,
-  end_client_name: 125,
-  part_number: 145,
-  panel_code: 115,
-  panel_type_size: 155,
-  panel_ip_rating: 95,
-  panel_comments: 190,
-  material_description: 220,
-  classification: 115,
-  priority: 95,
-  delivery_date: 110,
-  unit_status: 105,
+  po_number: 170,
+  reference_number: 160,
+  end_client_name: 135,
+  part_number: 155,
+  panel_code: 130,
+  panel_type_size: 165,
+  panel_ip_rating: 115,
+  panel_comments: 180,
+  material_description: 200,
+  classification: 135,
+  priority: 110,
+  delivery_date: 125,
+  unit_status: 125,
 };
 
 export const getDocUrl = (doc) => {
@@ -2050,6 +2077,181 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
   return 'Pending';
 }
 
+function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
+  if (!unit) return undefined;
+  switch (colKey) {
+    case 'order_number':
+      return [
+        `Order #: ${unit.order_number}`,
+        unit.company_name ? `Client: ${unit.company_name}${unit.company_city ? ` (${unit.company_city})` : ''}` : null,
+        unit.project_name ? `Project: ${unit.project_name}` : null,
+        unit.po_number ? `PO Number: ${unit.po_number}` : null,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        'Click to view Process Flow'
+      ].filter(Boolean).join('\n');
+
+    case 'short_serial':
+    case 'unit_serial':
+      return [
+        `Serial Number: ${unit.unit_serial || unit.short_serial}`,
+        `Order #: ${unit.order_number}`,
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        unit.part_number ? `Part No: ${unit.part_number}` : null,
+        unit.material_description ? `Description: ${unit.material_description}` : null,
+        'Click to view Process Flow for this Serial No.'
+      ].filter(Boolean).join('\n');
+
+    case 'po_number': {
+      const hasPo = Boolean(unit.po_number);
+      const hasPdf = Boolean(unit.po_file_path);
+      return [
+        hasPo ? `PO Number: ${unit.po_number}` : 'PO Number: Not Assigned',
+        unit.po_file_name ? `Attached File: ${unit.po_file_name}` : null,
+        `Order #: ${unit.order_number}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        hasPdf ? 'Click to open PO Document' : null
+      ].filter(Boolean).join('\n');
+    }
+
+    case 'reference_number': {
+      const ref = (unit.reference_number || '').trim();
+      const tag = (unit.tag || '').trim();
+      const combined = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
+      return [
+        ref ? `Customer Ref: ${ref}` : null,
+        tag ? `Tag: ${tag}` : null,
+        (!ref && !tag && combined) ? `Ref/Tag: ${combined}` : null,
+        (!ref && !tag && !combined) ? 'Reference / Tag: Not Specified' : null,
+        unit.indent_file_name ? `Attached File: ${unit.indent_file_name}` : null,
+        `Order #: ${unit.order_number}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        unit.indent_file_path ? 'Click to open Details document' : null
+      ].filter(Boolean).join('\n');
+    }
+
+    case 'part_number':
+      return [
+        unit.part_number ? `Part Number: ${unit.part_number}` : 'Part Number: Not Assigned',
+        unit.material_description ? `Description: ${unit.material_description}` : null,
+        unit.panel_type_size ? `Size: ${unit.panel_type_size}` : null,
+        `Order #: ${unit.order_number}`,
+        'Click to view Design Drawings & Technical Documents'
+      ].filter(Boolean).join('\n');
+
+    case 'panel_code':
+      return [
+        unit.panel_code ? `Panel Code: ${unit.panel_code}` : 'Panel Code: None',
+        unit.panel_type_size ? `Panel Size: ${unit.panel_type_size}` : null,
+        unit.panel_ip_rating ? `IP Rating: ${unit.panel_ip_rating}` : null,
+        unit.panel_comments ? `Comments: ${unit.panel_comments}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'panel_type_size':
+      return [
+        unit.panel_type_size ? `Panel Size: ${unit.panel_type_size}` : 'Panel Size: Not Selected',
+        unit.panel_code ? `Panel Code: ${unit.panel_code}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'panel_ip_rating':
+      return [
+        unit.panel_ip_rating ? `IP Rating: ${unit.panel_ip_rating}` : 'IP Rating: Not Specified',
+        unit.panel_type_size ? `Size: ${unit.panel_type_size}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'panel_comments':
+      return [
+        unit.panel_comments ? `Comments: ${unit.panel_comments}` : 'Comments: None',
+        unit.panel_type_size ? `Size: ${unit.panel_type_size}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'company_name':
+      return [
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        unit.company_city ? `City: ${unit.company_city}` : null,
+        unit.end_client_name ? `End Client: ${unit.end_client_name}` : null,
+        unit.project_name ? `Project: ${unit.project_name}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'classification':
+      return [
+        `Type (Design): ${unit.classification || 'Standard'}`,
+        `Order #: ${unit.order_number}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null
+      ].filter(Boolean).join('\n');
+
+    case 'priority':
+      return [
+        `Priority: ${unit.priority || 'Medium'}`,
+        `Order #: ${unit.order_number}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null
+      ].filter(Boolean).join('\n');
+
+    case 'delivery_date': {
+      const isOverdue = unit.delivery_date && new Date(unit.delivery_date) < new Date() && status !== 'Completed' && status !== 'Cancelled';
+      return [
+        unit.delivery_date ? `Delivery Date: ${formatFastDate(unit.delivery_date)}` : 'Delivery Date: TBD',
+        isOverdue ? 'Status: OVERDUE' : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+    }
+
+    case 'unit_status':
+      if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
+        return `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? formatFastDateTime(unit.held_at) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
+      }
+      if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
+        return `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? formatFastDateTime(unit.cancelled_at) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
+      }
+      return [
+        `Status: ${status}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        unit.order_number ? `Order #: ${unit.order_number}` : null,
+        unit.company_name ? `Client: ${unit.company_name}` : null
+      ].filter(Boolean).join('\n');
+
+    case 'material_description':
+      return [
+        unit.material_description ? `Description: ${unit.material_description}` : 'Description: None',
+        unit.part_number ? `Part No: ${unit.part_number}` : null,
+        `Order #: ${unit.order_number}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null
+      ].filter(Boolean).join('\n');
+
+    case 'project_name':
+      return [
+        unit.project_name ? `Project: ${unit.project_name}` : 'Project: None',
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    case 'end_client_name':
+      return [
+        unit.end_client_name ? `End Client: ${unit.end_client_name}` : 'End Client: Unspecified',
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+
+    default: {
+      const customCol = customColumnDefs?.find ? customColumnDefs.find(c => c.col_key === colKey) : customColumnDefs?.[colKey];
+      const val = unit.custom_fields?.[colKey] ?? unit[colKey];
+      if (customCol) {
+        const displayVal = isDateTimeType(customCol.field_type) ? formatFastDateTime(val) : isDateType(customCol.field_type) ? formatFastDate(val) : (val || 'Not Specified');
+        return [
+          `${customCol.label || colKey}: ${displayVal}`,
+          `Order #: ${unit.order_number}`
+        ].filter(Boolean).join('\n');
+      }
+      return val ? String(val) : undefined;
+    }
+  }
+}
+
 function renderCellContent({
   unit,
   colKey,
@@ -2058,6 +2260,7 @@ function renderCellContent({
   canEditPanelSize,
   canUploadPo,
   panelSizeMasters,
+  panelSizeMap,
   customColumnDefs,
   editingCell,
   setEditingCell,
@@ -2077,13 +2280,12 @@ function renderCellContent({
   const effectiveUnitId = unit.unit_id || unit.id;
 
   switch (colKey) {
-    case 'order_number':
+    case 'order_number': {
       return (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
           <span
             onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
             style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
-            title="Click to view Process Flow"
           >
             {unit.order_number}
           </span>
@@ -2098,7 +2300,7 @@ function renderCellContent({
                 projectName: unit.project_name
               });
             }}
-            title="Order Documents (Quotation, Details, Approved Docs)"
+            title={`Order Documents (${unit.order_number}) - Click to open Quotation, Details & Docs`}
             style={{
               background: 'rgba(59, 130, 246, 0.09)',
               border: '1px solid rgba(59, 130, 246, 0.25)',
@@ -2125,34 +2327,36 @@ function renderCellContent({
           </button>
         </div>
       );
+    }
 
     case 'short_serial':
-    case 'unit_serial':
+    case 'unit_serial': {
       return (
         <div
           onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-          title="Click to view Process Flow for this Serial No."
         >
           <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6', fontSize: 12, textDecoration: 'underline' }}>
             {unit.unit_serial}
           </span>
         </div>
       );
+    }
 
-    case 'company_name':
+    case 'company_name': {
       return (
         <div
           style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          title={unit.company_name ? `${unit.company_name}${unit.company_city ? ` · ${unit.company_city}` : ''}` : undefined}
         >
           <span style={{ fontWeight: 600, color: 'var(--text)' }}>{unit.company_name || '—'}</span>
           {unit.company_city && <span style={{ color: 'var(--text3)', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>· {unit.company_city}</span>}
         </div>
       );
+    }
 
-    case 'classification':
+    case 'classification': {
       const clsVal = unit.classification || 'Standard';
+
       if (canEdit) {
         return (
           <select
@@ -2173,17 +2377,20 @@ function renderCellContent({
         );
       }
       return (
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
-          background: clsVal === 'Standard' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
-          color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
-          border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`
-        }}>
+        <span
+          style={{
+            fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+            background: clsVal === 'Standard' ? 'rgba(59,130,246,0.12)' : 'rgba(245,158,11,0.12)',
+            color: clsVal === 'Standard' ? '#60a5fa' : '#fbbf24',
+            border: `1px solid ${clsVal === 'Standard' ? 'rgba(59,130,246,0.3)' : 'rgba(245,158,11,0.3)'}`
+          }}
+        >
           {clsVal}
         </span>
       );
+    }
 
-    case 'priority':
+    case 'priority': {
       if (canEdit) {
         return (
           <select
@@ -2205,22 +2412,23 @@ function renderCellContent({
         );
       }
       return (
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-          background: priorityStyle.bg, color: priorityStyle.color,
-          border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
-        }}>
+        <span
+          style={{
+            fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
+            background: priorityStyle.bg, color: priorityStyle.color,
+            border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
+          }}
+        >
           {priority}
         </span>
       );
+    }
 
     case 'unit_status':
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
         const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
-        const holdTooltip = `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? new Date(unit.held_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
         return (
           <span
-            title={holdTooltip}
             style={{
               fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
               background: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24',
@@ -2235,10 +2443,8 @@ function renderCellContent({
       }
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
         const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
-        const cancelTooltip = `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? new Date(unit.cancelled_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
         return (
           <span
-            title={cancelTooltip}
             style={{
               fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
               background: 'rgba(239, 68, 68, 0.35)', color: '#f87171',
@@ -2251,12 +2457,15 @@ function renderCellContent({
           </span>
         );
       }
+
       return (
-        <span style={{
-          fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-          background: statusStyle.bg, color: statusStyle.color,
-          border: `1px solid ${statusStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap'
-        }}>
+        <span
+          style={{
+            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
+            background: statusStyle.bg, color: statusStyle.color,
+            border: `1px solid ${statusStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap'
+          }}
+        >
           {status}
         </span>
       );
@@ -2284,10 +2493,9 @@ function renderCellContent({
           onClick={(e) => {
             if (canEdit) {
               e.stopPropagation();
-              setEditingCell({ unitId: effectiveUnitId, colKey: 'delivery_date', value: unit.delivery_date || '' });
+              setEditingCell({ unitId: effectiveUnitId, colKey: 'delivery_date', value: unit.delivery_date });
             }
           }}
-          title={canEdit ? "Click to change date" : undefined}
           style={{
             color: isOverdue ? '#ef4444' : 'var(--text2)',
             fontWeight: isOverdue ? 600 : 400,
@@ -2295,22 +2503,20 @@ function renderCellContent({
             cursor: canEdit ? 'pointer' : 'default'
           }}
         >
-          {unit.delivery_date
-            ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-            : '—'}
+          {formatFastDate(unit.delivery_date)}
           {isOverdue && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, marginLeft: 5, background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 5px' }}>OVERDUE</span>}
         </span>
       );
 
-    case 'part_number':
+    case 'part_number': {
       const hasPart = Boolean(unit.part_number);
+
       return (
         <span
           onClick={(e) => {
             e.stopPropagation();
             onPartNumberClick(unit);
           }}
-          title="Click to view Design Drawings & Technical Documents"
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
@@ -2323,27 +2529,31 @@ function renderCellContent({
           {unit.part_number || '—'}
         </span>
       );
+    }
 
     case 'panel_code': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m =>
+      const master = panelSizeMap?.get ? panelSizeMap.get(currentSize) : panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
       );
       const code = unit.panel_code || master?.panel_code;
+
       return code ? (
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 11.5,
-          fontWeight: 700,
-          color: '#c084fc',
-          background: 'rgba(168, 85, 247, 0.12)',
-          border: '1px solid rgba(168, 85, 247, 0.28)',
-          padding: '2px 8px',
-          borderRadius: '4px',
-          display: 'inline-block'
-        }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11.5,
+            fontWeight: 700,
+            color: '#c084fc',
+            background: 'rgba(168, 85, 247, 0.12)',
+            border: '1px solid rgba(168, 85, 247, 0.28)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            display: 'inline-block'
+          }}
+        >
           {code}
         </span>
       ) : (
@@ -2363,24 +2573,26 @@ function renderCellContent({
 
     case 'panel_ip_rating': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m =>
+      const master = panelSizeMap?.get ? panelSizeMap.get(currentSize) : panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
       );
       const ip = unit.panel_ip_rating || master?.ip_rating;
       return ip ? (
-        <span style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#10b981',
-          background: 'rgba(16, 185, 129, 0.12)',
-          border: '1px solid rgba(16, 185, 129, 0.28)',
-          padding: '2px 8px',
-          borderRadius: '4px',
-          display: 'inline-block'
-        }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            fontWeight: 600,
+            color: '#10b981',
+            background: 'rgba(168, 85, 129, 0.12)',
+            border: '1px solid rgba(16, 185, 129, 0.28)',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            display: 'inline-block'
+          }}
+        >
           {ip}
         </span>
       ) : (
@@ -2390,14 +2602,14 @@ function renderCellContent({
 
     case 'panel_comments': {
       const currentSize = unit.panel_type_size || '';
-      const master = panelSizeMasters.find(m =>
+      const master = panelSizeMap?.get ? panelSizeMap.get(currentSize) : panelSizeMasters.find(m =>
         (m.panel_size && m.panel_size === currentSize) ||
         (m.size_name && m.size_name === currentSize) ||
         (m.panel_code && m.panel_code === currentSize)
       );
       const comment = unit.panel_comments || master?.comments || master?.description;
       return comment ? (
-        <span style={{ color: 'var(--text2)', fontSize: 12 }} title={comment}>
+        <span style={{ color: 'var(--text2)', fontSize: 12 }}>
           {comment}
         </span>
       ) : (
@@ -2408,6 +2620,15 @@ function renderCellContent({
     case 'po_number': {
       const hasPoNum = Boolean(unit.po_number);
       const hasPdf = Boolean(unit.po_file_path);
+
+      const poTooltip = [
+        unit.po_number ? `PO Number: ${unit.po_number}` : 'PO Number: Not Assigned',
+        unit.po_file_name ? `Attached File: ${unit.po_file_name}` : null,
+        unit.order_number ? `Order #: ${unit.order_number}` : null,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        unit.company_name ? `Client: ${unit.company_name}` : null,
+        hasPdf ? 'Click to view PO in PDF' : (canUploadPo ? 'Click to edit PO / Upload' : null)
+      ].filter(Boolean).join('\n');
 
       if (editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'po_number') {
         return (
@@ -2429,7 +2650,7 @@ function renderCellContent({
       }
 
       return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%', minWidth: 0 }} title={poTooltip}>
           {hasPoNum ? (
             hasPdf ? (
               <button
@@ -2444,10 +2665,10 @@ function renderCellContent({
                     subtitle: `Serial: ${unit.short_serial || unit.unit_serial} | Order: ${unit.order_number}`
                   });
                 }}
-                title="Click to view PO in PDF"
+                title={poTooltip}
                 style={{
-                  background: 'rgba(59, 130, 246, 0.1)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  background: 'rgba(59, 130, 246, 0.12)',
+                  border: '1px solid rgba(59, 130, 246, 0.35)',
                   borderRadius: 5,
                   padding: '2px 7px',
                   display: 'inline-flex',
@@ -2457,20 +2678,21 @@ function renderCellContent({
                   color: 'var(--blue)',
                   fontSize: 12,
                   fontWeight: 600,
-                  maxWidth: 130,
+                  flex: '1 1 auto',
+                  minWidth: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
                 }}
               >
                 <FileText size={12} style={{ flexShrink: 0 }} />
-                <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {unit.po_number}
                 </span>
               </button>
             ) : (
               <span
-                title={canUploadPo ? "Click to edit PO No." : (unit.po_number || '')}
+                title={poTooltip}
                 onClick={(e) => {
                   if (canUploadPo) {
                     e.stopPropagation();
@@ -2479,11 +2701,15 @@ function renderCellContent({
                 }}
                 style={{
                   fontSize: 12,
-                  color: 'var(--text2)',
+                  color: 'var(--text)',
                   cursor: canUploadPo ? 'pointer' : 'default',
+                  flex: '1 1 auto',
+                  minWidth: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 500
                 }}
               >
                 {unit.po_number}
@@ -2497,15 +2723,15 @@ function renderCellContent({
                   setEditingCell({ unitId: effectiveUnitId, colKey: 'po_number', value: '' });
                 }
               }}
-              style={{ fontSize: 12, color: 'var(--text3)', cursor: canUploadPo ? 'pointer' : 'default' }}
-              title={canUploadPo ? "Click to enter PO No." : undefined}
+              style={{ fontSize: 12, color: 'var(--text3)', cursor: canUploadPo ? 'pointer' : 'default', flex: '1 1 auto' }}
+              title={poTooltip}
             >
               —
             </span>
           )}
 
           {canUploadPo && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0, marginLeft: 'auto' }}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -2521,10 +2747,10 @@ function renderCellContent({
                   color: 'var(--text3)',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  opacity: 0.6
+                  opacity: 0.7
                 }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--blue)'; e.currentTarget.style.opacity = '1'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.7'; }}
               >
                 <UploadCloud size={12} />
               </button>
@@ -2544,10 +2770,10 @@ function renderCellContent({
                     color: 'var(--text3)',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    opacity: 0.6
+                    opacity: 0.7
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.6'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.7'; }}
                 >
                   <Trash2 size={12} />
                 </button>
@@ -2564,10 +2790,21 @@ function renderCellContent({
       const combinedVal = (ref && tag) ? `${ref}/${tag}` : (ref || tag || '');
       const hasIndentDoc = Boolean(unit.indent_file_path);
 
+      const refTooltip = [
+        unit.reference_number ? `Customer Ref: ${unit.reference_number}` : null,
+        unit.tag ? `Tag: ${unit.tag}` : null,
+        (!unit.reference_number && !unit.tag && combinedVal) ? `Ref/Tag: ${combinedVal}` : null,
+        (!unit.reference_number && !unit.tag && !combinedVal) ? 'Reference / Tag: Not Specified' : null,
+        unit.indent_file_name ? `Attached File: ${unit.indent_file_name}` : null,
+        unit.order_number ? `Order #: ${unit.order_number}` : null,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        hasIndentDoc ? 'Click to open Details document' : (canEdit ? 'Click to edit Reference & Tag' : null)
+      ].filter(Boolean).join('\n');
+
       if (hasIndentDoc) {
         const isPdf = String(unit.indent_file_path).toLowerCase().endsWith('.pdf') || String(unit.indent_file_name || '').toLowerCase().endsWith('.pdf');
         return (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, maxWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 5, width: '100%', minWidth: 0 }} title={refTooltip}>
             <button
               type="button"
               onClick={(e) => {
@@ -2583,7 +2820,7 @@ function renderCellContent({
                   window.open(getDocUrl(unit.indent_file_path), '_blank');
                 }
               }}
-              title={`Click to open Details (${unit.indent_file_name || 'Details'})`}
+              title={refTooltip}
               style={{
                 background: 'rgba(245, 158, 11, 0.12)',
                 border: '1px solid rgba(245, 158, 11, 0.35)',
@@ -2596,14 +2833,15 @@ function renderCellContent({
                 color: '#f59e0b',
                 fontSize: 12,
                 fontWeight: 600,
-                maxWidth: 140,
+                flex: '1 1 auto',
+                minWidth: 0,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap'
               }}
             >
               <FileText size={12} style={{ flexShrink: 0 }} />
-              <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <span style={{ textDecoration: 'underline', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {combinedVal || 'Details'}
               </span>
             </button>
@@ -2614,7 +2852,7 @@ function renderCellContent({
                   onEditRefTag ? onEditRefTag(unit) : setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
                 }}
                 title="Edit Reference & Tag (Serial numbers unchanged)"
-                style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer', opacity: 0.7, flexShrink: 0, padding: '1px 3px' }}
+                style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer', opacity: 0.7, flexShrink: 0, padding: '1px 3px', marginLeft: 'auto' }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--blue)'; }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = 'var(--text3)'; }}
               >
@@ -2633,7 +2871,7 @@ function renderCellContent({
               onEditRefTag ? onEditRefTag(unit) : setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
             }
           }}
-          title={canEdit ? "Click to edit Reference & Tag (Serial numbers unchanged)" : (combinedVal || undefined)}
+          title={refTooltip}
           style={{
             color: '#f59e0b',
             fontSize: 12,
@@ -2644,12 +2882,14 @@ function renderCellContent({
             gap: 4,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            whiteSpace: 'nowrap',
+            width: '100%',
+            minWidth: 0
           }}
         >
-          <span>{combinedVal || '—'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{combinedVal || '—'}</span>
           {canEdit && (
-            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 2 }} title="Edit Ref & Tag">✏️</span>
+            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 'auto', flexShrink: 0 }} title="Edit Ref & Tag">✏️</span>
           )}
         </span>
       );
@@ -2853,6 +3093,13 @@ function renderCellContent({
       }
 
       const isEditableTextCol = ['project_name', 'end_client_name', 'material_description'].includes(colKey);
+      const colLabel = customCol ? (customCol.label || colKey) : (colKey === 'material_description' ? 'Description' : colKey === 'project_name' ? 'Project' : colKey === 'end_client_name' ? 'End Client' : colKey);
+      const textTooltip = [
+        currentVal ? `${colLabel}: ${currentVal}` : `${colLabel}: Not Specified`,
+        unit.order_number ? `Order #: ${unit.order_number}` : null,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        canEdit && isEditableTextCol ? '(Click to edit)' : null
+      ].filter(Boolean).join('\n');
 
       return (
         <span
@@ -2862,7 +3109,7 @@ function renderCellContent({
               setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
             }
           }}
-          title={canEdit && isEditableTextCol ? "Click to edit" : (currentVal ? String(currentVal) : undefined)}
+          title={textTooltip}
           style={{
             color: colKey === 'project_name' ? '#38bdf8' : 'var(--text2)',
             fontSize: 12,
@@ -2892,6 +3139,7 @@ const TableRow = memo(function TableRow({
   canEditPanelSize,
   canUploadPo,
   panelSizeMasters,
+  panelSizeMap,
   customColumnDefs,
   editingCell,
   setEditingCell,
@@ -2909,15 +3157,15 @@ const TableRow = memo(function TableRow({
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
   const isHold = status === 'Hold' || status === 'On Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold');
-  const rowHighlight = isCancelled ? 'cancelled' : (isHold ? 'hold' : null);
 
+  const baseBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
   const defaultBg = isSelected
-    ? 'rgba(59, 130, 246, 0.16)'
+    ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
     : isCancelled
-      ? (isAltRow ? 'rgba(239, 68, 68, 0.22)' : 'rgba(239, 68, 68, 0.17)')
+      ? (isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)')
       : isHold
-        ? (isAltRow ? 'rgba(245, 158, 11, 0.22)' : 'rgba(245, 158, 11, 0.17)')
-        : (isAltRow ? 'var(--bg2)' : 'var(--bg)');
+        ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
+        : baseBg;
 
   const borderBottomColor = isCancelled
     ? 'rgba(239, 68, 68, 0.45)'
@@ -2930,6 +3178,10 @@ const TableRow = memo(function TableRow({
     isHold ? 'row-hold' : '',
     isSelected ? 'row-selected' : ''
   ].filter(Boolean).join(' ');
+
+  const checkboxBg = isSelected
+    ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
+    : defaultBg;
 
   return (
     <tr
@@ -2947,7 +3199,7 @@ const TableRow = memo(function TableRow({
           position: 'sticky',
           left: 0,
           zIndex: 3,
-          background: isSelected ? 'rgba(59, 130, 246, 0.22)' : defaultBg,
+          background: checkboxBg,
           width: 38,
           minWidth: 38,
           maxWidth: 38,
@@ -2972,21 +3224,26 @@ const TableRow = memo(function TableRow({
 
       {visibleCols.map((c) => {
         const colKey = c.key;
-        const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 125);
+        const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 150);
         const width = columnWidths[colKey] || defaultWidth;
         const pinned = pinnedKeys.includes(colKey);
         const lastPin = pinned && pinnedKeys[pinnedKeys.length - 1] === colKey;
 
-        let pinnedBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
-        if (rowHighlight === 'cancelled') {
-          pinnedBg = isAltRow ? 'rgba(239, 68, 68, 0.24)' : 'rgba(239, 68, 68, 0.20)';
-        } else if (rowHighlight === 'hold') {
-          pinnedBg = isAltRow ? 'rgba(245, 158, 11, 0.24)' : 'rgba(245, 158, 11, 0.20)';
+        let pinnedBg = baseBg;
+        if (isSelected) {
+          pinnedBg = isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)';
+        } else if (isCancelled) {
+          pinnedBg = isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)';
+        } else if (isHold) {
+          pinnedBg = isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)';
         }
 
         return (
           <td
             key={colKey}
+            onMouseEnter={(e) => {
+              e.currentTarget.title = getCellTooltip(unit, colKey, status, customColumnDefs, panelSizeMap);
+            }}
             style={{
               width,
               minWidth: width,
@@ -3013,6 +3270,7 @@ const TableRow = memo(function TableRow({
               canEditPanelSize,
               canUploadPo,
               panelSizeMasters,
+              panelSizeMap,
               customColumnDefs,
               editingCell,
               setEditingCell,
@@ -3049,8 +3307,462 @@ const TableRow = memo(function TableRow({
   return true;
 });
 
+// ── PO Upload Modal with Drag & Drop ──────────────────────────────────────────
+const PoUploadModal = memo(function PoUploadModal({
+  isOpen,
+  onClose,
+  selectedCount,
+  selectedUnitSerials = [],
+  initialPoNumber = '',
+  onUpload,
+  isUploading
+}) {
+  const [poNumber, setPoNumber] = useState(initialPoNumber);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
+  const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPoNumber(initialPoNumber || '');
+      setSelectedFile(null);
+      setIsDragging(false);
+      dragCounter.current = 0;
+    }
+  }, [isOpen, initialPoNumber]);
+
+  if (!isOpen) return null;
+
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    if (!isDragging) setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDragging(false);
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (!isPdf) {
+      alert('Only PDF files are allowed for PO document upload.');
+      return;
+    }
+
+    setSelectedFile(file);
+    if (!poNumber.trim()) {
+      const suggestedPo = file.name.replace(/\.[^/.]+$/, '').trim();
+      setPoNumber(suggestedPo);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (!isPdf) {
+      alert('Only PDF files are allowed for PO document upload.');
+      return;
+    }
+    setSelectedFile(file);
+    if (!poNumber.trim()) {
+      const suggestedPo = file.name.replace(/\.[^/.]+$/, '').trim();
+      setPoNumber(suggestedPo);
+    }
+    e.target.value = '';
+  };
+
+  const handleSubmit = (e) => {
+    e?.preventDefault();
+    if (!poNumber.trim()) {
+      alert('Please enter a PO Number.');
+      return;
+    }
+    if (!selectedFile) {
+      alert('Please select or drag & drop a PO PDF file.');
+      return;
+    }
+    onUpload(poNumber.trim(), selectedFile);
+  };
+
+  return createPortal(
+    <div
+      className="modal-overlay open"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(0, 0, 0, 0.72)',
+        backdropFilter: 'blur(5px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 10000,
+        animation: 'fadeIn 0.15s ease'
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isUploading) onClose();
+      }}
+    >
+      <div
+        style={{
+          background: 'var(--bg2, #181b26)',
+          border: '1px solid var(--border, #2d3748)',
+          borderRadius: 14,
+          width: 520,
+          maxWidth: '92vw',
+          padding: '24px',
+          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
+          color: 'var(--text, #f1f5f9)'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              background: 'rgba(59, 130, 246, 0.15)',
+              color: 'var(--blue, #3b82f6)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <UploadCloud size={20} />
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
+                Upload PO Document
+              </h3>
+              <p style={{ margin: 0, fontSize: 12, color: 'var(--text3)' }}>
+                Drag & drop or browse PO PDF for selected serial numbers
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isUploading}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: isUploading ? 'not-allowed' : 'pointer',
+              color: 'var(--text3)',
+              padding: 4,
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 6
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Selected Panels Context */}
+        <div style={{
+          background: 'rgba(59, 130, 246, 0.08)',
+          border: '1px solid rgba(59, 130, 246, 0.25)',
+          borderRadius: 8,
+          padding: '10px 14px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 4
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: 'var(--text2)', fontWeight: 600 }}>Target Serials:</span>
+            <span style={{
+              background: 'var(--blue, #3b82f6)',
+              color: '#ffffff',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: 12,
+              fontSize: 11
+            }}>
+              {selectedCount} Serial{selectedCount > 1 ? 's' : ''} Selected
+            </span>
+          </div>
+          {selectedUnitSerials.length > 0 && (
+            <div style={{
+              fontSize: 11,
+              color: 'var(--text3)',
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 4,
+              marginTop: 4,
+              maxHeight: 48,
+              overflowY: 'auto'
+            }}>
+              {selectedUnitSerials.slice(0, 10).map((serial, idx) => (
+                <span
+                  key={idx}
+                  style={{
+                    background: 'var(--bg3)',
+                    border: '1px solid var(--border)',
+                    padding: '1px 6px',
+                    borderRadius: 4,
+                    color: 'var(--text2)'
+                  }}
+                >
+                  {serial}
+                </span>
+              ))}
+              {selectedUnitSerials.length > 10 && (
+                <span style={{ color: 'var(--text3)', fontStyle: 'italic', padding: '1px 4px' }}>
+                  +{selectedUnitSerials.length - 10} more
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* PO Number Input */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
+            PO Number <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+          <input
+            type="text"
+            placeholder="e.g. PO-2026-9842"
+            value={poNumber}
+            onChange={(e) => setPoNumber(e.target.value)}
+            disabled={isUploading}
+            style={{
+              height: 36,
+              padding: '0 12px',
+              fontSize: 13,
+              background: 'var(--bg3)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              outline: 'none',
+              width: '100%',
+              boxSizing: 'border-box'
+            }}
+          />
+        </div>
+
+        {/* Drag & Drop Zone */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
+            PO Document (PDF) <span style={{ color: '#ef4444' }}>*</span>
+          </label>
+
+          {!selectedFile ? (
+            <div
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: isDragging ? '2px dashed var(--blue, #3b82f6)' : '2px dashed var(--border2, #3b4256)',
+                background: isDragging ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg3)',
+                borderRadius: 12,
+                padding: '32px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                textAlign: 'center'
+              }}
+            >
+              <div style={{
+                width: 52,
+                height: 52,
+                borderRadius: '50%',
+                background: isDragging ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--blue, #3b82f6)'
+              }}>
+                <UploadCloud size={26} className={isDragging ? 'animate-bounce' : ''} />
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
+                  {isDragging ? 'Drop your PO PDF file here' : 'Drag & drop PO document here'}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 3 }}>
+                  or <span style={{ color: 'var(--blue)', fontWeight: 600 }}>browse from your computer</span>
+                </div>
+              </div>
+              <div style={{
+                fontSize: 11,
+                color: 'var(--text3)',
+                background: 'var(--bg2)',
+                padding: '2px 8px',
+                borderRadius: 4,
+                border: '1px solid var(--border)'
+              }}>
+                Only PDF files supported
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,application/pdf"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+            </div>
+          ) : (
+            <div style={{
+              border: '1px solid rgba(59, 130, 246, 0.35)',
+              background: 'rgba(59, 130, 246, 0.08)',
+              borderRadius: 10,
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                <div style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 8,
+                  background: 'rgba(239, 68, 68, 0.14)',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}>
+                  <FileText size={20} />
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--text)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {selectedFile.name}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
+                    {(selectedFile.size / 1024).toFixed(1)} KB · PDF Document
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedFile(null)}
+                disabled={isUploading}
+                title="Remove / change file"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: isUploading ? 'not-allowed' : 'pointer',
+                  color: 'var(--text3)',
+                  padding: 6,
+                  borderRadius: 6,
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 10,
+          marginTop: 6,
+          paddingTop: 14,
+          borderTop: '1px solid var(--border)'
+        }}>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={isUploading}
+            style={{
+              height: 34,
+              padding: '0 16px',
+              fontSize: 13,
+              borderRadius: 8,
+              border: '1px solid var(--border)',
+              background: 'transparent',
+              color: 'var(--text2)',
+              cursor: isUploading ? 'not-allowed' : 'pointer'
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isUploading || !selectedFile || !poNumber.trim()}
+            style={{
+              height: 34,
+              padding: '0 18px',
+              fontSize: 13,
+              fontWeight: 600,
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--blue, #3b82f6)',
+              color: '#ffffff',
+              cursor: (isUploading || !selectedFile || !poNumber.trim()) ? 'not-allowed' : 'pointer',
+              opacity: (isUploading || !selectedFile || !poNumber.trim()) ? 0.6 : 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8
+            }}
+          >
+            {isUploading ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />}
+            <span>{isUploading ? 'Uploading...' : 'Upload & Attach PO'}</span>
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+});
+
 const PoUploadBar = memo(function PoUploadBar({
   selectedCount,
+  selectedUnitSerials = [],
   canUploadPo,
   isUploadingPo,
   poSuccessMsg,
@@ -3059,9 +3771,25 @@ const PoUploadBar = memo(function PoUploadBar({
   externalPoNumber,
   setExternalPoNumber
 }) {
-  const [poNumber, setPoNumber] = useState('');
-  const poFileInputRef = useRef(null);
+  const [poNumber, setPoNumber] = useState(() => {
+    return externalPoNumber || localStorage.getItem('erp_all_poNumber') || '';
+  });
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounter = useRef(0);
   const poInputRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      if (poNumber) {
+        localStorage.setItem('erp_all_poNumber', poNumber);
+      } else {
+        localStorage.removeItem('erp_all_poNumber');
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, [poNumber]);
 
   useEffect(() => {
     if (externalPoNumber !== undefined && externalPoNumber !== null) {
@@ -3082,28 +3810,137 @@ const PoUploadBar = memo(function PoUploadBar({
       alert("Please select the serial numbers (on which you require to add the PO data) first.");
       return;
     }
-    if (!poNumber.trim()) {
-      alert("Please enter the PO No. in the text box.");
-      if (poInputRef.current) poInputRef.current.focus();
-      return;
-    }
-    if (poFileInputRef.current) {
-      poFileInputRef.current.click();
-    }
+    setIsModalOpen(true);
   };
 
-  const handleFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const currentPo = poNumber.trim();
-    e.target.value = '';
+  const handleDirectDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setIsDraggingOver(false);
+
+    const files = e.dataTransfer?.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    if (!canUploadPo) {
+      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
+      return;
+    }
+
+    if (selectedCount === 0) {
+      alert("Please select the serial numbers (on which you require to add the PO data) first.");
+      return;
+    }
+
+    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
+    if (!isPdf) {
+      alert('Only PDF files are allowed for PO document upload.');
+      return;
+    }
+
+    let currentPo = poNumber.trim();
+    if (!currentPo) {
+      const suggestedPo = file.name.replace(/\.[^/.]+$/, '').trim();
+      const entered = window.prompt("Enter PO No. for this document:", suggestedPo);
+      if (entered === null) return;
+      if (!entered.trim()) {
+        alert("PO Number is required to upload PO document.");
+        if (poInputRef.current) poInputRef.current.focus();
+        return;
+      }
+      currentPo = entered.trim();
+    }
+
     setPoNumber('');
     if (setExternalPoNumber) setExternalPoNumber('');
     onUploadPo(currentPo, file);
   };
 
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current += 1;
+    if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = 'copy';
+    }
+    if (!isDraggingOver) {
+      setIsDraggingOver(true);
+    }
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current -= 1;
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
+    }
+  };
+
   return (
-    <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0' }}>
+    <div
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDirectDrop}
+      style={{
+        marginLeft: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '3px 8px',
+        position: 'relative',
+        borderRadius: 8,
+        border: isDraggingOver
+          ? '2px dashed var(--blue)'
+          : selectedCount > 0
+            ? '1px dashed rgba(59, 130, 246, 0.45)'
+            : '1px dashed transparent',
+        backgroundColor: isDraggingOver
+          ? 'rgba(59, 130, 246, 0.14)'
+          : selectedCount > 0
+            ? 'rgba(59, 130, 246, 0.04)'
+            : 'transparent',
+        boxShadow: isDraggingOver ? '0 0 16px rgba(59, 130, 246, 0.35)' : 'none',
+        transition: 'all 0.18s ease'
+      }}
+      title={selectedCount > 0 ? "Click Upload PO to open Drag & Drop dialog (or drop PDF here)" : "Select serials to upload PO document"}
+    >
+      {/* Drag Over Active Overlay */}
+      {isDraggingOver && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(37, 99, 235, 0.94)',
+          backdropFilter: 'blur(3px)',
+          borderRadius: 7,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          color: '#ffffff',
+          fontSize: 12,
+          fontWeight: 700,
+          letterSpacing: '0.01em',
+          zIndex: 20,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
+        }}>
+          <UploadCloud size={16} className="animate-bounce" />
+          <span>Drop PO PDF to Upload</span>
+        </div>
+      )}
+
       {poSuccessMsg && (
         <span style={{ fontSize: 12, fontWeight: 600, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '3px 8px' }}>
           {poSuccessMsg}
@@ -3151,13 +3988,14 @@ const PoUploadBar = memo(function PoUploadBar({
           outline: 'none',
           width: 140
         }}
+        title="Enter PO Number (or click Upload PO to open drag & drop uploader)"
       />
 
       <button
         type="button"
         onClick={handleUploadClick}
         disabled={isUploadingPo}
-        title="Upload PO (PDF) for selected serial numbers"
+        title="Click to open Drag & Drop PO uploader"
         style={{
           height: 30,
           padding: '0 12px',
@@ -3179,12 +4017,20 @@ const PoUploadBar = memo(function PoUploadBar({
         <span>Upload PO</span>
       </button>
 
-      <input
-        ref={poFileInputRef}
-        type="file"
-        accept=".pdf,application/pdf"
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
+      {/* Modal with Drag & Drop Option */}
+      <PoUploadModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        selectedCount={selectedCount}
+        selectedUnitSerials={selectedUnitSerials}
+        initialPoNumber={poNumber}
+        onUpload={(submittedPo, file) => {
+          setPoNumber('');
+          if (setExternalPoNumber) setExternalPoNumber('');
+          setIsModalOpen(false);
+          onUploadPo(submittedPo, file);
+        }}
+        isUploading={isUploadingPo}
       />
     </div>
   );
@@ -3194,6 +4040,26 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  // Prevent browser from navigating away if a user drops a file outside the dropzone
+  useEffect(() => {
+    const handleDragOverWindow = (e) => {
+      if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        e.preventDefault();
+      }
+    };
+    const handleDropWindow = (e) => {
+      if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('dragover', handleDragOverWindow);
+    window.addEventListener('drop', handleDropWindow);
+    return () => {
+      window.removeEventListener('dragover', handleDragOverWindow);
+      window.removeEventListener('drop', handleDropWindow);
+    };
+  }, []);
 
   // Canvas Mouse Drag Scroll
   useEffect(() => {
@@ -3278,8 +4144,39 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.setItem('erp_all_sortDir', sortDir);
   }, [sortDir]);
 
-  // Excel-style multi-row selection state
-  const [selectedUnitIds, setSelectedUnitIds] = useState(new Set());
+  // Excel-style multi-row selection state (persisted across browser refresh)
+  const [selectedUnitIds, setSelectedUnitIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('erp_all_selectedUnitIds');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return new Set(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load erp_all_selectedUnitIds', e);
+    }
+    return new Set();
+  });
+
+  useEffect(() => {
+    try {
+      if (selectedUnitIds.size > 0) {
+        localStorage.setItem('erp_all_selectedUnitIds', JSON.stringify(Array.from(selectedUnitIds)));
+      } else {
+        localStorage.removeItem('erp_all_selectedUnitIds');
+      }
+    } catch (e) {
+      console.warn('Failed to save erp_all_selectedUnitIds', e);
+    }
+  }, [selectedUnitIds]);
+
+  const isIdSelected = useCallback((id) => {
+    if (id === undefined || id === null) return false;
+    return selectedUnitIds.has(id) || selectedUnitIds.has(String(id)) || (typeof id === 'string' && !isNaN(id) && selectedUnitIds.has(Number(id)));
+  }, [selectedUnitIds]);
+
   const lastSelectedIndexRef = useRef(null);
   const isDraggingSelectRef = useRef(false);
   const dragStartIdxRef = useRef(null);
@@ -3391,8 +4288,25 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV2 = localStorage.getItem('erp_all_colWidths_v2');
-      if (savedV2) return { ...DEFAULT_COL_WIDTHS, ...JSON.parse(savedV2) };
+      const savedV3 = localStorage.getItem('erp_all_colWidths_v3');
+      const saved = savedV3 || localStorage.getItem('erp_all_colWidths_v2');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const merged = { ...DEFAULT_COL_WIDTHS };
+        for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
+          if (parsed[k] !== undefined) {
+            const minSafe = MIN_COL_WIDTHS[k] || 120;
+            // Upgrade any old squashed widths from previous versions
+            merged[k] = Math.max(Number(parsed[k]) || minSafe, minSafe);
+          }
+        }
+        for (const [k, v] of Object.entries(parsed)) {
+          if (merged[k] === undefined && typeof v === 'number') {
+            merged[k] = Math.max(v, 120);
+          }
+        }
+        return merged;
+      }
       return DEFAULT_COL_WIDTHS;
     } catch (e) {
       return DEFAULT_COL_WIDTHS;
@@ -3400,7 +4314,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   });
 
   useEffect(() => {
-    localStorage.setItem('erp_all_colWidths_v2', JSON.stringify(columnWidths));
+    localStorage.setItem('erp_all_colWidths_v3', JSON.stringify(columnWidths));
   }, [columnWidths]);
 
   // Header Drag & Drop state
@@ -3476,6 +4390,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_column_order');
     localStorage.removeItem('erp_all_colWidths');
     localStorage.removeItem('erp_all_colWidths_v2');
+    localStorage.removeItem('erp_all_colWidths_v3');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3548,6 +4463,24 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
     } catch (err) { console.error(err); }
   };
+
+  const panelSizeMap = useMemo(() => {
+    const map = new Map();
+    (panelSizeMasters || []).forEach(m => {
+      if (m.panel_size) map.set(m.panel_size, m);
+      if (m.size_name) map.set(m.size_name, m);
+      if (m.panel_code) map.set(m.panel_code, m);
+    });
+    return map;
+  }, [panelSizeMasters]);
+
+  const customColumnMap = useMemo(() => {
+    const map = new Map();
+    (customColumnDefs || []).forEach(c => {
+      map.set(c.col_key, c);
+    });
+    return map;
+  }, [customColumnDefs]);
 
   const getDocUrl = (doc) => {
     if (!doc) return '#';
@@ -3928,9 +4861,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   }, [units, activeTab, statCardFilter, priorityFilter, statusFilter, searchTerm, getUnitStatus]);
 
   const sorted = useMemo(() => {
+    const customDef = customColumnMap.get(sortKey);
     return [...filtered].sort((a, b) => {
       let av, bv;
-      const customDef = customColumnDefs.find(c => c.col_key === sortKey);
       if (customDef) {
         const aVal = a.custom_fields?.[sortKey] ?? '';
         const bVal = b.custom_fields?.[sortKey] ?? '';
@@ -3961,11 +4894,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           bVal = (b.reference_number && b.tag) ? `${b.reference_number}/${b.tag}` : (b.reference_number || b.tag || '');
         } else if (['panel_code', 'panel_ip_rating', 'panel_comments'].includes(sortKey)) {
           if (!aVal) {
-            const masterA = panelSizeMasters.find(m => (m.panel_size || m.size_name) === a.panel_type_size || m.panel_code === a.panel_type_size);
+            const masterA = panelSizeMap.get(a.panel_type_size);
             aVal = sortKey === 'panel_code' ? masterA?.panel_code : sortKey === 'panel_ip_rating' ? masterA?.ip_rating : (masterA?.comments || masterA?.description);
           }
           if (!bVal) {
-            const masterB = panelSizeMasters.find(m => (m.panel_size || m.size_name) === b.panel_type_size || m.panel_code === b.panel_type_size);
+            const masterB = panelSizeMap.get(b.panel_type_size);
             bVal = sortKey === 'panel_code' ? masterB?.panel_code : sortKey === 'panel_ip_rating' ? masterB?.ip_rating : (masterB?.comments || masterB?.description);
           }
         }
@@ -3976,7 +4909,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [filtered, sortKey, sortDir, customColumnDefs, panelSizeMasters, getUnitStatus]);
+  }, [filtered, sortKey, sortDir, customColumnMap, panelSizeMap, getUnitStatus]);
 
   const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(sorted.length / pageSize));
 
@@ -4022,7 +4955,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     dragStartIdxRef.current = idx;
     lastSelectedIndexRef.current = idx;
 
-    const willSelect = !selectedUnitIds.has(unitId);
+    const willSelect = !isIdSelected(unitId);
     dragSelectTargetStateRef.current = willSelect;
 
     setSelectedUnitIds(prev => {
@@ -4054,18 +4987,22 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const handleToggleSelectAll = useCallback(() => {
     const displayedIds = displayedUnits.map(u => u.unit_id);
-    const allSelected = displayedIds.length > 0 && displayedIds.every(id => selectedUnitIds.has(id));
+    const allSelected = displayedIds.length > 0 && displayedIds.every(id => isIdSelected(id));
 
     setSelectedUnitIds(prev => {
       const next = new Set(prev);
       if (allSelected) {
-        displayedIds.forEach(id => next.delete(id));
+        displayedIds.forEach(id => {
+          next.delete(id);
+          next.delete(String(id));
+          if (!isNaN(id)) next.delete(Number(id));
+        });
       } else {
         displayedIds.forEach(id => next.add(id));
       }
       return next;
     });
-  }, [displayedUnits, selectedUnitIds]);
+  }, [displayedUnits, isIdSelected]);
 
   const handleBatchPoUpload = useCallback(async (poNumber, file) => {
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
@@ -4097,6 +5034,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       setExternalPoNumber('');
       setSelectedUnitIds(new Set());
+      try {
+        localStorage.removeItem('erp_all_selectedUnitIds');
+        localStorage.removeItem('erp_all_poNumber');
+      } catch (e) {}
       await fetchUnits(true);
     } catch (err) {
       console.error(err);
@@ -4171,7 +5112,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const map = {};
     let currentLeft = SELECTION_COL_WIDTH;
     pinnedCols.forEach((c) => {
-      const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[c.key] || 140);
+      const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[c.key] || 150);
       const width = columnWidths[c.key] || defaultWidth;
       map[c.key] = currentLeft;
       currentLeft += width;
@@ -4184,7 +5125,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const getColStyle = (colKey, isHeader = false) => {
     const colDef = allColumns.find(c => c.key === colKey);
-    const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 125);
+    const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 150);
     const width = columnWidths[colKey] || defaultWidth;
     const pinned = isPinned(colKey);
     const lastPin = isLastPinned(colKey);
@@ -4207,6 +5148,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   };
 
 
+
+  const selectedUnitSerials = useMemo(() => {
+    if (selectedUnitIds.size === 0) return [];
+    return units
+      .filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id))
+      .map(u => u.short_serial || u.unit_serial || u.serial_number || u.unit_id)
+      .filter(Boolean);
+  }, [units, selectedUnitIds, isIdSelected]);
 
   if (isLoading) return (
     <div style={{ padding: 60, textAlign: 'center', color: 'var(--text3)' }}>
@@ -4336,6 +5285,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         {/* ── Right side: PO Controls (Enter PO No. + Upload PO button) ── */}
         <PoUploadBar
           selectedCount={selectedUnitIds.size}
+          selectedUnitSerials={selectedUnitSerials}
           canUploadPo={canUploadPo}
           isUploadingPo={isUploadingPo}
           poSuccessMsg={poSuccessMsg}
@@ -4514,11 +5464,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
               >
                 <input
                   type="checkbox"
-                  checked={displayedUnits.length > 0 && displayedUnits.every(u => selectedUnitIds.has(u.unit_id))}
+                  checked={displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id))}
                   ref={el => {
                     if (el) {
-                      const hasSome = displayedUnits.some(u => selectedUnitIds.has(u.unit_id));
-                      const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => selectedUnitIds.has(u.unit_id));
+                      const hasSome = displayedUnits.some(u => isIdSelected(u.unit_id));
+                      const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id));
                       el.indeterminate = hasSome && !hasAll;
                     }
                   }}
@@ -4570,13 +5520,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                       verticalAlign: 'middle'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 4, width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 4, width: '100%', minWidth: 0 }}>
                       <div
                         onClick={() => handleSort(colKey)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', overflow: 'hidden', flex: 1 }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', overflow: 'hidden', flex: 1, minWidth: 0 }}
                       >
                         <GripVertical size={11} className="drag-handle" style={{ cursor: 'grab', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={label}>{label}</span>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} title={label}>{label}</span>
                         {sortKey === colKey && <SortIcon col={colKey} />}
                       </div>
 
@@ -4630,7 +5580,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 key={unit.unit_id}
                 unit={unit}
                 idx={idx}
-                isSelected={selectedUnitIds.has(unit.unit_id)}
+                isSelected={isIdSelected(unit.unit_id)}
                 status={getUnitStatus(unit)}
                 visibleCols={visibleCols}
                 columnWidths={columnWidths}
@@ -4640,6 +5590,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 canEditPanelSize={canEditPanelSize}
                 canUploadPo={canUploadPo}
                 panelSizeMasters={panelSizeMasters}
+                panelSizeMap={panelSizeMap}
                 customColumnDefs={customColumnDefs}
                 editingCell={editingCell}
                 setEditingCell={setEditingCell}

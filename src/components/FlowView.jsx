@@ -31,10 +31,13 @@ export default function FlowView({
   const [editingUnitStep, setEditingUnitStep] = useState(null);
   const [users, setUsers] = useState([]);
   const [unitStepError, setUnitStepError] = useState(null);
-  const [showUnitHoldBox, setShowUnitHoldBox] = useState(false);
-  const [showUnitCancelBox, setShowUnitCancelBox] = useState(false);
-  const [unitActionReason, setUnitActionReason] = useState('');
-  const [unitActionScope, setUnitActionScope] = useState('selected');
+  const [panelActionModal, setPanelActionModal] = useState({
+    isOpen: false,
+    action: 'hold',
+    unit: null,
+    reason: '',
+    scope: 'selected'
+  });
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const canEditUnitStep = editingUnitStep ? (['Admin', 'Manager'].includes(userRole) || editingUnitStep.dept === userRole || editingUnitStep.assigned_user_id === currentUser.id) : false;
   const [unitModalActiveTab, setUnitModalActiveTab] = useState('details');
@@ -106,39 +109,79 @@ export default function FlowView({
   };
 
   const handleResumeUnitDirect = async (unit) => {
-    const stepId = unit.hold_step_id || unit.cancelled_step_id || unitSteps.find(s => s.status === 'hold' || s.status === 'cancelled')?.id || (unitSteps[0]?.id);
-    if (!stepId) return;
+    if (!unit) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${unit.id}/steps/${stepId}`, {
-        method: 'PUT',
+      const res = await fetch(`${window.API_BASE}/api/units/hold-action`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ action: 'resume', scope: 'selected' })
+        body: JSON.stringify({
+          unit_ids: [unit.id || unit.unit_id],
+          action: 'resume',
+          scope: 'selected',
+          order_id: selectedOrderId || selectedOrder?.id
+        })
       });
       if (res.ok) {
-        const freshSteps = await fetch(`${window.API_BASE}/api/units/${unit.id}/steps`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).then(r => r.json());
-        setUnitSteps(freshSteps);
+        if (selectedUnitId) {
+          const freshSteps = await fetch(`${window.API_BASE}/api/units/${unit.id || selectedUnitId}/steps`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).then(r => r.json());
+          setUnitSteps(freshSteps);
+        }
         if (onStepsChanged) onStepsChanged();
-        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId || selectedOrder?.id } }));
       } else {
         const err = await res.json().catch(() => ({}));
-        alert(err.error || 'Failed to resume panel');
+        alert(err.error || `Failed to resume panel (HTTP ${res.status})`);
       }
     } catch (err) {
       console.error('Failed to resume panel', err);
+      alert('Network error — could not resume panel');
+    }
+  };
+
+  const handlePanelAction = async () => {
+    if (!panelActionModal.unit || !panelActionModal.action) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/units/hold-action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          unit_ids: [panelActionModal.unit.id || panelActionModal.unit.unit_id],
+          action: panelActionModal.action,
+          reason: panelActionModal.reason.trim() || undefined,
+          scope: panelActionModal.scope,
+          order_id: selectedOrderId || selectedOrder?.id
+        })
+      });
+      if (res.ok) {
+        setPanelActionModal({ isOpen: false, action: 'hold', unit: null, reason: '', scope: 'selected' });
+        if (selectedUnitId) {
+          const freshSteps = await fetch(`${window.API_BASE}/api/units/${selectedUnitId}/steps`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).then(r => r.json());
+          setUnitSteps(freshSteps);
+        }
+        if (onStepsChanged) onStepsChanged();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId || selectedOrder?.id } }));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Failed to ${panelActionModal.action} panel (HTTP ${res.status})`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(`Network error — could not ${panelActionModal.action} panel`);
     }
   };
 
   const handleStepClick = (step) => {
     setUnitStepError(null);
-    setShowUnitHoldBox(false);
-    setShowUnitCancelBox(false);
-    setUnitActionReason('');
-    setUnitActionScope('selected');
     if (step.order_unit_id) {
       setEditingUnitStep(step);
       setUnitModalActiveTab('details');
@@ -179,9 +222,11 @@ export default function FlowView({
     const canChangeClassification = ['Admin', 'Manager', 'Design', 'Sales'].includes(userRole);
     const currentClassification = selectedOrder?.classification || 'Standard';
 
+    const currentUnit = units.find(u => String(u.id) === String(selectedUnitId));
+
     return (
       <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
           <select 
             className="form-select"
@@ -194,6 +239,81 @@ export default function FlowView({
               <option key={u.id} value={u.id}>Unit: {u.unit_id} ({u.status})</option>
             ))}
           </select>
+
+          {currentUnit && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {currentUnit.hold_status === 'Hold' || String(currentUnit.status || '').toLowerCase().startsWith('hold') ? (
+                <>
+                  <span style={{
+                    fontSize: '11px', fontWeight: 800, padding: '4px 10px', borderRadius: 6,
+                    background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid #f59e0b',
+                    display: 'flex', alignItems: 'center', gap: 4
+                  }}>
+                    ⏸ ON HOLD {currentUnit.hold_dept ? `(${currentUnit.hold_dept})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPanelActionModal({ isOpen: true, action: 'resume', unit: currentUnit, reason: '', scope: 'selected' })}
+                    style={{
+                      background: '#10b981', color: '#fff', border: 'none', padding: '5px 12px',
+                      borderRadius: 6, fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 4
+                    }}
+                  >
+                    ▶ Resume Panel
+                  </button>
+                </>
+              ) : currentUnit.hold_status === 'Cancelled' || String(currentUnit.status || '').toLowerCase().startsWith('cancel') ? (
+                <>
+                  <span style={{
+                    fontSize: '11px', fontWeight: 800, padding: '4px 10px', borderRadius: 6,
+                    background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid #ef4444',
+                    display: 'flex', alignItems: 'center', gap: 4
+                  }}>
+                    ✕ CANCELLED {currentUnit.cancelled_dept ? `(${currentUnit.cancelled_dept})` : ''}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPanelActionModal({ isOpen: true, action: 'resume', unit: currentUnit, reason: '', scope: 'selected' })}
+                    style={{
+                      background: '#10b981', color: '#fff', border: 'none', padding: '5px 12px',
+                      borderRadius: 6, fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 4
+                    }}
+                  >
+                    ▶ Resume Panel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setPanelActionModal({ isOpen: true, action: 'hold', unit: currentUnit, reason: '', scope: 'selected' })}
+                    style={{
+                      background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.45)',
+                      padding: '5px 12px', borderRadius: 6, fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 4
+                    }}
+                    title="Put this panel on hold"
+                  >
+                    ⏸ Hold Panel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPanelActionModal({ isOpen: true, action: 'cancel', unit: currentUnit, reason: '', scope: 'selected' })}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.45)',
+                      padding: '5px 12px', borderRadius: 6, fontSize: '12px', fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 4
+                    }}
+                    title="Cancel this panel"
+                  >
+                    ✕ Cancel Panel
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {selectedOrder && (
@@ -434,29 +554,27 @@ export default function FlowView({
               </div>
             </div>
           </div>
-          {(canEditUnitStep || ['Admin', 'Manager'].includes(userRole)) && (
-            <button
-              type="button"
-              onClick={() => handleResumeUnitDirect(selectedUnit)}
-              style={{
-                background: '#10b981',
-                color: '#fff',
-                fontWeight: '700',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '10px 20px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
-                flexShrink: 0
-              }}
-            >
-              ▶ Resume Panel
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleResumeUnitDirect(selectedUnit)}
+            style={{
+              background: '#10b981',
+              color: '#fff',
+              fontWeight: '700',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+              flexShrink: 0
+            }}
+          >
+            ▶ Resume Panel
+          </button>
         </div>
       )}
 
@@ -492,29 +610,27 @@ export default function FlowView({
               </div>
             </div>
           </div>
-          {(canEditUnitStep || ['Admin', 'Manager'].includes(userRole)) && (
-            <button
-              type="button"
-              onClick={() => handleResumeUnitDirect(selectedUnit)}
-              style={{
-                background: '#10b981',
-                color: '#fff',
-                fontWeight: '700',
-                border: 'none',
-                borderRadius: '8px',
-                padding: '10px 20px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
-                flexShrink: 0
-              }}
-            >
-              ▶ Resume Panel (Undo Cancel)
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => handleResumeUnitDirect(selectedUnit)}
+            style={{
+              background: '#10b981',
+              color: '#fff',
+              fontWeight: '700',
+              border: 'none',
+              borderRadius: '8px',
+              padding: '10px 20px',
+              cursor: 'pointer',
+              fontSize: '13px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+              flexShrink: 0
+            }}
+          >
+            ▶ Resume Panel (Undo Cancel)
+          </button>
         </div>
       )}
       
@@ -876,146 +992,46 @@ export default function FlowView({
 
               {unitModalActiveTab === 'details' && (
                 <>
-                  {/* Hold Banner inside Modal */}
+                  {/* Hold Banner inside Modal (Informational Only) */}
                   {(editingUnitStep.status === 'hold' || selectedUnit?.hold_status === 'Hold') && (
                     <div style={{
                       background: 'rgba(245, 158, 11, 0.15)',
-                      border: '2px solid #f59e0b',
+                      border: '1px solid #f59e0b',
                       borderRadius: '8px',
-                      padding: '14px',
+                      padding: '10px 14px',
                       marginBottom: '16px'
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <div style={{ fontWeight: '700', color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>⏸</span> PANEL IS CURRENTLY ON HOLD
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: '700', color: '#fbbf24', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>⏸</span> Panel is currently on Hold {selectedUnit?.hold_dept ? `(${selectedUnit.hold_dept})` : ''}
                         </div>
                         <span style={{ fontSize: '10px', background: '#f59e0b', color: '#000', fontWeight: '800', padding: '2px 8px', borderRadius: '4px' }}>
                           HOLD ACTIVE
                         </span>
                       </div>
-                      <div style={{ fontSize: '12px', color: '#fef3c7', marginBottom: '6px' }}>
-                        <strong>Reason:</strong> {editingUnitStep.hold_reason || selectedUnit?.hold_reason || 'No reason specified'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'rgba(254, 243, 199, 0.7)' }}>
-                        Held by: {selectedUnit?.held_by_name || 'User'} {selectedUnit?.held_at ? ` · ${new Date(selectedUnit.held_at).toLocaleString()}` : ''}
-                      </div>
-
-                      {canEditUnitStep && (
-                        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#fbbf24' }}>Resume Scope:</div>
-                          <div style={{ display: 'flex', gap: '16px' }}>
-                            <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name="unitResumeScope" 
-                                value="selected" 
-                                checked={unitActionScope === 'selected'} 
-                                onChange={() => setUnitActionScope('selected')} 
-                              />
-                              Only this Panel ({selectedUnit?.unit_id || 'This Unit'})
-                            </label>
-                            <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name="unitResumeScope" 
-                                value="order" 
-                                checked={unitActionScope === 'order'} 
-                                onChange={() => setUnitActionScope('order')} 
-                              />
-                              All Panels in this Order
-                            </label>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateUnitStep(editingUnitStep.id, { action: 'resume', scope: unitActionScope })}
-                            style={{
-                              background: '#10b981',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '8px 16px',
-                              fontWeight: '700',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              marginTop: '4px',
-                              width: 'fit-content',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            ▶ Resume Panel (Return to In Progress)
-                          </button>
+                      {(editingUnitStep.hold_reason || selectedUnit?.hold_reason) && (
+                        <div style={{ fontSize: '11px', color: '#fef3c7', marginTop: '4px' }}>
+                          <strong>Reason:</strong> {editingUnitStep.hold_reason || selectedUnit?.hold_reason}
                         </div>
                       )}
                     </div>
                   )}
 
-                  {/* Cancelled Banner inside Modal */}
+                  {/* Cancelled Banner inside Modal (Informational Only) */}
                   {(editingUnitStep.status === 'cancelled' || selectedUnit?.hold_status === 'Cancelled') && (
                     <div style={{
                       background: 'rgba(239, 68, 68, 0.15)',
-                      border: '2px solid #ef4444',
+                      border: '1px solid #ef4444',
                       borderRadius: '8px',
-                      padding: '14px',
+                      padding: '10px 14px',
                       marginBottom: '16px'
                     }}>
-                      <div style={{ fontWeight: '700', color: '#f87171', fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>✕</span> PANEL IS CANCELLED
+                      <div style={{ fontWeight: '700', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>✕</span> Panel is Cancelled {selectedUnit?.cancelled_dept ? `(${selectedUnit.cancelled_dept})` : ''}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#fee2e2', marginTop: '6px' }}>
-                        <strong>Reason:</strong> {selectedUnit?.cancelled_reason || 'No reason specified'}
-                      </div>
-                      <div style={{ fontSize: '11px', color: 'rgba(254, 226, 226, 0.7)', marginTop: '4px' }}>
-                        Cancelled by: {selectedUnit?.cancelled_by_name || 'User'} {selectedUnit?.cancelled_at ? ` · ${new Date(selectedUnit.cancelled_at).toLocaleString()}` : ''}
-                      </div>
-
-                      {canEditUnitStep && (
-                        <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px solid rgba(239,68,68,0.3)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ fontSize: '11px', fontWeight: '700', color: '#f87171' }}>Resume Scope:</div>
-                          <div style={{ display: 'flex', gap: '16px' }}>
-                            <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name="unitCancelResumeScope" 
-                                value="selected" 
-                                checked={unitActionScope === 'selected'} 
-                                onChange={() => setUnitActionScope('selected')} 
-                              />
-                              Only this Panel ({selectedUnit?.unit_id || 'This Unit'})
-                            </label>
-                            <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                              <input 
-                                type="radio" 
-                                name="unitCancelResumeScope" 
-                                value="order" 
-                                checked={unitActionScope === 'order'} 
-                                onChange={() => setUnitActionScope('order')} 
-                              />
-                              All Panels in this Order
-                            </label>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateUnitStep(editingUnitStep.id, { action: 'resume', scope: unitActionScope })}
-                            style={{
-                              background: '#10b981',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '6px',
-                              padding: '8px 16px',
-                              fontWeight: '700',
-                              fontSize: '12px',
-                              cursor: 'pointer',
-                              marginTop: '4px',
-                              width: 'fit-content',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px'
-                            }}
-                          >
-                            ▶ Resume Panel (Undo Cancellation)
-                          </button>
+                      {selectedUnit?.cancelled_reason && (
+                        <div style={{ fontSize: '11px', color: '#fee2e2', marginTop: '4px' }}>
+                          <strong>Reason:</strong> {selectedUnit?.cancelled_reason}
                         </div>
                       )}
                     </div>
@@ -1058,200 +1074,7 @@ export default function FlowView({
                     )}
                   </div>
 
-                  {canEditUnitStep && editingUnitStep.status !== 'hold' && selectedUnit?.hold_status !== 'Cancelled' && (
-                    <div style={{ marginBottom: '16px', display: 'flex', gap: '10px' }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowUnitHoldBox(prev => !prev);
-                          setShowUnitCancelBox(false);
-                        }}
-                        style={{
-                          flex: 1,
-                          background: showUnitHoldBox ? '#f59e0b' : 'rgba(245, 158, 11, 0.15)',
-                          color: showUnitHoldBox ? '#000' : '#fbbf24',
-                          border: '1px solid rgba(245, 158, 11, 0.4)',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <span>⏸</span> {showUnitHoldBox ? 'Dismiss Hold' : 'Put Panel on Hold'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowUnitCancelBox(prev => !prev);
-                          setShowUnitHoldBox(false);
-                        }}
-                        style={{
-                          flex: 1,
-                          background: showUnitCancelBox ? '#ef4444' : 'rgba(239, 68, 68, 0.15)',
-                          color: showUnitCancelBox ? '#fff' : '#f87171',
-                          border: '1px solid rgba(239, 68, 68, 0.4)',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <span>✕</span> {showUnitCancelBox ? 'Dismiss Cancel' : 'Cancel Panel'}
-                      </button>
-                    </div>
-                  )}
 
-                  {showUnitHoldBox && (
-                    <div style={{
-                      background: 'rgba(245, 158, 11, 0.10)',
-                      border: '1px solid #f59e0b',
-                      borderRadius: '8px',
-                      padding: '14px',
-                      marginBottom: '16px'
-                    }}>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#fbbf24', marginBottom: '8px' }}>
-                        ⏸ Put Panel on Hold at Step: {editingUnitStep.name}
-                      </div>
-                      <textarea
-                        className="form-input"
-                        rows={2}
-                        placeholder="Reason for placing on hold (optional)..."
-                        value={unitActionReason}
-                        onChange={e => setUnitActionReason(e.target.value)}
-                        style={{ fontSize: '12px', marginBottom: '10px', resize: 'vertical' }}
-                      />
-                      <div style={{ marginBottom: '10px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', fontWeight: '600' }}>Scope:</div>
-                        <div style={{ display: 'flex', gap: '14px' }}>
-                          <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name="unitHoldScope" 
-                              value="selected" 
-                              checked={unitActionScope === 'selected'} 
-                              onChange={() => setUnitActionScope('selected')} 
-                            />
-                            Only this Panel ({selectedUnit?.unit_id || 'This Unit'})
-                          </label>
-                          <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name="unitHoldScope" 
-                              value="order" 
-                              checked={unitActionScope === 'order'} 
-                              onChange={() => setUnitActionScope('order')} 
-                            />
-                            All Panels in this Order
-                          </label>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await handleUpdateUnitStep(editingUnitStep.id, { 
-                            action: 'hold', 
-                            reason: unitActionReason.trim() || 'On hold', 
-                            scope: unitActionScope 
-                          });
-                          setShowUnitHoldBox(false);
-                          setUnitActionReason('');
-                        }}
-                        style={{
-                          background: '#f59e0b',
-                          color: '#000',
-                          fontWeight: '700',
-                          padding: '7px 16px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        Confirm Put on Hold
-                      </button>
-                    </div>
-                  )}
-
-                  {showUnitCancelBox && (
-                    <div style={{
-                      background: 'rgba(239, 68, 68, 0.10)',
-                      border: '1px solid #ef4444',
-                      borderRadius: '8px',
-                      padding: '14px',
-                      marginBottom: '16px'
-                    }}>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#f87171', marginBottom: '8px' }}>
-                        ✕ Cancel Panel at Step: {editingUnitStep.name}
-                      </div>
-                      <textarea
-                        className="form-input"
-                        rows={2}
-                        placeholder="Reason for cancellation (optional)..."
-                        value={unitActionReason}
-                        onChange={e => setUnitActionReason(e.target.value)}
-                        style={{ fontSize: '12px', marginBottom: '10px', resize: 'vertical' }}
-                      />
-                      <div style={{ marginBottom: '10px' }}>
-                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', fontWeight: '600' }}>Scope:</div>
-                        <div style={{ display: 'flex', gap: '14px' }}>
-                          <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name="unitCancelScope" 
-                              value="selected" 
-                              checked={unitActionScope === 'selected'} 
-                              onChange={() => setUnitActionScope('selected')} 
-                            />
-                            Only this Panel ({selectedUnit?.unit_id || 'This Unit'})
-                          </label>
-                          <label style={{ fontSize: '12px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                            <input 
-                              type="radio" 
-                              name="unitCancelScope" 
-                              value="order" 
-                              checked={unitActionScope === 'order'} 
-                              onChange={() => setUnitActionScope('order')} 
-                            />
-                            All Panels in this Order
-                          </label>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          await handleUpdateUnitStep(editingUnitStep.id, { 
-                            action: 'cancel', 
-                            reason: unitActionReason.trim() || 'Cancelled', 
-                            scope: unitActionScope 
-                          });
-                          setShowUnitCancelBox(false);
-                          setUnitActionReason('');
-                        }}
-                        style={{
-                          background: '#ef4444',
-                          color: '#fff',
-                          fontWeight: '700',
-                          padding: '7px 16px',
-                          borderRadius: '6px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '12px'
-                        }}
-                      >
-                        Confirm Cancellation
-                      </button>
-                    </div>
-                  )}
 
                   <div className="modal-field" style={{ marginBottom: '16px' }}>
                     <label>Assign Worker</label>
@@ -1523,6 +1346,113 @@ export default function FlowView({
                   </div>
                 );
               })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Direct Panel Action Modal (Hold / Cancel / Resume) */}
+      {panelActionModal.isOpen && panelActionModal.unit && (
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setPanelActionModal({ ...panelActionModal, isOpen: false }); }}>
+          <div className="modal" style={{ maxWidth: '480px', width: '92%' }}>
+            <div className="modal-header" style={{
+              background: panelActionModal.action === 'hold' ? 'rgba(245, 158, 11, 0.12)' : panelActionModal.action === 'cancel' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)',
+              borderBottom: `1px solid ${panelActionModal.action === 'hold' ? 'rgba(245, 158, 11, 0.3)' : panelActionModal.action === 'cancel' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: '20px' }}>
+                  {panelActionModal.action === 'hold' ? '⏸' : panelActionModal.action === 'cancel' ? '✕' : '▶'}
+                </span>
+                <div>
+                  <div className="modal-title" style={{ fontSize: '16px' }}>
+                    {panelActionModal.action === 'hold' ? 'Put Panel on Hold' : panelActionModal.action === 'cancel' ? 'Cancel Panel' : 'Resume Panel'}
+                  </div>
+                  <div className="modal-sub" style={{ fontSize: '12px' }}>
+                    Panel: <strong style={{ color: 'var(--text)' }}>{panelActionModal.unit.unit_id}</strong>
+                  </div>
+                </div>
+              </div>
+              <button className="modal-close" onClick={() => setPanelActionModal({ ...panelActionModal, isOpen: false })}>✕</button>
+            </div>
+
+            <div className="modal-body" style={{ padding: '20px' }}>
+              {panelActionModal.action !== 'resume' && (
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>
+                    Reason (optional):
+                  </label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder={`Enter reason for ${panelActionModal.action === 'hold' ? 'placing on hold' : 'cancellation'}...`}
+                    value={panelActionModal.reason}
+                    onChange={(e) => setPanelActionModal({ ...panelActionModal, reason: e.target.value })}
+                    style={{ width: '100%', fontSize: '13px', resize: 'vertical' }}
+                    autoFocus
+                  />
+                </div>
+              )}
+
+              {panelActionModal.action === 'resume' && (
+                <div style={{ marginBottom: 16, fontSize: '13px', color: 'var(--text2)', lineHeight: 1.5 }}>
+                  Resuming this panel will clear its hold/cancelled status and return it to active manufacturing.
+                </div>
+              )}
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text2)', display: 'block', marginBottom: 6 }}>
+                  Scope of Action:
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'var(--bg3)', padding: '10px 14px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                  <label style={{ fontSize: '13px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="panelActionScope"
+                      value="selected"
+                      checked={panelActionModal.scope === 'selected'}
+                      onChange={() => setPanelActionModal({ ...panelActionModal, scope: 'selected' })}
+                    />
+                    <span>Only this Panel (<strong style={{ color: '#60a5fa' }}>{panelActionModal.unit.unit_id}</strong>)</span>
+                  </label>
+                  <label style={{ fontSize: '13px', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input
+                      type="radio"
+                      name="panelActionScope"
+                      value="order"
+                      checked={panelActionModal.scope === 'order'}
+                      onChange={() => setPanelActionModal({ ...panelActionModal, scope: 'order' })}
+                    />
+                    <span>All Panels in this Order (#{selectedOrder?.order_number})</span>
+                  </label>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setPanelActionModal({ ...panelActionModal, isOpen: false })}
+                  style={{ padding: '8px 16px', fontSize: '13px' }}
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePanelAction}
+                  style={{
+                    background: panelActionModal.action === 'hold' ? '#f59e0b' : panelActionModal.action === 'cancel' ? '#ef4444' : '#10b981',
+                    color: panelActionModal.action === 'hold' ? '#000' : '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '8px 20px',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {panelActionModal.action === 'hold' ? 'Confirm Hold' : panelActionModal.action === 'cancel' ? 'Confirm Cancel' : 'Confirm Resume'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
