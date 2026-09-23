@@ -106,8 +106,6 @@ export default function FlowView({
   };
 
   const handleResumeUnitDirect = async (unit) => {
-    const isCancel = unit.hold_status === 'Cancelled' || String(unit.status || '').startsWith('Cancel');
-    if (!confirm(`Resume panel ${unit.unit_id}${isCancel ? ' (undo cancellation)' : ' from hold'}?`)) return;
     const stepId = unit.hold_step_id || unit.cancelled_step_id || unitSteps.find(s => s.status === 'hold' || s.status === 'cancelled')?.id || (unitSteps[0]?.id);
     if (!stepId) return;
     try {
@@ -1127,7 +1125,7 @@ export default function FlowView({
                       <textarea
                         className="form-input"
                         rows={2}
-                        placeholder="Reason for placing on hold (required)..."
+                        placeholder="Reason for placing on hold (optional)..."
                         value={unitActionReason}
                         onChange={e => setUnitActionReason(e.target.value)}
                         style={{ fontSize: '12px', marginBottom: '10px', resize: 'vertical' }}
@@ -1160,13 +1158,9 @@ export default function FlowView({
                       <button
                         type="button"
                         onClick={async () => {
-                          if (!unitActionReason.trim()) {
-                            alert('Please enter a reason for placing the panel on hold.');
-                            return;
-                          }
                           await handleUpdateUnitStep(editingUnitStep.id, { 
                             action: 'hold', 
-                            reason: unitActionReason, 
+                            reason: unitActionReason.trim() || 'On hold', 
                             scope: unitActionScope 
                           });
                           setShowUnitHoldBox(false);
@@ -1202,7 +1196,7 @@ export default function FlowView({
                       <textarea
                         className="form-input"
                         rows={2}
-                        placeholder="Reason for cancellation (required)..."
+                        placeholder="Reason for cancellation (optional)..."
                         value={unitActionReason}
                         onChange={e => setUnitActionReason(e.target.value)}
                         style={{ fontSize: '12px', marginBottom: '10px', resize: 'vertical' }}
@@ -1235,14 +1229,9 @@ export default function FlowView({
                       <button
                         type="button"
                         onClick={async () => {
-                          if (!unitActionReason.trim()) {
-                            alert('Please enter a reason for cancelling this panel.');
-                            return;
-                          }
-                          if (!confirm('Are you sure you want to cancel this panel? This will halt operations on this panel.')) return;
                           await handleUpdateUnitStep(editingUnitStep.id, { 
                             action: 'cancel', 
-                            reason: unitActionReason, 
+                            reason: unitActionReason.trim() || 'Cancelled', 
                             scope: unitActionScope 
                           });
                           setShowUnitCancelBox(false);

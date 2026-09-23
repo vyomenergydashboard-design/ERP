@@ -231,6 +231,7 @@ export default function OrderDocumentsModal({
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
   const canSeePo = ['ADMIN', 'MANAGER', 'SALES', 'ACCOUNTS'].includes(roleUpper);
+  const canEditPo = ['ADMIN', 'MANAGER', 'SALES'].includes(roleUpper) && !readOnly;
 
   // Categorize documents
   const poDoc = documents.find(d => (d.doc_type || '').toLowerCase() === 'po');
@@ -379,6 +380,10 @@ export default function OrderDocumentsModal({
     if (!droppedFiles || droppedFiles.length === 0) return;
 
     if (cat === 'po') {
+      if (!canEditPo) {
+        showStatus('Only Sales, Admin, and Manager roles can upload or modify PO documents.', true);
+        return;
+      }
       if (poDoc) {
         uploadFiles('po', [droppedFiles[0]], true, poDoc.id);
       } else {
@@ -698,41 +703,47 @@ export default function OrderDocumentsModal({
                           </div>
                         </div>
                       ) : (
-                        <label
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            border: '1px dashed var(--border2, #3b4256)',
-                            borderRadius: '8px',
-                            padding: '24px 12px',
-                            marginTop: '8px',
-                            cursor: readOnly ? 'not-allowed' : 'pointer',
-                            color: 'var(--text3, #64748b)',
-                            fontSize: '12px',
-                            textAlign: 'center',
-                            background: draggingCategory === 'po' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
-                            transition: 'all 0.15s'
-                          }}
-                        >
-                          <UploadCloud size={22} style={{ color: 'var(--blue, #3b82f6)', opacity: 0.8 }} />
-                          <span>Drag file here or <span style={{ color: 'var(--blue, #3b82f6)', fontWeight: '600' }}>browse files</span></span>
-                          <input
-                            ref={poInputRef}
-                            type="file"
-                            accept=".pdf,.doc,.docx,.xls,.xlsx"
-                            hidden
-                            disabled={readOnly}
-                            onChange={(e) => {
-                              if (e.target.files && e.target.files[0]) {
-                                uploadFiles('po', [e.target.files[0]]);
-                                e.target.value = '';
-                              }
+                        canEditPo ? (
+                          <label
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px',
+                              border: '1px dashed var(--border2, #3b4256)',
+                              borderRadius: '8px',
+                              padding: '24px 12px',
+                              marginTop: '8px',
+                              cursor: readOnly ? 'not-allowed' : 'pointer',
+                              color: 'var(--text3, #64748b)',
+                              fontSize: '12px',
+                              textAlign: 'center',
+                              background: draggingCategory === 'po' ? 'rgba(59, 130, 246, 0.08)' : 'transparent',
+                              transition: 'all 0.15s'
                             }}
-                          />
-                        </label>
+                          >
+                            <UploadCloud size={22} style={{ color: 'var(--blue, #3b82f6)', opacity: 0.8 }} />
+                            <span>Drag file here or <span style={{ color: 'var(--blue, #3b82f6)', fontWeight: '600' }}>browse files</span></span>
+                            <input
+                              ref={poInputRef}
+                              type="file"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx"
+                              hidden
+                              disabled={readOnly}
+                              onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  uploadFiles('po', [e.target.files[0]]);
+                                  e.target.value = '';
+                                }
+                              }}
+                            />
+                          </label>
+                        ) : (
+                          <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--text3, #64748b)', fontSize: '12px', border: '1px dashed var(--border2, #3b4256)', borderRadius: '8px', marginTop: '8px' }}>
+                            No PO document uploaded
+                          </div>
+                        )
                       )}
                     </div>
 
@@ -785,7 +796,7 @@ export default function OrderDocumentsModal({
                           <Download size={13} />
                         </a>
 
-                        {!readOnly && (
+                        {canEditPo && (
                           <>
                             <button
                               type="button"

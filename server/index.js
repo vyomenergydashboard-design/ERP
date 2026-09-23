@@ -4455,9 +4455,9 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
       }
     }
     if (doc_type === 'PO') {
-      const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
-      if (!isSalesOrAccounts) {
-        return res.status(403).json({ error: 'Forbidden: Only Sales and Accounts roles can upload PO documents.' });
+      const canUploadPo = ['Sales', 'Admin', 'Manager'].includes(req.user.role);
+      if (!canUploadPo) {
+        return res.status(403).json({ error: 'Forbidden: Only Sales, Admin, and Manager roles can upload PO documents.' });
       }
     }
     if (doc_type === 'PO' || doc_type === 'Quotation') {
@@ -4536,7 +4536,7 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
   }
 });
 
-app.post('/api/units/batch-po', authorize(['Sales', 'Accounts', 'Admin', 'Manager']), upload.single('file'), async (req, res) => {
+app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload.single('file'), async (req, res) => {
   const { po_number } = req.body;
   let unit_ids = req.body.unit_ids;
 
@@ -4681,6 +4681,65 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Accounts', 'Admin', 'Manage
       try { fs.unlinkSync(req.file.path); } catch (e) {}
     }
     res.status(500).json({ error: 'Failed to upload PO for selected serials: ' + (err.message || err) });
+  }
+});
+
+app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']), async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Unit ID is required' });
+
+  try {
+    const numId = !isNaN(Number(id)) ? Number(id) : -1;
+    const unitRes = await pool.query(
+      'SELECT id, order_id, unit_id, short_serial, po_number, po_doc_id FROM order_units WHERE id = $1 OR unit_id = $2',
+      [numId, String(id)]
+    );
+    if (unitRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = unitRes.rows[0];
+
+    // Check if unit has a specific po_doc_id
+    if (unit.po_doc_id) {
+      const oldDocId = unit.po_doc_id;
+      // 1. Unlink from this unit
+      await pool.query('UPDATE order_units SET po_doc_id = NULL WHERE id = $1', [unit.id]);
+
+      // 2. Check if any other units still reference this document
+      const otherRef = await pool.query('SELECT id FROM order_units WHERE po_doc_id = $1 LIMIT 1', [oldDocId]);
+      if (otherRef.rows.length === 0) {
+        const docRes = await pool.query('SELECT file_path FROM documents WHERE id = $1', [oldDocId]);
+        if (docRes.rows.length > 0 && docRes.rows[0].file_path && fs.existsSync(docRes.rows[0].file_path)) {
+          try { fs.unlinkSync(docRes.rows[0].file_path); } catch (e) { console.warn('Failed to delete file from disk:', e); }
+        }
+        await pool.query('DELETE FROM documents WHERE id = $1', [oldDocId]);
+      }
+    } else {
+      // If no unit-level po_doc_id, check if there is an order-level PO document
+      const orderDocRes = await pool.query(
+        "SELECT id, file_path FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO'",
+        [unit.order_id]
+      );
+      if (orderDocRes.rows.length > 0) {
+        for (const doc of orderDocRes.rows) {
+          if (doc.file_path && fs.existsSync(doc.file_path)) {
+            try { fs.unlinkSync(doc.file_path); } catch (e) { console.warn('Failed to delete order PO file:', e); }
+          }
+          await pool.query('DELETE FROM documents WHERE id = $1', [doc.id]);
+        }
+      }
+    }
+
+    // Write activity log
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+      [req.user.id, unit.order_id, req.user.role, `Removed PO PDF document for serial ${unit.short_serial || unit.unit_id}`]
+    );
+
+    res.json({ success: true, message: 'PO PDF document removed successfully.' });
+  } catch (err) {
+    console.error('Error removing unit PO document:', err);
+    res.status(500).json({ error: 'Failed to remove PO document: ' + (err.message || err) });
   }
 });
 
