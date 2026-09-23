@@ -4743,6 +4743,148 @@ app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']
   }
 });
 
+app.post('/api/units/hold-action', authorize(['Admin', 'Manager', 'Sales', 'Planning', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts']), async (req, res) => {
+  const { unit_ids, action, reason, scope, order_id } = req.body;
+  if (!['hold', 'cancel', 'resume'].includes(action)) {
+    return res.status(400).json({ error: "Invalid action. Must be 'hold', 'cancel', or 'resume'." });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    let targetUnits = [];
+    if (scope === 'order') {
+      let resolvedOrderId = order_id;
+      if (!resolvedOrderId && Array.isArray(unit_ids) && unit_ids.length > 0) {
+        const intIds = unit_ids.map(Number).filter(n => !isNaN(n) && n > 0);
+        const strIds = unit_ids.map(String);
+        const firstUnit = await client.query(
+          'SELECT order_id FROM order_units WHERE id = ANY($1::int[]) OR unit_id = ANY($2::text[]) LIMIT 1',
+          [intIds.length > 0 ? intIds : [-1], strIds]
+        );
+        if (firstUnit.rows.length > 0) resolvedOrderId = firstUnit.rows[0].order_id;
+      }
+      if (resolvedOrderId) {
+        const orderUnitsRes = await client.query('SELECT id, short_serial, unit_id, order_id FROM order_units WHERE order_id = $1', [resolvedOrderId]);
+        targetUnits = orderUnitsRes.rows;
+      }
+    }
+
+    if (targetUnits.length === 0) {
+      if (Array.isArray(unit_ids) && unit_ids.length > 0) {
+        const intIds = unit_ids.map(Number).filter(n => !isNaN(n) && n > 0);
+        const strIds = unit_ids.map(String);
+        const selectedRes = await client.query(
+          'SELECT id, short_serial, unit_id, order_id FROM order_units WHERE id = ANY($1::int[]) OR unit_id = ANY($2::text[])',
+          [intIds.length > 0 ? intIds : [-1], strIds]
+        );
+        targetUnits = selectedRes.rows;
+      } else {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No units specified.' });
+      }
+    }
+
+    if (targetUnits.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Target units not found.' });
+    }
+
+    const userName = req.user.name || req.user.username || 'User';
+    const userRole = req.user.role || 'Production';
+    const cleanReason = (reason || '').trim();
+    const targetIds = targetUnits.map(u => u.id);
+
+    if (action === 'hold') {
+      const finalReason = cleanReason || 'On hold';
+      await client.query(
+        `UPDATE order_units 
+         SET hold_status = 'Hold',
+             hold_dept = $1,
+             hold_reason = $2,
+             held_by_name = $3,
+             held_at = NOW(),
+             status = 'Hold'
+         WHERE id = ANY($4::int[])`,
+        [userRole, finalReason, userName, targetIds]
+      );
+
+      for (const tu of targetUnits) {
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, tu.order_id, userRole, `Panel ${tu.unit_id || tu.short_serial}: Put on HOLD by ${userRole}${finalReason ? ` — Reason: ${finalReason}` : ''}`]
+        );
+        await deriveUnitStatus(tu.id, client);
+      }
+    } else if (action === 'cancel') {
+      const finalReason = cleanReason || 'Cancelled';
+      await client.query(
+        `UPDATE order_units 
+         SET hold_status = 'Cancelled',
+             cancelled_dept = $1,
+             cancelled_reason = $2,
+             cancelled_by_name = $3,
+             cancelled_at = NOW(),
+             status = 'Cancelled'
+         WHERE id = ANY($4::int[])`,
+        [userRole, finalReason, userName, targetIds]
+      );
+
+      for (const tu of targetUnits) {
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, tu.order_id, userRole, `Panel ${tu.unit_id || tu.short_serial}: CANCELLED by ${userRole}${finalReason ? ` — Reason: ${finalReason}` : ''}`]
+        );
+        await deriveUnitStatus(tu.id, client);
+      }
+    } else if (action === 'resume') {
+      await client.query(
+        `UPDATE order_units 
+         SET hold_status = 'None',
+             hold_step_id = NULL,
+             hold_step_name = NULL,
+             hold_dept = NULL,
+             hold_reason = NULL,
+             held_by_name = NULL,
+             held_at = NULL,
+             cancelled_step_id = NULL,
+             cancelled_step_name = NULL,
+             cancelled_dept = NULL,
+             cancelled_reason = NULL,
+             cancelled_by_name = NULL,
+             cancelled_at = NULL
+         WHERE id = ANY($1::int[])`,
+        [targetIds]
+      );
+
+      await client.query(
+        `UPDATE unit_steps 
+         SET status = 'inprogress', hold_reason = NULL, held_by = NULL, hold_at = NULL 
+         WHERE order_unit_id = ANY($1::int[]) AND status IN ('hold', 'cancelled')`,
+        [targetIds]
+      );
+
+      for (const tu of targetUnits) {
+        await client.query(
+          `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+          [req.user.id, tu.order_id, userRole, `Panel ${tu.unit_id || tu.short_serial}: RESUMED by ${userRole}`]
+        );
+        await deriveUnitStatus(tu.id, client);
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, count: targetUnits.length, action });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error performing unit hold action:', err);
+    res.status(500).json({ error: 'Failed to process panel ' + action + ': ' + (err.message || err) });
+  } finally {
+    client.release();
+  }
+});
+
 app.get('/api/documents/directory', authorize(), async (req, res) => {
   try {
     const ordersRes = await pool.query(`
