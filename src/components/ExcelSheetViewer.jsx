@@ -16,6 +16,13 @@ export default function ExcelSheetViewer({ url, fileName, title, onClose, onDown
       try {
         setLoading(true);
         setError(null);
+
+        const ext = String(fileName || url || '').split('?')[0].split('#')[0].split('.').pop().toLowerCase();
+        const validExts = ['xlsx', 'xls', 'csv', 'tsv', 'ods'];
+        if (fileName && !validExts.includes(ext)) {
+          throw new Error(`File format ".${ext.toUpperCase()}" is not an Excel spreadsheet or CSV table.`);
+        }
+
         const res = await fetch(url);
         if (!res.ok) throw new Error(`Failed to fetch file (status: ${res.status})`);
         const buffer = await res.arrayBuffer();

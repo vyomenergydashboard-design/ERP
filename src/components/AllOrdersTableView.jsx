@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { createPortal } from 'react-dom';
 import ExcelSheetViewer from './ExcelSheetViewer';
+import DocumentPreviewModal from './DocumentPreviewModal';
 import EditRefTagModal from './EditRefTagModal.jsx';
 import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
-  Eye, History, Download, Upload, CheckSquare, Square, Paperclip
+  Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
 
@@ -638,6 +639,7 @@ function TechnicalDocsModal({
 }) {
   const [filesToUpload, setFilesToUpload] = useState([]);
   const [uploadDocType, setUploadDocType] = useState('Drawing');
+  const [pdfViewerDoc, setPdfViewerDoc] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -645,14 +647,91 @@ function TechnicalDocsModal({
   const [showUploadBox, setShowUploadBox] = useState(false);
   const [showDrawingHistory, setShowDrawingHistory] = useState(false);
   const [showBomHistory, setShowBomHistory] = useState(false);
-  const [pdfViewerDoc, setPdfViewerDoc] = useState(null);
+  const [showCustomDrawingHistory, setShowCustomDrawingHistory] = useState(false);
+  const [showCustomBomHistory, setShowCustomBomHistory] = useState(false);
+  const [showOtherDocs, setShowOtherDocs] = useState(true);
+  const modalBodyRef = useRef(null);
   const fileInputRef = useRef(null);
+  const nonStandardFileInputRef = useRef(null);
+  const [targetUploadDocType, setTargetUploadDocType] = useState('Drawing');
 
-  const effectiveRole = (userRole || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('user') || '{}').role) || '').trim().toLowerCase();
-  const isDesignUser = effectiveRole === 'design';
-  const canViewRevisionHistory = !isDesignUser;
+  useEffect(() => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+  }, [selectedPart]);
+
+  const handleTriggerNonStandardUpload = (docType) => {
+    setTargetUploadDocType(docType);
+    setUploadError('');
+    setUploadSuccess('');
+    if (nonStandardFileInputRef.current) {
+      nonStandardFileInputRef.current.value = '';
+      nonStandardFileInputRef.current.click();
+    }
+  };
+
+  const handleDirectNonStandardFileSelect = async (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      await executeNonStandardUpload(targetUploadDocType, files);
+    }
+  };
+
+  const executeNonStandardUpload = async (docType, files) => {
+    if (!files || files.length === 0) return;
+    if (!selectedPart.orderId && !selectedPart.unitId) {
+      setUploadError('No Order or Unit ID found to attach this document to.');
+      return;
+    }
+    setIsUploading(true);
+    setUploadError('');
+    setUploadSuccess('');
+
+    try {
+      const formData = new FormData();
+      if (selectedPart.unitId) {
+        formData.append('entity_type', 'Unit');
+        formData.append('entity_id', selectedPart.unitId);
+      } else {
+        formData.append('entity_type', 'Order');
+        formData.append('entity_id', selectedPart.orderId);
+      }
+      formData.append('doc_type', docType);
+      files.forEach(f => formData.append('files', f));
+
+      const upRes = await fetch(`${window.API_BASE}/api/documents/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData
+      });
+
+      if (!upRes.ok) {
+        const errData = await upRes.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to upload ${docType}`);
+      }
+
+      const savedDocs = await upRes.json();
+      onUpdateSelectedPart(prev => ({
+        ...prev,
+        orderDocs: [...(prev.orderDocs || []), ...(Array.isArray(savedDocs) ? savedDocs : [savedDocs])]
+      }));
+      setUploadSuccess(`${docType === 'BOM' ? 'BOM' : 'Drawing'} revision uploaded successfully.`);
+    } catch (err) {
+      console.error(err);
+      setUploadError(err.message || 'Failed to upload document');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const effectiveRole = (userRole || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem('user') || '{}').role) || '').trim().toUpperCase();
+  const isDesignOrAdmin = ['ADMIN', 'DESIGN'].includes(effectiveRole);
 
   const isStandard = (selectedPart.classification || '').trim().toLowerCase() === 'standard';
+  const canManageThisPanelDocs = isStandard ? canManageDocs : isDesignOrAdmin;
+  const canViewRevisionHistory = true;
+
   const masterDocs = selectedPart.masterDocs || [];
   const orderDocs = selectedPart.orderDocs || [];
 
@@ -670,16 +749,59 @@ function TechnicalDocsModal({
     ? selectedPart.bomHistory
     : [...boms].reverse();
 
-  const customDrawings = orderDocs.filter(d =>
-    (d.doc_type || '').toLowerCase() === 'drawing' ||
-    (d.doc_type || '').toLowerCase() === 'technical specification' ||
-    (d.doc_type || '').toLowerCase() === 'spec'
-  );
-  const otherOrderDocs = orderDocs.filter(d =>
-    (d.doc_type || '').toLowerCase() !== 'drawing' &&
-    (d.doc_type || '').toLowerCase() !== 'technical specification' &&
-    (d.doc_type || '').toLowerCase() !== 'spec'
-  );
+  // For Non-Standard units: Documents are unit/order-specific and never inherited into part masters
+  const customDrawings = useMemo(() => {
+    return [...(orderDocs || [])]
+      .filter(d => (d.doc_type || '').toLowerCase() === 'drawing')
+      .sort((a, b) => {
+        const da = new Date(a.uploaded_at || a.created_at || 0).getTime();
+        const db = new Date(b.uploaded_at || b.created_at || 0).getTime();
+        if (da !== db) return da - db;
+        return (a.id || 0) - (b.id || 0);
+      })
+      .map((d, idx) => ({
+        ...d,
+        revision_number: idx,
+        revision_label: `R${idx}`
+      }));
+  }, [orderDocs]);
+
+  const customBoms = useMemo(() => {
+    return [...(orderDocs || [])]
+      .filter(d => {
+        const dt = (d.doc_type || '').toLowerCase();
+        return dt === 'bom' || dt === 'bill of materials';
+      })
+      .sort((a, b) => {
+        const da = new Date(a.uploaded_at || a.created_at || 0).getTime();
+        const db = new Date(b.uploaded_at || b.created_at || 0).getTime();
+        if (da !== db) return da - db;
+        return (a.id || 0) - (b.id || 0);
+      })
+      .map((d, idx) => ({
+        ...d,
+        revision_number: idx,
+        revision_label: `R${idx}`
+      }));
+  }, [orderDocs]);
+
+  const customSpecs = useMemo(() => {
+    return (orderDocs || []).filter(d => {
+      const dt = (d.doc_type || '').toLowerCase();
+      return dt === 'technical specification' || dt === 'spec' || dt === 'specification' || dt === 'datasheet';
+    });
+  }, [orderDocs]);
+
+  const otherOrderDocs = useMemo(() => {
+    return (orderDocs || []).filter(d => {
+      const dt = (d.doc_type || '').toLowerCase();
+      return dt !== 'drawing' && dt !== 'bom' && dt !== 'bill of materials' &&
+             dt !== 'technical specification' && dt !== 'spec' && dt !== 'specification' && dt !== 'datasheet';
+    });
+  }, [orderDocs]);
+
+  const latestCustomDrawing = customDrawings.length > 0 ? customDrawings[customDrawings.length - 1] : null;
+  const latestCustomBom = customBoms.length > 0 ? customBoms[customBoms.length - 1] : null;
 
   const formatDateDMY = (dateStr) => {
     if (!dateStr) return '—';
@@ -697,9 +819,18 @@ function TechnicalDocsModal({
 
   const handleFileSelect = (e) => {
     if (e.target.files && e.target.files.length > 0) {
-      setFilesToUpload(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      setFilesToUpload(files);
       setUploadError('');
       setUploadSuccess('');
+      if (!isStandard && files.length > 0) {
+        const first = files[0].name.toLowerCase();
+        if (first.endsWith('.xlsx') || first.endsWith('.xls') || first.endsWith('.csv')) {
+          setUploadDocType('BOM');
+        } else if (first.endsWith('.dwg') || first.endsWith('.dxf') || first.endsWith('.step') || first.endsWith('.stp') || first.endsWith('.cad')) {
+          setUploadDocType('Drawing');
+        }
+      }
     }
   };
 
@@ -707,9 +838,18 @@ function TechnicalDocsModal({
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setFilesToUpload(Array.from(e.dataTransfer.files));
+      const files = Array.from(e.dataTransfer.files);
+      setFilesToUpload(files);
       setUploadError('');
       setUploadSuccess('');
+      if (!isStandard && files.length > 0) {
+        const first = files[0].name.toLowerCase();
+        if (first.endsWith('.xlsx') || first.endsWith('.xls') || first.endsWith('.csv')) {
+          setUploadDocType('BOM');
+        } else if (first.endsWith('.dwg') || first.endsWith('.dxf') || first.endsWith('.step') || first.endsWith('.stp') || first.endsWith('.cad')) {
+          setUploadDocType('Drawing');
+        }
+      }
     }
   };
 
@@ -811,13 +951,14 @@ function TechnicalDocsModal({
     }
   };
 
-  const handleUploadNonStandard = async () => {
+  const handleUploadNonStandard = async (targetType) => {
+    const docTypeToUpload = targetType || uploadDocType || 'Drawing';
     if (filesToUpload.length === 0) {
-      setUploadError('Please select at least one drawing file to upload.');
+      setUploadError(`Please select at least one file to upload for ${docTypeToUpload}.`);
       return;
     }
-    if (!selectedPart.orderId) {
-      setUploadError('No Order ID found to attach this document to.');
+    if (!selectedPart.orderId && !selectedPart.unitId) {
+      setUploadError('No Order or Unit ID found to attach this document to.');
       return;
     }
     setIsUploading(true);
@@ -833,7 +974,7 @@ function TechnicalDocsModal({
         formData.append('entity_type', 'Order');
         formData.append('entity_id', selectedPart.orderId);
       }
-      formData.append('doc_type', 'Drawing');
+      formData.append('doc_type', docTypeToUpload);
       filesToUpload.forEach(f => formData.append('files', f));
 
       const upRes = await fetch(`${window.API_BASE}/api/documents/upload`, {
@@ -844,7 +985,7 @@ function TechnicalDocsModal({
 
       if (!upRes.ok) {
         const errData = await upRes.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to upload drawing');
+        throw new Error(errData.error || `Failed to upload ${docTypeToUpload}`);
       }
 
       const savedDocs = await upRes.json();
@@ -853,10 +994,11 @@ function TechnicalDocsModal({
         orderDocs: [...(prev.orderDocs || []), ...(Array.isArray(savedDocs) ? savedDocs : [savedDocs])]
       }));
       setFilesToUpload([]);
-      setUploadSuccess('Custom Technical Drawing(s) uploaded successfully!');
+      const typeDisplay = docTypeToUpload === 'BOM' ? 'Bill of Materials (BOM)' : docTypeToUpload === 'Drawing' ? 'Technical Drawing' : 'Specification';
+      setUploadSuccess(`Custom ${typeDisplay} uploaded successfully! (Saved to this unit/order — not added to master catalog)`);
     } catch (err) {
       console.error(err);
-      setUploadError(err.message || 'Failed to upload drawing');
+      setUploadError(err.message || 'Failed to upload document');
     } finally {
       setIsUploading(false);
     }
@@ -955,12 +1097,18 @@ function TechnicalDocsModal({
           Click to browse or drag & drop technical files
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
-          {isStandard ? (uploadDocType === 'BOM' ? 'Excel (.xlsx, .xls, .csv) or PDF documents (Up to 10 files)' : 'PDF documents only (Up to 10 files)') : 'Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)'}
+          {uploadDocType === 'BOM'
+            ? 'Excel (.xlsx, .xls, .csv) or PDF documents (Up to 10 files)'
+            : uploadDocType === 'Drawing'
+              ? (isStandard ? 'PDF documents only (Up to 10 files)' : 'Supports PDF, DWG, DXF, PNG, JPG, CAD, STEP, ZIP (Up to 10 files)')
+              : 'Supports all technical document types (Up to 10 files)'}
         </div>
         <input
           ref={fileInputRef}
           type="file"
-          accept={isStandard ? (uploadDocType === 'BOM' ? '.pdf,application/pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv' : '.pdf,application/pdf') : undefined}
+          accept={uploadDocType === 'BOM'
+            ? '.pdf,application/pdf,.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
+            : (uploadDocType === 'Drawing' && isStandard ? '.pdf,application/pdf' : undefined)}
           multiple
           style={{ display: 'none' }}
           onChange={handleFileSelect}
@@ -1023,8 +1171,11 @@ function TechnicalDocsModal({
                 gap: '6px',
                 fontSize: '12px',
                 padding: '6px 16px',
-                background: '#3b82f6',
-                color: '#fff'
+                background: uploadDocType === 'BOM' ? '#10b981' : uploadDocType === 'Technical Specification' ? '#a855f7' : '#3b82f6',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer'
               }}
             >
               {isUploading ? (
@@ -1103,7 +1254,7 @@ function TechnicalDocsModal({
         </div>
 
         {/* Modal Body */}
-        <div className="modal-body" style={{ padding: '20px', maxHeight: '72vh', overflowY: 'auto' }}>
+        <div ref={modalBodyRef} className="modal-body" style={{ padding: '20px', maxHeight: '72vh', overflowY: 'auto' }}>
 
           {/* Classification & Order Banner */}
           <div style={{
@@ -1120,7 +1271,7 @@ function TechnicalDocsModal({
             flexWrap: 'wrap',
             gap: '12px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
               <span style={{
                 padding: '3px 10px',
                 borderRadius: '999px',
@@ -1135,8 +1286,8 @@ function TechnicalDocsModal({
               </span>
               <span style={{ fontSize: '12px', color: 'var(--text2)' }}>
                 {isStandard
-                  ? 'Master catalog drawings & BOM apply to this unit. The latest revisions are shown below.'
-                  : `Custom specification unit (${selectedPart.unitSerial || 'Custom'}). Upload tailored drawings below.`}
+                  ? 'Master catalog drawings & BOM apply to this unit.'
+                  : 'Custom specification panel unit.'}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--text3)' }}>
@@ -1719,42 +1870,621 @@ function TechnicalDocsModal({
               CONDITION 2: NON-STANDARD CLASSIFICATION
               "but if it's non standard directly give option to upload"
              ══════════════════════════════════════════════════════════ */}
+          {/* ══════════════════════════════════════════════════════════
+              CONDITION 2: NON-STANDARD CLASSIFICATION
+              Non-Standard units have BOTH Custom Drawing and Custom BOM.
+              Neither is inherited in the Master Part Catalog.
+             ══════════════════════════════════════════════════════════ */}
           {!isStandard && (
             <div style={{ marginBottom: '22px' }}>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', marginBottom: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Upload Custom Technical Drawings / Specifications
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Technical Documents (Drawing & BOM)
+                  </div>
+                </div>
               </div>
 
-              {canManageDocs ? (
-                /* Directly give option to upload for Non-Standard */
-                renderUploadBox(handleUploadNonStandard, 'Upload Custom Technical Drawing')
-              ) : (
+              {/* Hidden file input for direct card uploads */}
+              <input
+                ref={nonStandardFileInputRef}
+                type="file"
+                style={{ display: 'none' }}
+                accept={targetUploadDocType === 'BOM'
+                  ? '.pdf,.xlsx,.xls,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv'
+                  : '.pdf,.png,.jpg,.jpeg,.dwg,.dxf,.step,.stp,.zip,application/pdf,image/*'}
+                onChange={handleDirectNonStandardFileSelect}
+              />
+
+              {/* Status and feedback messages */}
+              {isUploading && (
                 <div style={{
-                  padding: '12px 14px',
+                  padding: '8px 12px',
+                  background: 'rgba(59, 130, 246, 0.1)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
                   borderRadius: '6px',
-                  background: 'var(--bg3)',
-                  border: '1px solid var(--border)',
-                  color: 'var(--text3)',
+                  color: '#60a5fa',
                   fontSize: '12px',
-                  marginBottom: '16px'
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
                 }}>
-                  Non-standard order drawings must be uploaded by Design or Admin.
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Uploading {targetUploadDocType === 'BOM' ? 'Bill of Materials (BOM)' : 'Technical Drawing'}...</span>
                 </div>
               )}
 
-              {/* List of custom technical drawings attached to this unit / order */}
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                  Uploaded Custom Drawings for Unit {selectedPart.unitSerial || ''} ({customDrawings.length})
+              {uploadSuccess && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  borderRadius: '6px',
+                  color: '#34d399',
+                  fontSize: '12px',
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <Check size={14} />
+                  <span>{uploadSuccess}</span>
+                </div>
+              )}
+
+              {uploadError && (
+                <div style={{
+                  padding: '8px 12px',
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: '6px',
+                  color: '#f87171',
+                  fontSize: '12px',
+                  marginBottom: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <AlertCircle size={14} />
+                  <span>{uploadError}</span>
+                </div>
+              )}
+
+              {/* Grid with 2 distinct cards: Custom Drawing and Custom BOM */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px', marginBottom: '16px' }}>
+
+                {/* ── CARD 1: CUSTOM TECHNICAL DRAWING ── */}
+                <div style={{
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: 'rgba(59, 130, 246, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <FileText size={15} style={{ color: '#3b82f6' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                        Technical Drawing
+                      </span>
+                    </div>
+
+                    {latestCustomDrawing ? (
+                      <span style={{
+                        background: 'rgba(59, 130, 246, 0.15)',
+                        color: '#60a5fa',
+                        border: '1px solid rgba(59, 130, 246, 0.3)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        {latestCustomDrawing.revision_label || `R${latestCustomDrawing.revision_number ?? 0}`} · Latest
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600
+                      }}>
+                        Not Uploaded
+                      </span>
+                    )}
+                  </div>
+
+                  {latestCustomDrawing ? (
+                    <>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          title={latestCustomDrawing.file_name}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            fontSize: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {latestCustomDrawing.file_name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>
+                          Uploaded {formatDateDMY(latestCustomDrawing.created_at || latestCustomDrawing.uploaded_at)}
+                          {latestCustomDrawing.file_size ? ` · ${formatFileSize(latestCustomDrawing.file_size)}` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="vbtn"
+                            onClick={() => setPdfViewerDoc({
+                              ...latestCustomDrawing,
+                              title: `Custom Drawing (${latestCustomDrawing.revision_label || 'R0'}) - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                            })}
+                            style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                          <a
+                            href={getDocUrl(latestCustomDrawing)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="vbtn"
+                            style={{
+                              background: '#3b82f6',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>Download</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {canManageThisPanelDocs && (
+                            <>
+                              <button
+                                type="button"
+                                className="vbtn"
+                                onClick={() => handleTriggerNonStandardUpload('Drawing')}
+                                title="Upload new revision of Drawing"
+                                style={{ fontSize: '11px', padding: '5px 8px' }}
+                                disabled={isUploading}
+                              >
+                                + New Rev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOrderDoc(latestCustomDrawing.id)}
+                                title="Delete this custom drawing"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  color: '#ef4444',
+                                  borderRadius: '6px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Earlier custom drawings list */}
+                      {customDrawings.length > 1 && (
+                        <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomDrawingHistory(!showCustomDrawingHistory)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#60a5fa',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: 0
+                            }}
+                          >
+                            <History size={12} />
+                            <span>{showCustomDrawingHistory ? 'Hide Earlier Revisions' : `View Earlier Revisions (${customDrawings.length - 1})`}</span>
+                          </button>
+
+                          {showCustomDrawingHistory && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                              {customDrawings.slice(0, -1).reverse().map((doc) => (
+                                <div
+                                  key={`custom-draw-hist-${doc.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'var(--bg2)',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--text2)', fontFamily: 'var(--font-mono)' }}>
+                                      {doc.revision_label}
+                                    </span>
+                                    <span style={{ color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.file_name}>
+                                      {doc.file_name}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(doc.created_at || doc.uploaded_at)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPdfViewerDoc({
+                                        ...doc,
+                                        title: `Custom Drawing (${doc.revision_label}) - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                                      })}
+                                      style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                                      title="Preview revision"
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                    <a
+                                      href={getDocUrl(doc)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }}
+                                      title="Download revision"
+                                    >
+                                      <Download size={12} />
+                                    </a>
+                                    {canManageThisPanelDocs && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteOrderDoc(doc.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                                        title="Delete revision"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px', textAlign: 'center', background: 'var(--bg2)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>
+                        No custom drawing uploaded for this unit.
+                      </div>
+                      {canManageThisPanelDocs && (
+                        <button
+                          type="button"
+                          className="vbtn primary"
+                          onClick={() => handleTriggerNonStandardUpload('Drawing')}
+                          style={{ fontSize: '11px', padding: '5px 12px' }}
+                          disabled={isUploading}
+                        >
+                          + Upload Drawing (R0)
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {customDrawings.length > 0 ? (
+                {/* ── CARD 2: CUSTOM BILL OF MATERIALS (BOM) ── */}
+                <div style={{
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '6px',
+                        background: 'rgba(168, 85, 247, 0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <Layers size={15} style={{ color: '#a855f7' }} />
+                      </div>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text)' }}>
+                        Bill of Materials (BOM)
+                      </span>
+                    </div>
+
+                    {latestCustomBom ? (
+                      <span style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: '#34d399',
+                        border: '1px solid rgba(16, 185, 129, 0.3)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 700
+                      }}>
+                        {latestCustomBom.revision_label || `R${latestCustomBom.revision_number ?? 0}`} · Latest
+                      </span>
+                    ) : (
+                      <span style={{
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        color: '#ef4444',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: '999px',
+                        padding: '2px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600
+                      }}>
+                        Not Uploaded
+                      </span>
+                    )}
+                  </div>
+
+                  {latestCustomBom ? (
+                    <>
+                      <div style={{ minWidth: 0 }}>
+                        <div
+                          title={latestCustomBom.file_name}
+                          style={{
+                            fontWeight: 600,
+                            color: 'var(--text)',
+                            fontSize: '12px',
+                            fontFamily: 'var(--font-mono)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {latestCustomBom.file_name}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '3px' }}>
+                          Uploaded {formatDateDMY(latestCustomBom.created_at || latestCustomBom.uploaded_at)}
+                          {latestCustomBom.file_size ? ` · ${formatFileSize(latestCustomBom.file_size)}` : ''}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginTop: 'auto', paddingTop: '6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <button
+                            type="button"
+                            className="vbtn"
+                            onClick={() => setPdfViewerDoc({
+                              ...latestCustomBom,
+                              title: `Custom BOM (${latestCustomBom.revision_label || 'R0'}) - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                            })}
+                            style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                          <a
+                            href={getDocUrl(latestCustomBom)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="vbtn"
+                            style={{
+                              background: '#10b981',
+                              color: '#fff',
+                              textDecoration: 'none',
+                              padding: '5px 12px',
+                              borderRadius: '6px',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span>Download</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {canManageThisPanelDocs && (
+                            <>
+                              <button
+                                type="button"
+                                className="vbtn"
+                                onClick={() => handleTriggerNonStandardUpload('BOM')}
+                                title="Upload new revision of BOM"
+                                style={{ fontSize: '11px', padding: '5px 8px' }}
+                                disabled={isUploading}
+                              >
+                                + New Rev
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteOrderDoc(latestCustomBom.id)}
+                                title="Delete this custom BOM"
+                                style={{
+                                  background: 'transparent',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  color: '#ef4444',
+                                  borderRadius: '6px',
+                                  padding: '5px 8px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Earlier custom BOMs list */}
+                      {customBoms.length > 1 && (
+                        <div style={{ borderTop: '1px dashed var(--border)', paddingTop: '8px', marginTop: '4px' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomBomHistory(!showCustomBomHistory)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#10b981',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: 0
+                            }}
+                          >
+                            <History size={12} />
+                            <span>{showCustomBomHistory ? 'Hide Earlier Revisions' : `View Earlier Revisions (${customBoms.length - 1})`}</span>
+                          </button>
+
+                          {showCustomBomHistory && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                              {customBoms.slice(0, -1).reverse().map((doc) => (
+                                <div
+                                  key={`custom-bom-hist-${doc.id}`}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    background: 'var(--bg2)',
+                                    padding: '6px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    gap: '8px'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                                    <span style={{ fontWeight: 700, color: '#34d399', fontFamily: 'var(--font-mono)' }}>
+                                      {doc.revision_label}
+                                    </span>
+                                    <span style={{ color: 'var(--text3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={doc.file_name}>
+                                      {doc.file_name}
+                                    </span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                    <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(doc.created_at || doc.uploaded_at)}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setPdfViewerDoc({
+                                        ...doc,
+                                        title: `Custom BOM (${doc.revision_label}) - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                                      })}
+                                      style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+                                      title="Preview BOM revision"
+                                    >
+                                      <Eye size={12} />
+                                    </button>
+                                    <a
+                                      href={getDocUrl(doc)}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#10b981', display: 'flex', alignItems: 'center' }}
+                                      title="Download revision"
+                                    >
+                                      <Download size={12} />
+                                    </a>
+                                    {canManageThisPanelDocs && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteOrderDoc(doc.id)}
+                                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                                        title="Delete revision"
+                                      >
+                                        <Trash2 size={11} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ padding: '12px', textAlign: 'center', background: 'var(--bg2)', borderRadius: '6px', border: '1px dashed var(--border)' }}>
+                      <div style={{ fontSize: '12px', color: 'var(--text3)', marginBottom: '8px' }}>
+                        No custom BOM uploaded for this unit.
+                      </div>
+                      {canManageThisPanelDocs && (
+                        <button
+                          type="button"
+                          className="vbtn primary"
+                          onClick={() => handleTriggerNonStandardUpload('BOM')}
+                          style={{ fontSize: '11px', padding: '5px 12px', background: '#10b981' }}
+                          disabled={isUploading}
+                        >
+                          + Upload BOM (R0)
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Other Custom Technical Specifications List (if any) */}
+              {customSpecs.length > 0 && (
+                <div style={{ marginTop: '16px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+                    Other Custom Specifications & Documents ({customSpecs.length})
+                  </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {customDrawings.map((doc) => {
+                    {customSpecs.map((doc) => {
                       const docUrl = getDocUrl(doc);
                       return (
                         <div
-                          key={`custom-${doc.id}`}
+                          key={`custom-spec-${doc.id}`}
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -1784,7 +2514,8 @@ function TechnicalDocsModal({
                                 {doc.file_name}
                               </div>
                               <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
-                                Custom Drawing · Uploaded {formatDateDMY(doc.created_at || doc.uploaded_at)}
+                                {doc.doc_type || 'Custom Specification'} · Uploaded {formatDateDMY(doc.created_at || doc.uploaded_at)}
+                                {doc.file_size ? ` · ${formatFileSize(doc.file_size)}` : ''}
                               </div>
                             </div>
                           </div>
@@ -1794,7 +2525,7 @@ function TechnicalDocsModal({
                               className="vbtn"
                               onClick={() => setPdfViewerDoc({
                                 ...doc,
-                                title: `Custom Drawing - ${selectedPart.unitSerial || selectedPart.partNumber}`
+                                title: `Custom Specification - ${selectedPart.unitSerial || selectedPart.partNumber}`
                               })}
                               style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px' }}
                             >
@@ -1807,7 +2538,7 @@ function TechnicalDocsModal({
                               rel="noopener noreferrer"
                               className="vbtn"
                               style={{
-                                background: '#3b82f6',
+                                background: '#a855f7',
                                 color: '#fff',
                                 textDecoration: 'none',
                                 padding: '6px 14px',
@@ -1819,14 +2550,14 @@ function TechnicalDocsModal({
                                 gap: '5px'
                               }}
                             >
-                              <span>View / Download</span>
+                              <span>Download</span>
                               <ExternalLink size={13} />
                             </a>
-                            {canManageDocs && (
+                            {canManageThisPanelDocs && (
                               <button
                                 type="button"
                                 onClick={() => handleDeleteOrderDoc(doc.id)}
-                                title="Delete custom drawing"
+                                title="Delete document"
                                 style={{
                                   background: 'transparent',
                                   border: '1px solid rgba(239, 68, 68, 0.3)',
@@ -1847,78 +2578,160 @@ function TechnicalDocsModal({
                       );
                     })}
                   </div>
-                ) : (
-                  <div style={{ padding: '14px', textAlign: 'center', color: 'var(--text3)', background: 'var(--bg3)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '12px' }}>
-                    No custom technical drawings uploaded for this order yet.
-                  </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
           {/* Section: Other Order Documents (PO, Quotation, General) */}
           {otherOrderDocs.length > 0 && (
             <div style={{ marginTop: '20px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text2)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-                Other Order Documents ({otherOrderDocs.length})
+              <div
+                onClick={() => setShowOtherDocs(!showOtherDocs)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  marginBottom: showOtherDocs ? '12px' : 0
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>Other Order Documents ({otherOrderDocs.length})</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: 400, textTransform: 'none' }}>
+                    (PO, Details, Quotations)
+                  </span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'var(--text3)' }}>
+                  <span>{showOtherDocs ? 'Hide' : 'Show'}</span>
+                  {showOtherDocs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {otherOrderDocs.map((doc) => {
-                  const docUrl = getDocUrl(doc);
-                  return (
-                    <div
-                      key={`other-${doc.id}`}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: 'var(--bg3)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '6px',
-                        padding: '10px 14px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                        <FileText size={15} style={{ color: 'var(--text3)', flexShrink: 0 }} />
-                        <div style={{ minWidth: 0 }}>
-                          <span style={{ fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {doc.file_name}
-                          </span>
-                          <span style={{ color: 'var(--text3)', marginLeft: '8px', fontSize: '11px' }}>
-                            ({doc.doc_type || 'General'} · {formatDateDMY(doc.created_at || doc.uploaded_at)})
-                          </span>
+
+              {showOtherDocs && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {otherOrderDocs.map((doc) => {
+                    const docUrl = getDocUrl(doc);
+                    return (
+                      <div
+                        key={`other-${doc.id}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: 'var(--bg3)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          gap: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '6px',
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <FileText size={16} style={{ color: '#3b82f6' }} />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div
+                              title={doc.file_name}
+                              style={{
+                                fontWeight: 600,
+                                color: 'var(--text)',
+                                fontSize: '12px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {doc.file_name}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                              <span style={{
+                                display: 'inline-block',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                background: 'var(--bg2)',
+                                border: '1px solid var(--border)',
+                                color: 'var(--text2)'
+                              }}>
+                                {doc.doc_type || 'General'}
+                              </span>
+                              <span>Uploaded {formatDateDMY(doc.created_at || doc.uploaded_at)}</span>
+                              {doc.file_size ? <span>· {formatFileSize(doc.file_size)}</span> : null}
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <a
-                          href={docUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="vbtn"
-                          style={{
-                            fontSize: '11px',
-                            padding: '4px 10px',
-                            textDecoration: 'none',
-                            color: 'var(--text)'
-                          }}
-                        >
-                          View / Download
-                        </a>
-                        {canManageDocs && (
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                           <button
                             type="button"
-                            onClick={() => handleDeleteOrderDoc(doc.id)}
-                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px 6px' }}
+                            className="vbtn"
+                            onClick={() => setPdfViewerDoc({
+                              ...doc,
+                              title: `${doc.file_name} - ${selectedPart.unitSerial || selectedPart.partNumber || ''}`
+                            })}
+                            style={{ fontSize: '11px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
                           >
-                            <Trash2 size={14} />
+                            <Eye size={12} />
+                            <span>Preview</span>
                           </button>
-                        )}
+                          <a
+                            href={docUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="vbtn"
+                            style={{
+                              fontSize: '11px',
+                              padding: '5px 12px',
+                              textDecoration: 'none',
+                              color: 'var(--text)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            <span>Download</span>
+                            <ExternalLink size={12} />
+                          </a>
+                          {canManageDocs && (
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOrderDoc(doc.id)}
+                              title="Delete document"
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                color: '#ef4444',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -1932,59 +2745,14 @@ function TechnicalDocsModal({
         </div>
       </div>
 
-      {/* In-App Document Viewer (Excel or PDF) */}
-      {pdfViewerDoc && !pdfViewerDoc.file_name?.toLowerCase().endsWith('.pdf') ? (
-        <ExcelSheetViewer
-          url={getDocUrl(pdfViewerDoc)}
-          fileName={pdfViewerDoc.file_name}
-          title={pdfViewerDoc.title || `Document Viewer - ${pdfViewerDoc.file_name}`}
+      {/* In-App Multi-Format Document Viewer (Images, Excel, PDF, CAD) */}
+      {pdfViewerDoc && (
+        <DocumentPreviewModal
+          doc={pdfViewerDoc}
+          getDocUrl={getDocUrl}
           onClose={() => setPdfViewerDoc(null)}
         />
-      ) : pdfViewerDoc ? (
-        <div className="modal-overlay open" style={{ zIndex: 1200 }} onClick={(e) => { if (e.target.className.includes('modal-overlay')) setPdfViewerDoc(null); }}>
-          <div className="modal" style={{ maxWidth: '920px', width: '92vw', height: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
-            <div className="modal-header" style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text)' }}>
-                  {pdfViewerDoc.title || 'PDF Document Viewer'}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {pdfViewerDoc.file_name} · {pdfViewerDoc.revision_label || 'R0'} · {formatDateDMY(pdfViewerDoc.uploaded_at || pdfViewerDoc.created_at)}
-                  {pdfViewerDoc.uploaded_by_name ? ` · by ${pdfViewerDoc.uploaded_by_name}` : ''}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <a
-                  href={getDocUrl(pdfViewerDoc)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="vbtn"
-                  style={{ fontSize: '12px', padding: '5px 12px', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
-                >
-                  <ExternalLink size={13} />
-                  <span>Open New Tab</span>
-                </a>
-                <a
-                  href={getDocUrl(pdfViewerDoc)}
-                  download={pdfViewerDoc.file_name || 'document.pdf'}
-                  className="vbtn primary"
-                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none' }}
-                >
-                  Download ↓
-                </a>
-                <button className="modal-close" onClick={() => setPdfViewerDoc(null)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}>✕</button>
-              </div>
-            </div>
-            <div style={{ flex: 1, position: 'relative', background: '#525659' }}>
-              <iframe
-                src={getDocUrl(pdfViewerDoc)}
-                title={pdfViewerDoc.file_name}
-                style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      )}
     </div>
   );
 }
@@ -2809,7 +3577,7 @@ function renderCellContent({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (isPdf && setPoPdfViewer) {
+                if (setPoPdfViewer) {
                   setPoPdfViewer({
                     file_path: unit.indent_file_path,
                     file_name: unit.indent_file_name || `Details_${combinedVal || unit.order_number}.pdf`,
@@ -5807,71 +6575,43 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         }
       `}} />
 
-      {/* ── In-App PDF Viewer for PO Document ── */}
+      {/* ── In-App Viewer for PO Document ── */}
       {poPdfViewer && (
-        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setPoPdfViewer(null); }}>
-          <div className="modal-content" style={{ maxWidth: '92vw', width: '1050px', height: '88vh', display: 'flex', flexDirection: 'column', padding: '16px', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', paddingBottom: '10px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <FileText size={18} color="var(--blue)" />
-                  {poPdfViewer.title || 'PO Document Viewer'}
-                </h3>
-                {poPdfViewer.subtitle && (
-                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>
-                    {poPdfViewer.subtitle} · {poPdfViewer.file_name}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <a
-                  href={getDocUrl(poPdfViewer)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
-                >
-                  <ExternalLink size={14} /> Open in New Tab
-                </a>
-                <a
-                  href={getDocUrl(poPdfViewer)}
-                  download={poPdfViewer.file_name || 'po_document.pdf'}
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
-                >
-                  <Download size={14} /> Download
-                </a>
-                {canUploadPo && poPdfViewer.unit && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary"
-                    onClick={() => {
-                      const u = poPdfViewer.unit;
-                      setPoPdfViewer(null);
-                      handleDeleteUnitPoDoc(u);
-                    }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
-                    title="Delete attached PO PDF document"
-                  >
-                    <Trash2 size={14} color="#ef4444" /> Delete PDF
-                  </button>
-                )}
-                <button
-                  className="modal-close"
-                  onClick={() => setPoPdfViewer(null)}
-                  style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-            <iframe
-              src={getDocUrl(poPdfViewer)}
-              title={poPdfViewer.file_name}
-              style={{ flex: 1, width: '100%', border: '1px solid var(--border)', borderRadius: '6px', background: '#fff' }}
-            />
-          </div>
-        </div>
+        <DocumentPreviewModal
+          doc={poPdfViewer}
+          getDocUrl={getDocUrl}
+          onClose={() => setPoPdfViewer(null)}
+          extraActions={
+            canUploadPo && poPdfViewer.unit ? (
+              <button
+                type="button"
+                className="vbtn"
+                onClick={() => {
+                  const u = poPdfViewer.unit;
+                  setPoPdfViewer(null);
+                  handleDeleteUnitPoDoc(u);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  padding: '6px 12px',
+                  color: '#ef4444',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 600
+                }}
+                title="Delete attached PO document"
+              >
+                <Trash2 size={13} color="#ef4444" />
+                <span>Delete File</span>
+              </button>
+            ) : null
+          }
+        />
       )}
 
       {/* ── Technical Drawings & Standard Documents Modal ── */}

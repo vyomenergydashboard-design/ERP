@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { DEPTS } from '../data/planningData';
-import ExcelSheetViewer from './ExcelSheetViewer';
+import DocumentPreviewModal, { getDocumentType } from './DocumentPreviewModal';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
@@ -133,6 +133,44 @@ const ORDER_FIELDS = [
   { key: 'priority', label: 'Priority' },
   { key: 'notes', label: 'Order Notes' },
 ];
+
+const getDocButtonProps = (fileName) => {
+  const type = getDocumentType(fileName);
+  if (type === 'pdf') {
+    return {
+      style: { background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--blue)' },
+      label: 'View PDF'
+    };
+  }
+  if (type === 'image') {
+    return {
+      style: { background: 'rgba(168, 85, 247, 0.12)', border: '1px solid rgba(168, 85, 247, 0.3)', color: '#c084fc' },
+      label: 'View Image'
+    };
+  }
+  return {
+    style: { background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981' },
+    label: 'View Excel'
+  };
+};
+
+function DocumentViewButton({ doc, title, style, onSelect }) {
+  const btn = getDocButtonProps(doc?.file_name);
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect({ ...doc, title })}
+      style={{
+        ...btn.style,
+        cursor: 'pointer',
+        fontWeight: '600',
+        ...style
+      }}
+    >
+      {btn.label}
+    </button>
+  );
+}
 
 export default function Masters() {
   const [activeTab, setActiveTab] = useState('companies');
@@ -1304,26 +1342,12 @@ export default function Masters() {
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                            <button
-                              onClick={() => {
-                                setPdfViewerDoc({
-                                  ...part.bom,
-                                  title: `BOM (${part.bom.revision_label || 'R0'}) - ${part.part_number}`
-                                });
-                              }}
-                              style={{
-                                background: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.12)',
-                                border: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                                color: part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'var(--blue)' : '#10b981',
-                                borderRadius: '5px',
-                                cursor: 'pointer',
-                                padding: '3px 8px',
-                                fontSize: '11px',
-                                fontWeight: '600'
-                              }}
-                            >
-                              {part.bom.file_name?.toLowerCase().endsWith('.pdf') ? 'View PDF' : 'View Excel'}
-                            </button>
+                            <DocumentViewButton
+                              doc={part.bom}
+                              title={`BOM (${part.bom.revision_label || 'R0'}) - ${part.part_number}`}
+                              style={{ borderRadius: '5px', padding: '3px 8px', fontSize: '11px' }}
+                              onSelect={setPdfViewerDoc}
+                            />
                             <a
                               href={getDocUrl(part.bom)}
                               download={part.bom.file_name}
@@ -2276,27 +2300,12 @@ export default function Masters() {
                       </div>
 
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPdfViewerDoc({
-                              ...doc,
-                              title: `${activeHistoryTarget.docType} (${doc.revision_label || 'R' + doc.revision_number}) - ${activeHistoryTarget.part.part_number}`
-                            });
-                          }}
-                          style={{
-                            background: doc.file_name?.toLowerCase().endsWith('.pdf') ? 'rgba(59, 130, 246, 0.1)' : 'rgba(16, 185, 129, 0.12)',
-                            border: doc.file_name?.toLowerCase().endsWith('.pdf') ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(16, 185, 129, 0.3)',
-                            color: doc.file_name?.toLowerCase().endsWith('.pdf') ? 'var(--blue)' : '#10b981',
-                            padding: '5px 12px',
-                            borderRadius: '6px',
-                            fontSize: '12px',
-                            cursor: 'pointer',
-                            fontWeight: '600'
-                          }}
-                        >
-                          {doc.file_name?.toLowerCase().endsWith('.pdf') ? 'View PDF' : 'View Excel'}
-                        </button>
+                        <DocumentViewButton
+                          doc={doc}
+                          title={`${activeHistoryTarget.docType} (${doc.revision_label || 'R' + doc.revision_number}) - ${activeHistoryTarget.part.part_number}`}
+                          style={{ borderRadius: '6px', padding: '5px 12px', fontSize: '12px' }}
+                          onSelect={setPdfViewerDoc}
+                        />
                         <a
                           href={getDocUrl(doc)}
                           download={doc.file_name}
@@ -2326,58 +2335,14 @@ export default function Masters() {
         </div>
       )}
 
-      {/* In-App Document Viewer (Excel or PDF) */}
-      {pdfViewerDoc && !pdfViewerDoc.file_name?.toLowerCase().endsWith('.pdf') ? (
-        <ExcelSheetViewer
-          url={getDocUrl(pdfViewerDoc)}
-          fileName={pdfViewerDoc.file_name}
-          title={pdfViewerDoc.title || `BOM (${pdfViewerDoc.revision_label || 'R0'})`}
+      {/* In-App Multi-Format Document Viewer (Images, Excel, PDF, CAD) */}
+      {pdfViewerDoc && (
+        <DocumentPreviewModal
+          doc={pdfViewerDoc}
+          getDocUrl={getDocUrl}
           onClose={() => setPdfViewerDoc(null)}
         />
-      ) : pdfViewerDoc ? (
-        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setPdfViewerDoc(null); }}>
-          <div className="modal" style={{ maxWidth: '960px', width: '92vw', height: '88vh', display: 'flex', flexDirection: 'column' }}>
-            <div className="modal-header" style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div className="modal-title" style={{ fontSize: '15px', fontWeight: '600' }}>
-                  {pdfViewerDoc.title || 'PDF Document Viewer'}
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text3)', marginTop: '2px' }}>
-                  {pdfViewerDoc.file_name} · {pdfViewerDoc.revision_label || 'R0'} · {formatDateDMY(pdfViewerDoc.uploaded_at)}
-                  {pdfViewerDoc.uploaded_by_name ? ` · by ${pdfViewerDoc.uploaded_by_name}` : ''}
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <a
-                  href={getDocUrl(pdfViewerDoc)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="vbtn"
-                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                >
-                  Open in Tab ↗
-                </a>
-                <a
-                  href={getDocUrl(pdfViewerDoc)}
-                  download={pdfViewerDoc.file_name || 'document.pdf'}
-                  className="vbtn"
-                  style={{ fontSize: '12px', padding: '5px 12px', textDecoration: 'none', background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                >
-                  Download ↓
-                </a>
-                <button className="modal-close" onClick={() => setPdfViewerDoc(null)} style={{ fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text)' }}>✕</button>
-              </div>
-            </div>
-            <div className="modal-body" style={{ flex: 1, padding: 0, overflow: 'hidden', background: '#525659' }}>
-              <iframe
-                src={getDocUrl(pdfViewerDoc)}
-                title={pdfViewerDoc.file_name}
-                style={{ width: '100%', height: '100%', border: 'none' }}
-              />
-            </div>
-          </div>
-        </div>
-      ) : null}
+      )}
 
       {/* Panel Size Master Modal */}
       {showPanelSizeModal && (

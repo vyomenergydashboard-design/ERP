@@ -644,6 +644,32 @@ input::placeholder, textarea::placeholder {
 .vbtn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
 .vbtn.active { background: var(--bg4); color: var(--text); border-color: var(--accent); font-weight: 600; }
 
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border2);
+  background: var(--bg2);
+  color: var(--text);
+  border-radius: var(--radius);
+  font-size: 12px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text2);
+  border-color: var(--border);
+}
+.btn-secondary:hover {
+  background: var(--bg4);
+  color: var(--text);
+}
+
 /* ── Lane table ── */
 .lanes { display: flex; flex-direction: column; gap: 3px; }
 .lane {

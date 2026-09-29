@@ -445,6 +445,11 @@ export default function FlowView({
   const depts = currentFilter === 'all' ? sortedDepts : sortedDepts.filter((d) => d.id === currentFilter);
 
   const selectedUnit = selectedOrder?.units?.find(u => String(u.id) === String(selectedUnitId));
+  const currentSerial = selectedUnit
+    ? (selectedUnit.unit_id || selectedUnit.unit_serial || selectedUnit.serial_number)
+    : (selectedOrder?.units?.length === 1
+        ? (selectedOrder.units[0].unit_id || selectedOrder.units[0].unit_serial)
+        : selectedOrder?.order_number);
   const isOrderOnHold = selectedOrder?.hold_status === 'Approved' || String(selectedOrder?.status || '').toLowerCase().startsWith('hold');
   const isOrderCancelled = String(selectedOrder?.status || '').toLowerCase().startsWith('cancel');
   const isSelectedUnitOnHold = selectedUnit && (selectedUnit.hold_status === 'Hold' || String(selectedUnit.status || '').startsWith('Hold'));
@@ -790,9 +795,14 @@ export default function FlowView({
                 
                 {selectedOrder && (
                   <div className="dept-card-ord-row">
-                    <div className="ord-badge">{selectedOrder.order_number}</div>
+                    <div
+                      className="ord-badge"
+                      title={selectedUnit ? `Unit Serial: ${currentSerial} (Order #${selectedOrder.order_number})` : `Order #${selectedOrder.order_number}`}
+                    >
+                      {currentSerial}
+                    </div>
                     {selectedOrder.company_name && (
-                      <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }} title={selectedOrder.company_name}>
                         {selectedOrder.company_name}
                       </div>
                     )}
@@ -804,7 +814,7 @@ export default function FlowView({
                   </div>
                 )}
                 
-                {selectedOrder && selectedOrder.notes && (
+                {selectedOrder && (selectedUnit?.notes || selectedOrder.notes) && (
                   <div style={{
                     marginTop: '10px',
                     fontSize: '11px',
@@ -821,7 +831,7 @@ export default function FlowView({
                     gap: '4px'
                   }}>
                     <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: 'var(--accent)', marginTop: '1px', flexShrink: 0 }}>Note:</span>
-                    <span style={{ color: 'var(--text2)' }}>{selectedOrder.notes}</span>
+                    <span style={{ color: 'var(--text2)' }}>{selectedUnit?.notes || selectedOrder.notes}</span>
                   </div>
                 )}
                 
