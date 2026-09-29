@@ -831,7 +831,7 @@ export default function OrderDocumentsModal({
 
                             <button
                               type="button"
-                              onClick={() => deleteDocument(poDoc.id, poDoc.file_name)}
+                              onClick={() => handleDeleteDoc(poDoc.id, poDoc.file_name)}
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
