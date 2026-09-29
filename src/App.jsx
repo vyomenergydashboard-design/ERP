@@ -21,6 +21,7 @@ import PlanningModule from './components/PlanningModule';
 import SettingsView from './components/Settings';
 import DeptWorklist from './components/DeptWorklist';
 import DocumentDirectory from './components/DocumentDirectory';
+import ErrorBoundary from './components/ErrorBoundary';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
 
@@ -467,76 +468,78 @@ function Dashboard() {
             )}
           </div>
 
-          {currentView === 'board' ? (
-            <BoardView 
-              currentFilter={currentFilter} 
-              userRole={user.role} 
-              onSetView={navigateToView}
-              statCardFilter={statCardFilter}
-              onClearStatFilter={() => setStatCardFilter(null)}
-            />
-          ) : currentView === 'planning' ? (
-            <PlanningModule />
-          ) : currentView === 'flow' ? (
-            selectedOrderId ? (
-              <FlowView 
-                steps={steps} 
+          <ErrorBoundary key={currentView} name={currentView.toUpperCase()}>
+            {currentView === 'board' ? (
+              <BoardView 
                 currentFilter={currentFilter} 
-                onOpenModal={handleOpenModal} 
-                onSetView={navigateToView} 
                 userRole={user.role} 
-                selectedOrderId={selectedOrderId} 
-                selectedOrder={selectedOrder} 
-                onStepsChanged={() => fetchOrderSteps(selectedOrderId)}
-                selectedUnitId={selectedUnitId}
-                setSelectedUnitId={setSelectedUnitId}
-                unitSteps={unitSteps}
-                setUnitSteps={setUnitSteps}
+                onSetView={navigateToView}
+                statCardFilter={statCardFilter}
+                onClearStatFilter={() => setStatCardFilter(null)}
               />
+            ) : currentView === 'planning' ? (
+              <PlanningModule />
+            ) : currentView === 'flow' ? (
+              selectedOrderId ? (
+                <FlowView 
+                  steps={steps} 
+                  currentFilter={currentFilter} 
+                  onOpenModal={handleOpenModal} 
+                  onSetView={navigateToView} 
+                  userRole={user.role} 
+                  selectedOrderId={selectedOrderId} 
+                  selectedOrder={selectedOrder} 
+                  onStepsChanged={() => fetchOrderSteps(selectedOrderId)}
+                  selectedUnitId={selectedUnitId}
+                  setSelectedUnitId={setSelectedUnitId}
+                  unitSteps={unitSteps}
+                  setUnitSteps={setUnitSteps}
+                />
+              ) : (
+                <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+                  Please select an order from the Header dropdown to view its Process Flow.
+                </div>
+              )
+            ) : currentView === 'table' ? (
+              <AllOrdersTableView 
+                currentFilter={currentFilter} 
+                userRole={user?.role}
+                onSetView={navigateToView}
+                statCardFilter={statCardFilter}
+                onClearStatFilter={() => setStatCardFilter(null)}
+              />
+            ) : currentView === 'orders' ? (
+              <OrderList 
+                initialSelectedId={selectedOrderId} 
+                onSelectOrder={(id) => {
+                  setSelectedOrderId(id);
+                  selectedOrderIdRef.current = id;
+                }}
+              />
+            ) : currentView === 'documents' ? (
+              <DocumentDirectory />
+            ) : currentView === 'new-order' ? (
+              <OrderCreationFlow onOrderCreated={() => {
+                setCurrentView('orders');
+                window.dispatchEvent(new CustomEvent('orderUpdated'));
+              }} />
+            ) : currentView === 'import' ? (
+              <OrderImport onImportComplete={() => {
+                setCurrentView('orders');
+                window.dispatchEvent(new CustomEvent('orderUpdated'));
+              }} />
+            ) : currentView === 'masters' ? (
+              <Masters />
+            ) : currentView === 'logs' ? (
+              <LogsView />
+            ) : currentView === 'settings' ? (
+              <SettingsView />
+            ) : currentView === 'worklist' ? (
+              <DeptWorklist dept={user.role} />
             ) : (
-              <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
-                Please select an order from the Header dropdown to view its Process Flow.
-              </div>
-            )
-          ) : currentView === 'table' ? (
-            <AllOrdersTableView 
-              currentFilter={currentFilter} 
-              userRole={user?.role}
-              onSetView={navigateToView}
-              statCardFilter={statCardFilter}
-              onClearStatFilter={() => setStatCardFilter(null)}
-            />
-          ) : currentView === 'orders' ? (
-            <OrderList 
-              initialSelectedId={selectedOrderId} 
-              onSelectOrder={(id) => {
-                setSelectedOrderId(id);
-                selectedOrderIdRef.current = id;
-              }}
-            />
-          ) : currentView === 'documents' ? (
-            <DocumentDirectory />
-          ) : currentView === 'new-order' ? (
-            <OrderCreationFlow onOrderCreated={() => {
-              setCurrentView('orders');
-              window.dispatchEvent(new CustomEvent('orderUpdated'));
-            }} />
-          ) : currentView === 'import' ? (
-            <OrderImport onImportComplete={() => {
-              setCurrentView('orders');
-              window.dispatchEvent(new CustomEvent('orderUpdated'));
-            }} />
-          ) : currentView === 'masters' ? (
-            <Masters />
-          ) : currentView === 'logs' ? (
-            <LogsView />
-          ) : currentView === 'settings' ? (
-            <SettingsView />
-          ) : currentView === 'worklist' ? (
-            <DeptWorklist dept={user.role} />
-          ) : (
-            <UserManagement />
-          )}
+              <UserManagement />
+            )}
+          </ErrorBoundary>
         </main>
         {currentView !== 'planning' && user.role === 'Admin' && (
           <RightPanel

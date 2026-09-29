@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host",
+    "check": "node scripts/verify_codebase.js",
     "build": "vite build",
     "preview": "vite preview --host"
   },
