@@ -1,9 +1,9 @@
 {
   "package.json": {
-    "mtime": 1789737813.711861,
-    "seen": 1790583506.6197019,
-    "ast_hash": "3a33f0b34bd4faf023cfd53e920fa785",
-    "semantic_hash": "3a33f0b34bd4faf023cfd53e920fa785"
+    "mtime": 1790660053.658665,
+    "seen": 1790660090.2545238,
+    "ast_hash": "08328d48761b516130b8198fea4cad59",
+    "semantic_hash": ""
   },
   "server/clear_orders.js": {
     "mtime": 1788172850.8208907,
@@ -38,8 +38,8 @@
   "server/init.sql": {
     "mtime": 1789730197.3334086,
     "seen": 1790583506.619715,
-    "ast_hash": "c0593e87d9ca7dd3976f957528c189a5",
-    "semantic_hash": "c0593e87d9ca7dd3976f957528c189a5"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "server/migrate_2627_order_numbers.js": {
     "mtime": 1788167604.9049726,
@@ -86,8 +86,8 @@
   "server/seed_tasks.sql": {
     "mtime": 1787032601.2032115,
     "seen": 1790583506.6197245,
-    "ast_hash": "e66a2e4ae856887519cb4329f7fd4f67",
-    "semantic_hash": "e66a2e4ae856887519cb4329f7fd4f67"
+    "ast_hash": "",
+    "semantic_hash": ""
   },
   "server/test_po_system.js": {
     "mtime": 1790061626.879844,
@@ -96,10 +96,10 @@
     "semantic_hash": "88f2c69dc2da6b9ed35d9bfde625e7ac"
   },
   "src/App.jsx": {
-    "mtime": 1790155331.5895486,
-    "seen": 1790583506.6197267,
-    "ast_hash": "0df40ea049d36012e0738e54d03dcb22",
-    "semantic_hash": "0df40ea049d36012e0738e54d03dcb22"
+    "mtime": 1790659999.985904,
+    "seen": 1790660090.2592192,
+    "ast_hash": "6a2fdbe38bb484d9e95d496bcb61d817",
+    "semantic_hash": ""
   },
   "src/components/AddPartMasterModal.jsx": {
     "mtime": 1789985790.1384811,
@@ -108,10 +108,10 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1790159712.1171434,
-    "seen": 1790583506.6197288,
-    "ast_hash": "0a29c9c50493fb43dbf9a119d64e4f01",
-    "semantic_hash": "0a29c9c50493fb43dbf9a119d64e4f01"
+    "mtime": 1790669296.3937836,
+    "seen": 1790669343.4756193,
+    "ast_hash": "5cd669bad602abb15ac097a33a33bc89",
+    "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
     "mtime": 1789985790.1384811,
@@ -150,16 +150,16 @@
     "semantic_hash": "ca1ffac0fccb47723c933e1ca8433355"
   },
   "src/components/ExcelSheetViewer.jsx": {
-    "mtime": 1789985790.1492143,
-    "seen": 1790583506.6197371,
-    "ast_hash": "6b6809ab4c3dfc1f99ded179d7f96644",
-    "semantic_hash": "6b6809ab4c3dfc1f99ded179d7f96644"
+    "mtime": 1790666256.6023765,
+    "seen": 1790666448.4085965,
+    "ast_hash": "d78cd1005b6e0daae7853f8cf28cf427",
+    "semantic_hash": ""
   },
   "src/components/FlowView.jsx": {
-    "mtime": 1790150939.209306,
-    "seen": 1790583506.619738,
-    "ast_hash": "ccd7b8ce2a1de2a455d0b6d524dd5a9a",
-    "semantic_hash": "ccd7b8ce2a1de2a455d0b6d524dd5a9a"
+    "mtime": 1790671435.5671246,
+    "seen": 1790671473.444831,
+    "ast_hash": "050b005e34e75392df503f121ce53fd3",
+    "semantic_hash": ""
   },
   "src/components/Header.jsx": {
     "mtime": 1790155345.6846237,
@@ -180,10 +180,10 @@
     "semantic_hash": "f25239394d040dca8fdbfc4401c49cfc"
   },
   "src/components/Masters.jsx": {
-    "mtime": 1789986531.8230748,
-    "seen": 1790583506.6197426,
-    "ast_hash": "7f081c16af480bab0167f4cd19699db3",
-    "semantic_hash": "7f081c16af480bab0167f4cd19699db3"
+    "mtime": 1790666395.329601,
+    "seen": 1790666448.4097347,
+    "ast_hash": "cb4cdd709abbb52f25e26d2f88800390",
+    "semantic_hash": ""
   },
   "src/components/Modal.jsx": {
     "mtime": 1789985790.1573875,
@@ -198,10 +198,10 @@
     "semantic_hash": "0326ed817d5db6d39b7e2d78e12ffca2"
   },
   "src/components/OrderDocumentsModal.jsx": {
-    "mtime": 1790142384.9939952,
-    "seen": 1790583506.6197462,
-    "ast_hash": "ac78978089c008c68696a266773f3b0f",
-    "semantic_hash": "ac78978089c008c68696a266773f3b0f"
+    "mtime": 1790659926.5064857,
+    "seen": 1790660090.2651474,
+    "ast_hash": "b7777a4c5a3ef2b0a4cc37a4fb272275",
+    "semantic_hash": ""
   },
   "src/components/OrderImport.jsx": {
     "mtime": 1789985790.165535,
@@ -228,10 +228,10 @@
     "semantic_hash": "0a89c1928b04cf5b8392436f36a3f318"
   },
   "src/components/PlanningModule.jsx": {
-    "mtime": 1790159861.2412245,
-    "seen": 1790583506.6197517,
-    "ast_hash": "182876babd2d885c0a1bf2ef4f18f3bf",
-    "semantic_hash": "182876babd2d885c0a1bf2ef4f18f3bf"
+    "mtime": 1790659916.7183228,
+    "seen": 1790660090.2667382,
+    "ast_hash": "aac9ce23d85df4b949ca71ae800f77fb",
+    "semantic_hash": ""
   },
   "src/components/RightPanel.jsx": {
     "mtime": 1789985790.171943,
@@ -316,5 +316,521 @@
     "seen": 1790583506.6197686,
     "ast_hash": "337a4e1ad3139fe396f970c296649846",
     "semantic_hash": "337a4e1ad3139fe396f970c296649846"
+  },
+  "scratch/check_indexes.mjs": {
+    "mtime": 1789985790.105099,
+    "seen": 1790660090.254538,
+    "ast_hash": "087603c901715f697bcaedd0366e830b",
+    "semantic_hash": ""
+  },
+  "scratch/optimize_table_view.mjs": {
+    "mtime": 1789985790.105099,
+    "seen": 1790660090.2545445,
+    "ast_hash": "7a564a49794944af76cb7c8e93bd0067",
+    "semantic_hash": ""
+  },
+  "scratch/replace_emojis.py": {
+    "mtime": 1789985790.105099,
+    "seen": 1790660090.254547,
+    "ast_hash": "809f9d0276be22a2bc37f51050bdbb0a",
+    "semantic_hash": ""
+  },
+  "scratch/test_batch_po.mjs": {
+    "mtime": 1789985790.1134355,
+    "seen": 1790660090.2545505,
+    "ast_hash": "0250d2a80b9e3ecda6c6fa47ae04b131",
+    "semantic_hash": ""
+  },
+  "scratch/test_board.js": {
+    "mtime": 1789985790.1134355,
+    "seen": 1790660090.2545528,
+    "ast_hash": "cc749818c89d4ae9124fd6180600ed83",
+    "semantic_hash": ""
+  },
+  "scripts/verify_codebase.js": {
+    "mtime": 1790660039.2445474,
+    "seen": 1790660090.2545557,
+    "ast_hash": "94b1de2aa45bcd85821781fef46ef950",
+    "semantic_hash": ""
+  },
+  "src/components/ErrorBoundary.jsx": {
+    "mtime": 1790659953.425702,
+    "seen": 1790660090.2623289,
+    "ast_hash": "0ce1925ba998ce31db236f46b66c0f22",
+    "semantic_hash": ""
+  },
+  ".agents/rules/graphify.md": {
+    "mtime": 1790582651.6814404,
+    "seen": 1790660090.2702367,
+    "ast_hash": "a0e4d192b9e2e17256124dbfc8e24e6a",
+    "semantic_hash": ""
+  },
+  ".agents/workflows/graphify.md": {
+    "mtime": 1790582651.684793,
+    "seen": 1790660090.2702413,
+    "ast_hash": "a831cf3669f1e6ab85d8a80ebe655f99",
+    "semantic_hash": ""
+  },
+  "planning_module.html": {
+    "mtime": 1787032599.3473234,
+    "seen": 1790660090.2710814,
+    "ast_hash": "6a900da1b1ef2feeee17dee727743e25",
+    "semantic_hash": ""
+  },
+  "scratch/emojis.txt": {
+    "mtime": 1789985790.105099,
+    "seen": 1790660090.2710867,
+    "ast_hash": "369d0c492954a3f3b20ebb7d98c22e72",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927703744-96421245-planning_module.html": {
+    "mtime": 1787032601.409467,
+    "seen": 1790660090.27109,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927719539-888925808-planning_module.html": {
+    "mtime": 1787032601.4403214,
+    "seen": 1790660090.2710924,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708389082-860058353-planning_module.html": {
+    "mtime": 1787032601.5507462,
+    "seen": 1790660090.2710955,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708438820-929832888-planning_module.html": {
+    "mtime": 1787032601.5610888,
+    "seen": 1790660090.2710981,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708472288-498341826-planning_module.html": {
+    "mtime": 1787032601.5610888,
+    "seen": 1790660090.2711005,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708679560-496537320-planning_module.html": {
+    "mtime": 1787032601.5630786,
+    "seen": 1790660090.2711027,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708718287-353049559-planning_module.html": {
+    "mtime": 1787032601.5630786,
+    "seen": 1790660090.2711053,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708736663-20619527-planning_module.html": {
+    "mtime": 1787032601.5664353,
+    "seen": 1790660090.2711074,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779708744208-336398010-planning_module.html": {
+    "mtime": 1787032601.5664353,
+    "seen": 1790660090.2711093,
+    "ast_hash": "d76a0f7a622c43a34f9e38bf8a6e43cb",
+    "semantic_hash": ""
+  },
+  "scratch/test_po.pdf": {
+    "mtime": 1789985790.1134355,
+    "seen": 1790660090.2711115,
+    "ast_hash": "09a3d13cd78dd9885f0a245b161c60ab",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778832252291-996469992-Saya_Offer Letter (2).pdf": {
+    "mtime": 1787032601.2988613,
+    "seen": 1790660090.2711136,
+    "ast_hash": "cd3852d1915d4ca6bd414e6d387b1a58",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778914142112-327612491-Saya_Offer Letter (2).pdf": {
+    "mtime": 1787032601.3139684,
+    "seen": 1790660090.2711158,
+    "ast_hash": "cd3852d1915d4ca6bd414e6d387b1a58",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778914142127-391859193-Bill_Report_Apr 2026_1.pdf": {
+    "mtime": 1787032601.3835206,
+    "seen": 1790660090.2711182,
+    "ast_hash": "72f829e8df83fcbf34d9ead6c7f65038",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778914142498-374745298-p1.pdf": {
+    "mtime": 1787032601.3922782,
+    "seen": 1790660090.2711203,
+    "ast_hash": "b143636bcca715a9acb5c2a88bc636b4",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778928599913-293312591-Saya_Offer Letter (2).pdf": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.2711225,
+    "ast_hash": "cd3852d1915d4ca6bd414e6d387b1a58",
+    "semantic_hash": ""
+  },
+  "server/uploads/1780897785461-751910920-Bill_Report_May_2026_Absfloor2_30058_Total_Net_kWh.pdf": {
+    "mtime": 1787032601.609828,
+    "seen": 1790660090.2711244,
+    "ast_hash": "aa73bbcb4d832b2b8d2061f3bd7b3a84",
+    "semantic_hash": ""
+  },
+  "server/uploads/1780912277657-775162493-AMPL_Switch Board PPT_V1.01.pdf": {
+    "mtime": 1787032601.661248,
+    "seen": 1790660090.271127,
+    "ast_hash": "227881f73796b4d22964579a4943c6b8",
+    "semantic_hash": ""
+  },
+  "server/uploads/1780989873106-642810936-Bill_Report_May_2026_Absfloor2_30058_Total_Net_kWh.pdf": {
+    "mtime": 1787032601.6934457,
+    "seen": 1790660090.2711291,
+    "ast_hash": "aa73bbcb4d832b2b8d2061f3bd7b3a84",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783064287527-403735979-AMPL_Switch Board PPT_V1.01.pdf": {
+    "mtime": 1787032601.7551913,
+    "seen": 1790660090.271131,
+    "ast_hash": "227881f73796b4d22964579a4943c6b8",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086929-907674336-AI_ML Timeline.pdf": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2711334,
+    "ast_hash": "18dde1938eec5caee97a2721dbb80daa",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788260363032-355340580-project handover.pdf": {
+    "mtime": 1788260363.0483923,
+    "seen": 1790660090.2711356,
+    "ast_hash": "80ff5e404e8be635bc09ed0373f7e382",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788263427430-391993306-project handover (1).pdf": {
+    "mtime": 1788263427.457033,
+    "seen": 1790660090.271138,
+    "ast_hash": "80ff5e404e8be635bc09ed0373f7e382",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788955667383-678965878-test.pdf": {
+    "mtime": 1788955667.3876195,
+    "seen": 1790660090.271145,
+    "ast_hash": "590e24f8d04c5b10c1d796ecd878686d",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788955672976-260472219-drawing_rev1.pdf": {
+    "mtime": 1788955672.9812856,
+    "seen": 1790660090.271147,
+    "ast_hash": "590e24f8d04c5b10c1d796ecd878686d",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788955741135-826900728-PowerFactor_Report_2026-08-01_to_2026-08-07_AMPL_Main_Inc_Power_Factor_Total_2.pdf": {
+    "mtime": 1788955741.3230171,
+    "seen": 1790660090.27115,
+    "ast_hash": "86bd1e5bf4e693a9237592bbca8b68c1",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788955823171-328734553-PowerFactor_Report_2026-08-01_to_2026-08-07_AMPL_Main_Inc_Power_Factor_Total_2.pdf": {
+    "mtime": 1788955823.328189,
+    "seen": 1790660090.271152,
+    "ast_hash": "86bd1e5bf4e693a9237592bbca8b68c1",
+    "semantic_hash": ""
+  },
+  "server/uploads/1788955851794-716011785-project handover (1).pdf": {
+    "mtime": 1788955851.7959332,
+    "seen": 1790660090.2711544,
+    "ast_hash": "80ff5e404e8be635bc09ed0373f7e382",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663270494-656589131-IMG_2_ABS.png": {
+    "mtime": 1787032601.2233596,
+    "seen": 1790660090.2711565,
+    "ast_hash": "3b3d73790dd700f029509da6669fcd4a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663270712-930041974-IMG_1_ABS_1.png": {
+    "mtime": 1787032601.2376544,
+    "seen": 1790660090.2711587,
+    "ast_hash": "021b7cf09f36ddc6c7de8b6424d3c0c4",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663270751-897990303-IMG_1_ABS_1.png": {
+    "mtime": 1787032601.2516408,
+    "seen": 1790660090.2711608,
+    "ast_hash": "021b7cf09f36ddc6c7de8b6424d3c0c4",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663295366-977439397-IMG_1_ABS_1.png": {
+    "mtime": 1787032601.262141,
+    "seen": 1790660090.2711625,
+    "ast_hash": "021b7cf09f36ddc6c7de8b6424d3c0c4",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663295545-402863678-IMG_2_ABS.png": {
+    "mtime": 1787032601.2801533,
+    "seen": 1790660090.2711644,
+    "ast_hash": "3b3d73790dd700f029509da6669fcd4a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778663295601-294806223-IMG_1_ABS_1.png": {
+    "mtime": 1787032601.283717,
+    "seen": 1790660090.2711658,
+    "ast_hash": "021b7cf09f36ddc6c7de8b6424d3c0c4",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778832252245-717914314-ChatGPT Image May 7, 2026, 11_59_05 PM.png": {
+    "mtime": 1787032601.2988613,
+    "seen": 1790660090.271168,
+    "ast_hash": "c78a151e4e8d70583de49e6f96735328",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778832252303-598171570-ChatGPT Image May 7, 2026, 11_59_05 PM.png": {
+    "mtime": 1787032601.3108077,
+    "seen": 1790660090.27117,
+    "ast_hash": "c78a151e4e8d70583de49e6f96735328",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927703657-259529800-ChatGPT Image May 7, 2026, 11_59_05 PM.png": {
+    "mtime": 1787032601.409467,
+    "seen": 1790660090.271172,
+    "ast_hash": "c78a151e4e8d70583de49e6f96735328",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927703693-360803247-ChatGPT Image May 7, 2026, 11_59_10 PM.png": {
+    "mtime": 1787032601.409467,
+    "seen": 1790660090.2711742,
+    "ast_hash": "4802cb66c584923b850096dbe0bc0255",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927703744-984606829-ChatGPT Image May 8, 2026, 05_16_04 AM.png": {
+    "mtime": 1787032601.4236495,
+    "seen": 1790660090.2711756,
+    "ast_hash": "6613cf306329528b3c80f83c5058bf7b",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927719472-180253039-ChatGPT Image May 7, 2026, 11_59_05 PM.png": {
+    "mtime": 1787032601.4236495,
+    "seen": 1790660090.271178,
+    "ast_hash": "c78a151e4e8d70583de49e6f96735328",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927719503-910543442-ChatGPT Image May 7, 2026, 11_59_10 PM.png": {
+    "mtime": 1787032601.4403214,
+    "seen": 1790660090.2711797,
+    "ast_hash": "4802cb66c584923b850096dbe0bc0255",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778927719539-912148343-ChatGPT Image May 8, 2026, 05_16_04 AM.png": {
+    "mtime": 1787032601.4496875,
+    "seen": 1790660090.2711816,
+    "ast_hash": "6613cf306329528b3c80f83c5058bf7b",
+    "semantic_hash": ""
+  },
+  "server/uploads/1778928599884-631075285-ChatGPT Image May 7, 2026, 11_59_05 PM.png": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.2711828,
+    "ast_hash": "c78a151e4e8d70583de49e6f96735328",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779094458201-855517825-Hamilton Archive Serif.jpg": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.2711847,
+    "ast_hash": "cf6039be898bbefd6ff88f0b992fed0f",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174606313-950190692-36 Days of Type - Marta Przeciszewska.jpg": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.2711864,
+    "ast_hash": "f2e3a74750ae6b5e5aad200393c7981a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174615728-888721416-Hamilton Archive Serif.jpg": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.2711885,
+    "ast_hash": "cf6039be898bbefd6ff88f0b992fed0f",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174638430-724979122-fonts lettering alphabet _ cute fonts - Miri Allys.jpg": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.27119,
+    "ast_hash": "91c0d12f1b6102e5b302e968b5b7a16a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174910882-291602739-Hamilton Archive Serif.jpg": {
+    "mtime": 1787032601.456202,
+    "seen": 1790660090.271192,
+    "ast_hash": "cf6039be898bbefd6ff88f0b992fed0f",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174920645-447904886-skirk-purple-3840x2160-22952.jpg": {
+    "mtime": 1787032601.4839807,
+    "seen": 1790660090.2711935,
+    "ast_hash": "62045932aef5233c8b17764894daf5bd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779174934119-563598592-Polices r\u00c3\u00a9tro vari\u00c3\u00a9es avec styles et tailles diff\u00c3\u00a9rentes pour un design unique.jpg": {
+    "mtime": 1787032601.4870858,
+    "seen": 1790660090.2711966,
+    "ast_hash": "a00833a213c711f8cd9831a230466fe8",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779177026136-307841620-Hamilton Archive Serif.jpg": {
+    "mtime": 1787032601.4876623,
+    "seen": 1790660090.2711987,
+    "ast_hash": "cf6039be898bbefd6ff88f0b992fed0f",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779177190066-758903874-Elegant Script Font Styles Showcase \u00f0\u009f\u0092\u00ab.jpg": {
+    "mtime": 1787032601.4876623,
+    "seen": 1790660090.2712004,
+    "ast_hash": "e77918b98b90e1a8fca98b4ed3739f61",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779177194530-266643379-skirk-purple-3840x2160-22952.jpg": {
+    "mtime": 1787032601.503218,
+    "seen": 1790660090.2712023,
+    "ast_hash": "62045932aef5233c8b17764894daf5bd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779177408542-527544618-fonts with names _ Briston Serif - Siteoutsite.jpg": {
+    "mtime": 1787032601.503218,
+    "seen": 1790660090.271204,
+    "ast_hash": "d3f8255de9527b47ae1252c891d2b42a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779179904819-752754929-Elegant Script Font Styles Showcase \u00f0\u009f\u0092\u00ab.jpg": {
+    "mtime": 1787032601.5097728,
+    "seen": 1790660090.271206,
+    "ast_hash": "e77918b98b90e1a8fca98b4ed3739f61",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779180070754-29499441-skirk-purple-3840x2160-22952.jpg": {
+    "mtime": 1787032601.5190625,
+    "seen": 1790660090.2712083,
+    "ast_hash": "62045932aef5233c8b17764894daf5bd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779180268297-792640573-\u00f0\u009f\u0098\u008d.jpg": {
+    "mtime": 1787032601.5190625,
+    "seen": 1790660090.2712107,
+    "ast_hash": "c8457d2409f620311e402f8b6eb3d4fd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779180378274-308349790-fonts with names _ Briston Serif - Siteoutsite.jpg": {
+    "mtime": 1787032601.5190625,
+    "seen": 1790660090.2712128,
+    "ast_hash": "d3f8255de9527b47ae1252c891d2b42a",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779180716151-493441937-skirk-purple-3840x2160-22952.jpg": {
+    "mtime": 1787032601.5486917,
+    "seen": 1790660090.271215,
+    "ast_hash": "62045932aef5233c8b17764894daf5bd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779180817200-388638535-\u00f0\u009f\u0098\u008d.jpg": {
+    "mtime": 1787032601.5507462,
+    "seen": 1790660090.271218,
+    "ast_hash": "c8457d2409f620311e402f8b6eb3d4fd",
+    "semantic_hash": ""
+  },
+  "server/uploads/1779181098183-340622262-Elegant Script Font Styles Showcase \u00f0\u009f\u0092\u00ab.jpg": {
+    "mtime": 1787032601.5507462,
+    "seen": 1790660090.2712207,
+    "ast_hash": "e77918b98b90e1a8fca98b4ed3739f61",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145004300-583792108-MV1_screenshot_2026-06-19.png": {
+    "mtime": 1787032601.7551913,
+    "seen": 1790660090.2712224,
+    "ast_hash": "561c48fa3ec8a39d5b6960fef4b58939",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145004308-783042131-MV1_screenshot_2026-06-19.png": {
+    "mtime": 1787032601.7685697,
+    "seen": 1790660090.2712243,
+    "ast_hash": "561c48fa3ec8a39d5b6960fef4b58939",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086841-615503604-ChatGPT Image Jun 13, 2026, 12_13_51 PM.png": {
+    "mtime": 1787032601.7756875,
+    "seen": 1790660090.2712264,
+    "ast_hash": "0e18aac4d6f0eb2448ae49a3f41174c6",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086873-925404873-ChatGPT Image Jun 13, 2026, 12_13_51 PM.png": {
+    "mtime": 1787032601.7778728,
+    "seen": 1790660090.2712283,
+    "ast_hash": "0e18aac4d6f0eb2448ae49a3f41174c6",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086895-65037177-ChatGPT Image Jun 13, 2026, 12_13_51 PM.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712305,
+    "ast_hash": "0e18aac4d6f0eb2448ae49a3f41174c6",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086923-790884401-MV1_screenshot_2026-06-19.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712326,
+    "ast_hash": "561c48fa3ec8a39d5b6960fef4b58939",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145086930-800832025-Outlook-gahsy45f.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712343,
+    "ast_hash": "c6876c8f512acf63218e9187e79f79ab",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145890376-148307229-Outlook-gahsy45f.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712355,
+    "ast_hash": "c6876c8f512acf63218e9187e79f79ab",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145890378-499720836-Outlook-gahsy45f.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712383,
+    "ast_hash": "c6876c8f512acf63218e9187e79f79ab",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145890384-590852714-Outlook-gahsy45f.png": {
+    "mtime": 1787032601.786444,
+    "seen": 1790660090.2712405,
+    "ast_hash": "c6876c8f512acf63218e9187e79f79ab",
+    "semantic_hash": ""
+  },
+  "server/uploads/1783145977790-19091041-Outlook-gahsy45f.png": {
+    "mtime": 1787032601.8021011,
+    "seen": 1790660090.2712421,
+    "ast_hash": "c6876c8f512acf63218e9187e79f79ab",
+    "semantic_hash": ""
+  },
+  "SPEC-non-standard-panel-docs.md": {
+    "mtime": 1790663052.3194265,
+    "seen": 1790663532.2321622,
+    "ast_hash": "a9151cdb6d8df7c3655ebd4e4b444885",
+    "semantic_hash": ""
+  },
+  "tasks/plan.md": {
+    "mtime": 1790663188.3956618,
+    "seen": 1790663532.2361612,
+    "ast_hash": "24974d2596b3d235dcdf7e63bbc11dd8",
+    "semantic_hash": ""
+  },
+  "tasks/todo.md": {
+    "mtime": 1790664483.8853228,
+    "seen": 1790665419.624395,
+    "ast_hash": "1a88b162c3fe92aaebc69f0e29eeb9f2",
+    "semantic_hash": ""
+  },
+  "src/components/DocumentPreviewModal.jsx": {
+    "mtime": 1790669270.7296207,
+    "seen": 1790669343.4766967,
+    "ast_hash": "5360a06885806597ac81073e3b84017c",
+    "semantic_hash": ""
   }
 }

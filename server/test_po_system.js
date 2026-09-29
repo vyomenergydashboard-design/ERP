@@ -1,11 +1,14 @@
 import pg from 'pg';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import os from 'os';
+import path from 'path';
 
 const { Pool } = pg;
-const pool = new Pool({ connectionString: 'postgresql://postgres:postgres@db:5432/erp_db' });
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db';
+const pool = new Pool({ connectionString });
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
-const API_BASE = 'http://localhost:5000';
+const API_BASE = process.env.API_BASE || 'http://localhost:5000';
 
 const adminToken = jwt.sign({ id: 1, username: 'admin', role: 'Admin' }, JWT_SECRET, { expiresIn: '1h' });
 const salesToken = jwt.sign({ id: 27, username: 'sales', role: 'Sales' }, JWT_SECRET, { expiresIn: '1h' });
@@ -34,7 +37,7 @@ async function runTestSuite() {
 
   try {
     // 0. Setup: Ensure dummy PDF file exists
-    const dummyPdfPath = '/tmp/test_po.pdf';
+    const dummyPdfPath = path.join(os.tmpdir(), 'test_po.pdf');
     fs.writeFileSync(dummyPdfPath, '%PDF-1.4 sample test pdf document content');
 
     // Fetch valid company location
