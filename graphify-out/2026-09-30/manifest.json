@@ -30,9 +30,9 @@
     "semantic_hash": "9af0c146b2cebbffdd093ae04114b8d7"
   },
   "server/index.js": {
-    "mtime": 1790759947.7230551,
-    "seen": 1790760198.7715423,
-    "ast_hash": "97b10ec1b462096ad3b5ae01810ad6da",
+    "mtime": 1790758289.062225,
+    "seen": 1790758503.9669557,
+    "ast_hash": "833f2f0a552e701882ce1eeab562b77d",
     "semantic_hash": ""
   },
   "server/init.sql": {
@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1790759899.328972,
-    "seen": 1790760198.7745929,
-    "ast_hash": "c973185749ac82486b447bd76879ee58",
+    "mtime": 1790755898.9473898,
+    "seen": 1790756046.3573136,
+    "ast_hash": "229c87e087e7e9a332b43e9ffed11316",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -849,18 +849,6 @@
     "mtime": 1790752169.058983,
     "seen": 1790756046.3779337,
     "ast_hash": "b5589e3fe98739890df09058db027844",
-    "semantic_hash": ""
-  },
-  "server/test_sales_to_design_gate.js": {
-    "mtime": 1790760149.2007508,
-    "seen": 1790760198.774084,
-    "ast_hash": "90ce9c005115ce8cf6da3979c70407f8",
-    "semantic_hash": ""
-  },
-  "src/components/TechnicalDocsModal.jsx": {
-    "mtime": 1790759708.4432886,
-    "seen": 1790760198.7816794,
-    "ast_hash": "59ef460b8fd2929f5a7d78014bb8e7d6",
     "semantic_hash": ""
   }
 }

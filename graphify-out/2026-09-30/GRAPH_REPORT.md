@@ -1,12 +1,12 @@
 # Graph Report - ERP  (2026-09-30)
 
 ## Corpus Check
-- 72 files · ~2,272,003 words
+- 70 files · ~2,271,247 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 13 file(s) not represented in the graph (top: .pptx 5, (none) 4, .example 1)
 
 ## Summary
-- 373 nodes · 663 edges · 23 communities (16 shown, 7 thin omitted)
+- 369 nodes · 656 edges · 23 communities (15 shown, 8 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 5 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
@@ -19,15 +19,15 @@
 - package.json
 - App.jsx
 - AllOrdersTableView.jsx
-- OrderCreationFlow.jsx
+- react
 - Masters.jsx
 - index.js
-- verify_codebase.js
-- dependencies
+- ErrorBoundary
+- server/package.json
 - Database Connection & Migrations
-- OrderDocumentsModal.jsx
+- Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)
 - Production Planning Module
-- test_design_confirmation.js
+- verify_codebase.js
 - Startup Synchronization & Serials
 - DeptWorklist.jsx
 - Workflow Status & Email Alerts
@@ -41,12 +41,12 @@
 - Confirmed Statement of Intent: Design Department Confirmation & Auto Release Documents
 
 ## God Nodes (most connected - your core abstractions)
-1. `react` - 33 edges
-2. `lucide-react` - 24 edges
+1. `react` - 32 edges
+2. `lucide-react` - 23 edges
 3. `Dashboard()` - 22 edges
-4. `DocumentPreviewModal()` - 13 edges
-5. `pool` - 12 edges
-6. `AllOrdersTableView()` - 12 edges
+4. `AllOrdersTableView()` - 12 edges
+5. `DocumentPreviewModal()` - 12 edges
+6. `pool` - 11 edges
 7. `Spec: Design Department Confirmation Gate & Dynamic Release Documents Status` - 11 edges
 8. `OrderDocumentsModal()` - 10 edges
 9. `ErrorBoundary` - 9 edges
@@ -56,62 +56,58 @@
 - `Testing & Verification Strategy` --references--> `ExcelSheetViewer()`  [INFERRED]
   SPEC-non-standard-panel-docs.md → src/components/ExcelSheetViewer.jsx
 - `Success Criteria` --references--> `TechnicalDocsModal()`  [INFERRED]
-  SPEC-non-standard-panel-docs.md → src/components/TechnicalDocsModal.jsx
+  SPEC-non-standard-panel-docs.md → src/components/AllOrdersTableView.jsx
 - `Success Criteria` --references--> `ExcelSheetViewer()`  [INFERRED]
   SPEC-non-standard-panel-docs.md → src/components/ExcelSheetViewer.jsx
 - `Dashboard()` --calls--> `AllOrdersTableView()`  [EXTRACTED]
   src/App.jsx → src/components/AllOrdersTableView.jsx
-- `Dashboard()` --calls--> `Masters()`  [EXTRACTED]
-  src/App.jsx → src/components/Masters.jsx
+- `Dashboard()` --calls--> `ErrorBoundary`  [EXTRACTED]
+  src/App.jsx → src/components/ErrorBoundary.jsx
 
 ## Import Cycles
 - None detected.
 
-## Communities (23 total, 7 thin omitted)
+## Communities (23 total, 8 thin omitted)
 
 ### Community 0 - "package.json"
 Cohesion: 0.06
 Nodes (30): dependencies, lucide-react, react, react-dom, react-router-dom, @tanstack/react-query, xlsx, zustand (+22 more)
 
 ### Community 1 - "App.jsx"
-Cohesion: 0.07
-Nodes (44): lucide-react, react, react-router-dom, App(), Dashboard(), ProtectedRoute(), BoardView(), StatusBadge() (+36 more)
+Cohesion: 0.09
+Nodes (39): App(), Dashboard(), ProtectedRoute(), BoardView(), StatusBadge(), BulkImportModal(), DeptWorklist(), DOC_TYPES (+31 more)
 
 ### Community 2 - "AllOrdersTableView.jsx"
-Cohesion: 0.16
-Nodes (23): AllOrdersTableView(), BASE_COLUMNS, calculateUnitStatus(), DEFAULT_COL_WIDTHS, DEFAULT_COLUMN_KEYS, formatFastDate(), formatFastDateTime(), getCellTooltip() (+15 more)
+Cohesion: 0.11
+Nodes (34): react-dom, ref_xlsx, Success Criteria, AllOrdersTableView(), BASE_COLUMNS, calculateUnitStatus(), DEFAULT_COL_WIDTHS, DEFAULT_COLUMN_KEYS (+26 more)
 
-### Community 3 - "OrderCreationFlow.jsx"
-Cohesion: 0.24
-Nodes (10): AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData(), getTodayDateStr(), OrderCreationFlow(), PanelSizeSearchSelect() (+2 more)
+### Community 3 - "react"
+Cohesion: 0.18
+Nodes (12): lucide-react, react, AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData(), getTodayDateStr() (+4 more)
 
 ### Community 4 - "Masters.jsx"
-Cohesion: 0.17
-Nodes (18): DOC_TYPE_THEMES, DocumentPreviewModal(), EXTENSION_TYPE_MAP, formatDMY(), formatSize(), getDocumentType(), ImageViewerPane(), UnsupportedFallbackPane() (+10 more)
+Cohesion: 0.18
+Nodes (17): DOC_TYPE_THEMES, DocumentPreviewModal(), EXTENSION_TYPE_MAP, formatDMY(), formatSize(), getDocumentType(), ImageViewerPane(), UnsupportedFallbackPane() (+9 more)
 
 ### Community 5 - "index.js"
-Cohesion: 0.06
-Nodes (36): bcryptjs, cors, dotenv, express, multer, nodemailer, pool, app (+28 more)
+Cohesion: 0.09
+Nodes (22): app, DEFAULT_STEPS, deriveUnitStatus(), __dirname, evaluateUnitDesignDocuments(), __filename, formatOrderNumber(), generateOrderNumber() (+14 more)
 
-### Community 6 - "verify_codebase.js"
-Cohesion: 0.14
-Nodes (14): ref_babel_parser, ref_babel_traverse, ref_module, ref_url, __dirname, __filename, globalAllowList, parser (+6 more)
+### Community 7 - "server/package.json"
+Cohesion: 0.07
+Nodes (26): bcryptjs, cors, dotenv, express, multer, nodemailer, pg, pool (+18 more)
 
-### Community 7 - "dependencies"
-Cohesion: 0.20
-Nodes (10): dependencies, bcryptjs, cors, dotenv, express, jsonwebtoken, multer, nodemailer (+2 more)
-
-### Community 9 - "OrderDocumentsModal.jsx"
-Cohesion: 0.10
-Nodes (23): ref_xlsx, 1. Document Separation & Storage Isolation, 2. Revision Calculation for Non-Standard Documents, 3. Role-Based Access Control (RBAC), Action Boundaries, Boundaries, Code Style & Implementation Standard, Commands (+15 more)
+### Community 9 - "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)"
+Cohesion: 0.12
+Nodes (15): 1. Document Separation & Storage Isolation, 2. Revision Calculation for Non-Standard Documents, 3. Role-Based Access Control (RBAC), Action Boundaries, Boundaries, Code Style & Implementation Standard, Commands, Data Contracts & Architecture (+7 more)
 
 ### Community 10 - "Production Planning Module"
 Cohesion: 0.29
 Nodes (8): DEFAULT_COLUMNS, formatFastDateTime(), getDocUrl(), isDateTimeType(), isDateType(), MONTH_NAMES, PAGE_SIZE_OPTIONS, PlanningModule()
 
-### Community 11 - "test_design_confirmation.js"
-Cohesion: 0.09
-Nodes (23): ref_fs, jsonwebtoken, ref_os, ref_path, pg, pool, content, filePath (+15 more)
+### Community 11 - "verify_codebase.js"
+Cohesion: 0.06
+Nodes (35): ref_babel_parser, ref_babel_traverse, ref_fs, jsonwebtoken, ref_module, ref_os, ref_path, ref_url (+27 more)
 
 ### Community 13 - "DeptWorklist.jsx"
 Cohesion: 0.40
@@ -122,8 +118,8 @@ Cohesion: 0.29
 Nodes (6): Architectural Overview, Major Components & Dependencies, Phases & Build Order, Risks & Mitigation Strategies, Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents, Verification Checkpoints
 
 ### Community 20 - "db.js"
-Cohesion: 0.15
-Nodes (6): ref_assert, pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials()
+Cohesion: 0.18
+Nodes (5): pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials()
 
 ### Community 21 - "Spec: Design Department Confirmation Gate & Dynamic Release Documents Status"
 Cohesion: 0.12
@@ -135,23 +131,23 @@ Nodes (3): Confirmed Statement of Intent: Design Department Confirmation & Auto 
 
 ## Knowledge Gaps
 - **129 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+124 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 168 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 166 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `OrderCreationFlow.jsx`, `Masters.jsx`, `OrderDocumentsModal.jsx`, `Production Planning Module`, `DeptWorklist.jsx`?**
-  _High betweenness centrality (0.228) - this node is a cross-community bridge._
-- **Why does `lucide-react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `OrderCreationFlow.jsx`, `Masters.jsx`, `OrderDocumentsModal.jsx`, `Production Planning Module`, `DeptWorklist.jsx`?**
-  _High betweenness centrality (0.105) - this node is a cross-community bridge._
+- **Why does `react` connect `react` to `package.json`, `App.jsx`, `AllOrdersTableView.jsx`, `Masters.jsx`, `Production Planning Module`, `DeptWorklist.jsx`?**
+  _High betweenness centrality (0.221) - this node is a cross-community bridge._
+- **Why does `lucide-react` connect `react` to `package.json`, `App.jsx`, `AllOrdersTableView.jsx`, `Masters.jsx`, `Production Planning Module`, `DeptWorklist.jsx`?**
+  _High betweenness centrality (0.102) - this node is a cross-community bridge._
+- **Why does `Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)` connect `Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)` to `AllOrdersTableView.jsx`?**
+  _High betweenness centrality (0.067) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
   _129 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected._
 - **Should `App.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.06921529175050302 - nodes in this community are weakly interconnected._
-- **Should `index.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.05952380952380952 - nodes in this community are weakly interconnected._
-- **Should `verify_codebase.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.14285714285714285 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.08563134978229318 - nodes in this community are weakly interconnected._
+- **Should `AllOrdersTableView.jsx` be split into smaller, more focused modules?**
+  _Cohesion score 0.10526315789473684 - nodes in this community are weakly interconnected._

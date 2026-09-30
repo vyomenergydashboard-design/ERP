@@ -86,6 +86,9 @@ CREATE TABLE IF NOT EXISTS order_units (
     panel_type_size TEXT,
     classification TEXT DEFAULT 'Standard',
     tag TEXT,
+    design_confirmed BOOLEAN DEFAULT FALSE,
+    design_confirmed_at TIMESTAMP WITH TIME ZONE,
+    design_confirmed_by INTEGER REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

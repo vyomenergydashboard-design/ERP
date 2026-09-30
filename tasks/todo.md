@@ -1,42 +1,54 @@
-# Tasks: Non-Standard Panel Drawings & BOM Support
+# Tasks: Design Confirmation Gate & Dynamic Release Documents
 
-- [x] **Task 1: Non-Standard Document State and History Derivation in `AllOrdersTableView.jsx`**
-  - **Description:** Fix the card bindings in [AllOrdersTableView.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/AllOrdersTableView.jsx) so Card 1 displays `latestCustomDrawing` and Card 2 displays `latestCustomBom`. Compute chronological revision labels (`R0`, `R1`, `R2`...) based on `uploaded_at` ascending and generate reverse-chronological history lists for both Drawings and BOMs.
+- [x] **Task 1: Database Migration & Schema Updates**
+  - **Description:** Add `design_confirmed` (BOOLEAN DEFAULT FALSE), `design_confirmed_at` (TIMESTAMP WITH TIME ZONE), and `design_confirmed_by` (INTEGER REFERENCES users(id)) to `order_units` in `server/run_deployment_migrations.js`. Enrich `GET /api/orders` and `GET /api/units` in `server/index.js` to return these fields along with `design_confirmed_by_name`.
   - **Acceptance:**
-    - Non-standard panel modal displays the actual latest uploaded custom drawing in Card 1 and latest custom BOM in Card 2.
-    - Each revision is labeled `R0`, `R1`, etc. according to its chronological upload sequence.
-    - Earlier revisions are listed in expandable accordions with file names, sizes, uploaders, and timestamps.
+    - Migration runs idempotently on server start or via runner without errors.
+    - `GET /api/units` returns `design_confirmed`, `design_confirmed_at`, `design_confirmed_by`, and `design_confirmed_by_name`.
+  - **Verify:** Run migration check in node; verify schema returns expected columns.
+  - **Files:** `server/run_deployment_migrations.js`, `server/index.js`
+
+- [x] **Task 2: Confirmation API & Dynamic Document Evaluator**
+  - **Description:** Implement `evaluateUnitDesignDocuments(client, unit)` helper in `server/index.js` to check Drawing and BOM presence for Standard (Master Catalog) and Non-Standard (unit-specific custom uploads). Implement `POST /api/units/:id/design-confirm` (restricted to `Admin`, `Manager`, `Design`) to mark `design_confirmed = true`, complete Step 1 ("Review & Classify"), and dynamically set Step 2 ("Release Documents") status (Done if both docs exist, In Progress if 1 doc exists, Pending if 0 exist). In `PUT /api/units/:id`, if classification changes, reset `design_confirmed = false` and revert Step 1 & Step 2 for re-inspection.
+  - **Acceptance:**
+    - `POST /api/units/:id/design-confirm` marks Step 1 as `done` and sets Step 2 status accurately in a transaction.
+    - Changing classification resets `design_confirmed` to false and requires re-confirmation.
+    - Unconfirmed units never have Step 2 set to `done`.
+  - **Verify:** Run node test script against the new endpoint.
+  - **Files:** `server/index.js`
+
+- [x] **Task 3: Table View Confirmation UI & Optimistic Updates**
+  - **Description:** Update the `case 'classification':` cell in `AllOrdersTableView.jsx` to render the `Confirm` button beside the Standard / Non-Standard dropdown when `!unit.design_confirmed`, or a `✓ Confirmed` badge when `unit.design_confirmed`. Restrict action to `Design` and `Admin` users. Implement `handleConfirmDesignClassification(unit)` with optimistic local UI state update and API call. Add CSS tokens in `src/index.css`.
+  - **Acceptance:**
+    - `Confirm` button displays beside the dropdown for unconfirmed units.
+    - Clicking `Confirm` immediately transitions the badge to `✓ Confirmed`, updates Step 1 to `done`, and updates Step 2 status in the local state.
+    - Changing the dropdown resets the confirmation status.
+    - Non-Design/Admin users see read-only status without the clickable confirm action.
   - **Verify:** `npm run check` passes with 0 undeclared variables.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+  - **Files:** `src/components/AllOrdersTableView.jsx`, `src/index.css`
 
-- [x] **Task 2: Actions, Previews & RBAC Guardrails in `AllOrdersTableView.jsx`**
-  - **Description:** Lock edit actions (`Upload New Revision`, `Delete Revision`) on non-standard panels strictly to `Admin` and `Design` roles. Ensure deletion calls `handleDeleteOrderDoc(doc.id)` (hitting `/api/documents/:id`) rather than the master catalog endpoint. Enable in-browser [ExcelSheetViewer](file:///c:/Users/cerul/Documents/ERP/src/components/ExcelSheetViewer.jsx) preview for spreadsheet BOM files.
+- [x] **Task 4: Part Number Modal Hook & Real-Time Sync**
+  - **Description:** When a drawing or BOM is uploaded or deleted in the Part Number modal in `AllOrdersTableView.jsx`, dynamically update the local unit's Step 2 status (Done if confirmed & both exist, In Progress if 1 exists, Pending if 0 exist). Ensure `StepModal.jsx` displays accurate status and notes for Step 1 and Step 2.
   - **Acceptance:**
-    - Non-Design / Non-Admin users see read-only controls (Preview & Download only).
-    - Deleting a non-standard document calls `handleDeleteOrderDoc`, properly removing it from `documents` and state without touching `part_number_masters`.
-    - Clicking Preview on an Excel BOM opens [ExcelSheetViewer](file:///c:/Users/cerul/Documents/ERP/src/components/ExcelSheetViewer.jsx) modal.
-  - **Verify:** `npm run check` and `npm run build` succeed cleanly.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+    - Uploading or deleting a document in the modal instantly refreshes Step 2 status in the table without requiring a page reload via `onDocumentChange={() => fetchUnits(true)}`.
+    - StepModal reflects the confirmed status and updated notes.
+  - **Verify:** `npm run check` and `npm run build` pass cleanly.
+  - **Files:** `src/components/AllOrdersTableView.jsx`, `src/components/StepModal.jsx`
 
-- [x] **Task 3: Verification, Subagent Audit, and Knowledge Graph Update**
-  - **Description:** Run full automated linter checks, run production build, dispatch the `code-reviewer` subagent to audit changes, and update the graphify index.
+- [x] **Task 5: UI Refinement & Anti-Cluttering (frontend-ui-engineering)**
+  - **Description:** Replaced clustered, disjointed dropdown and button layout with a unified, cohesive segmented control group (`.design-type-control-group`).
   - **Acceptance:**
-    - `npm run check` passes with 0 errors.
-    - `npm run build` generates production bundle cleanly.
-    - 5-axis code review completed with 0 blockers.
-    - `graphify update .` running/completed.
-  - **Verify:** Clean command outputs and positive review report.
-  - **Files:** `tasks/todo.md`, `tasks/plan.md`
+    - Segmented capsule integrates classification selector (`.design-type-select`) and confirmation action (`.btn-confirm-action` / `.btn-confirmed-indicator`).
+    - Eliminates left/right text truncation (`andard` / `Conf`) by removing faulty `justify-content: center` overflow.
+    - Upgrades `DEFAULT_COL_WIDTHS.classification` to 220px and `MIN_COL_WIDTHS.classification` to 200px, with `erp_all_colWidths_v4` migration.
+    - Custom SVG chevrons replace bulky OS select arrows for a clean, premium aesthetic.
+    - Unconfirmed state shows clear actionable `Confirm` button; Confirmed state shows distinct emerald `✓ Confirmed` badge.
+  - **Files:** `src/components/AllOrdersTableView.jsx`, `src/index.css`
 
-- [x] **Task 4: De-clutter and Streamline Non-Standard Modal UI**
-  - **Description:** Remove redundant disclaimers and repeated upload UI:
-    - Removed `NOT IN MASTERS` badge and verbose repetitive banner copy.
-    - Removed `"Attached specifically to Unit ... · Not inherited into Part Masters"` subtitle.
-    - Removed the redundant bottom `"Upload Custom Technical Document"` box with radio buttons (`Target Document: Technical Drawing (creates R0) / Bill of Materials / BOM (creates R0)`).
-    - Removed the purple `"Unit-Specific Upload: Documents uploaded here apply exclusively to Unit ... and will not be inherited into the Master Part Catalog"` disclaimer box.
-    - Wired Card 1 (`+ Upload Drawing (R0)` & `+ New Rev`) and Card 2 (`+ Upload BOM (R0)` & `+ New Rev`) directly to immediate file upload triggers with automatic revision assignment.
+- [x] **Task 6: Verification & Automated Integration Test Suite**
+  - **Description:** Automated test suite `server/test_design_confirmation.js` (23/23 tests passed), PO hierarchy test suite `server/test_po_system.js` (44/44 tests passed), `npm.cmd run check` (0 syntax errors), and `npm.cmd run build` (production build succeeds).
   - **Acceptance:**
-    - Clean, modern dual-card UI without duplicate upload triggers or redundant disclaimers.
-    - Direct card upload seamlessly uploads Drawing or BOM and assigns `R0`, `R1`, etc.
-  - **Verify:** `npm.cmd run build` passes with 0 errors; 0 undeclared variables.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+    - 23/23 tests pass in `test_design_confirmation.js`.
+    - 44/44 tests pass in `test_po_system.js`.
+    - Frontend bundle builds with 0 errors.
+  - **Files:** `server/test_design_confirmation.js`, `server/index.js`, `tasks/todo.md`

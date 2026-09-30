@@ -36,7 +36,10 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE,
       ADD COLUMN IF NOT EXISTS po_number TEXT,
       ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL,
-      ADD COLUMN IF NOT EXISTS tag TEXT;
+      ADD COLUMN IF NOT EXISTS tag TEXT,
+      ADD COLUMN IF NOT EXISTS design_confirmed BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS design_confirmed_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS design_confirmed_by INTEGER REFERENCES users(id);
 
       ALTER TABLE unit_steps
       ADD COLUMN IF NOT EXISTS hold_reason TEXT,
