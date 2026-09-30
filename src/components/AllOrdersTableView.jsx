@@ -4,7 +4,7 @@ import TechnicalDocsModal from './TechnicalDocsModal';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import EditRefTagModal from './EditRefTagModal.jsx';
 import {
-  Search, X, ArrowUpDown, ChevronUp, ChevronDown, Layers, Pin, GripVertical, RotateCcw, Check,
+  Search, X, ArrowUpDown, ChevronUp, ChevronDown, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info
 } from 'lucide-react';
@@ -1002,8 +1002,8 @@ function renderCellContent({
       const clsVal = unit.classification || 'Standard';
       const isConfirmed = Boolean(unit.design_confirmed);
       const isStd = clsVal.toLowerCase() === 'standard';
-      const isSales = (currentFilter || '').toLowerCase() === 'sales' || (unit.current_dept || '').toLowerCase() === 'sales';
-      const groupCls = `design-type-control-group ${isStd ? 'standard' : 'non-standard'}${!isSales && isConfirmed ? ' is-confirmed' : ''}`;
+      const isDesign = (currentFilter || '').toLowerCase() === 'design';
+      const groupCls = `design-type-control-group ${isStd ? 'standard' : 'non-standard'}${isDesign && isConfirmed ? ' is-confirmed' : ''}${!isDesign ? ' plain' : ''}`;
 
       return (
         <div 
@@ -1029,7 +1029,7 @@ function renderCellContent({
             </span>
           )}
 
-          {!isSales && (
+          {isDesign && (
             isConfirmed ? (
               <button
                 type="button"
@@ -1067,18 +1067,14 @@ function renderCellContent({
     }
 
     case 'priority': {
+      const pLower = (priority || 'medium').toLowerCase();
       if (canEdit) {
         return (
           <select
             value={priority}
             onClick={(e) => e.stopPropagation()}
             onChange={(e) => onSaveInlineCell(unit, 'priority', e.target.value)}
-            style={{
-              fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12,
-              background: priorityStyle.bg, color: priorityStyle.color,
-              border: `1px solid ${priorityStyle.border}`, cursor: 'pointer', outline: 'none',
-              textTransform: 'uppercase'
-            }}
+            className={`erp-priority-select ${pLower}`}
           >
             <option value="Urgent" style={{ background: 'var(--bg3)', color: '#ef4444' }}>Urgent</option>
             <option value="High" style={{ background: 'var(--bg3)', color: '#f87171' }}>High</option>
@@ -1088,31 +1084,17 @@ function renderCellContent({
         );
       }
       return (
-        <span
-          style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20,
-            background: priorityStyle.bg, color: priorityStyle.color,
-            border: `1px solid ${priorityStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.5px'
-          }}
-        >
+        <span className={`erp-priority-pill ${pLower}`}>
           {priority}
         </span>
       );
     }
 
-    case 'unit_status':
+    case 'unit_status': {
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
         const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
         return (
-          <span
-            style={{
-              fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
-              background: 'rgba(245, 158, 11, 0.35)', color: '#fbbf24',
-              border: '1px solid #f59e0b', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-              display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
-              boxShadow: '0 0 10px rgba(245, 158, 11, 0.3)'
-            }}
-          >
+          <span className="erp-status-pill hold" title={`On Hold: ${unit.hold_reason || 'No reason specified'}`}>
             <span>⏸</span> Hold @ {holdStep}
           </span>
         );
@@ -1120,31 +1102,32 @@ function renderCellContent({
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
         const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
         return (
-          <span
-            style={{
-              fontSize: 10, fontWeight: 800, padding: '4px 10px', borderRadius: 20,
-              background: 'rgba(239, 68, 68, 0.35)', color: '#f87171',
-              border: '1px solid #ef4444', textTransform: 'uppercase', letterSpacing: '0.5px', whiteSpace: 'nowrap',
-              display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'help',
-              boxShadow: '0 0 10px rgba(239, 68, 68, 0.3)'
-            }}
-          >
+          <span className="erp-status-pill cancelled" title={`Cancelled: ${unit.cancelled_reason || 'No reason specified'}`}>
             <span>✕</span> Cancelled @ {cancelStep}
           </span>
         );
       }
 
+      const stLower = String(status).toLowerCase();
+      let statusClass = 'pending';
+      let icon = '●';
+      if (stLower === 'done' || stLower === 'completed' || stLower === 'complete') {
+        statusClass = 'completed';
+        icon = '✓';
+      } else if (stLower === 'inprogress' || stLower === 'in progress' || stLower === 'in process' || stLower === 'review') {
+        statusClass = 'inprogress';
+        icon = '●';
+      } else if (stLower === 'blocked') {
+        statusClass = 'blocked';
+        icon = '⚠';
+      }
+
       return (
-        <span
-          style={{
-            fontSize: 10, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-            background: statusStyle.bg, color: statusStyle.color,
-            border: `1px solid ${statusStyle.border}`, textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap'
-          }}
-        >
-          {status}
+        <span className={`erp-status-pill ${statusClass}`}>
+          <span>{icon}</span> {status}
         </span>
       );
+    }
 
     case 'delivery_date':
       const isEditingDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'delivery_date';
@@ -1806,6 +1789,7 @@ const TableRow = memo(function TableRow({
   unit,
   idx,
   currentFilter,
+  showSelection = false,
   isSelected,
   status,
   visibleCols,
@@ -1873,36 +1857,38 @@ const TableRow = memo(function TableRow({
       }}
       onMouseEnter={(e) => onRowMouseEnter(unit.unit_id, idx, e)}
     >
-      {/* Selection Checkbox Cell */}
-      <td
-        style={{
-          position: 'sticky',
-          left: 0,
-          zIndex: 3,
-          background: checkboxBg,
-          width: 38,
-          minWidth: 38,
-          maxWidth: 38,
-          padding: '6px 4px',
-          textAlign: 'center',
-          verticalAlign: 'middle',
-          borderRight: '1px solid var(--border)',
-          borderLeft: isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'),
-          userSelect: 'none',
-          cursor: 'pointer'
-        }}
-        title={isSelected ? "Click to deselect row (or drag to deselect range)" : "Click to select row (or drag to select range)"}
-        onMouseDown={(e) => onRowMouseDown(unit.unit_id, idx, e)}
-      >
-        <input
-          type="checkbox"
-          checked={isSelected}
-          onChange={() => { }}
-          style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14, pointerEvents: 'none' }}
-        />
-      </td>
+      {/* Selection Checkbox Cell — Sales Only */}
+      {showSelection && (
+        <td
+          style={{
+            position: 'sticky',
+            left: 0,
+            zIndex: 3,
+            background: checkboxBg,
+            width: 38,
+            minWidth: 38,
+            maxWidth: 38,
+            padding: '6px 4px',
+            textAlign: 'center',
+            verticalAlign: 'middle',
+            borderRight: '1px solid var(--border)',
+            borderLeft: isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'),
+            userSelect: 'none',
+            cursor: 'pointer'
+          }}
+          title={isSelected ? "Click to deselect row (or drag to deselect range)" : "Click to select row (or drag to select range)"}
+          onMouseDown={(e) => onRowMouseDown(unit.unit_id, idx, e)}
+        >
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => { }}
+            style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14, pointerEvents: 'none' }}
+          />
+        </td>
+      )}
 
-      {visibleCols.map((c) => {
+      {visibleCols.map((c, colIdx) => {
         const colKey = c.key;
         const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 150);
         const width = columnWidths[colKey] || defaultWidth;
@@ -1918,9 +1904,14 @@ const TableRow = memo(function TableRow({
           pinnedBg = isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)';
         }
 
+        const borderLeftStyle = (!showSelection && colIdx === 0)
+          ? (isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'))
+          : undefined;
+
         return (
           <td
             key={colKey}
+            className={`erp-td${pinned ? ' pinned' : ''}${lastPin ? ' last-pinned' : ''}`}
             onMouseEnter={(e) => {
               e.currentTarget.title = getCellTooltip(unit, colKey, status, customColumnDefs, panelSizeMap);
             }}
@@ -1937,8 +1928,7 @@ const TableRow = memo(function TableRow({
               left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
               zIndex: pinned ? 3 : 1,
               background: pinned ? pinnedBg : undefined,
-              boxShadow: lastPin ? '4px 0 8px -3px rgba(0,0,0,0.35)' : undefined,
-              padding: '6px 10px',
+              borderLeft: borderLeftStyle,
               textAlign: c.align || 'left'
             }}
           >
@@ -2999,7 +2989,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   });
 
   useEffect(() => {
-    localStorage.setItem('erp_all_colWidths_v4', JSON.stringify(columnWidths));
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem('erp_all_colWidths_v4', JSON.stringify(columnWidths));
+      } catch (err) {
+        console.error('Failed to save colWidths', err);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
   }, [columnWidths]);
 
   // Header Drag & Drop state
@@ -3080,25 +3077,54 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
+  const rafResizeRef = useRef(null);
+
   const handleResizeStart = (e, colKey) => {
     e.preventDefault();
     e.stopPropagation();
     const startX = e.pageX;
     const startWidth = columnWidths[colKey] || DEFAULT_COL_WIDTHS[colKey] || 120;
+    const minSafe = MIN_COL_WIDTHS[colKey] || 60;
+
+    document.body.classList.add('resizing-active');
+    let latestWidth = startWidth;
 
     const onMouseMove = (moveEvent) => {
       moveEvent.preventDefault();
-      const minSafe = MIN_COL_WIDTHS[colKey] || 60;
-      const newWidth = Math.max(minSafe, startWidth + (moveEvent.pageX - startX));
-      setColumnWidths(prev => ({
-        ...prev,
-        [colKey]: newWidth
-      }));
+      latestWidth = Math.max(minSafe, startWidth + (moveEvent.pageX - startX));
+
+      if (!rafResizeRef.current) {
+        rafResizeRef.current = requestAnimationFrame(() => {
+          setColumnWidths(prev => {
+            if (prev[colKey] === latestWidth) return prev;
+            return {
+              ...prev,
+              [colKey]: latestWidth
+            };
+          });
+          rafResizeRef.current = null;
+        });
+      }
     };
 
     const onMouseUp = () => {
+      if (rafResizeRef.current) {
+        cancelAnimationFrame(rafResizeRef.current);
+        rafResizeRef.current = null;
+      }
+      document.body.classList.remove('resizing-active');
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
+
+      setColumnWidths(prev => {
+        const finalMap = { ...prev, [colKey]: latestWidth };
+        try {
+          localStorage.setItem('erp_all_colWidths_v4', JSON.stringify(finalMap));
+        } catch (err) {
+          console.error('Failed to save colWidths', err);
+        }
+        return finalMap;
+      });
     };
 
     document.addEventListener('mousemove', onMouseMove);
@@ -3928,10 +3954,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   }, [canUploadPo, token, fetchUnits]);
 
   const SortIcon = ({ col }) => {
-    if (sortKey !== col) return <ArrowUpDown size={11} style={{ opacity: 0.3, marginLeft: 4 }} />;
+    if (sortKey !== col) return <ArrowUpDown size={11} className="sort-icon-idle" />;
     return sortDir === 'asc'
-      ? <ChevronUp size={11} style={{ color: 'var(--blue)', marginLeft: 4 }} />
-      : <ChevronDown size={11} style={{ color: 'var(--blue)', marginLeft: 4 }} />;
+      ? <ChevronUp size={12} className="sort-icon-active" />
+      : <ChevronDown size={12} className="sort-icon-active" />;
   };
 
   // Active columns filtered by department visibility
@@ -3947,8 +3973,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
   const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns (offset by selection column width)
-  const SELECTION_COL_WIDTH = 38;
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales view)
+  const isSalesView = (currentFilter || '').toLowerCase() === 'sales';
+  const SELECTION_COL_WIDTH = isSalesView ? 38 : 0;
   const stickyLeftMap = useMemo(() => {
     const map = {};
     let currentLeft = SELECTION_COL_WIDTH;
@@ -3959,7 +3986,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       currentLeft += width;
     });
     return map;
-  }, [pinnedCols, columnWidths]);
+  }, [pinnedCols, columnWidths, SELECTION_COL_WIDTH]);
 
   const isPinned = (colKey) => pinnedKeys.includes(colKey);
   const isLastPinned = (colKey) => pinnedCols.length > 0 && pinnedCols[pinnedCols.length - 1].key === colKey;
@@ -3982,9 +4009,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       verticalAlign: 'middle',
       position: pinned ? 'sticky' : 'relative',
       left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
-      zIndex: pinned ? 15 : 10,
-      background: 'var(--bg3)',
-      boxShadow: lastPin ? '4px 0 8px -3px rgba(0,0,0,0.35)' : undefined
+      zIndex: pinned ? (isHeader ? 24 : 3) : (isHeader ? 20 : 1),
+      background: isHeader ? 'var(--bg2)' : undefined,
+      willChange: pinned ? 'transform' : undefined,
+      boxShadow: lastPin ? (isHeader ? '6px 0 16px -2px rgba(0,0,0,0.55)' : '4px 0 12px -3px rgba(0,0,0,0.4)') : undefined
     };
   };
 
@@ -4123,18 +4151,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           </span>
         </button>
 
-        {/* ── Right side: PO Controls (Enter PO No. + Upload PO button) ── */}
-        <PoUploadBar
-          selectedCount={selectedUnitIds.size}
-          selectedUnitSerials={selectedUnitSerials}
-          canUploadPo={canUploadPo}
-          isUploadingPo={isUploadingPo}
-          poSuccessMsg={poSuccessMsg}
-          onClearSelection={() => setSelectedUnitIds(new Set())}
-          onUploadPo={handleBatchPoUpload}
-          externalPoNumber={externalPoNumber}
-          setExternalPoNumber={setExternalPoNumber}
-        />
+        {/* ── Right side: PO Controls (Enter PO No. + Upload PO button) — Sales Only ── */}
+        {isSalesView && (
+          <PoUploadBar
+            selectedCount={selectedUnitIds.size}
+            selectedUnitSerials={selectedUnitSerials}
+            canUploadPo={canUploadPo}
+            isUploadingPo={isUploadingPo}
+            poSuccessMsg={poSuccessMsg}
+            onClearSelection={() => setSelectedUnitIds(new Set())}
+            onUploadPo={handleBatchPoUpload}
+            externalPoNumber={externalPoNumber}
+            setExternalPoNumber={setExternalPoNumber}
+          />
+        )}
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
@@ -4259,21 +4289,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             </button>
           </div>
         )}
-
-        {/* Summary chip */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 6,
-          marginLeft: 'auto', background: 'var(--bg3)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '6px 12px', fontSize: 12, color: 'var(--text3)',
-          whiteSpace: 'nowrap', flexShrink: 0
-        }}>
-          <Layers size={13} />
-          <strong style={{ color: 'var(--text)' }}>
-            {new Set(sorted.map(u => u.order_number).filter(Boolean)).size}
-          </strong> {new Set(sorted.map(u => u.order_number).filter(Boolean)).size === 1 ? 'order' : 'orders'}
-          <span style={{ color: 'var(--text3)', margin: '0 2px' }}>·</span>
-          <strong style={{ color: 'var(--text)' }}>{sorted.length}</strong> unit items
-        </div>
       </div>
 
       {/* ── Table ───────────────────────────────────────────────── */}
@@ -4282,42 +4297,44 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         className="table-responsive-scroll"
         style={{ overflowX: 'auto', overflowY: 'auto', flex: 1 }}
       >
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-          <thead style={{ position: 'sticky', top: 0, zIndex: 10, background: 'var(--bg3)' }}>
+        <table className="erp-master-table">
+          <thead>
             <tr>
-              {/* Selection Checkbox Header */}
-              <th
-                style={{
-                  position: 'sticky',
-                  left: 0,
-                  zIndex: 16,
-                  background: 'var(--bg3)',
-                  width: 38,
-                  minWidth: 38,
-                  maxWidth: 38,
-                  padding: '8px 4px',
-                  textAlign: 'center',
-                  verticalAlign: 'middle',
-                  borderBottom: '1px solid var(--border)',
-                  borderRight: '1px solid var(--border)',
-                  userSelect: 'none'
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id))}
-                  ref={el => {
-                    if (el) {
-                      const hasSome = displayedUnits.some(u => isIdSelected(u.unit_id));
-                      const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id));
-                      el.indeterminate = hasSome && !hasAll;
-                    }
+              {/* Selection Checkbox Header — Sales Only */}
+              {isSalesView && (
+                <th
+                  className="erp-th"
+                  style={{
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 26,
+                    width: 38,
+                    minWidth: 38,
+                    maxWidth: 38,
+                    padding: '8px 4px',
+                    textAlign: 'center',
+                    verticalAlign: 'middle',
+                    borderBottom: '2px solid var(--border)',
+                    borderRight: '1px solid var(--border)',
+                    userSelect: 'none'
                   }}
-                  onChange={handleToggleSelectAll}
-                  style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14 }}
-                  title="Select / Deselect visible serial numbers"
-                />
-              </th>
+                >
+                  <input
+                    type="checkbox"
+                    checked={displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id))}
+                    ref={el => {
+                      if (el) {
+                        const hasSome = displayedUnits.some(u => isIdSelected(u.unit_id));
+                        const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id));
+                        el.indeterminate = hasSome && !hasAll;
+                      }
+                    }}
+                    onChange={handleToggleSelectAll}
+                    style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14 }}
+                    title="Select / Deselect visible serial numbers"
+                  />
+                </th>
+              )}
               {visibleCols.map(({ key: colKey, label, align }) => {
                 const isPinned = pinnedKeys.includes(colKey);
                 const isOver = dragOverColKey === colKey;
@@ -4332,7 +4349,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
                 const baseStyle = getColStyle(colKey, true);
                 const isDragging = draggedColKey === colKey;
-                const thClass = `${isDragging ? ' dragging' : ''}${dragOverClass}`.trim();
+                const isSorted = sortKey === colKey;
+                const lastPin = isLastPinned(colKey);
+                const thClass = `erp-th${isDragging ? ' dragging' : ''}${dragOverClass}${isSorted ? ' is-sorted' : ''}${isPinned ? ' is-pinned' : ''}${lastPin ? ' last-pinned' : ''}`.trim();
 
                 return (
                   <th
@@ -4348,44 +4367,27 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     style={{
                       ...baseStyle,
                       cursor: 'grab',
-                      userSelect: 'none',
-                      whiteSpace: 'nowrap',
-                      padding: '8px 8px',
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.5px',
-                      color: sortKey === colKey ? 'var(--blue)' : 'var(--text3)',
-                      borderBottom: '1px solid var(--border)',
                       textAlign: align,
                       verticalAlign: 'middle'
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: align === 'center' ? 'center' : 'space-between', gap: 4, width: '100%', minWidth: 0 }}>
+                    <div className="erp-th-content" style={{ justifyContent: align === 'center' ? 'center' : 'space-between' }}>
                       <div
                         onClick={() => handleSort(colKey)}
-                        style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', overflow: 'hidden', flex: 1, minWidth: 0 }}
+                        className="erp-th-label-zone"
                       >
-                        <GripVertical size={11} className="drag-handle" style={{ cursor: 'grab', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }} title={label}>{label}</span>
-                        {sortKey === colKey && <SortIcon col={colKey} />}
+                        <GripVertical size={12} className="erp-th-drag-handle" />
+                        <span className="erp-th-title" title={label}>{label}</span>
+                        <div className="erp-th-sort-icon">
+                          <SortIcon col={colKey} />
+                        </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={(e) => togglePin(colKey, e)}
                         title={isPinned ? "Unfreeze Column" : "Freeze Column to left"}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: 1,
-                          display: 'flex',
-                          alignItems: 'center',
-                          color: isPinned ? 'var(--blue)' : 'var(--text3)',
-                          opacity: isPinned ? 1 : 0.4,
-                          flexShrink: 0
-                        }}
+                        className={`erp-th-pin-btn${isPinned ? ' is-pinned' : ''}`}
                       >
                         <Pin size={11} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
                       </button>
@@ -4396,19 +4398,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                       onMouseDown={(e) => handleResizeStart(e, colKey)}
                       onClick={(e) => e.stopPropagation()}
                       title="Drag to resize column"
-                      style={{
-                        position: 'absolute',
-                        right: 0,
-                        top: 0,
-                        bottom: 0,
-                        width: '8px',
-                        cursor: 'col-resize',
-                        zIndex: 10,
-                        background: 'transparent',
-                        pointerEvents: 'auto'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--accent)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      className="erp-resize-handle"
                     />
                   </th>
                 );
@@ -4422,6 +4412,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 unit={unit}
                 idx={idx}
                 currentFilter={currentFilter}
+                showSelection={isSalesView}
                 isSelected={isIdSelected(unit.unit_id)}
                 status={getUnitStatus(unit)}
                 visibleCols={visibleCols}
@@ -4454,7 +4445,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={(visibleCols.length || 12) + 1} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
+                <td colSpan={(visibleCols.length || 12) + (isSalesView ? 1 : 0)} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
                   <Search size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
                   <div style={{ fontSize: 14 }}>
                     {activeTab === 'hold'
@@ -4582,75 +4573,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           )}
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        .table-responsive-scroll {
-          cursor: grab;
-        }
-        .table-responsive-scroll.active-drag {
-          cursor: grabbing;
-          user-select: none;
-        }
-        .table-responsive-scroll tbody tr {
-          transition: background-color 0.12s ease;
-        }
-
-        /* ── Hovering over any row (cursor on row) - Little Dark Color Highlight ── */
-        .table-responsive-scroll tbody tr:hover td {
-          background-color: rgba(37, 99, 235, 0.22) !important;
-          box-shadow: inset 0 1px 0 rgba(59, 130, 246, 0.35), inset 0 -1px 0 rgba(59, 130, 246, 0.35);
-        }
-        .table-responsive-scroll tbody tr:hover td:first-child {
-          border-left: 5px solid #3b82f6 !important;
-        }
-
-        .table-responsive-scroll tbody tr.row-hold:hover td {
-          background-color: rgba(245, 158, 11, 0.28) !important;
-          box-shadow: inset 0 1px 0 rgba(245, 158, 11, 0.45), inset 0 -1px 0 rgba(245, 158, 11, 0.45);
-        }
-        .table-responsive-scroll tbody tr.row-hold:hover td:first-child {
-          border-left: 5px solid #f59e0b !important;
-        }
-
-        .table-responsive-scroll tbody tr.row-cancelled:hover td {
-          background-color: rgba(239, 68, 68, 0.28) !important;
-          box-shadow: inset 0 1px 0 rgba(239, 68, 68, 0.45), inset 0 -1px 0 rgba(239, 68, 68, 0.45);
-        }
-        .table-responsive-scroll tbody tr.row-cancelled:hover td:first-child {
-          border-left: 5px solid #ef4444 !important;
-        }
-
-        /* ── Selected Row Highlight (Excel-style) ── */
-        .table-responsive-scroll tbody tr.row-selected td {
-          background-color: rgba(59, 130, 246, 0.16) !important;
-        }
-        .table-responsive-scroll tbody tr.row-selected td:first-child {
-          border-left: 5px solid #3b82f6 !important;
-        }
-        .table-responsive-scroll tbody tr.row-selected:hover td {
-          background-color: rgba(59, 130, 246, 0.26) !important;
-        }
-
-        .drag-handle {
-          color: var(--text3, #5a6070);
-          opacity: 0.4;
-          transition: opacity 0.15s;
-          flex-shrink: 0;
-        }
-        th:hover .drag-handle {
-          opacity: 0.9;
-          color: var(--blue, #3b82f6);
-        }
-        .dragging {
-          opacity: 0.4;
-        }
-        .drag-over-left {
-          box-shadow: inset 3px 0 0 0 #3b82f6 !important;
-        }
-        .drag-over-right {
-          box-shadow: inset -3px 0 0 0 #3b82f6 !important;
-        }
-      `}} />
 
       {/* ── In-App Viewer for PO Document ── */}
       {poPdfViewer && (
