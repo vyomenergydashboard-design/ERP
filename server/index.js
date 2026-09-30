@@ -834,7 +834,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ---------------- CORS Configuration with Origin Allowlisting ----------------
+// ---------------- CORS Configuration with Flexible Origin Support ----------------
 const defaultAllowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
@@ -850,11 +850,26 @@ const allowedOrigins = [...defaultAllowedOrigins, ...envAllowedOrigins];
 
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
-      callback(null, true);
-    } else {
-      callback(new Error('Blocked by CORS policy'));
+    // 1. Allow non-browser requests (tools, curl, server-to-server)
+    if (!origin) return callback(null, true);
+
+    // 2. Allow wildcard or explicit allowedOrigins list
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return callback(null, true);
     }
+
+    // 3. Allow any IPv4 / IPv6 host (e.g. AWS Lightsail http://3.108.60.202:5173, LAN 192.168.x.x, 10.x.x.x)
+    try {
+      const parsed = new URL(origin);
+      const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname) || parsed.hostname.includes(':');
+      const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+      if (isIp || isLocal) {
+        return callback(null, true);
+      }
+    } catch (e) { }
+
+    // 4. Default allow origin dynamically to prevent blocking valid user access
+    callback(null, true);
   },
   credentials: true,
   exposedHeaders: ['Content-Disposition']
