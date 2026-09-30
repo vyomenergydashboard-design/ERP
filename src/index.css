@@ -63,6 +63,12 @@
   --row-hold-bg-alt: #2c2214;
   --row-selected-bg: #122038;
   --row-selected-bg-alt: #162846;
+  --row-hover-bg: #151d30;
+  --row-hover-bg-alt: #1a243a;
+  --row-selected-hover-bg: #193158;
+  --row-selected-hover-bg-alt: #1e3966;
+  --row-hold-hover-bg: #332616;
+  --row-cancelled-hover-bg: #321c20;
 
   /* Theme toggle icon */
   --theme-icon: '️';
@@ -132,6 +138,12 @@
   --row-hold-bg-alt: #fde68a;
   --row-selected-bg: #dbeafe;
   --row-selected-bg-alt: #bfdbfe;
+  --row-hover-bg: #eaf1fb;
+  --row-hover-bg-alt: #e1ebfa;
+  --row-selected-hover-bg: #cbe0fc;
+  --row-selected-hover-bg-alt: #b8d4fa;
+  --row-hold-hover-bg: #fef0b8;
+  --row-cancelled-hover-bg: #fed7d7;
 
   /* Theme toggle icon */
   --theme-icon: '';
@@ -2194,3 +2206,458 @@ option { background-color: var(--bg3); color: var(--text); }
 /* ── Utility: prevent horizontal scroll on body ── */
 body { overflow-x: hidden; }
 .app-container { overflow-x: hidden; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ENTERPRISE MASTER TABLE & COLUMN STYLES (/frontend-ui-engineering)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Smooth Resizing Global State ── */
+body.resizing-active,
+body.resizing-active * {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+/* ── Table Responsive Container & Custom Scrollbar ── */
+.table-responsive-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  flex: 1;
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.28) rgba(15, 23, 42, 0.4);
+}
+
+.table-responsive-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-responsive-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.table-responsive-scroll::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  transition: background 0.15s ease;
+}
+
+.table-responsive-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.45);
+}
+
+[data-theme="light"] .table-responsive-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+[data-theme="light"] .table-responsive-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+[data-theme="light"] .table-responsive-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ── Master Table Base ── */
+.erp-master-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.erp-master-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Column Headers (<th>) ── */
+.erp-th {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: nowrap;
+  user-select: none;
+  border-bottom: 2px solid var(--border);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg2);
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.erp-th:hover {
+  background-color: var(--bg3) !important;
+  color: var(--text);
+}
+
+[data-theme="light"] .erp-th:hover {
+  background-color: var(--bg4) !important;
+}
+
+.erp-th.is-sorted {
+  color: var(--blue, #60a5fa) !important;
+  border-bottom-color: var(--blue, #3b82f6);
+}
+
+.erp-th-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.erp-th-label-zone {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+
+.erp-th-drag-handle {
+  opacity: 0.25;
+  color: var(--text3);
+  transition: all 0.15s ease;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.erp-th:hover .erp-th-drag-handle {
+  opacity: 0.85;
+  color: var(--blue, #3b82f6);
+}
+
+.erp-th-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.erp-th-sort-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+.sort-icon-idle {
+  opacity: 0.3;
+  color: var(--text3);
+  transition: opacity 0.15s;
+}
+
+.erp-th:hover .sort-icon-idle {
+  opacity: 0.7;
+}
+
+.sort-icon-active {
+  color: var(--blue, #3b82f6);
+  filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+}
+
+/* ── Header Freeze / Pin Button ── */
+.erp-th-pin-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  opacity: 0.4;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.erp-th-pin-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.erp-th-pin-btn.is-pinned {
+  opacity: 1;
+  color: var(--blue, #60a5fa);
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* ── Interactive Resize Handle ── */
+.erp-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  z-index: 10;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.erp-resize-handle::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  transition: all 0.15s ease;
+}
+
+.erp-resize-handle:hover::after,
+.erp-resize-handle:active::after {
+  background: #3b82f6;
+  width: 2px;
+  top: 0;
+  bottom: 0;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.8);
+}
+
+/* ── Header Drag & Drop Reordering ── */
+.erp-th.dragging {
+  opacity: 0.35;
+  background: rgba(59, 130, 246, 0.1) !important;
+}
+
+.erp-th.drag-over-left {
+  box-shadow: inset 3px 0 0 0 #3b82f6 !important;
+}
+
+.erp-th.drag-over-right {
+  box-shadow: inset -3px 0 0 0 #3b82f6 !important;
+}
+
+/* ── Table Cells (<td>) ── */
+.erp-td {
+  border-right: 1px solid rgba(255, 255, 255, 0.035);
+  padding: 6px 10px;
+  font-size: 12.5px;
+  vertical-align: middle;
+  line-height: 1.4;
+  transition: background-color 0.1s ease;
+}
+
+/* ── Frozen / Pinned Column Boundary ── */
+.erp-th.last-pinned,
+.erp-td.last-pinned {
+  border-right: 2px solid rgba(59, 130, 246, 0.45) !important;
+  box-shadow: 6px 0 16px -2px rgba(0, 0, 0, 0.55) !important;
+}
+
+[data-theme="light"] .erp-th.last-pinned,
+[data-theme="light"] .erp-td.last-pinned {
+  border-right: 2px solid #3b82f6 !important;
+  box-shadow: 4px 0 12px -2px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* ── Row Hover & Selection Dynamics ── */
+.table-responsive-scroll tbody tr {
+  transition: background-color 0.12s ease;
+}
+
+/* Base cell background must always be solid for position:sticky cells */
+.table-responsive-scroll tbody tr td {
+  background-color: var(--bg);
+}
+.table-responsive-scroll tbody tr:nth-child(even) td {
+  background-color: var(--bg2);
+}
+
+/* Row Hover on regular rows (100% opaque to prevent sticky column bleed-through) */
+.table-responsive-scroll tbody tr:hover td {
+  background-color: var(--row-hover-bg) !important;
+}
+.table-responsive-scroll tbody tr:nth-child(even):hover td {
+  background-color: var(--row-hover-bg-alt) !important;
+}
+
+/* Selected rows (100% opaque) */
+.table-responsive-scroll tbody tr.row-selected td {
+  background-color: var(--row-selected-bg) !important;
+}
+.table-responsive-scroll tbody tr.row-selected:nth-child(even) td {
+  background-color: var(--row-selected-bg-alt) !important;
+}
+.table-responsive-scroll tbody tr.row-selected:hover td {
+  background-color: var(--row-selected-hover-bg) !important;
+}
+.table-responsive-scroll tbody tr.row-selected:nth-child(even):hover td {
+  background-color: var(--row-selected-hover-bg-alt) !important;
+}
+
+/* Hold rows (100% opaque) */
+.table-responsive-scroll tbody tr.row-hold td {
+  background-color: var(--row-hold-bg) !important;
+}
+.table-responsive-scroll tbody tr.row-hold:nth-child(even) td {
+  background-color: var(--row-hold-bg-alt) !important;
+}
+.table-responsive-scroll tbody tr.row-hold:hover td {
+  background-color: var(--row-hold-hover-bg) !important;
+}
+
+/* Cancelled rows (100% opaque) */
+.table-responsive-scroll tbody tr.row-cancelled td {
+  background-color: var(--row-cancelled-bg) !important;
+}
+.table-responsive-scroll tbody tr.row-cancelled:nth-child(even) td {
+  background-color: var(--row-cancelled-bg-alt) !important;
+}
+.table-responsive-scroll tbody tr.row-cancelled:hover td {
+  background-color: var(--row-cancelled-hover-bg) !important;
+}
+
+/* ── Modern Status Badges (/frontend-ui-engineering) ── */
+.erp-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.erp-status-pill.completed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.32);
+}
+
+.erp-status-pill.inprogress {
+  background: rgba(59, 130, 246, 0.14);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.32);
+}
+
+.erp-status-pill.pending {
+  background: rgba(100, 116, 139, 0.14);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.26);
+}
+
+.erp-status-pill.hold {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  box-shadow: 0 1px 4px rgba(245, 158, 11, 0.15);
+}
+
+.erp-status-pill.blocked {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  box-shadow: 0 1px 4px rgba(239, 68, 68, 0.15);
+}
+
+.erp-status-pill.cancelled {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.26);
+}
+
+/* ── Modern Priority Badges & Select ── */
+.erp-priority-select {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  outline: none;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.erp-priority-select.urgent,
+.erp-priority-pill.urgent {
+  background: rgba(239, 68, 68, 0.18);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.erp-priority-select.high,
+.erp-priority-pill.high {
+  background: rgba(248, 113, 113, 0.16);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.erp-priority-select.medium,
+.erp-priority-pill.medium {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+}
+
+.erp-priority-select.low,
+.erp-priority-pill.low {
+  background: rgba(96, 165, 250, 0.16);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+}
+
+.erp-priority-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+/* ── Light Mode Polish ── */
+[data-theme="light"] .erp-th {
+  background: #f8fafc;
+  color: #475569;
+  border-bottom: 2px solid #e2e8f0;
+  border-right: 1px solid #edf2f7;
+}
+
+[data-theme="light"] .erp-th:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a;
+}
+
+[data-theme="light"] .erp-td {
+  border-right: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+[data-theme="light"] .erp-resize-handle::after {
+  background: rgba(0, 0, 0, 0.1);
+}
+
