@@ -10,6 +10,9 @@ const pool = new Pool({
   database: process.env.DB_NAME || 'erp_db',
   password: process.env.DB_PASSWORD || 'postgres',
   port: process.env.DB_PORT || 5432,
+  max: 25, // Maintain resilient concurrency ceiling
+  idleTimeoutMillis: 30000, // Reclaim idle connection handles after 30s
+  connectionTimeoutMillis: 5000, // Fail fast after 5s instead of indefinite queueing
 });
 
 export default pool;

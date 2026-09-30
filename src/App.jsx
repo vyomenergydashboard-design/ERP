@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Maximize2, Minimize2, PanelLeftClose } from 'lucide-react';
 import Header from './components/Header';
@@ -11,16 +11,18 @@ import AllOrdersTableView from './components/AllOrdersTableView';
 import RightPanel from './components/RightPanel';
 import StepModal from './components/StepModal';
 import Login from './components/Login';
-import UserManagement from './components/UserManagement';
-import OrderCreationFlow from './components/OrderCreationFlow';
-import OrderImport from './components/OrderImport';
 import OrderList from './components/OrderList';
-import Masters from './components/Masters';
-import LogsView from './components/LogsView';
-import PlanningModule from './components/PlanningModule';
-import SettingsView from './components/Settings';
 import DeptWorklist from './components/DeptWorklist';
-import DocumentDirectory from './components/DocumentDirectory';
+
+// Code-split heavy route modules with dynamic imports
+const PlanningModule = lazy(() => import('./components/PlanningModule'));
+const Masters = lazy(() => import('./components/Masters'));
+const UserManagement = lazy(() => import('./components/UserManagement'));
+const OrderCreationFlow = lazy(() => import('./components/OrderCreationFlow'));
+const OrderImport = lazy(() => import('./components/OrderImport'));
+const DocumentDirectory = lazy(() => import('./components/DocumentDirectory'));
+const LogsView = lazy(() => import('./components/LogsView'));
+const SettingsView = lazy(() => import('./components/Settings'));
 import ErrorBoundary from './components/ErrorBoundary';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
@@ -469,6 +471,13 @@ function Dashboard() {
           </div>
 
           <ErrorBoundary key={currentView} name={currentView.toUpperCase()}>
+            <Suspense fallback={
+              <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text3)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: 28, height: 28, border: '3px solid var(--border)', borderTopColor: 'var(--blue)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ fontSize: 13, fontWeight: 500 }}>Loading view...</span>
+              </div>
+            }>
+
             {currentView === 'board' ? (
               <BoardView 
                 currentFilter={currentFilter} 
@@ -539,6 +548,8 @@ function Dashboard() {
             ) : (
               <UserManagement />
             )}
+          
+            </Suspense>
           </ErrorBoundary>
         </main>
         {currentView !== 'planning' && user.role === 'Admin' && (
@@ -569,7 +580,7 @@ export default function App() {
   useGlobalModalEscape();
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route 

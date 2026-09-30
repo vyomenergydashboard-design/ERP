@@ -895,6 +895,7 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
 function renderCellContent({
   unit,
   colKey,
+  currentFilter,
   status,
   canEdit,
   canEditPanelSize,
@@ -1001,7 +1002,8 @@ function renderCellContent({
       const clsVal = unit.classification || 'Standard';
       const isConfirmed = Boolean(unit.design_confirmed);
       const isStd = clsVal.toLowerCase() === 'standard';
-      const groupCls = `design-type-control-group ${isStd ? 'standard' : 'non-standard'}${isConfirmed ? ' is-confirmed' : ''}`;
+      const isSales = (currentFilter || '').toLowerCase() === 'sales' || (unit.current_dept || '').toLowerCase() === 'sales';
+      const groupCls = `design-type-control-group ${isStd ? 'standard' : 'non-standard'}${!isSales && isConfirmed ? ' is-confirmed' : ''}`;
 
       return (
         <div 
@@ -1027,29 +1029,22 @@ function renderCellContent({
             </span>
           )}
 
-          {isConfirmed ? (
-            <button
-              type="button"
-              className={`btn-confirmed-indicator${canConfirmDesign ? ' can-reset' : ''}`}
-              title={unit.design_confirmed_at ? `Confirmed by ${unit.design_confirmed_by_name || 'Design'} on ${formatFastDateTime(unit.design_confirmed_at)}${canConfirmDesign ? ' (Click to reset sign-off)' : ''}` : `Confirmed by Design${canConfirmDesign ? ' (Click to reset sign-off)' : ''}`}
-              onClick={() => {
-                if (canConfirmDesign && window.confirm(`Reset Design confirmation for Unit ${unit.short_serial || unit.unit_id} to re-evaluate?`)) {
-                  onUnconfirmDesignClassification?.(unit);
-                }
-              }}
-            >
-              <Check size={11} strokeWidth={2.8} />
-              <span>Confirmed</span>
-            </button>
-          ) : (unit.current_dept || '').toLowerCase() === 'sales' ? (
-            <span
-              className="design-unconfirmed-indicator awaiting-sales"
-              title="Awaiting Sales clearance. A panel only arrives in Design after Sales has cleared it."
-            >
-              Awaiting Sales
-            </span>
-          ) : (
-            canConfirmDesign ? (
+          {!isSales && (
+            isConfirmed ? (
+              <button
+                type="button"
+                className={`btn-confirmed-indicator${canConfirmDesign ? ' can-reset' : ''}`}
+                title={unit.design_confirmed_at ? `Confirmed by ${unit.design_confirmed_by_name || 'Design'} on ${formatFastDateTime(unit.design_confirmed_at)}${canConfirmDesign ? ' (Click to reset sign-off)' : ''}` : `Confirmed by Design${canConfirmDesign ? ' (Click to reset sign-off)' : ''}`}
+                onClick={() => {
+                  if (canConfirmDesign && window.confirm(`Reset Design confirmation for Unit ${unit.short_serial || unit.unit_id} to re-evaluate?`)) {
+                    onUnconfirmDesignClassification?.(unit);
+                  }
+                }}
+              >
+                <Check size={11} strokeWidth={2.8} />
+                <span>Confirmed</span>
+              </button>
+            ) : canConfirmDesign ? (
               <button
                 type="button"
                 className="btn-confirm-action"
@@ -1810,6 +1805,7 @@ function renderCellContent({
 const TableRow = memo(function TableRow({
   unit,
   idx,
+  currentFilter,
   isSelected,
   status,
   visibleCols,
@@ -1949,6 +1945,7 @@ const TableRow = memo(function TableRow({
             {renderCellContent({
               unit,
               colKey,
+              currentFilter,
               status,
               canEdit,
               canEditPanelSize,
@@ -1978,6 +1975,7 @@ const TableRow = memo(function TableRow({
 }, (prevProps, nextProps) => {
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.unit !== nextProps.unit) return false;
+  if (prevProps.currentFilter !== nextProps.currentFilter) return false;
   if (prevProps.idx !== nextProps.idx) return false;
   if (prevProps.status !== nextProps.status) return false;
   if (prevProps.columnWidths !== nextProps.columnWidths) return false;
@@ -3579,7 +3577,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const fetchUnits = async (silent = false) => {
     if (!silent) setIsLoading(true);
     try {
-      const deptParam = currentFilter === 'all' ? 'Sales' : currentFilter;
+      const deptParam = currentFilter;
       const res = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(deptParam)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -4423,6 +4421,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 key={unit.unit_id}
                 unit={unit}
                 idx={idx}
+                currentFilter={currentFilter}
                 isSelected={isIdSelected(unit.unit_id)}
                 status={getUnitStatus(unit)}
                 visibleCols={visibleCols}

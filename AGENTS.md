@@ -28,8 +28,8 @@ Vyom ERP is a full-stack manufacturing ERP and production planning system design
 ```
 
 ### Core Business Workflow
-1. **Sales:** Uploads customer PO & specs, creates order with line items, sets target dates.
-2. **Design:** Reviews classification (Standard vs Non-Standard), releases BOM, layout, and electrical drawings.
+1. **Sales:** Uploads customer PO & specs, creates order with line items, sets target dates. Panels remain in `Sales` until unit-level Sales Clearance is completed.
+2. **Design:** Reviews classification (Standard vs Non-Standard), releases BOM, layout, and electrical drawings. **STRICT INVARIANT: Without BOTH Drawing and BOM uploaded and Design confirmed, NO panel can advance to Purchase or any subsequent department.**
 3. **Purchase & Stores:** Checks BOM stock against inventory, flags shortfalls, raises purchase POs, confirms material acceptance.
 4. **Planning:** Allocates daily production capacity, schedules wiring and mounting, sets dispatch commitments.
 5. **Production:** Manufactures physical panels (mechanical fitters + electrical wiremen).
@@ -249,3 +249,12 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
 6. **Monolithic Code Decomposition:**
    - `server/index.js` (~6,000 lines) and `AllOrdersTableView.jsx` (~6,000 lines) are high-risk files.
    - When adding new capabilities, do NOT continue appending to these monoliths. Extract new logic into separate modular files (e.g. `server/routes/...` or focused subcomponents in `src/components/...`).
+
+7. **Drawing and BOM Mandatory Gate for Department Advancement:**
+   - Without BOTH Drawing and BOM, NO panel may advance past Design to Purchase or any subsequent department.
+   - The `Release Documents` step can only transition to `done` when `hasDrawing && hasBom && designConfirmed` are all true.
+   - In `deriveUnitStatus`, an unbreakable hard gate blocks advancing `current_dept` beyond `Design` if either Drawing or BOM is missing.
+
+8. **Sales Clearance to Design Gate:**
+   - A panel only comes to Design after Sales has completed unit-level Sales clearance (`unit.current_dept === 'Sales'` until Sales clearance is done).
+   - Design confirmation (`POST /api/units/:id/design-confirm`) is strictly blocked with HTTP 400 if Sales clearance is pending.
