@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import {
   FileText, UploadCloud, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
-  Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, ChevronUp, ChevronDown, Check, X
+  Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, ChevronUp, ChevronDown, Check, X, Layers
 } from 'lucide-react';
 
 export default function TechnicalDocsModal({

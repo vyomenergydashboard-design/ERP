@@ -1,63 +1,66 @@
-import pool from './db.js';
 import assert from 'assert';
+import pg from 'pg';
 import jwt from 'jsonwebtoken';
 
-const API_BASE = 'http://localhost:5000';
+const { Pool } = pg;
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db';
+const pool = new Pool({ connectionString });
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const API_BASE = process.env.API_BASE || 'http://localhost:5000';
+
+const designToken = jwt.sign({ id: 31, username: 'design', role: 'Design' }, JWT_SECRET, { expiresIn: '1h' });
+const salesToken = jwt.sign({ id: 27, username: 'sales', role: 'Sales' }, JWT_SECRET, { expiresIn: '1h' });
 
 async function run() {
   console.log('====================================================');
   console.log('  TEST SUITE: SALES CLEARANCE TO DESIGN GATE');
   console.log('====================================================\n');
 
-  let testOrderId, testUnitId;
+  let testOrderId = null;
+  let testUnitId = null;
 
   try {
-    const salesUser = (await pool.query("SELECT id, role, username FROM users WHERE role = 'Sales' LIMIT 1")).rows[0];
-    const designUser = (await pool.query("SELECT id, role, username FROM users WHERE role = 'Design' LIMIT 1")).rows[0];
-    const designToken = jwt.sign({ id: designUser.id, username: designUser.username, role: designUser.role }, JWT_SECRET, { expiresIn: '1h' });
-    const salesToken = jwt.sign({ id: salesUser.id, username: salesUser.username, role: salesUser.role }, JWT_SECRET, { expiresIn: '1h' });
-
-    // 2. Create test company location, order, and unit
-    await pool.query("DELETE FROM orders WHERE order_number LIKE 'TEST-GATE-%'");
     const locRes = await pool.query('SELECT id FROM company_locations LIMIT 1');
-    const locId = locRes.rows[0].id;
+    const locId = locRes.rows[0]?.id || 1;
 
     const ordRes = await pool.query(`
       INSERT INTO orders (order_number, company_location_id, priority, created_by, status)
-      VALUES ('TEST-GATE-7777', $1, 'High', 1, 'Active')
+      VALUES ('TEST-SALES-9999', $1, 'Medium', 1, 'Active')
       RETURNING id
     `, [locId]);
     testOrderId = ordRes.rows[0].id;
 
     const liRes = await pool.query(`
       INSERT INTO order_line_items (order_id, line_item_number, material_description, quantity, unit, unit_price, total_price)
-      VALUES ($1, 'TEST-GATE-7777-01', 'Gate Test Panel', 1, 'Nos', 5000, 5000)
+      VALUES ($1, 'TEST-SALES-9999-01', 'Test Standard Panel', 1, 'Nos', 5000, 5000)
       RETURNING id
     `, [testOrderId]);
     const lineItemId = liRes.rows[0].id;
 
     const uRes = await pool.query(`
       INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, classification, design_confirmed, current_dept)
-      VALUES ($1, $2, '77770001', '0001', 'Standard', FALSE, 'Sales')
-      RETURNING id
+      VALUES ($1, $2, '99990001', '0001', 'Standard', FALSE, 'Sales')
+      RETURNING id, unit_id, classification, design_confirmed
     `, [testOrderId, lineItemId]);
     testUnitId = uRes.rows[0].id;
 
-    // Steps: Sales Clearance (Sales), Review & Classify (Design), Release Documents (Design), Receive Shortfall (Purchase)
-    const s1Res = await pool.query(`
-      INSERT INTO unit_steps (order_unit_id, name, dept, status, step_order)
-      VALUES ($1, 'Sales Clearance', 'Sales', 'pending', 1)
-      RETURNING id
-    `, [testUnitId]);
-    const salesStepId = s1Res.rows[0].id;
-
-    await pool.query(`
+    const sRes = await pool.query(`
       INSERT INTO unit_steps (order_unit_id, name, dept, status, step_order)
       VALUES 
+        ($1, 'Sales Clearance', 'Sales', 'pending', 1),
         ($1, 'Review & Classify', 'Design', 'pending', 2),
         ($1, 'Release Documents', 'Design', 'pending', 3),
         ($1, 'Receive Shortfall', 'Purchase', 'pending', 4)
+      RETURNING id, name
+    `, [testUnitId]);
+    const salesStepId = sRes.rows.find(r => r.name === 'Sales Clearance').id;
+
+    // Attach dummy Drawing & BOM documents to the unit so it can advance once Design confirms
+    await pool.query(`
+      INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
+      VALUES 
+        ('Unit', $1, 'Drawing', 'panel_drawing.pdf', 'uploads/panel_drawing.pdf', 1),
+        ('Unit', $1, 'BOM', 'panel_bom.xlsx', 'uploads/panel_bom.xlsx', 1)
     `, [testUnitId]);
 
     console.log('[TEST 1] Verifying panel remains in Sales when Sales Clearance is pending...');
@@ -99,7 +102,7 @@ async function run() {
 
     const uState3 = (await pool.query(`SELECT current_dept, status, design_confirmed FROM order_units WHERE id = $1`, [testUnitId])).rows[0];
     assert.strictEqual(uState3.design_confirmed, true, `design_confirmed must be true`);
-    assert.strictEqual(uState3.current_dept, 'Purchase', `Unit must advance to Purchase after Design confirms (got "${uState3.current_dept}")`);
+    assert.strictEqual(uState3.current_dept, 'Purchase', `Unit must advance to Purchase after Design confirms with Drawing and BOM attached (got "${uState3.current_dept}")`);
     console.log('  ✓ PASSED: Design confirmed panel and it advanced directly to "Purchase"');
 
     console.log('\n====================================================');
@@ -111,6 +114,7 @@ async function run() {
     process.exit(1);
   } finally {
     if (testOrderId) {
+      await pool.query('DELETE FROM documents WHERE entity_type = $1 AND entity_id = $2', ['Unit', testUnitId]);
       await pool.query('DELETE FROM unit_steps WHERE order_unit_id IN (SELECT id FROM order_units WHERE order_id = $1)', [testOrderId]);
       await pool.query('DELETE FROM order_units WHERE order_id = $1', [testOrderId]);
       await pool.query('DELETE FROM order_line_items WHERE order_id = $1', [testOrderId]);

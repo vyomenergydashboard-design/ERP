@@ -434,6 +434,18 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
             };
             
             newStatus = statusMap[firstIncomplete.dept] || 'Production';
+
+            // HARD SAFETY GATE: Without BOTH Drawing and BOM, no panel can go to next department (Purchase, Stores, Planning, etc.)
+            const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
+            const deptIdx = PIPELINE.indexOf(newDept);
+            const designIdx = PIPELINE.indexOf('Design');
+            if (deptIdx > designIdx) {
+              const docInfo = await evaluateUnitDesignDocuments(clientOrPool, unitId);
+              if (!docInfo.hasDrawing || !docInfo.hasBom) {
+                newDept = 'Design';
+                newStatus = 'Design';
+              }
+            }
           }
         }
       }
@@ -526,20 +538,22 @@ export const syncUnitDesignDocumentStatus = async (clientOrPool, unitId, userId 
   let newStatus = 'pending';
   let newNotes = 'Awaiting Drawing and BOM upload.';
 
-  if (designConfirmed) {
+  // Mandatory Invariant: Without BOTH Drawing and BOM, Release Documents is NEVER done and panel NEVER advances to Purchase
+  if (hasDrawing && hasBom && designConfirmed) {
     newStatus = 'done';
-    if (hasDrawing && hasBom) {
-      newNotes = 'Drawing and BOM released by Design.';
-    } else if (hasDrawing) {
-      newNotes = 'Drawing attached; released to Purchase by Design.';
-    } else if (hasBom) {
-      newNotes = 'BOM attached; released to Purchase by Design.';
-    } else {
-      newNotes = 'Confirmed & released to Purchase by Design.';
-    }
+    newNotes = 'Drawing and BOM released by Design.';
   } else if (hasDrawing && hasBom) {
     newStatus = 'inprogress';
     newNotes = 'Drawing and BOM present; pending Design confirmation.';
+  } else if (designConfirmed) {
+    newStatus = 'inprogress';
+    if (hasDrawing) {
+      newNotes = 'Design confirmed & Drawing present; awaiting BOM upload.';
+    } else if (hasBom) {
+      newNotes = 'Design confirmed & BOM present; awaiting Drawing upload.';
+    } else {
+      newNotes = 'Design confirmed; awaiting Drawing and BOM upload.';
+    }
   } else if (hasDrawing || hasBom) {
     newStatus = 'inprogress';
     newNotes = hasDrawing ? 'Drawing attached; BOM pending.' : 'BOM attached; Drawing pending.';
@@ -810,15 +824,104 @@ const initDB = async () => {
 
 initDB();
 
+// ---------------- Security Headers Middleware ----------------
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.removeHeader('X-Powered-By');
+  next();
+});
+
+// ---------------- CORS Configuration with Origin Allowlisting ----------------
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:5000'
+];
+const envAllowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim())
+  : [];
+const allowedOrigins = [...defaultAllowedOrigins, ...envAllowedOrigins];
+
 app.use(cors({
-  origin: '*',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Blocked by CORS policy'));
+    }
+  },
+  credentials: true,
   exposedHeaders: ['Content-Disposition']
 }));
+
 app.use(express.json());
 app.use((req, res, next) => {
   console.log(`[REQUEST] ${req.method} ${req.url}`);
   next();
 });
+
+// ---------------- In-Memory Rate Limiting for Auth ----------------
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 15;
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+const loginRateLimiter = (req, res, next) => {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  
+  const record = loginAttempts.get(ip);
+  if (record) {
+    if (now - record.firstAttemptTime > LOGIN_WINDOW_MS) {
+      loginAttempts.set(ip, { count: 1, firstAttemptTime: now });
+    } else if (record.count >= MAX_LOGIN_ATTEMPTS) {
+      const waitMinutes = Math.ceil((LOGIN_WINDOW_MS - (now - record.firstAttemptTime)) / 60000);
+      return res.status(429).json({ 
+        error: `Too many failed login attempts. Please try again after ${waitMinutes} minute(s).` 
+      });
+    } else {
+      record.count += 1;
+    }
+  } else {
+    loginAttempts.set(ip, { count: 1, firstAttemptTime: now });
+  }
+
+  // Periodic pruning of expired rate limit entries
+  if (loginAttempts.size > 2000) {
+    for (const [k, v] of loginAttempts.entries()) {
+      if (now - v.firstAttemptTime > LOGIN_WINDOW_MS) loginAttempts.delete(k);
+    }
+  }
+
+  next();
+};
+
+// ---------------- Multer Sanitization & File Type Security ----------------
+const sanitizeOriginalFileName = (originalName) => {
+  if (!originalName) return 'unnamed_file';
+  // Strip null bytes, path traversal, and hazardous characters
+  const base = path.basename(originalName).replace(/\0/g, '');
+  return base.replace(/[^a-zA-Z0-9._-]/g, '_');
+};
+
+const BLOCKED_EXTENSIONS = new Set([
+  '.exe', '.bat', '.cmd', '.sh', '.bash', '.php', '.phtml', '.pl', '.cgi', 
+  '.js', '.mjs', '.vbs', '.ps1', '.jar', '.apk', '.msi', '.com', '.scr', 
+  '.hta', '.html', '.htm', '.svg'
+]);
+
+const uploadFileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname || '').toLowerCase();
+  if (BLOCKED_EXTENSIONS.has(ext)) {
+    return cb(new Error(`File extension '${ext}' is not permitted for security reasons.`));
+  }
+  cb(null, true);
+};
 
 // Multer Configuration
 const storage = multer.diskStorage({
@@ -831,12 +934,14 @@ const storage = multer.diskStorage({
   },
   filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    const safeName = sanitizeOriginalFileName(file.originalname);
+    cb(null, uniqueSuffix + '-' + safeName);
   }
 });
 
 const upload = multer({ 
   storage: storage,
+  fileFilter: uploadFileFilter,
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB total limit
 });
 
@@ -940,7 +1045,7 @@ app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', loginRateLimiter, async (req, res) => {
   const { email, password } = req.body;
   console.log(`[LOGIN TRY] Email: "${email}"`);
   try {
@@ -956,6 +1061,10 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
     console.log(`[LOGIN SUCCESS] Email: "${email}", Role: "${user.role}"`);
+    // Clear failed login tracking on successful authentication
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    loginAttempts.delete(clientIp);
+
     const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '12h' });
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role } });
   } catch (err) {
@@ -3932,6 +4041,19 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         }
       }
 
+      // Mandatory Drawing + BOM gate: Release Documents cannot be completed if Drawing or BOM is missing
+      if (newStatus === 'done' && step.dept === 'Design' && (step.name === 'Release Documents' || step.name.toLowerCase().includes('release'))) {
+        for (const tu of targetUnits) {
+          const docInfo = await evaluateUnitDesignDocuments(client, tu.id);
+          if (!docInfo.hasDrawing || !docInfo.hasBom) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: 'Cannot complete task: Both Drawing and BOM must be uploaded before this panel can leave Design.'
+            });
+          }
+        }
+      }
+
       for (const tu of targetUnits) {
         const matchingStep = await client.query(
           'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
@@ -4491,7 +4613,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ORDER BY uploaded_at DESC 
         LIMIT 1
       ) oindentdoc ON true
-      WHERE $1 = 'Sales' 
+      WHERE $1 = 'all' 
          OR ou.current_dept = $1 
          OR ou.hold_status IN ('Hold', 'Cancelled')
          OR ou.status = 'Cancelled'
@@ -6140,7 +6262,16 @@ app.get('/api/template/download', templateHandler);
 app.get('/api/template/order_import_template.xlsx', templateHandler);
 
 // Static files
-app.use('/uploads', authorize(), express.static(path.join(__dirname, 'uploads')));
+// Static files with Security Sandboxing
+app.use('/uploads', authorize(), (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+}, express.static(path.join(__dirname, 'uploads'), {
+  dotfiles: 'ignore',
+  index: false
+}));
 
 // Error handling
 app.use((err, req, res, next) => {

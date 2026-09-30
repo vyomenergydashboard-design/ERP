@@ -71,7 +71,7 @@ async function runTestSuite() {
     testUnitId = uRes.rows[0].id;
     assert(testUnitId, `Created test unit #${testUnitId}`);
 
-    // Insert steps: Review & Classify (1), Release Documents (2)
+    // Insert steps: Review & Classify (1), Release Documents (2), Receive Shortfall (3)
     await pool.query(`
       INSERT INTO unit_steps (order_unit_id, name, dept, status, step_order)
       VALUES 
@@ -108,8 +108,8 @@ async function runTestSuite() {
     });
     assert(salesConfirmRes.status === 403, `Sales role blocked with HTTP 403 (got ${salesConfirmRes.status})`);
 
-    // 3. Design confirms the panel
-    console.log('[TEST 4] Design confirms the panel...');
+    // 3. Design confirms the panel without docs
+    console.log('[TEST 4] Design confirms the panel without docs (must stay in Design)...');
     const designConfirmRes = await fetch(`${API_BASE}/api/units/${testUnitId}/design-confirm`, {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${designToken}` }
@@ -118,7 +118,7 @@ async function runTestSuite() {
     const confirmBody = await designConfirmRes.json();
     assert(confirmBody.unit && confirmBody.unit.design_confirmed === true, 'Response confirms design_confirmed is true');
 
-    // Verify in DB / worklist
+    // Verify in DB / worklist: Step 1 is done, Step 2 is inprogress, Unit REMAINS in Design
     const wlRes2 = await fetch(`${API_BASE}/api/dept-worklist/Design`, {
       headers: { 'Authorization': `Bearer ${designToken}` }
     });
@@ -127,11 +127,11 @@ async function runTestSuite() {
     const step1_conf = (testUnitWl2.dept_steps || []).find(s => s.name === 'Review & Classify');
     const step2_conf = (testUnitWl2.dept_steps || []).find(s => s.name === 'Release Documents');
     assert(step1_conf.status === 'done', 'Step 1 ("Review & Classify") is auto marked DONE');
-    assert(step2_conf.status === 'done', 'Step 2 ("Release Documents") is marked DONE upon confirmation, advancing to Purchase');
-    assert(testUnitWl2.current_dept === 'Purchase', `Unit advances directly to Purchase (got "${testUnitWl2.current_dept}")`);
+    assert(step2_conf.status === 'inprogress', 'Step 2 ("Release Documents") is inprogress because docs are missing');
+    assert(testUnitWl2.current_dept === 'Design', `Unit remains in Design without both docs (got "${testUnitWl2.current_dept}")`);
 
     // 4. Upload 1 document (Drawing only)
-    console.log('[TEST 5] Uploading Drawing only (1 doc)...');
+    console.log('[TEST 5] Uploading Drawing only (1 doc) - must still remain in Design...');
     const drawForm = new FormData();
     drawForm.append('entity_type', 'Unit');
     drawForm.append('entity_id', String(testUnitId));
@@ -143,22 +143,20 @@ async function runTestSuite() {
       headers: { 'Authorization': `Bearer ${designToken}` },
       body: drawForm
     });
-    if (upDrawRes.status !== 200 && upDrawRes.status !== 201) {
-      console.error('Drawing upload failed:', upDrawRes.status, await upDrawRes.text());
-    }
     assert(upDrawRes.status === 200 || upDrawRes.status === 201, `Drawing upload returned 200/201 (got ${upDrawRes.status})`);
 
-    const wlRes3 = await fetch(`${API_BASE}/api/dept-worklist/Purchase`, {
+    const wlRes3 = await fetch(`${API_BASE}/api/dept-worklist/Design`, {
       headers: { 'Authorization': `Bearer ${designToken}` }
     });
     const wlUnits3 = await wlRes3.json();
     const testUnitWl3 = wlUnits3.find(u => u.unit_id === testUnitId || u.id === testUnitId);
-    const step2_draw = (testUnitWl3.design_steps || []).find(s => s.name === 'Release Documents');
-    assert(step2_draw && step2_draw.status === 'done', 'Step 2 remains DONE in Purchase with Drawing attached');
-    assert(step2_draw.notes.includes('Drawing attached') || step2_draw.notes.includes('released to Purchase'), `Step 2 notes specify drawing attached (got "${step2_draw.notes}")`);
+    assert(testUnitWl3.current_dept === 'Design', 'Unit still remains in Design when only Drawing is present (BOM missing)');
+    const step2_draw = (testUnitWl3.dept_steps || []).find(s => s.name === 'Release Documents');
+    assert(step2_draw && step2_draw.status === 'inprogress', 'Step 2 remains inprogress (BOM pending)');
+    assert(step2_draw.notes.includes('awaiting BOM') || step2_draw.notes.includes('BOM pending'), `Step 2 notes state BOM is pending (got "${step2_draw.notes}")`);
 
     // 5. Upload second document (BOM)
-    console.log('[TEST 6] Uploading BOM (both docs now present)...');
+    console.log('[TEST 6] Uploading BOM (both docs now present) - must now advance to Purchase...');
     const bomForm = new FormData();
     bomForm.append('entity_type', 'Unit');
     bomForm.append('entity_id', String(testUnitId));
@@ -172,11 +170,13 @@ async function runTestSuite() {
     });
     assert(upBomRes.status === 200 || upBomRes.status === 201, `BOM upload returned 200/201 (got ${upBomRes.status})`);
 
-    // Because both docs exist AND panel is confirmed, Step 2 must be auto DONE!
+    // Because both docs exist AND panel is confirmed, Step 2 must be auto DONE and unit moves to Purchase!
     const stepsAfterBoth = await pool.query('SELECT name, status, notes FROM unit_steps WHERE order_unit_id = $1', [testUnitId]);
+    const uStateBoth = await pool.query('SELECT current_dept FROM order_units WHERE id = $1', [testUnitId]);
     const step2_both = stepsAfterBoth.rows.find(s => s.name === 'Release Documents');
     assert(step2_both && step2_both.status === 'done', 'Step 2 is auto DONE when both docs are attached and Design confirmed!');
-    assert(step2_both.notes.includes('released by Design') || step2_both.notes.includes('Verified by Design'), `Step 2 notes confirm verification (got "${step2_both.notes}")`);
+    assert(step2_both.notes.includes('released by Design'), `Step 2 notes confirm release by Design (got "${step2_both.notes}")`);
+    assert(uStateBoth.rows[0].current_dept === 'Purchase', `Unit advances to Purchase now that both Drawing and BOM are present (got "${uStateBoth.rows[0].current_dept}")`);
 
     // 6. Test Un-confirming
     console.log('[TEST 7] Un-confirming Design classification...');
@@ -187,10 +187,11 @@ async function runTestSuite() {
     assert(unconfirmRes.status === 200, `Unconfirm returned 200`);
 
     const stepsAfterUnconf = await pool.query('SELECT name, status, notes FROM unit_steps WHERE order_unit_id = $1', [testUnitId]);
-    const uAfterUnconf = await pool.query('SELECT design_confirmed FROM order_units WHERE id = $1', [testUnitId]);
+    const uAfterUnconf = await pool.query('SELECT current_dept, design_confirmed FROM order_units WHERE id = $1', [testUnitId]);
     const step1_unconf = stepsAfterUnconf.rows.find(s => s.name === 'Review & Classify');
     const step2_unconf = stepsAfterUnconf.rows.find(s => s.name === 'Release Documents');
     assert(uAfterUnconf.rows[0].design_confirmed === false, 'Unit design_confirmed is false after unconfirm');
+    assert(uAfterUnconf.rows[0].current_dept === 'Design', 'Unit returns to Design when unconfirmed');
     assert(step1_unconf.status === 'pending' || step1_unconf.status === 'inprogress', `Step 1 reverted from done (status: ${step1_unconf.status})`);
     assert(step2_unconf.status === 'inprogress', `Step 2 reverted from done to inprogress (status: ${step2_unconf.status})`);
     assert(step2_unconf.notes.includes('pending Design confirmation'), `Step 2 notes show awaiting Design confirmation (got "${step2_unconf.notes}")`);

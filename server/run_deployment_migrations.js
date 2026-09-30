@@ -281,7 +281,31 @@ export async function runDeploymentMigrations(clientParam) {
       console.log('[Deployment Migration] Unit serials re-aligned successfully.');
     }
 
-    // ── Sync completed planning units to Production ───────────────────────
+
+    // ── High-Performance B-Tree Database Indexes ─────────────────────────
+    try {
+      console.log('[Deployment Migration] Creating high-performance database indexes...');
+      await client.query(`
+        CREATE INDEX IF NOT EXISTS idx_order_units_order_id ON order_units(order_id);
+        CREATE INDEX IF NOT EXISTS idx_order_units_line_item_id ON order_units(line_item_id);
+        CREATE INDEX IF NOT EXISTS idx_order_units_current_dept ON order_units(current_dept);
+        CREATE INDEX IF NOT EXISTS idx_order_units_status ON order_units(status);
+        CREATE INDEX IF NOT EXISTS idx_order_units_hold_status ON order_units(hold_status);
+        CREATE INDEX IF NOT EXISTS idx_unit_steps_order_unit_id ON unit_steps(order_unit_id);
+        CREATE INDEX IF NOT EXISTS idx_unit_steps_dept_status ON unit_steps(dept, status);
+        CREATE INDEX IF NOT EXISTS idx_order_steps_order_id ON order_steps(order_id);
+        CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);
+        CREATE INDEX IF NOT EXISTS idx_part_number_masters_part_number ON part_number_masters(part_number);
+        CREATE INDEX IF NOT EXISTS idx_part_number_documents_part_id ON part_number_documents(part_number_id);
+        CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+        CREATE INDEX IF NOT EXISTS idx_orders_priority ON orders(priority);
+      `);
+      console.log('[Deployment Migration] High-performance indexes verified & active.');
+    } catch (idxErr) {
+      console.error('[Deployment Migration] Index creation warning:', idxErr.message || idxErr);
+    }
+
+        // ── Sync completed planning units to Production ───────────────────────
     try {
       console.log('[Deployment Migration] Syncing planned/completed units to Production...');
       await client.query(`
