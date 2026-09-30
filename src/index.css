@@ -1007,6 +1007,186 @@ input::placeholder, textarea::placeholder {
 .tag-standard { color: var(--green); font-family: var(--font-mono); font-size: 10px; }
 .tag-nonstandard { color: var(--orange); font-family: var(--font-mono); font-size: 10px; }
 
+/* ── Design Classification & Confirmation Control Group ── */
+.design-type-control-group {
+  display: inline-flex;
+  align-items: stretch;
+  height: 25px;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+/* Border styles depending on state */
+.design-type-control-group.standard {
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.design-type-control-group.standard:hover {
+  border-color: rgba(59, 130, 246, 0.6);
+}
+
+.design-type-control-group.non-standard {
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.design-type-control-group.non-standard:hover {
+  border-color: rgba(245, 158, 11, 0.6);
+}
+
+/* Confirmed border accent */
+.design-type-control-group.is-confirmed {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.design-type-control-group.is-confirmed:hover {
+  border-color: rgba(16, 185, 129, 0.7);
+}
+
+/* Left part: Select dropdown */
+.design-type-select {
+  height: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 20px 0 8px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 9px 9px;
+  transition: background-color 0.15s ease;
+  line-height: 23px;
+}
+
+.design-type-control-group.standard .design-type-select {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%2393c5fd' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.design-type-control-group.standard .design-type-select:hover {
+  background-color: rgba(59, 130, 246, 0.2);
+}
+
+.design-type-control-group.non-standard .design-type-select {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #fde047;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='9' viewBox='0 0 24 24' fill='none' stroke='%23fde047' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+}
+
+.design-type-control-group.non-standard .design-type-select:hover {
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+/* Left part: Static text label when cannot edit */
+.design-type-static-label {
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 10px;
+  line-height: 23px;
+}
+
+.design-type-control-group.standard .design-type-static-label {
+  background-color: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+}
+
+.design-type-control-group.non-standard .design-type-static-label {
+  background-color: rgba(245, 158, 11, 0.12);
+  color: #fde047;
+}
+
+/* Right part: Action button to confirm */
+.btn-confirm-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 10px;
+  border: none;
+  border-left: 1px solid rgba(59, 130, 246, 0.35);
+  background: rgba(59, 130, 246, 0.25);
+  color: #bfdbfe;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 23px;
+}
+
+.btn-confirm-action:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.design-type-control-group.non-standard .btn-confirm-action {
+  border-left-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Right part: Confirmed badge (interactive to unconfirm if authorized) */
+.btn-confirmed-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 100%;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 9px;
+  border: none;
+  border-left: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  transition: all 0.15s ease;
+  line-height: 23px;
+}
+
+.btn-confirmed-indicator.can-reset {
+  cursor: pointer;
+}
+
+.btn-confirmed-indicator.can-reset:hover {
+  background: rgba(16, 185, 129, 0.32);
+  color: #6ee7b7;
+}
+
+/* Right part: Unconfirmed read-only label */
+.design-unconfirmed-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text3);
+  line-height: 23px;
+}
+
+.design-unconfirmed-indicator.awaiting-sales {
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.14);
+  border-left: 1px solid rgba(245, 158, 11, 0.35);
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
 /* ── Table view ── */
 .step-table {
   width: 100%;

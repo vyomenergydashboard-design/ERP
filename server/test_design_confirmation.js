@@ -1,0 +1,231 @@
+import pg from 'pg';
+import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
+
+const { Pool } = pg;
+const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db';
+const pool = new Pool({ connectionString });
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const API_BASE = process.env.API_BASE || 'http://localhost:5000';
+
+const adminToken = jwt.sign({ id: 1, username: 'admin', role: 'Admin' }, JWT_SECRET, { expiresIn: '1h' });
+const salesToken = jwt.sign({ id: 27, username: 'sales', role: 'Sales' }, JWT_SECRET, { expiresIn: '1h' });
+const designToken = jwt.sign({ id: 31, username: 'design', role: 'Design' }, JWT_SECRET, { expiresIn: '1h' });
+
+let passedTests = 0;
+let totalTests = 0;
+
+function assert(condition, message) {
+  totalTests++;
+  if (!condition) {
+    console.error(`  ❌ FAILED: ${message}`);
+    throw new Error(message);
+  }
+  passedTests++;
+  console.log(`  ✓ PASSED: ${message}`);
+}
+
+async function runTestSuite() {
+  console.log('====================================================');
+  console.log('  TEST SUITE: DESIGN CONFIRMATION & AUTO RELEASE');
+  console.log('====================================================\n');
+
+  let testOrderId = null;
+  let testUnitId = null;
+
+  try {
+    // 0. Setup dummy files for drawing & BOM
+    const dummyDrawingPath = path.join(os.tmpdir(), 'test_drawing.pdf');
+    fs.writeFileSync(dummyDrawingPath, '%PDF-1.4 sample drawing content');
+
+    const dummyBomPath = path.join(os.tmpdir(), 'test_bom.xlsx');
+    fs.writeFileSync(dummyBomPath, 'PK dummy excel content');
+
+    // 1. Create a test order and unit directly via SQL
+    console.log('[TEST 1] Setting up test order and Non-Standard unit...');
+    const locRes = await pool.query('SELECT id FROM company_locations LIMIT 1');
+    const locId = locRes.rows[0]?.id || 1;
+
+    const ordRes = await pool.query(`
+      INSERT INTO orders (order_number, company_location_id, priority, created_by, status)
+      VALUES ('TEST-DESIGN-8888', $1, 'High', 1, 'Active')
+      RETURNING id
+    `, [locId]);
+    testOrderId = ordRes.rows[0].id;
+    assert(testOrderId, `Created test order #${testOrderId}`);
+
+    const liRes = await pool.query(`
+      INSERT INTO order_line_items (order_id, line_item_number, material_description, quantity, unit, unit_price, total_price)
+      VALUES ($1, 'TEST-DESIGN-8888-01', 'Test Non-Standard Panel', 1, 'Nos', 10000, 10000)
+      RETURNING id
+    `, [testOrderId]);
+    const lineItemId = liRes.rows[0].id;
+
+    const uRes = await pool.query(`
+      INSERT INTO order_units (order_id, line_item_id, unit_id, short_serial, classification, design_confirmed, current_dept)
+      VALUES ($1, $2, '88880001', '0001', 'Non-Standard', FALSE, 'Design')
+      RETURNING id, unit_id, classification, design_confirmed
+    `, [testOrderId, lineItemId]);
+    testUnitId = uRes.rows[0].id;
+    assert(testUnitId, `Created test unit #${testUnitId}`);
+
+    // Insert steps: Review & Classify (1), Release Documents (2)
+    await pool.query(`
+      INSERT INTO unit_steps (order_unit_id, name, dept, status, step_order)
+      VALUES 
+        ($1, 'Review & Classify', 'Design', 'pending', 1),
+        ($1, 'Release Documents', 'Design', 'pending', 2),
+        ($1, 'Receive Shortfall', 'Purchase', 'pending', 3)
+    `, [testUnitId]);
+
+    // Check initial worklist state
+    console.log('[TEST 2] Verifying Initial State in Worklist...');
+    const wlRes1 = await fetch(`${API_BASE}/api/dept-worklist/Design`, {
+      headers: { 'Authorization': `Bearer ${designToken}` }
+    });
+    if (wlRes1.status !== 200) {
+      console.error('Worklist failed with status:', wlRes1.status, await wlRes1.text());
+    }
+    assert(wlRes1.status === 200, `Dept worklist returned 200`);
+    const wlUnits1 = await wlRes1.json();
+    const testUnitWl1 = wlUnits1.find(u => u.unit_id === testUnitId || u.id === testUnitId);
+    assert(testUnitWl1 !== undefined, 'Found test unit in Design worklist');
+    console.log('    debug design_confirmed:', testUnitWl1.design_confirmed, typeof testUnitWl1.design_confirmed);
+    assert(Boolean(testUnitWl1.design_confirmed) === false, 'Unit design_confirmed is initially false');
+
+    const step1_init = (testUnitWl1.dept_steps || []).find(s => s.name === 'Review & Classify');
+    const step2_init = (testUnitWl1.dept_steps || []).find(s => s.name === 'Release Documents');
+    assert(step1_init && step1_init.status !== 'done', 'Step 1 ("Review & Classify") is not done');
+    assert(step2_init && step2_init.status === 'pending', 'Step 2 ("Release Documents") is pending (no docs)');
+
+    // 2. Test RBAC: Sales role cannot confirm Design
+    console.log('[TEST 3] Testing RBAC on Design Confirmation...');
+    const salesConfirmRes = await fetch(`${API_BASE}/api/units/${testUnitId}/design-confirm`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${salesToken}` }
+    });
+    assert(salesConfirmRes.status === 403, `Sales role blocked with HTTP 403 (got ${salesConfirmRes.status})`);
+
+    // 3. Design confirms the panel
+    console.log('[TEST 4] Design confirms the panel...');
+    const designConfirmRes = await fetch(`${API_BASE}/api/units/${testUnitId}/design-confirm`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${designToken}` }
+    });
+    assert(designConfirmRes.status === 200, `Design confirmation succeeded with HTTP 200`);
+    const confirmBody = await designConfirmRes.json();
+    assert(confirmBody.unit && confirmBody.unit.design_confirmed === true, 'Response confirms design_confirmed is true');
+
+    // Verify in DB / worklist
+    const wlRes2 = await fetch(`${API_BASE}/api/dept-worklist/Design`, {
+      headers: { 'Authorization': `Bearer ${designToken}` }
+    });
+    const wlUnits2 = await wlRes2.json();
+    const testUnitWl2 = wlUnits2.find(u => u.unit_id === testUnitId || u.id === testUnitId);
+    const step1_conf = (testUnitWl2.dept_steps || []).find(s => s.name === 'Review & Classify');
+    const step2_conf = (testUnitWl2.dept_steps || []).find(s => s.name === 'Release Documents');
+    assert(step1_conf.status === 'done', 'Step 1 ("Review & Classify") is auto marked DONE');
+    assert(step2_conf.status === 'done', 'Step 2 ("Release Documents") is marked DONE upon confirmation, advancing to Purchase');
+    assert(testUnitWl2.current_dept === 'Purchase', `Unit advances directly to Purchase (got "${testUnitWl2.current_dept}")`);
+
+    // 4. Upload 1 document (Drawing only)
+    console.log('[TEST 5] Uploading Drawing only (1 doc)...');
+    const drawForm = new FormData();
+    drawForm.append('entity_type', 'Unit');
+    drawForm.append('entity_id', String(testUnitId));
+    drawForm.append('doc_type', 'Drawing');
+    drawForm.append('files', new Blob([fs.readFileSync(dummyDrawingPath)], { type: 'application/pdf' }), 'unit_drawing.pdf');
+
+    const upDrawRes = await fetch(`${API_BASE}/api/documents/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${designToken}` },
+      body: drawForm
+    });
+    if (upDrawRes.status !== 200 && upDrawRes.status !== 201) {
+      console.error('Drawing upload failed:', upDrawRes.status, await upDrawRes.text());
+    }
+    assert(upDrawRes.status === 200 || upDrawRes.status === 201, `Drawing upload returned 200/201 (got ${upDrawRes.status})`);
+
+    const wlRes3 = await fetch(`${API_BASE}/api/dept-worklist/Purchase`, {
+      headers: { 'Authorization': `Bearer ${designToken}` }
+    });
+    const wlUnits3 = await wlRes3.json();
+    const testUnitWl3 = wlUnits3.find(u => u.unit_id === testUnitId || u.id === testUnitId);
+    const step2_draw = (testUnitWl3.design_steps || []).find(s => s.name === 'Release Documents');
+    assert(step2_draw && step2_draw.status === 'done', 'Step 2 remains DONE in Purchase with Drawing attached');
+    assert(step2_draw.notes.includes('Drawing attached') || step2_draw.notes.includes('released to Purchase'), `Step 2 notes specify drawing attached (got "${step2_draw.notes}")`);
+
+    // 5. Upload second document (BOM)
+    console.log('[TEST 6] Uploading BOM (both docs now present)...');
+    const bomForm = new FormData();
+    bomForm.append('entity_type', 'Unit');
+    bomForm.append('entity_id', String(testUnitId));
+    bomForm.append('doc_type', 'BOM');
+    bomForm.append('files', new Blob([fs.readFileSync(dummyBomPath)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'unit_bom.xlsx');
+
+    const upBomRes = await fetch(`${API_BASE}/api/documents/upload`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${designToken}` },
+      body: bomForm
+    });
+    assert(upBomRes.status === 200 || upBomRes.status === 201, `BOM upload returned 200/201 (got ${upBomRes.status})`);
+
+    // Because both docs exist AND panel is confirmed, Step 2 must be auto DONE!
+    const stepsAfterBoth = await pool.query('SELECT name, status, notes FROM unit_steps WHERE order_unit_id = $1', [testUnitId]);
+    const step2_both = stepsAfterBoth.rows.find(s => s.name === 'Release Documents');
+    assert(step2_both && step2_both.status === 'done', 'Step 2 is auto DONE when both docs are attached and Design confirmed!');
+    assert(step2_both.notes.includes('released by Design') || step2_both.notes.includes('Verified by Design'), `Step 2 notes confirm verification (got "${step2_both.notes}")`);
+
+    // 6. Test Un-confirming
+    console.log('[TEST 7] Un-confirming Design classification...');
+    const unconfirmRes = await fetch(`${API_BASE}/api/units/${testUnitId}/design-unconfirm`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${designToken}` }
+    });
+    assert(unconfirmRes.status === 200, `Unconfirm returned 200`);
+
+    const stepsAfterUnconf = await pool.query('SELECT name, status, notes FROM unit_steps WHERE order_unit_id = $1', [testUnitId]);
+    const uAfterUnconf = await pool.query('SELECT design_confirmed FROM order_units WHERE id = $1', [testUnitId]);
+    const step1_unconf = stepsAfterUnconf.rows.find(s => s.name === 'Review & Classify');
+    const step2_unconf = stepsAfterUnconf.rows.find(s => s.name === 'Release Documents');
+    assert(uAfterUnconf.rows[0].design_confirmed === false, 'Unit design_confirmed is false after unconfirm');
+    assert(step1_unconf.status === 'pending' || step1_unconf.status === 'inprogress', `Step 1 reverted from done (status: ${step1_unconf.status})`);
+    assert(step2_unconf.status === 'inprogress', `Step 2 reverted from done to inprogress (status: ${step2_unconf.status})`);
+    assert(step2_unconf.notes.includes('pending Design confirmation'), `Step 2 notes show awaiting Design confirmation (got "${step2_unconf.notes}")`);
+
+    console.log('\n[CLEANUP] Cleaning up test data...');
+    await pool.query('DELETE FROM documents WHERE entity_type = $1 AND entity_id = $2', ['Unit', testUnitId]);
+    await pool.query('DELETE FROM unit_steps WHERE order_unit_id = $1', [testUnitId]);
+    await pool.query('DELETE FROM order_units WHERE id = $1', [testUnitId]);
+    await pool.query('DELETE FROM order_line_items WHERE id = $1', [lineItemId]);
+    await pool.query('DELETE FROM orders WHERE id = $1', [testOrderId]);
+    console.log(`  ✓ Test order #${testOrderId} and related test entities cleaned up.`);
+
+  } catch (err) {
+    console.error('Test error:', err);
+    if (testUnitId) {
+      await pool.query('DELETE FROM documents WHERE entity_type = $1 AND entity_id = $2', ['Unit', testUnitId]).catch(() => {});
+      await pool.query('DELETE FROM unit_steps WHERE order_unit_id = $1', [testUnitId]).catch(() => {});
+      await pool.query('DELETE FROM order_units WHERE id = $1', [testUnitId]).catch(() => {});
+    }
+    if (testOrderId) {
+      await pool.query('DELETE FROM orders WHERE id = $1', [testOrderId]).catch(() => {});
+    }
+  } finally {
+    pool.end();
+  }
+
+  console.log('====================================================');
+  console.log(`  TEST RESULTS: ${passedTests} / ${totalTests} PASSED`);
+  console.log('====================================================\n');
+
+  if (passedTests !== totalTests || totalTests === 0) {
+    process.exit(1);
+  } else {
+    process.exit(0);
+  }
+}
+
+runTestSuite();

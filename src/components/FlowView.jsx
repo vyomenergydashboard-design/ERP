@@ -108,6 +108,35 @@ export default function FlowView({
     }
   };
 
+  const handleResumeOrderDirect = async () => {
+    const ordId = selectedOrderId || selectedOrder?.id;
+    if (!ordId) return;
+    try {
+      const res = await fetch(`${window.API_BASE}/api/orders/${ordId}/hold/resume`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        if (selectedUnitId) {
+          const freshSteps = await fetch(`${window.API_BASE}/api/units/${selectedUnitId}/steps`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          }).then(r => r.json());
+          setUnitSteps(freshSteps);
+        }
+        if (onStepsChanged) onStepsChanged();
+        window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: ordId } }));
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || `Failed to resume order (HTTP ${res.status})`);
+      }
+    } catch (err) {
+      console.error('Failed to resume order', err);
+      alert('Network error — could not resume order');
+    }
+  };
+
   const handleResumeUnitDirect = async (unit) => {
     if (!unit) return;
     try {
@@ -121,7 +150,8 @@ export default function FlowView({
           unit_ids: [unit.id || unit.unit_id],
           action: 'resume',
           scope: 'selected',
-          order_id: selectedOrderId || selectedOrder?.id
+          order_id: selectedOrderId || selectedOrder?.id,
+          resume_order: isOrderOnHold
         })
       });
       if (res.ok) {
@@ -157,7 +187,8 @@ export default function FlowView({
           action: panelActionModal.action,
           reason: panelActionModal.reason.trim() || undefined,
           scope: panelActionModal.scope,
-          order_id: selectedOrderId || selectedOrder?.id
+          order_id: selectedOrderId || selectedOrder?.id,
+          resume_order: panelActionModal.action === 'resume' && isOrderOnHold
         })
       });
       if (res.ok) {
@@ -452,8 +483,14 @@ export default function FlowView({
         : selectedOrder?.order_number);
   const isOrderOnHold = selectedOrder?.hold_status === 'Approved' || String(selectedOrder?.status || '').toLowerCase().startsWith('hold');
   const isOrderCancelled = String(selectedOrder?.status || '').toLowerCase().startsWith('cancel');
-  const isSelectedUnitOnHold = selectedUnit && (selectedUnit.hold_status === 'Hold' || String(selectedUnit.status || '').startsWith('Hold'));
-  const isSelectedUnitCancelled = selectedUnit && (selectedUnit.hold_status === 'Cancelled' || String(selectedUnit.status || '').startsWith('Cancel'));
+  const isSelectedUnitOnHold = selectedUnit && (
+    selectedUnit.hold_status === 'Hold' || 
+    (String(selectedUnit.status || '').startsWith('Hold') && !isOrderOnHold)
+  );
+  const isSelectedUnitCancelled = selectedUnit && (
+    selectedUnit.hold_status === 'Cancelled' || 
+    (String(selectedUnit.status || '').startsWith('Cancel') && !isOrderCancelled)
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
@@ -490,6 +527,29 @@ export default function FlowView({
               </div>
             </div>
           </div>
+          {['Admin', 'Manager', 'Sales'].includes(userRole) && (
+            <button
+              type="button"
+              onClick={handleResumeOrderDirect}
+              style={{
+                background: '#10b981',
+                color: '#fff',
+                fontWeight: '700',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '10px 20px',
+                cursor: 'pointer',
+                fontSize: '13px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 10px rgba(16, 185, 129, 0.4)',
+                flexShrink: 0
+              }}
+            >
+              ▶ Resume Order
+            </button>
+          )}
         </div>
       )}
 

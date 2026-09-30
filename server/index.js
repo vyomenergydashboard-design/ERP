@@ -322,7 +322,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, o.classification, o.hold_status as order_hold_status
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, o.classification, o.hold_status as order_hold_status
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -387,10 +387,11 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
     [unitId]
   );
 
-  // If unit has its own Sales Clearance step marked done, or order PO is done
-  const hasUnitSalesDone = stepsRes.rows.some(s => s.dept === 'Sales' && s.status === 'done');
+  // A panel stays in Sales until Sales order steps AND unit Sales Clearance steps are done
+  const hasUnitSalesPending = stepsRes.rows.some(s => s.dept === 'Sales' && s.status !== 'done');
+  const isDesignConfirmed = Boolean(row.design_confirmed);
 
-  if (!isSalesDone && !hasUnitSalesDone) {
+  if ((!isSalesDone || hasUnitSalesPending) && !isDesignConfirmed) {
     newDept = 'Sales';
     newStatus = 'Pending';
   } else {
@@ -458,6 +459,106 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
       await syncLineItemStatusFromUnits(lineItemId, clientOrPool);
     }
   }
+};
+
+export const evaluateUnitDesignDocuments = async (clientOrPool, unitIdOrObj) => {
+  let unit = unitIdOrObj;
+  if (typeof unitIdOrObj === 'number' || typeof unitIdOrObj === 'string') {
+    const res = await clientOrPool.query(
+      `SELECT ou.id, ou.order_id, ou.classification, ou.design_confirmed, oli.part_number
+       FROM order_units ou
+       LEFT JOIN order_line_items oli ON ou.line_item_id = oli.id
+       WHERE ou.id = $1`,
+      [Number(unitIdOrObj)]
+    );
+    if (res.rows.length === 0) return { hasDrawing: false, hasBom: false, isStandard: true, designConfirmed: false };
+    unit = res.rows[0];
+  } else if (!unit.part_number && unit.line_item_id) {
+    const liRes = await clientOrPool.query('SELECT part_number FROM order_line_items WHERE id = $1', [unit.line_item_id]);
+    unit.part_number = liRes.rows[0]?.part_number || '';
+  }
+
+  const isStandard = String(unit.classification || 'Standard').trim().toLowerCase() === 'standard';
+  let hasDrawing = false;
+  let hasBom = false;
+
+  if (isStandard && unit.part_number) {
+    const pmRes = await clientOrPool.query(
+      `SELECT id FROM part_number_masters 
+       WHERE LOWER(TRIM(part_number)) = LOWER(TRIM($1)) LIMIT 1`,
+      [unit.part_number]
+    );
+    if (pmRes.rows.length > 0) {
+      const pmId = pmRes.rows[0].id;
+      const pDocs = await clientOrPool.query(
+        `SELECT doc_type FROM part_number_documents 
+         WHERE part_number_id = $1 AND (is_current = true OR is_current IS NULL)`,
+        [pmId]
+      );
+      for (const d of pDocs.rows) {
+        const dt = String(d.doc_type || '').toLowerCase();
+        if (dt === 'drawing') hasDrawing = true;
+        if (dt === 'bom' || dt === 'bill of materials') hasBom = true;
+      }
+    }
+  }
+
+  // Check custom/unit documents (for Non-Standard, and also unit/order specific uploads)
+  const docRes = await clientOrPool.query(
+    `SELECT doc_type FROM documents 
+     WHERE (entity_type = 'Unit' AND entity_id = $1)
+        OR (entity_type = 'Order' AND entity_id = $2)`,
+    [unit.id, unit.order_id]
+  );
+  for (const d of docRes.rows) {
+    const dt = String(d.doc_type || '').toLowerCase();
+    if (dt === 'drawing') hasDrawing = true;
+    if (dt === 'bom' || dt === 'bill of materials') hasBom = true;
+  }
+
+  return { hasDrawing, hasBom, isStandard, designConfirmed: Boolean(unit.design_confirmed) };
+};
+
+export const syncUnitDesignDocumentStatus = async (clientOrPool, unitId, userId = null) => {
+  const docInfo = await evaluateUnitDesignDocuments(clientOrPool, unitId);
+  const { hasDrawing, hasBom, designConfirmed } = docInfo;
+
+  let newStatus = 'pending';
+  let newNotes = 'Awaiting Drawing and BOM upload.';
+
+  if (designConfirmed) {
+    newStatus = 'done';
+    if (hasDrawing && hasBom) {
+      newNotes = 'Drawing and BOM released by Design.';
+    } else if (hasDrawing) {
+      newNotes = 'Drawing attached; released to Purchase by Design.';
+    } else if (hasBom) {
+      newNotes = 'BOM attached; released to Purchase by Design.';
+    } else {
+      newNotes = 'Confirmed & released to Purchase by Design.';
+    }
+  } else if (hasDrawing && hasBom) {
+    newStatus = 'inprogress';
+    newNotes = 'Drawing and BOM present; pending Design confirmation.';
+  } else if (hasDrawing || hasBom) {
+    newStatus = 'inprogress';
+    newNotes = hasDrawing ? 'Drawing attached; BOM pending.' : 'BOM attached; Drawing pending.';
+  } else {
+    newStatus = 'pending';
+    newNotes = 'Awaiting Drawing and BOM upload.';
+  }
+
+  const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  await clientOrPool.query(
+    `UPDATE unit_steps 
+     SET status = $1, notes = $2, updated = $3 
+     WHERE order_unit_id = $4 AND dept = 'Design' 
+       AND (name = 'Release Documents' OR name ILIKE '%release%')`,
+    [newStatus, newNotes, updatedStr, unitId]
+  );
+
+  await deriveUnitStatus(unitId, clientOrPool);
+  return { status: newStatus, notes: newNotes, ...docInfo };
 };
 
 const updateOrderQCStatusFromSteps = async (orderId, clientOrPool) => {
@@ -1902,15 +2003,25 @@ app.post('/api/orders/:id/hold/reject', authorize(['Admin', 'Manager']), async (
 
 app.post('/api/orders/:id/hold/resume', authorize(['Admin', 'Manager', 'Sales']), async (req, res) => {
   try {
-    const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
+    const numId = !isNaN(Number(req.params.id)) ? Number(req.params.id) : -1;
+    const checkOrder = await pool.query('SELECT id, order_number FROM orders WHERE id = $1 OR order_number = $2', [numId, String(req.params.id)]);
     if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    const order_number = checkOrder.rows[0].order_number;
+    const order = checkOrder.rows[0];
+    const order_number = order.order_number;
+    const orderId = order.id;
 
-    await pool.query("UPDATE orders SET hold_status = 'None' WHERE id = $1", [req.params.id]);
+    await pool.query("UPDATE orders SET hold_status = 'None' WHERE id = $1", [orderId]);
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
-      [req.user.id, req.user.role, `Resumed order ${order_number}`, req.params.id]
+      [req.user.id, req.user.role, `Resumed order ${order_number}`, orderId]
     );
+
+    // Sync all units belonging to this order so their statuses update from Hold to active pipeline
+    const uRes = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [orderId]);
+    for (const u of uRes.rows) {
+      await deriveUnitStatus(u.id, pool);
+    }
+
     res.json({ success: true, message: 'Order resumed successfully.' });
   } catch (err) {
     console.error(err);
@@ -3852,7 +3963,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
           [req.user.id, step.order_id, step.dept, `Unit ${tu.short_serial}: Updated step "${step.name}" (Status: ${newStatus})`]
         );
 
-        // Auto-complete Step 2 (Release Documents) when Step 1 (Review & Classify) is Standard and marked Done
+        // Synchronize Design Confirmation & Release Documents when Step 1 (Review & Classify) is updated
         if (step.dept === 'Design' && (step.name === 'Review & Classify' || step.name.toLowerCase().includes('classify'))) {
           let resolvedClassification = null;
           if (Array.isArray(custom_fields)) {
@@ -3861,67 +3972,26 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
               resolvedClassification = String(classField.value).trim();
             }
           }
-          if (!resolvedClassification) {
-            const uCheck = await client.query('SELECT classification FROM order_units WHERE id = $1', [tu.id]);
-            if (uCheck.rows.length > 0) {
-              resolvedClassification = uCheck.rows[0].classification;
-            }
+          if (resolvedClassification) {
+            await client.query('UPDATE order_units SET classification = $1 WHERE id = $2', [resolvedClassification, tu.id]);
           }
 
-          if (resolvedClassification && resolvedClassification.toLowerCase() === 'standard' && newStatus === 'done') {
-            const step2Res = await client.query(
-              `SELECT id, status, notes FROM unit_steps 
-               WHERE order_unit_id = $1 AND dept = 'Design' 
-                 AND (name = 'Release Documents' OR name ILIKE '%release%') 
-               LIMIT 1`,
+          if (newStatus === 'done') {
+            await client.query(
+              `UPDATE order_units 
+               SET design_confirmed = true, design_confirmed_at = NOW(), design_confirmed_by = $1 
+               WHERE id = $2`,
+              [req.user.id, tu.id]
+            );
+            await syncUnitDesignDocumentStatus(client, tu.id, req.user.id);
+          } else {
+            await client.query(
+              `UPDATE order_units 
+               SET design_confirmed = false, design_confirmed_at = NULL, design_confirmed_by = NULL 
+               WHERE id = $1`,
               [tu.id]
             );
-            if (step2Res.rows.length > 0) {
-              const step2 = step2Res.rows[0];
-              const autoNote = 'Auto-completed: Standard master drawings & BOM applied.';
-              const finalNotes = step2.notes ? step2.notes : autoNote;
-              await client.query(
-                `UPDATE unit_steps 
-                 SET status = 'done', notes = $1, updated = $2 
-                 WHERE id = $3`,
-                [finalNotes, updated, step2.id]
-              );
-              await client.query(
-                `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
-                 VALUES ($1, $2, 'Design', $3)`,
-                [req.user.id, step.order_id, `Unit ${tu.short_serial}: Step "Release Documents" auto-completed (Standard Panel)`]
-              );
-            }
-          } else if (resolvedClassification && resolvedClassification.toLowerCase() === 'non-standard') {
-            // If classification changed to Non-Standard, revert auto-completed Release Documents step back to pending
-            const step2Res = await client.query(
-              `SELECT id, status, notes FROM unit_steps 
-               WHERE order_unit_id = $1 AND dept = 'Design' 
-                 AND (name = 'Release Documents' OR name ILIKE '%release%') 
-               LIMIT 1`,
-              [tu.id]
-            );
-            if (step2Res.rows.length > 0) {
-              const step2 = step2Res.rows[0];
-              const s2Docs = await client.query(
-                `SELECT COUNT(*) as count FROM documents WHERE entity_type = 'UnitStep' AND entity_id = $1`,
-                [step2.id]
-              );
-              const hasStepDocs = parseInt(s2Docs.rows[0]?.count || '0') > 0;
-              if (step2.notes && step2.notes.includes('Standard master') && !hasStepDocs) {
-                await client.query(
-                  `UPDATE unit_steps 
-                   SET status = 'pending', notes = 'Non-Standard classified: custom drawings and BOM required.', updated = $1 
-                   WHERE id = $2`,
-                  [updated, step2.id]
-                );
-                await client.query(
-                  `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
-                   VALUES ($1, $2, 'Design', $3)`,
-                  [req.user.id, step.order_id, `Unit ${tu.short_serial}: Step "Release Documents" reverted to Pending (Non-Standard)`]
-                );
-              }
-            }
+            await syncUnitDesignDocumentStatus(client, tu.id, req.user.id);
           }
         }
 
@@ -4031,6 +4101,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (classification !== undefined) {
       updates.push(`classification = $${idx++}`);
       values.push(classification || 'Standard');
+      updates.push('design_confirmed = false', 'design_confirmed_at = NULL', 'design_confirmed_by = NULL');
     }
 
     if (po_number !== undefined) {
@@ -4077,6 +4148,18 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updatedUnit = refreshedUnit.rows[0];
     }
 
+    if (classification !== undefined) {
+      const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      await pool.query(
+        `UPDATE unit_steps 
+         SET status = 'pending', notes = 'Classification updated; pending Design re-confirmation.', updated = $1 
+         WHERE order_unit_id = $2 AND dept = 'Design' 
+           AND (name = 'Review & Classify' OR name ILIKE '%classify%')`,
+        [updatedStr, realId]
+      );
+      await syncUnitDesignDocumentStatus(pool, realId, req.user.id);
+    }
+
     let logAction = `Updated unit ${unit.unit_id}`;
     if (panel_type_size !== undefined) logAction += ` panel size: "${panel_type_size}"`;
     if (classification !== undefined) logAction += ` classification: "${classification}"`;
@@ -4093,6 +4176,127 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   } catch (err) {
     console.error('Failed to update unit:', err);
     res.status(500).json({ error: 'Failed to update unit' });
+  }
+});
+
+app.post('/api/units/:id/design-confirm', authorize(['Admin', 'Manager', 'Design']), async (req, res) => {
+  const { id } = req.params;
+  const numId = !isNaN(Number(id)) ? Number(id) : -1;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const uRes = await client.query(
+      `UPDATE order_units 
+       SET design_confirmed = true, design_confirmed_at = NOW(), design_confirmed_by = $1 
+       WHERE id = $2 OR unit_id = $3 RETURNING *`,
+      [req.user.id, numId, String(id)]
+    );
+    if (uRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = uRes.rows[0];
+
+    // A panel only comes to Design after Sales has cleared it
+    const pendingSalesRes = await client.query(
+      `SELECT id, name FROM unit_steps WHERE order_unit_id = $1 AND dept = 'Sales' AND status != 'done'`,
+      [unit.id]
+    );
+    if (pendingSalesRes.rows.length > 0 && !['Admin', 'Manager'].includes(req.user.role)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({
+        error: 'Panel cannot be confirmed by Design: Awaiting Sales clearance. A panel only comes to Design after Sales has cleared it.'
+      });
+    }
+
+    const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+
+    await client.query(
+      `UPDATE unit_steps 
+       SET status = 'done', notes = 'Classification confirmed by Design.', updated = $1 
+       WHERE order_unit_id = $2 AND dept = 'Design' 
+         AND (name = 'Review & Classify' OR name ILIKE '%classify%')`,
+      [updatedStr, unit.id]
+    );
+
+    const syncRes = await syncUnitDesignDocumentStatus(client, unit.id, req.user.id);
+
+    await client.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, 'Design', $3)`,
+      [req.user.id, unit.order_id, `Unit ${unit.short_serial || unit.unit_id}: Confirmed Design classification (${unit.classification})`]
+    );
+
+    await client.query('COMMIT');
+
+    const refreshed = await pool.query(
+      `SELECT ou.*, u_conf.username AS design_confirmed_by_name 
+       FROM order_units ou 
+       LEFT JOIN users u_conf ON ou.design_confirmed_by = u_conf.id 
+       WHERE ou.id = $1`,
+      [unit.id]
+    );
+
+    res.json({ success: true, unit: refreshed.rows[0], step2Status: syncRes.status, notes: syncRes.notes });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to confirm design:', err);
+    res.status(500).json({ error: 'Failed to confirm design' });
+  } finally {
+    client.release();
+  }
+});
+
+app.post('/api/units/:id/design-unconfirm', authorize(['Admin', 'Manager', 'Design']), async (req, res) => {
+  const { id } = req.params;
+  const numId = !isNaN(Number(id)) ? Number(id) : -1;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const uRes = await client.query(
+      `UPDATE order_units 
+       SET design_confirmed = false, design_confirmed_at = NULL, design_confirmed_by = NULL 
+       WHERE id = $1 OR unit_id = $2 RETURNING *`,
+      [numId, String(id)]
+    );
+    if (uRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = uRes.rows[0];
+
+    const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    await client.query(
+      `UPDATE unit_steps 
+       SET status = 'pending', notes = 'Classification unconfirmed / pending re-check.', updated = $1 
+       WHERE order_unit_id = $2 AND dept = 'Design' 
+         AND (name = 'Review & Classify' OR name ILIKE '%classify%')`,
+      [updatedStr, unit.id]
+    );
+
+    const syncRes = await syncUnitDesignDocumentStatus(client, unit.id, req.user.id);
+
+    await client.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, 'Design', $3)`,
+      [req.user.id, unit.order_id, `Unit ${unit.short_serial || unit.unit_id}: Re-opened Design inspection (Unconfirmed)`]
+    );
+
+    await client.query('COMMIT');
+
+    const refreshed = await pool.query(
+      `SELECT ou.*, u_conf.username AS design_confirmed_by_name 
+       FROM order_units ou 
+       LEFT JOIN users u_conf ON ou.design_confirmed_by = u_conf.id 
+       WHERE ou.id = $1`,
+      [unit.id]
+    );
+
+    res.json({ success: true, unit: refreshed.rows[0], step2Status: syncRes.status, notes: syncRes.notes });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Failed to unconfirm design:', err);
+    res.status(500).json({ error: 'Failed to unconfirm design' });
+  } finally {
+    client.release();
   }
 });
 
@@ -4200,6 +4404,10 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         psm.ip_rating  AS panel_ip_rating,
         COALESCE(psm.comments, psm.description) AS panel_comments,
         COALESCE(ou.custom_fields, '{}'::jsonb) AS custom_fields,
+        ou.design_confirmed,
+        ou.design_confirmed_at,
+        ou.design_confirmed_by,
+        u_conf.username AS design_confirmed_by_name,
         oli.quantity   AS batch_qty,
         (
           SELECT json_agg(
@@ -4262,6 +4470,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       JOIN order_line_items oli ON ou.line_item_id = oli.id
       LEFT JOIN company_locations cl ON o.company_location_id = cl.id
       LEFT JOIN companies co ON cl.company_id = co.id
+      LEFT JOIN users u_conf ON ou.design_confirmed_by = u_conf.id
       LEFT JOIN panel_size_masters psm ON (
         psm.size_name = COALESCE(ou.panel_type_size, oli.panel_type_size)
         OR psm.panel_size = COALESCE(ou.panel_type_size, oli.panel_type_size)
@@ -4529,6 +4738,19 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
         }
       }
     }
+
+    const isDesignDoc = ['drawing', 'bom', 'bill of materials'].includes(String(doc_type || '').toLowerCase());
+    if (isDesignDoc) {
+      if (entity_type === 'Unit') {
+        await syncUnitDesignDocumentStatus(pool, entity_id, req.user.id);
+      } else if (entity_type === 'Order') {
+        const uList = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
+        for (const u of uList.rows) {
+          await syncUnitDesignDocumentStatus(pool, u.id, req.user.id);
+        }
+      }
+    }
+
     res.status(201).json(savedDocs);
   } catch (err) {
     console.error(err);
@@ -4839,6 +5061,28 @@ app.post('/api/units/hold-action', authorize(['Admin', 'Manager', 'Sales', 'Plan
         await deriveUnitStatus(tu.id, client);
       }
     } else if (action === 'resume') {
+      const resumeOrder = req.body.resume_order === true || scope === 'order';
+      let resolvedOrderId = order_id;
+      if (!resolvedOrderId && targetUnits.length > 0) {
+        resolvedOrderId = targetUnits[0].order_id;
+      }
+      if (resolvedOrderId) {
+        const oCheck = await client.query('SELECT hold_status, order_number FROM orders WHERE id = $1', [resolvedOrderId]);
+        if (resumeOrder || (oCheck.rows.length > 0 && oCheck.rows[0].hold_status === 'Approved')) {
+          await client.query("UPDATE orders SET hold_status = 'None' WHERE id = $1", [resolvedOrderId]);
+          const ordNum = oCheck.rows[0]?.order_number || resolvedOrderId;
+          await client.query(
+            `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+            [req.user.id, resolvedOrderId, userRole, `Order #${ordNum}: Resumed hold by ${userRole}`]
+          );
+          // If we resumed the order, refresh all units in this order
+          const allOrderUnits = await client.query('SELECT id, short_serial, unit_id, order_id FROM order_units WHERE order_id = $1', [resolvedOrderId]);
+          targetUnits = allOrderUnits.rows;
+        }
+      }
+
+      const allTargetIds = targetUnits.map(u => u.id);
+
       await client.query(
         `UPDATE order_units 
          SET hold_status = 'None',
@@ -4855,14 +5099,14 @@ app.post('/api/units/hold-action', authorize(['Admin', 'Manager', 'Sales', 'Plan
              cancelled_by_name = NULL,
              cancelled_at = NULL
          WHERE id = ANY($1::int[])`,
-        [targetIds]
+        [allTargetIds]
       );
 
       await client.query(
         `UPDATE unit_steps 
          SET status = 'inprogress', hold_reason = NULL, held_by = NULL, hold_at = NULL 
          WHERE order_unit_id = ANY($1::int[]) AND status IN ('hold', 'cancelled')`,
-        [targetIds]
+        [allTargetIds]
       );
 
       for (const tu of targetUnits) {
@@ -5085,6 +5329,18 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
       `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
       [req.user.id, orderIdForLog, req.user.role, `Deleted document "${doc.file_name}"`]
     );
+
+    const isDesignDoc = ['drawing', 'bom', 'bill of materials'].includes(String(doc.doc_type || '').toLowerCase());
+    if (isDesignDoc) {
+      if (doc.entity_type === 'Unit') {
+        await syncUnitDesignDocumentStatus(pool, doc.entity_id, req.user.id);
+      } else if (doc.entity_type === 'Order') {
+        const uList = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [doc.entity_id]);
+        for (const u of uList.rows) {
+          await syncUnitDesignDocumentStatus(pool, u.id, req.user.id);
+        }
+      }
+    }
 
     res.json({ success: true });
   } catch (err) {
@@ -5649,6 +5905,20 @@ app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager'
       insertedDocs.push(inserted.rows[0]);
     }
 
+    try {
+      const uRes = await pool.query(
+        `SELECT ou.id FROM order_units ou 
+         JOIN order_line_items oli ON ou.line_item_id = oli.id 
+         WHERE LOWER(TRIM(oli.part_number)) = LOWER(TRIM($1))`,
+        [partCheck.rows[0].part_number]
+      );
+      for (const u of uRes.rows) {
+        await syncUnitDesignDocumentStatus(pool, u.id, req.user.id);
+      }
+    } catch (sErr) {
+      console.warn('syncUnitDesignDocumentStatus warn in part master upload:', sErr);
+    }
+
     res.json(insertedDocs.length === 1 ? insertedDocs[0] : insertedDocs);
   } catch (err) {
     console.error(err);
@@ -5695,6 +5965,23 @@ app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 
          )`,
         [req.params.id, doc.doc_type]
       );
+    }
+
+    try {
+      const partCheck = await pool.query('SELECT part_number FROM part_number_masters WHERE id = $1', [req.params.id]);
+      if (partCheck.rows.length > 0) {
+        const uRes = await pool.query(
+          `SELECT ou.id FROM order_units ou 
+           JOIN order_line_items oli ON ou.line_item_id = oli.id 
+           WHERE LOWER(TRIM(oli.part_number)) = LOWER(TRIM($1))`,
+          [partCheck.rows[0].part_number]
+        );
+        for (const u of uRes.rows) {
+          await syncUnitDesignDocumentStatus(pool, u.id, req.user.id);
+        }
+      }
+    } catch (sErr) {
+      console.warn('syncUnitDesignDocumentStatus warn in part master delete:', sErr);
     }
 
     res.json(deleted.rows[0]);
