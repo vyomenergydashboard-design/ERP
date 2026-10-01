@@ -71,6 +71,16 @@ async function runTestSuite() {
     testUnitId = uRes.rows[0].id;
     assert(testUnitId, `Created test unit #${testUnitId}`);
 
+    // Attach PO to Order so unit is validly in Design (Sales cleared)
+    await pool.query(`
+      INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
+      VALUES ('Order', $1, 'PO', 'test_po.pdf', 'uploads/test_po.pdf', 1)
+    `, [testOrderId]);
+    await pool.query(`
+      INSERT INTO order_steps (order_id, dept, name, status, step_order)
+      VALUES ($1, 'Sales', 'Upload PO', 'done', 0)
+    `, [testOrderId]);
+
     // Insert steps: Review & Classify (1), Release Documents (2), Receive Shortfall (3)
     await pool.query(`
       INSERT INTO unit_steps (order_unit_id, name, dept, status, step_order)
