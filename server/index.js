@@ -317,7 +317,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
   }
 };
 
-const deriveUnitStatus = async (unitId, clientOrPool) => {
+const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
   const prevUnitRes = await clientOrPool.query(
     `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, o.classification, o.hold_status as order_hold_status
      FROM order_units ou
@@ -466,7 +466,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
     [newStatus, newDept, unitId]
   );
 
-  if (oldDept && oldDept !== newDept && newDept !== 'Planning' && !isSystemSeeding) {
+  if (oldDept && oldDept !== newDept && newDept !== 'Planning' && !isSystemSeeding && !suppressEmail) {
     sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept).catch(console.error);
   }
 
@@ -801,7 +801,7 @@ const initDB = async () => {
             );
           }
           // derive initial status
-          await deriveUnitStatus(unit.id, pool);
+          await deriveUnitStatus(unit.id, pool, true);
         }
       }
     }
@@ -2157,7 +2157,7 @@ app.post('/api/orders/realign-pipeline', authorize(['Admin', 'Manager']), async 
     await runDeploymentMigrations();
     const allUnits = await pool.query('SELECT id FROM order_units');
     for (const u of allUnits.rows) {
-      await deriveUnitStatus(u.id, pool);
+      await deriveUnitStatus(u.id, pool, true);
     }
     res.json({ success: true, message: 'Pipeline successfully realigned. Units without PO restored to Sales.' });
   } catch (err) {
@@ -6510,39 +6510,6 @@ const seedSayaUser = async () => {
         ]
       );
       console.log('Initial Admin user successfully seeded.');
-    }
-
-    // Sync task_masters changes to existing order_steps and unit_steps
-    await pool.query(`
-      UPDATE order_steps s
-      SET dept = tm.dept,
-          name = tm.name,
-          sub = tm.sub,
-          special = tm.special,
-          requires_upload = tm.requires_upload,
-          default_doc_type = tm.default_doc_type
-      FROM task_masters tm
-      WHERE s.task_id = tm.id
-    `);
-    await pool.query(`
-      UPDATE unit_steps s
-      SET dept = tm.dept,
-          name = tm.name,
-          sub = tm.sub,
-          requires_upload = tm.requires_upload,
-          default_doc_type = tm.default_doc_type
-      FROM task_masters tm
-      WHERE s.task_id = tm.id
-    `);
-
-    // Clean up any orphaned steps from previously deleted task masters
-    await pool.query('DELETE FROM order_steps WHERE task_id IS NULL');
-    await pool.query('DELETE FROM unit_steps WHERE task_id IS NULL');
-
-    // Re-derive unit status for all units so upstream gating (Sales Upload PO) is strictly enforced
-    const allUnits = await pool.query('SELECT id FROM order_units');
-    for (const u of allUnits.rows) {
-      await deriveUnitStatus(u.id, pool);
     }
   } catch (err) {
     console.warn('Could not auto-seed user Saya (database may still be starting up):', err.message);
