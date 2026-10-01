@@ -305,7 +305,7 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Index creation warning:', idxErr.message || idxErr);
     }
 
-        // ── Sync completed planning units to Production ───────────────────────
+    // ── Sync completed planning units to Production ───────────────────────
     try {
       console.log('[Deployment Migration] Syncing planned/completed units to Production...');
       await client.query(`
@@ -329,6 +329,70 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Planning to Production sync error:', syncErr);
     }
 
+    // ── Resilient Task Cleanup & Sales Department Realignment ──
+    try {
+      console.log('[Deployment Migration] Cleaning up removed Sales tasks (Confirm Dispatch Date, Sales Clearance)...');
+
+      // 1. Delete Confirm Dispatch Date and Sales Clearance from task_masters and step tables
+      const deletedMasters = await client.query(`
+        DELETE FROM task_masters 
+        WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')
+        RETURNING id, name;
+      `);
+
+      if (deletedMasters.rows.length > 0) {
+        const deletedIds = deletedMasters.rows.map(r => r.id);
+        await client.query('DELETE FROM order_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
+        await client.query('DELETE FROM unit_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
+        console.log(`[Deployment Migration] Removed ${deletedMasters.rows.length} unused Sales task templates and steps.`);
+      }
+
+      // Also clean up by name in case step existed without task_id
+      await client.query("DELETE FROM order_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
+      await client.query("DELETE FROM unit_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
+
+      // 2. Ensure 'Upload PO' task master exists in Sales
+      const uploadPoMaster = await client.query("SELECT id FROM task_masters WHERE dept = 'Sales' AND name = 'Upload PO'");
+      if (uploadPoMaster.rows.length === 0) {
+        await client.query(`
+          INSERT INTO task_masters (dept, name, sub, special, requires_upload, default_doc_type, is_mandatory, level, custom_fields)
+          VALUES ('Sales', 'Upload PO', 'Customer PO + specs', 'sales', true, 'PO', true, 'order', '[]'::jsonb)
+        `);
+        console.log('[Deployment Migration] Ensured Upload PO task master exists.');
+      }
+
+      // 3. Re-align orders and units: An order stays in Sales until Upload PO is completed
+      // Find orders where Upload PO is pending or missing
+      const misalignedUnits = await client.query(`
+        UPDATE order_units ou
+        SET current_dept = 'Sales', status = 'Pending'
+        FROM orders o
+        WHERE ou.order_id = o.id
+          AND ou.current_dept = 'Design'
+          AND ou.design_confirmed = false
+          AND ou.hold_status NOT IN ('Hold', 'Cancelled')
+          AND ou.status NOT IN ('Cancelled', 'Hold', 'On Hold')
+          AND (
+            NOT EXISTS (
+              SELECT 1 FROM documents d 
+              WHERE d.entity_type = 'Order' AND d.entity_id = o.id AND d.doc_type = 'PO'
+            )
+            OR EXISTS (
+              SELECT 1 FROM order_steps os 
+              WHERE os.order_id = o.id AND os.dept = 'Sales' AND os.name = 'Upload PO' AND os.status != 'done'
+            )
+          )
+        RETURNING ou.id;
+      `);
+
+      if (misalignedUnits.rows.length > 0) {
+        console.log(`[Deployment Migration] Realignment complete: ${misalignedUnits.rows.length} units with pending POs restored to Sales.`);
+      }
+
+    } catch (cleanupErr) {
+      console.error('[Deployment Migration] Resilient task cleanup warning:', cleanupErr);
+    }
+
   } catch (err) {
     console.error('[Deployment Migration Error]:', err);
   } finally {
@@ -336,4 +400,16 @@ export async function runDeploymentMigrations(clientParam) {
       client.release();
     }
   }
+}
+
+if (process.argv[1] && process.argv[1].endsWith('run_deployment_migrations.js')) {
+  runDeploymentMigrations()
+    .then(() => {
+      console.log('Migrations executed successfully.');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('Migration failed:', err);
+      process.exit(1);
+    });
 }

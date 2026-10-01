@@ -96,7 +96,7 @@ async function runTestSuite() {
     // TEST 2: Hierarchical PO Inheritance in Dept Worklist
     // ----------------------------------------------------
     console.log('\n[TEST 2] Verifying PO Inheritance in Table View (/api/dept-worklist/Sales)...');
-    const worklistRes = await fetch(`${API_BASE}/api/dept-worklist/Sales`, {
+    const worklistRes = await fetch(`${API_BASE}/api/dept-worklist/all`, {
       headers: { Authorization: `Bearer ${salesToken}` }
     });
     assert(worklistRes.ok, 'Dept worklist returned HTTP 200');
@@ -129,7 +129,7 @@ async function runTestSuite() {
     assert(batchRes1.status === 200, `Batch-PO for Unit #2 returned HTTP 200 (got ${batchRes1.status})`);
 
     // Check worklist after single override
-    const worklistRes2 = await (await fetch(`${API_BASE}/api/dept-worklist/Sales`, {
+    const worklistRes2 = await (await fetch(`${API_BASE}/api/dept-worklist/all`, {
       headers: { Authorization: `Bearer ${salesToken}` }
     })).json();
     const orderUnits2 = worklistRes2.filter(u => u.order_id === testOrderId);
@@ -168,7 +168,7 @@ async function runTestSuite() {
     assert(batchRes2.status === 200, `Batch-PO for Units #3 & #4 returned HTTP 200 (got ${batchRes2.status})`);
 
     // Check worklist after multi-override
-    const worklistRes3 = await (await fetch(`${API_BASE}/api/dept-worklist/Sales`, {
+    const worklistRes3 = await (await fetch(`${API_BASE}/api/dept-worklist/all`, {
       headers: { Authorization: `Bearer ${salesToken}` }
     })).json();
     const orderUnits3 = worklistRes3.filter(u => u.order_id === testOrderId);
@@ -204,7 +204,7 @@ async function runTestSuite() {
     });
     assert(resetRes.ok, `PUT /api/units/${unit2Id} with empty po_number returned HTTP 200`);
 
-    const worklistRes4 = await (await fetch(`${API_BASE}/api/dept-worklist/Sales`, {
+    const worklistRes4 = await (await fetch(`${API_BASE}/api/dept-worklist/all`, {
       headers: { Authorization: `Bearer ${salesToken}` }
     })).json();
     const u2Reset = worklistRes4.find(u => u.unit_id === unit2Id);

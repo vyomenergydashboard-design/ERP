@@ -20,21 +20,23 @@ async function run() {
   let testUnitId = null;
 
   try {
+    await pool.query("DELETE FROM orders WHERE order_number LIKE 'TEST-SALES-%'");
+    const ts = Date.now();
     const locRes = await pool.query('SELECT id FROM company_locations LIMIT 1');
     const locId = locRes.rows[0]?.id || 1;
 
     const ordRes = await pool.query(`
       INSERT INTO orders (order_number, company_location_id, priority, created_by, status)
-      VALUES ('TEST-SALES-9999', $1, 'Medium', 1, 'Active')
+      VALUES ($1, $2, 'Medium', 1, 'Active')
       RETURNING id
-    `, [locId]);
+    `, [`TEST-SALES-${ts}`, locId]);
     testOrderId = ordRes.rows[0].id;
 
     const liRes = await pool.query(`
       INSERT INTO order_line_items (order_id, line_item_number, material_description, quantity, unit, unit_price, total_price)
-      VALUES ($1, 'TEST-SALES-9999-01', 'Test Standard Panel', 1, 'Nos', 5000, 5000)
+      VALUES ($1, $2, 'Test Standard Panel', 1, 'Nos', 5000, 5000)
       RETURNING id
-    `, [testOrderId]);
+    `, [testOrderId, `TEST-SALES-${ts}-01`]);
     const lineItemId = liRes.rows[0].id;
 
     const uRes = await pool.query(`
@@ -55,13 +57,14 @@ async function run() {
     `, [testUnitId]);
     const salesStepId = sRes.rows.find(r => r.name === 'Sales Clearance').id;
 
-    // Attach dummy Drawing & BOM documents to the unit so it can advance once Design confirms
+    // Attach dummy Drawing & BOM documents to the unit so it can advance once Design confirms, and PO to Order
     await pool.query(`
       INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, uploaded_by)
       VALUES 
         ('Unit', $1, 'Drawing', 'panel_drawing.pdf', 'uploads/panel_drawing.pdf', 1),
-        ('Unit', $1, 'BOM', 'panel_bom.xlsx', 'uploads/panel_bom.xlsx', 1)
-    `, [testUnitId]);
+        ('Unit', $1, 'BOM', 'panel_bom.xlsx', 'uploads/panel_bom.xlsx', 1),
+        ('Order', $2, 'PO', 'test_po.pdf', 'uploads/test_po.pdf', 1)
+    `, [testUnitId, testOrderId]);
 
     console.log('[TEST 1] Verifying panel remains in Sales when Sales Clearance is pending...');
     const uState1 = (await pool.query(`SELECT current_dept, status FROM order_units WHERE id = $1`, [testUnitId])).rows[0];

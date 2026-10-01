@@ -64,16 +64,14 @@ const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 const DEFAULT_STEPS = [
-  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order' },
-  { dept: 'Sales', name: 'Confirm Dispatch Date', sub: 'Received from Planning', special: 'dispatch', requires_upload: false, default_doc_type: 'General', level: 'order' },
-  { dept: 'Sales', name: 'Sales Clearance', sub: 'PO & Specs Clearance', special: 'sales', requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { 
-    dept: 'Design', 
-    name: 'Review & Classify', 
-    sub: 'Standard / Non-Standard', 
-    special: null, 
-    requires_upload: false, 
-    default_doc_type: 'General', 
+  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order', is_mandatory: true },
+  {
+    dept: 'Design',
+    name: 'Review & Classify',
+    sub: 'Standard / Non-Standard',
+    special: null,
+    requires_upload: false,
+    default_doc_type: 'General',
     level: 'unit',
     custom_fields: [
       { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'], datakey: 'classification' }
@@ -105,7 +103,7 @@ const transporter = nodemailer.createTransport({
 
 const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nextDept) => {
   const emailSubject = `[Vyom ERP] Handover: ${prevDept} finished, ${nextDept} can start - Unit ${unitIdStr}`;
-  
+
   let recipientEmails = [];
   try {
     const usersRes = await pool.query(
@@ -194,7 +192,7 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
 
 const sendHoldRequestEmail = async (orderId, orderNumber, requestedByUsername) => {
   const emailSubject = `[Vyom ERP] Hold Requested for Order ${orderNumber}`;
-  
+
   let recipientEmails = [];
   try {
     const usersRes = await pool.query(
@@ -296,7 +294,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
     const depts = units.map(u => u.current_dept);
     let mappedStatus = 'Not Started';
-    
+
     if (depts.includes('Design')) {
       mappedStatus = 'In Progress';
     } else if (depts.includes('Purchase') || depts.includes('Stores')) {
@@ -310,7 +308,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
     } else if (depts.includes('Dispatch') || depts.includes('Accounts')) {
       mappedStatus = 'Completed';
     }
-    
+
     await clientOrPool.query(
       `UPDATE order_line_items SET status = $1 WHERE id = $2`,
       [mappedStatus, lineItemId]
@@ -369,15 +367,25 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
 
   // Check if Sales order-level steps (like Upload PO) are completed (non-mandatory tasks do not block pipeline)
   const salesOrderStepsRes = await clientOrPool.query(
-    `SELECT os.status, tm.is_mandatory 
+    `SELECT os.status, COALESCE(tm.is_mandatory, true) as is_mandatory 
      FROM order_steps os
      LEFT JOIN task_masters tm ON os.task_id = tm.id
      WHERE os.order_id = $1 AND os.dept = 'Sales'`,
     [orderId]
   );
-  const isSalesDone = salesOrderStepsRes.rows.length === 0 || salesOrderStepsRes.rows.every(s => 
-    s.status === 'done' || s.is_mandatory === false
-  );
+  
+  // If there are Sales order steps, check that all mandatory ones are done.
+  // If there are no Sales order steps at all, check if a PO document was uploaded.
+  let isSalesDone = false;
+  if (salesOrderStepsRes.rows.length > 0) {
+    isSalesDone = salesOrderStepsRes.rows.every(s => s.status === 'done' || s.is_mandatory === false);
+  } else {
+    const poDocCheck = await clientOrPool.query(
+      `SELECT 1 FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1`,
+      [orderId]
+    );
+    isSalesDone = poDocCheck.rows.length > 0;
+  }
 
   let newStatus = 'Pending';
   let newDept = 'Sales';
@@ -420,7 +428,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
           const firstIncomplete = steps.find(s => s.status !== 'done');
           if (firstIncomplete) {
             newDept = firstIncomplete.dept;
-            
+
             const statusMap = {
               'Sales': 'Pending',
               'Design': 'Design',
@@ -432,7 +440,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
               'Dispatch': 'Ready for Dispatch',
               'Accounts': 'Dispatched'
             };
-            
+
             newStatus = statusMap[firstIncomplete.dept] || 'Production';
 
             // HARD SAFETY GATE: Without BOTH Drawing and BOM, no panel can go to next department (Purchase, Stores, Planning, etc.)
@@ -449,6 +457,10 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
           }
         }
       }
+    } else {
+      // If there are no unit steps at all, retain the current department and status
+      newDept = oldDept || 'Sales';
+      newStatus = row.status || 'Pending';
     }
   }
 
@@ -692,45 +704,41 @@ const initDB = async () => {
 
   try {
 
-    // Synchronize default task_masters to match tasks
-    const currentTasks = await pool.query('SELECT name, level FROM task_masters WHERE is_mandatory = true');
-    const currentSignatures = currentTasks.rows.map(r => `${r.name}:${r.level}`).sort();
-    const expectedSignatures = DEFAULT_STEPS.map(s => `${s.name}:${s.level}`).sort();
-    const isMatching = JSON.stringify(currentSignatures) === JSON.stringify(expectedSignatures);
-    
-    // Force sync if the Design 'Review & Classify' step doesn't have the classification custom field template yet
-    const reviewTask = await pool.query("SELECT custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify'");
-    const hasDropdown = reviewTask.rows.length > 0 && reviewTask.rows[0].custom_fields?.some(f => f.label === 'Classification' && f.datakey === 'classification');
-
-    if (!isMatching || !hasDropdown) {
-      console.log('Syncing task_masters to new defaults...');
-      await pool.query('TRUNCATE TABLE task_masters RESTART IDENTITY CASCADE;');
+    // Ensure default task_masters exist only if table is empty
+    const currentTasksCount = await pool.query('SELECT COUNT(*) FROM task_masters');
+    if (parseInt(currentTasksCount.rows[0].count, 10) === 0) {
+      console.log('Seeding initial default task_masters...');
       for (const step of DEFAULT_STEPS) {
         await pool.query(
           `INSERT INTO task_masters (dept, name, sub, special, requires_upload, default_doc_type, is_mandatory, level, custom_fields) 
            VALUES ($1, $2, $3, $4, $5, $6, true, $7, $8)`,
           [
-            step.dept, 
-            step.name, 
-            step.sub, 
-            step.special, 
-            step.requires_upload, 
-            step.default_doc_type || 'General', 
-            step.level,
+            step.dept,
+            step.name,
+            step.sub,
+            step.special,
+            step.requires_upload,
+            step.default_doc_type || 'General',
+            step.level || 'unit',
             JSON.stringify(step.custom_fields || [])
           ]
         );
       }
-      console.log('task_masters updated successfully!');
+      console.log('Default task_masters seeded successfully!');
+    }
 
-      // Retroactively update existing 'Review & Classify' steps in unit_steps
-      const designClassifyId = await pool.query("SELECT custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify' LIMIT 1");
-      if (designClassifyId.rows.length > 0) {
-        const templateCf = designClassifyId.rows[0].custom_fields;
-        const fieldDefsWithVal = templateCf.map(f => ({ ...f, value: 'Standard' }));
+    // Ensure Design 'Review & Classify' step has the classification custom field template
+    const reviewTask = await pool.query("SELECT id, custom_fields FROM task_masters WHERE dept = 'Design' AND name = 'Review & Classify'");
+    if (reviewTask.rows.length > 0) {
+      const hasDropdown = reviewTask.rows[0].custom_fields?.some(f => f.label === 'Classification' && f.datakey === 'classification');
+      if (!hasDropdown) {
+        const defaultCf = [
+          { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'], datakey: 'classification' }
+        ];
+        await pool.query("UPDATE task_masters SET custom_fields = $1 WHERE id = $2", [JSON.stringify(defaultCf), reviewTask.rows[0].id]);
         await pool.query(
           "UPDATE unit_steps SET custom_fields = $1 WHERE name = 'Review & Classify' AND (custom_fields IS NULL OR custom_fields = '[]'::jsonb)",
-          [JSON.stringify(fieldDefsWithVal)]
+          [JSON.stringify(defaultCf.map(f => ({ ...f, value: 'Standard' })))]
         );
       }
     }
@@ -756,7 +764,7 @@ const initDB = async () => {
         id ASC
     `);
     const tasks = dbTasks.rows.length > 0 ? dbTasks.rows : DEFAULT_STEPS;
-    
+
     let restoredCount = 0;
     for (const order of ordersRes.rows) {
       const stepsCount = await pool.query('SELECT COUNT(*) FROM order_steps WHERE order_id = $1', [order.id]);
@@ -889,15 +897,15 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
 const loginRateLimiter = (req, res, next) => {
   const ip = req.ip || req.connection?.remoteAddress || 'unknown';
   const now = Date.now();
-  
+
   const record = loginAttempts.get(ip);
   if (record) {
     if (now - record.firstAttemptTime > LOGIN_WINDOW_MS) {
       loginAttempts.set(ip, { count: 1, firstAttemptTime: now });
     } else if (record.count >= MAX_LOGIN_ATTEMPTS) {
       const waitMinutes = Math.ceil((LOGIN_WINDOW_MS - (now - record.firstAttemptTime)) / 60000);
-      return res.status(429).json({ 
-        error: `Too many failed login attempts. Please try again after ${waitMinutes} minute(s).` 
+      return res.status(429).json({
+        error: `Too many failed login attempts. Please try again after ${waitMinutes} minute(s).`
       });
     } else {
       record.count += 1;
@@ -925,8 +933,8 @@ const sanitizeOriginalFileName = (originalName) => {
 };
 
 const BLOCKED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.sh', '.bash', '.php', '.phtml', '.pl', '.cgi', 
-  '.js', '.mjs', '.vbs', '.ps1', '.jar', '.apk', '.msi', '.com', '.scr', 
+  '.exe', '.bat', '.cmd', '.sh', '.bash', '.php', '.phtml', '.pl', '.cgi',
+  '.js', '.mjs', '.vbs', '.ps1', '.jar', '.apk', '.msi', '.com', '.scr',
   '.hta', '.html', '.htm', '.svg'
 ]);
 
@@ -954,7 +962,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   fileFilter: uploadFileFilter,
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB total limit
@@ -1014,23 +1022,23 @@ const authorize = (roles = []) => {
     } else if (req.query.token) {
       token = req.query.token;
     }
-    
+
     if (!token) return res.status(401).json({ error: 'No token provided' });
-    
+
     jwt.verify(token, JWT_SECRET, async (err, decoded) => {
       if (err) return res.status(401).json({ error: 'Unauthorized' });
-      
+
       try {
         const userRes = await pool.query('SELECT id, role FROM users WHERE id = $1', [decoded.id]);
         if (userRes.rows.length === 0) {
           return res.status(401).json({ error: 'Unauthorized: User does not exist' });
         }
-        
+
         const dbUser = userRes.rows[0];
         if (roles.length && !roles.includes(dbUser.role)) {
           return res.status(403).json({ error: 'Forbidden: Insufficient permissions' });
         }
-        
+
         req.user = { ...decoded, role: dbUser.role };
         next();
       } catch (dbErr) {
@@ -1115,7 +1123,7 @@ app.get('/api/logs', authorize(), async (req, res) => {
       queryText += ` LIMIT $1`;
       params.push(parseInt(limit) || 1000);
     }
-    
+
     const result = await pool.query(queryText, params);
     res.json(result.rows);
   } catch (err) {
@@ -1189,20 +1197,20 @@ app.patch('/api/users/:id/password', authorize(['Admin']), async (req, res) => {
 app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
   const { username, email, role, password } = req.body;
   const { id } = req.params;
-  
+
   if (!username || !email || !role) {
     return res.status(400).json({ error: 'Username, email, and role are required' });
   }
-  
+
   const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'];
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
-  
+
   try {
     let query = 'UPDATE users SET username = $1, email = $2, role = $3';
     const params = [username, email, role, id];
-    
+
     if (password && password.length >= 6) {
       const hashedPassword = await bcrypt.hash(password, 10);
       query += ', password = $4 WHERE id = $5';
@@ -1210,9 +1218,9 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     } else {
       query += ' WHERE id = $4';
     }
-    
+
     query += ' RETURNING id, username, email, role, created_at';
-    
+
     const result = await pool.query(query, params);
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
@@ -1229,7 +1237,7 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
 
 app.delete('/api/users/:id', authorize(['Admin']), async (req, res) => {
   const { id } = req.params;
-  
+
   if (parseInt(id) === req.user.id) {
     return res.status(400).json({ error: 'You cannot delete your own account' });
   }
@@ -1237,19 +1245,19 @@ app.delete('/api/users/:id', authorize(['Admin']), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     await client.query('UPDATE orders SET created_by = NULL WHERE created_by = $1', [id]);
     await client.query('UPDATE order_units SET assigned_user = NULL WHERE assigned_user = $1', [id]);
     await client.query('UPDATE documents SET uploaded_by = NULL WHERE uploaded_by = $1', [id]);
     await client.query('UPDATE unit_steps SET assigned_user_id = NULL WHERE assigned_user_id = $1', [id]);
-    
+
     const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [id]);
-    
+
     if (result.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
-    
+
     await client.query('COMMIT');
     res.json({ message: 'User deleted successfully', deletedUser: result.rows[0] });
   } catch (err) {
@@ -1466,7 +1474,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
         else if (field.includes('quotation')) docType = 'Quotation';
         else if (field.includes('approved')) docType = 'Approved';
         else if (field.includes('indent')) docType = 'Indent';
-        
+
         await client.query(
           `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -1669,21 +1677,21 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
 });
 
 app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
-  const { 
-    company_location_id, 
-    order_date, 
-    delivery_date, 
-    notes, 
-    priority, 
-    po_number, 
-    packaging_type, 
-    end_client_name, 
-    gst_number, 
+  const {
+    company_location_id,
+    order_date,
+    delivery_date,
+    notes,
+    priority,
+    po_number,
+    packaging_type,
+    end_client_name,
+    gst_number,
     reference_number,
     classification,
     project_name
   } = req.body;
-  
+
   try {
     const checkOrder = await pool.query('SELECT order_number, order_date FROM orders WHERE id = $1', [req.params.id]);
     if (checkOrder.rows.length === 0) {
@@ -1718,15 +1726,15 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
        WHERE id = $13 
        RETURNING *`,
       [
-        company_location_id ? parseInt(company_location_id) : null, 
-        order_date || null, 
-        delivery_date || null, 
-        notes !== undefined ? notes : null, 
-        priority || null, 
-        po_number !== undefined ? po_number : null, 
-        packaging_type !== undefined ? packaging_type : null, 
-        end_client_name !== undefined ? end_client_name : null, 
-        gst_number !== undefined ? gst_number : null, 
+        company_location_id ? parseInt(company_location_id) : null,
+        order_date || null,
+        delivery_date || null,
+        notes !== undefined ? notes : null,
+        priority || null,
+        po_number !== undefined ? po_number : null,
+        packaging_type !== undefined ? packaging_type : null,
+        end_client_name !== undefined ? end_client_name : null,
+        gst_number !== undefined ? gst_number : null,
         reference_number !== undefined ? reference_number : null,
         classification || null,
         project_name !== undefined ? project_name : null,
@@ -1742,9 +1750,9 @@ app.put('/api/orders/:id', authorize(['Admin', 'Manager', 'Design', 'Sales']), a
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
       [
-        req.user.id, 
-        req.user.role, 
-        `Amended order details for ${order_number}`, 
+        req.user.id,
+        req.user.role,
+        `Amended order details for ${order_number}`,
         req.params.id
       ]
     );
@@ -2191,8 +2199,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       const firstRowPreview = raw[0] ? raw[0].slice(0, 5).join(', ') : '(empty)';
       return res.status(400).json({
         error: `Column header "po_number" not found in the first 10 rows of sheet "${sheetName}". ` +
-               `First row detected: [${firstRowPreview}]. ` +
-               `Make sure you are filling the "Import Template" sheet from the downloaded template.`
+          `First row detected: [${firstRowPreview}]. ` +
+          `Make sure you are filling the "Import Template" sheet from the downloaded template.`
       });
     }
 
@@ -2205,12 +2213,12 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       return obj;
     });
   } catch (err) {
-    try { fs.unlinkSync(req.file.path); } catch (_) {}
+    try { fs.unlinkSync(req.file.path); } catch (_) { }
     return res.status(400).json({ error: `Failed to read Excel file: ${err.message}` });
   }
 
   // Cleanup the temp upload
-  try { fs.unlinkSync(req.file.path); } catch (_) {}
+  try { fs.unlinkSync(req.file.path); } catch (_) { }
 
   // Filter to rows that have any content at all
   rows = rows.filter(r => Object.values(r).some(v => String(v).trim() !== ''));
@@ -2218,7 +2226,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
   if (!rows || rows.length === 0) {
     return res.status(400).json({
       error: `The sheet "${detectedSheet}" appears to be empty or has no data rows below the header. ` +
-             `Detected headers: [${detectedHeaders.slice(0, 6).join(', ')}...]`
+        `Detected headers: [${detectedHeaders.slice(0, 6).join(', ')}...]`
     });
   }
 
@@ -2237,8 +2245,8 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
   if (orderMap.size === 0) {
     return res.status(400).json({
       error: `No rows with a po_number value found in sheet "${detectedSheet}". ` +
-             `Make sure the po_number column is filled in for every data row. ` +
-             `Detected columns: [${detectedHeaders.join(', ')}]`
+        `Make sure the po_number column is filled in for every data row. ` +
+        `Detected columns: [${detectedHeaders.join(', ')}]`
     });
   }
 
@@ -2322,13 +2330,13 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         // Handle Excel serial numbers
         if (/^\d+$/.test(s)) {
           const d = XLSX.SSF.parse_date_code(parseInt(s));
-          return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+          return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
         }
         return s || null;
       };
 
-      const order_date    = parseDate(header['order_date']) || new Date().toISOString().split('T')[0];
-      const orderDateObj  = new Date(order_date);
+      const order_date = parseDate(header['order_date']) || new Date().toISOString().split('T')[0];
+      const orderDateObj = new Date(order_date);
       const deliveryDateObj = new Date(orderDateObj);
       deliveryDateObj.setDate(orderDateObj.getDate() + 28); // 4 weeks
       const delivery_date = deliveryDateObj.toISOString().split('T')[0];
@@ -2354,12 +2362,12 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
           `INSERT INTO orders (order_number, company_location_id, order_date, delivery_date, notes, priority, po_number, packaging_type, created_by, end_client_name, gst_number, reference_number, classification, project_name)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
           [order_number, company_location_id, order_date, delivery_date,
-           header['order_notes'] || null, priority, po_number, packaging_type, req.user.id,
-           header['end_client_name'] || header['end_client'] || null,
-           header['gst_number'] || null,
-           header['reference_number'] || null,
-           classification,
-           header['project_name'] || header['project'] || null]
+            header['order_notes'] || null, priority, po_number, packaging_type, req.user.id,
+            header['end_client_name'] || header['end_client'] || null,
+            header['gst_number'] || null,
+            header['reference_number'] || null,
+            classification,
+            header['project_name'] || header['project'] || null]
         );
         order = orderResult.rows[0];
       }
@@ -2414,9 +2422,9 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
             panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
           [order.id, li_number, li['material_description'] || '', li['part_number'] || '',
-           li['panel_type_size'] || '', delivery_date,
-           qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null,
-           li['project_name'] || li['project'] || order.project_name || null, cleanLiTag]
+          li['panel_type_size'] || '', delivery_date,
+            qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null,
+          li['project_name'] || li['project'] || order.project_name || null, cleanLiTag]
         );
         const lineItem = liResult.rows[0];
         totalUnits += qty;
@@ -2588,7 +2596,7 @@ app.get('/api/board', authorize(), async (req, res) => {
         status: s.status,
         notes: s.notes
       }));
-      
+
       const uSteps = unitStepsRes.rows.filter(s => s.order_id === o.id).map(s => ({
         id: `u_${s.id}`,
         dept: s.dept,
@@ -2634,22 +2642,22 @@ app.get('/api/orders/:id', authorize(), async (req, res) => {
       WHERE o.id = $1
     `, [req.params.id]);
     if (order.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    
+
     const lineItems = await pool.query('SELECT * FROM order_line_items WHERE order_id = $1 ORDER BY id ASC', [req.params.id]);
     const units = await pool.query('SELECT * FROM order_units WHERE order_id = $1 ORDER BY id ASC', [req.params.id]);
     const docs = await pool.query(
       `SELECT * FROM documents 
        WHERE (entity_type = 'Order' AND entity_id = $1) 
-          OR (entity_type = 'Unit' AND entity_id IN (SELECT id FROM order_units WHERE order_id = $1))`, 
+          OR (entity_type = 'Unit' AND entity_id IN (SELECT id FROM order_units WHERE order_id = $1))`,
       [req.params.id]
     );
-    
+
     let docsList = docs.rows;
     const isSalesOrAccounts = ['Sales', 'Accounts', 'Admin', 'Manager'].includes(req.user.role);
     if (!isSalesOrAccounts) {
       docsList = docsList.filter(d => d.doc_type !== 'PO');
     }
-    
+
     res.json({ ...order.rows[0], line_items: lineItems.rows, units: units.rows, documents: docsList });
   } catch (err) {
     console.error(err);
@@ -2717,7 +2725,7 @@ const resolveCustomFieldValues = async (customFields, orderId, unitId = null) =>
       const docType = rawKey.slice(5); // e.g. "PO", "any", "Drawing"
       try {
         let count = 0;
-        
+
         // 1. Resolve order id from context
         let resolvedOrderId = orderId;
         if (!resolvedOrderId && unitId && dbRow) {
@@ -2787,7 +2795,7 @@ const resolveCustomFieldValues = async (customFields, orderId, unitId = null) =>
         try {
           const d = new Date(val);
           if (!isNaN(d.getTime())) resolvedValue = d.toISOString().split('T')[0];
-        } catch {}
+        } catch { }
       } else if (f.type === 'Yes/No') {
         resolvedValue = val === true || String(val).toLowerCase() === 'yes';
       } else {
@@ -2805,7 +2813,7 @@ const propagateCustomFieldsToDB = async (customFields, orderId, unitId = null, c
   if (!customFields || !Array.isArray(customFields) || customFields.length === 0) {
     return;
   }
-  
+
   // Get order_id if only unitId is provided
   let resolvedOrderId = orderId;
   let lineItemId = null;
@@ -2916,7 +2924,7 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
 
       let cf = [];
       try { cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]'); } catch { cf = []; }
-      
+
       if (cf.length === 0 && step.tm_custom_fields) {
         try {
           const tmCf = Array.isArray(step.tm_custom_fields) ? step.tm_custom_fields : JSON.parse(step.tm_custom_fields);
@@ -2934,7 +2942,7 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
           const val = f.value;
           const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
           if (!isValPresent) return false;
-          
+
           // Auto-complete ONLY IF explicitly marked for auto-complete OR has an IF statement (condition)
           if (f.auto_complete === true || f.auto_complete === 'true' || step.auto_complete === true) {
             return true;
@@ -3017,7 +3025,7 @@ app.post('/api/orders/:id/steps', authorize(), async (req, res) => {
 app.put('/api/orders/:orderId/steps/reorder', authorize(), async (req, res) => {
   const { orderedIds } = req.body; // Array of step IDs in the new order
   if (!orderedIds || !Array.isArray(orderedIds)) return res.status(400).json({ error: 'orderedIds array required' });
-  
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -3134,19 +3142,19 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
         }
       }
     }
-    
+
     if (step.dept === 'QC' && status === 'blocked') {
       const { qcFailTarget } = req.body;
       const target = qcFailTarget === 'design' ? 'Design' : 'Production';
       const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
-      
+
       await pool.query(
         `UPDATE order_steps 
          SET status = 'inprogress', notes = $1, updated = $2 
          WHERE order_id = $3 AND dept = $4`,
         [remark, updated, req.params.orderId, target]
       );
-      
+
       await pool.query(
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
          VALUES ($1, $2, 'QC', $3)`,
@@ -3161,7 +3169,7 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
     for (const u of unitsForOrder.rows) {
       await deriveUnitStatus(u.id, pool);
     }
-    
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -3177,13 +3185,13 @@ app.delete('/api/orders/:orderId/steps/:stepId', authorize(['Admin', 'Manager'])
       [req.params.stepId, req.params.orderId]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
-    
+
     // Also log this deletion
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, $2, $3)',
       [req.user.id, result.rows[0].dept, `Deleted task step: ${result.rows[0].name}`]
     );
-    
+
     res.json({ message: 'Step deleted successfully' });
   } catch (err) {
     console.error(err);
@@ -3469,21 +3477,21 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
 
 app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
   const { unitId } = req.params;
-  const { 
-    end_client_name, 
-    planned_dispatch_date, 
-    wiring_assigned_date, 
-    wiring_expected_date, 
-    expected_qc_date, 
-    priority, 
-    status, 
-    qc_status, 
+  const {
+    end_client_name,
+    planned_dispatch_date,
+    wiring_assigned_date,
+    wiring_expected_date,
+    expected_qc_date,
+    priority,
+    status,
+    qc_status,
     qc_date,
     mounting_start_date,
     mounting_complete_date,
     custom_fields
   } = req.body;
-  
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -3526,13 +3534,13 @@ app.put('/api/planning/units/:unitId', authorize(['Admin', 'Manager', 'Planning'
        WHERE id = $11 
        RETURNING *`,
       [
-        planned_dispatch_date || null, 
-        wiring_assigned_date || null, 
-        wiring_expected_date || null, 
-        expected_qc_date || null, 
-        status, 
-        qc_status, 
-        qc_date || null, 
+        planned_dispatch_date || null,
+        wiring_assigned_date || null,
+        wiring_expected_date || null,
+        expected_qc_date || null,
+        status,
+        qc_status,
+        qc_date || null,
         mounting_start_date || null,
         mounting_complete_date || null,
         custom_fields ? JSON.stringify(custom_fields) : null,
@@ -3589,21 +3597,21 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
   if (await isLineItemOnHold(req.params.lineItemId)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { 
-    end_client_name, 
-    planned_dispatch_date, 
-    wiring_assigned_date, 
-    wiring_expected_date, 
-    expected_qc_date, 
-    priority, 
-    status, 
-    qc_status, 
+  const {
+    end_client_name,
+    planned_dispatch_date,
+    wiring_assigned_date,
+    wiring_expected_date,
+    expected_qc_date,
+    priority,
+    status,
+    qc_status,
     qc_date,
     mounting_start_date,
     mounting_complete_date,
     custom_fields
   } = req.body;
-  
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -3639,13 +3647,13 @@ app.put('/api/planning/line-items/:lineItemId', authorize(['Admin', 'Manager', '
        WHERE id = $11 
        RETURNING *`,
       [
-        planned_dispatch_date || null, 
-        wiring_assigned_date || null, 
-        wiring_expected_date || null, 
-        expected_qc_date || null, 
-        status, 
-        qc_status, 
-        qc_date || null, 
+        planned_dispatch_date || null,
+        wiring_assigned_date || null,
+        wiring_expected_date || null,
+        expected_qc_date || null,
+        status,
+        qc_status,
+        qc_date || null,
         mounting_start_date || null,
         mounting_complete_date || null,
         custom_fields ? JSON.stringify(custom_fields) : null,
@@ -3716,18 +3724,18 @@ app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']),
   if (await isOrderOnHold(req.params.id)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { 
-    end_client_name, 
-    planned_dispatch_date, 
-    wiring_assigned_date, 
-    wiring_expected_date, 
-    expected_qc_date, 
-    priority, 
-    status, 
-    qc_status, 
-    qc_date 
+  const {
+    end_client_name,
+    planned_dispatch_date,
+    wiring_assigned_date,
+    wiring_expected_date,
+    expected_qc_date,
+    priority,
+    status,
+    qc_status,
+    qc_date
   } = req.body;
-  
+
   try {
     const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
     if (checkOrder.rows.length === 0) {
@@ -3749,15 +3757,15 @@ app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']),
        WHERE id = $10 
        RETURNING *`,
       [
-        end_client_name || null, 
-        planned_dispatch_date || null, 
-        wiring_assigned_date || null, 
-        wiring_expected_date || null, 
-        expected_qc_date || null, 
-        priority, 
-        status, 
-        qc_status, 
-        qc_date || null, 
+        end_client_name || null,
+        planned_dispatch_date || null,
+        wiring_assigned_date || null,
+        wiring_expected_date || null,
+        expected_qc_date || null,
+        priority,
+        status,
+        qc_status,
+        qc_date || null,
         req.params.id
       ]
     );
@@ -3765,9 +3773,9 @@ app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']),
     await pool.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
       [
-        req.user.id, 
-        req.user.role, 
-        `Updated planning details for order ${order_number}`, 
+        req.user.id,
+        req.user.role,
+        `Updated planning details for order ${order_number}`,
         req.params.id
       ]
     );
@@ -3794,17 +3802,17 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
     for (const step of result.rows) {
       let cf = [];
       try { cf = Array.isArray(step.custom_fields) ? step.custom_fields : JSON.parse(step.custom_fields || '[]'); } catch { cf = []; }
-      
+
       if (cf.length === 0 && step.tm_custom_fields) {
         try {
           const tmCf = Array.isArray(step.tm_custom_fields) ? step.tm_custom_fields : JSON.parse(step.tm_custom_fields);
           cf = tmCf.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
         } catch { cf = []; }
       }
-      
+
       // Resolve datakeys dynamically
       cf = await resolveCustomFieldValues(cf, null, req.params.unitId);
-      
+
       let autoDone = false;
       if (step.status !== 'done') {
         const hasResolvedVal = cf.some(f => {
@@ -3812,7 +3820,7 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
           const val = f.value;
           const isValPresent = val !== null && val !== undefined && val !== '' && val !== false;
           if (!isValPresent) return false;
-          
+
           // Auto-complete ONLY IF explicitly marked for auto-complete OR has an IF statement (condition)
           if (f.auto_complete === true || f.auto_complete === 'true' || step.auto_complete === true) {
             return true;
@@ -3875,17 +3883,17 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
 });
 
 app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
-  const { 
-    action, 
-    status, 
-    notes, 
-    dispatchDate, 
-    custom_fields, 
-    assigned_user_id, 
-    holdReason, 
-    scope = 'unit', 
-    targetUnitIds, 
-    resumeTarget 
+  const {
+    action,
+    status,
+    notes,
+    dispatchDate,
+    custom_fields,
+    assigned_user_id,
+    holdReason,
+    scope = 'unit',
+    targetUnitIds,
+    resumeTarget
   } = req.body;
 
   const isSpecialAction = ['hold', 'resume', 'cancel'].includes(action);
@@ -4447,7 +4455,7 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Ad
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    
+
     // 1. Update all unit steps for this line item and department
     await client.query(
       `UPDATE unit_steps 
@@ -4667,7 +4675,7 @@ app.get('/api/companies', authorize(), async (req, res) => {
   try {
     const companies = await pool.query('SELECT * FROM companies ORDER BY name ASC');
     const locations = await pool.query('SELECT * FROM company_locations');
-    
+
     const result = companies.rows.map(comp => ({
       ...comp,
       locations: locations.rows.filter(l => l.company_id === comp.id)
@@ -4686,12 +4694,12 @@ app.post('/api/companies', authorize(['Admin', 'Manager', 'Sales']), async (req,
     await client.query('BEGIN');
     const cleanGst = (typeof gst_number === 'string' && gst_number.trim()) ? gst_number.trim() : null;
     const compRes = await client.query(
-      'INSERT INTO companies (name, gst_number) VALUES ($1, $2) RETURNING *', 
+      'INSERT INTO companies (name, gst_number) VALUES ($1, $2) RETURNING *',
       [name ? name.trim() : '', cleanGst]
     );
     const company = compRes.rows[0];
     const savedLocations = [];
-    
+
     if (locations && locations.length > 0) {
       for (const loc of locations) {
         if (!loc.city || !loc.city.trim()) continue;
@@ -4901,14 +4909,14 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
 
   if (!po_number || !po_number.trim()) {
     if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     return res.status(400).json({ error: 'PO Number is required.' });
   }
 
   if (!unit_ids) {
     if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     return res.status(400).json({ error: 'At least one serial number must be selected.' });
   }
@@ -4923,7 +4931,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     }
     if (!Array.isArray(unit_ids) || unit_ids.length === 0) {
       if (req.file && fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(400).json({ error: 'Invalid or empty unit_ids array.' });
     }
@@ -4935,7 +4943,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     const isPdf = req.file.mimetype === 'application/pdf' || req.file.originalname.toLowerCase().endsWith('.pdf');
     if (!isPdf) {
       if (fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(400).json({ error: 'Only PDF files are allowed for PO document upload.' });
     }
@@ -4948,7 +4956,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
 
     if (unitRes.rows.length === 0) {
       if (fs.existsSync(req.file.path)) {
-        try { fs.unlinkSync(req.file.path); } catch (e) {}
+        try { fs.unlinkSync(req.file.path); } catch (e) { }
       }
       return res.status(404).json({ error: 'No matching units found.' });
     }
@@ -5037,7 +5045,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
   } catch (err) {
     console.error('Error in batch-po upload:', err);
     if (req.file && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+      try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     res.status(500).json({ error: 'Failed to upload PO for selected serials: ' + (err.message || err) });
   }
@@ -5282,7 +5290,7 @@ app.get('/api/documents/directory', authorize(), async (req, res) => {
       LEFT JOIN companies c ON cl.company_id = c.id
       ORDER BY o.created_at DESC
     `);
-    
+
     const docsRes = await pool.query(`
       SELECT 
         d.id,
@@ -5439,9 +5447,9 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
-    
+
     const doc = result.rows[0];
-    
+
     // Only allow the uploader, Admin, Manager, Design, Sales, or Accounts to delete
     if (doc.uploaded_by !== req.user.id && !['Admin', 'Manager', 'Design', 'Sales', 'Accounts'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' });
@@ -5451,7 +5459,7 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
     if (fs.existsSync(doc.file_path)) {
       fs.unlinkSync(doc.file_path);
     }
-    
+
     await pool.query('DELETE FROM documents WHERE id = $1', [req.params.id]);
 
     let orderIdForLog = null;
@@ -5512,18 +5520,117 @@ app.get('/api/task_masters', authorize(), async (req, res) => {
 });
 
 app.post('/api/task_masters', authorize(['Admin']), async (req, res) => {
-  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
+  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields, level } = req.body;
   try {
+    const taskLevel = level === 'order' ? 'order' : 'unit';
     const result = await pool.query(
-      `INSERT INTO task_masters (dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || [])]
+      `INSERT INTO task_masters (dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields, level) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [
+        dept,
+        name,
+        sub,
+        special || null,
+        is_mandatory !== false,
+        requires_upload === true,
+        default_doc_type || 'General',
+        JSON.stringify(custom_fields || []),
+        JSON.stringify(order_fields || []),
+        taskLevel
+      ]
     );
+    const newTask = result.rows[0];
+
+    // SELECTIVE TASK ADDITION:
+    // Only apply the new task to active orders/units currently in this department or upstream.
+    // NEVER apply retroactively to orders that have already passed this department or completed/cancelled!
+    const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
+    const deptIdx = PIPELINE.indexOf(dept);
+    const eligibleDepts = deptIdx >= 0 ? PIPELINE.slice(0, deptIdx + 1) : [dept];
+
+    let fieldDefs = [];
+    try {
+      const raw = Array.isArray(custom_fields) ? custom_fields : JSON.parse(custom_fields || '[]');
+      fieldDefs = raw.map(f => ({ ...f, value: f.type === 'Yes/No' ? false : '' }));
+    } catch { fieldDefs = []; }
+
+    if (taskLevel === 'order') {
+      const eligibleOrders = await pool.query(
+        `SELECT DISTINCT o.id 
+         FROM orders o
+         JOIN order_units ou ON ou.order_id = o.id
+         WHERE ou.current_dept = ANY($1::text[])
+           AND ou.status NOT IN ('Cancelled', 'Dispatched', 'Completed')
+           AND NOT EXISTS (
+             SELECT 1 FROM order_steps os WHERE os.order_id = o.id AND (os.task_id = $2 OR (os.dept = $3 AND os.name = $4))
+           )`,
+        [eligibleDepts, newTask.id, dept, name]
+      );
+
+      for (const ord of eligibleOrders.rows) {
+        const maxOrderRes = await pool.query(
+          'SELECT COALESCE(MAX(step_order), 0) + 1 AS next_order FROM order_steps WHERE order_id = $1',
+          [ord.id]
+        );
+        const nextOrder = maxOrderRes.rows[0].next_order;
+        await pool.query(
+          `INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, custom_fields, step_order, status)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending')`,
+          [
+            ord.id,
+            newTask.id,
+            dept,
+            name,
+            sub,
+            special || null,
+            requires_upload === true,
+            default_doc_type || 'General',
+            JSON.stringify(fieldDefs),
+            nextOrder
+          ]
+        );
+      }
+    } else {
+      const eligibleUnits = await pool.query(
+        `SELECT ou.id 
+         FROM order_units ou
+         WHERE ou.current_dept = ANY($1::text[])
+           AND ou.status NOT IN ('Cancelled', 'Dispatched', 'Completed')
+           AND NOT EXISTS (
+             SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND (us.task_id = $2 OR (us.dept = $3 AND us.name = $4))
+           )`,
+        [eligibleDepts, newTask.id, dept, name]
+      );
+
+      for (const u of eligibleUnits.rows) {
+        const maxOrderRes = await pool.query(
+          'SELECT COALESCE(MAX(step_order), 0) + 1 AS next_order FROM unit_steps WHERE order_unit_id = $1',
+          [u.id]
+        );
+        const nextOrder = maxOrderRes.rows[0].next_order;
+        await pool.query(
+          `INSERT INTO unit_steps (order_unit_id, task_id, dept, name, sub, status, requires_upload, default_doc_type, custom_fields, step_order)
+           VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9)`,
+          [
+            u.id,
+            newTask.id,
+            dept,
+            name,
+            sub,
+            requires_upload === true,
+            default_doc_type || 'General',
+            JSON.stringify(fieldDefs),
+            nextOrder
+          ]
+        );
+      }
+    }
+
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
-      [req.user.id, `Created task master "${result.rows[0].name}" for department "${result.rows[0].dept}"`]
+      [req.user.id, `Created task master "${newTask.name}" for department "${newTask.dept}" (${taskLevel}-level)`]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(newTask);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to create task master' });
@@ -5531,12 +5638,13 @@ app.post('/api/task_masters', authorize(['Admin']), async (req, res) => {
 });
 
 app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
-  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields } = req.body;
+  const { dept, name, sub, special, is_mandatory, requires_upload, default_doc_type, custom_fields, order_fields, level } = req.body;
   try {
+    const taskLevel = level === 'order' ? 'order' : 'unit';
     const result = await pool.query(
-      `UPDATE task_masters SET dept = $1, name = $2, sub = $3, special = $4, is_mandatory = $5, requires_upload = $6, default_doc_type = $7, custom_fields = $8, order_fields = $9
-       WHERE id = $10 RETURNING *`,
-      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), req.params.id]
+      `UPDATE task_masters SET dept = $1, name = $2, sub = $3, special = $4, is_mandatory = $5, requires_upload = $6, default_doc_type = $7, custom_fields = $8, order_fields = $9, level = $10
+       WHERE id = $11 RETURNING *`,
+      [dept, name, sub, special || null, is_mandatory !== false, requires_upload === true, default_doc_type || 'General', JSON.stringify(custom_fields || []), JSON.stringify(order_fields || []), taskLevel, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
 
@@ -5568,22 +5676,17 @@ app.put('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
 
 app.delete('/api/task_masters/:id', authorize(['Admin']), async (req, res) => {
   try {
-    // Delete step instances linked to this task master from active flows
-    await pool.query('DELETE FROM order_steps WHERE task_id = $1', [req.params.id]);
-    await pool.query('DELETE FROM unit_steps WHERE task_id = $1', [req.params.id]);
+    const taskId = parseInt(req.params.id, 10);
+    // 1. Delete step instances linked to this task master from active flows
+    await pool.query('DELETE FROM order_steps WHERE task_id = $1', [taskId]);
+    await pool.query('DELETE FROM unit_steps WHERE task_id = $1', [taskId]);
 
-    const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [req.params.id]);
+    // 2. Delete the template from task_masters
+    const result = await pool.query('DELETE FROM task_masters WHERE id = $1 RETURNING *', [taskId]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
 
-    // Clean up orphaned steps whose master task was deleted previously
-    await pool.query('DELETE FROM order_steps WHERE task_id IS NULL');
-    await pool.query('DELETE FROM unit_steps WHERE task_id IS NULL');
-
-    // Re-derive unit status for all units
-    const units = await pool.query('SELECT id FROM order_units');
-    for (const u of units.rows) {
-      await deriveUnitStatus(u.id, pool);
-    }
+    // CRITICAL GUARD: Deleting a task template must NEVER automatically advance or re-derive
+    // unit departments across all active orders! Existing orders simply no longer require this step.
 
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
@@ -5602,7 +5705,7 @@ app.get('/api/column-masters', authorize(), async (req, res) => {
   try {
     const colsResult = await pool.query('SELECT * FROM column_masters ORDER BY sort_order ASC, id ASC');
     const visResult = await pool.query('SELECT * FROM department_column_visibility');
-    
+
     // Group visibility by department
     const visibilityByDept = {};
     for (const v of visResult.rows) {
@@ -5628,7 +5731,7 @@ app.post('/api/column-masters', authorize(['Admin']), async (req, res) => {
     }
 
     const cleanKey = col_key.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    
+
     // Get max sort_order
     const maxOrderRes = await pool.query('SELECT MAX(sort_order) as max_order FROM column_masters');
     const nextOrder = (maxOrderRes.rows[0]?.max_order || 0) + 1;
@@ -5695,7 +5798,7 @@ app.delete('/api/column-masters/:id', authorize(['Admin']), async (req, res) => 
     }
 
     const deleted = await pool.query('DELETE FROM column_masters WHERE id = $1 RETURNING *', [req.params.id]);
-    
+
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
       [req.user.id, `Deleted custom column master "${deleted.rows[0].label}"`]
@@ -5864,7 +5967,7 @@ app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Desig
   try {
     const deleted = await pool.query('DELETE FROM part_number_masters WHERE id = $1 RETURNING *', [req.params.id]);
     if (deleted.rows.length === 0) return res.status(404).json({ error: 'Part Number Master not found' });
-    
+
     await pool.query(
       `INSERT INTO activity_logs (user_id, dept, action_text) VALUES ($1, 'Admin', $2)`,
       [req.user.id, `Deleted Part Number Master "${deleted.rows[0].part_number}"`]
@@ -5989,14 +6092,14 @@ app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager'
         const allowedBOMExts = ['.pdf', '.xlsx', '.xls', '.csv'];
         if (!allowedBOMExts.includes(ext)) {
           // Cleanup uploaded files
-          try { fs.unlinkSync(file.path); } catch (e) {}
+          try { fs.unlinkSync(file.path); } catch (e) { }
           return res.status(400).json({ error: 'For BOM, only Excel (.xlsx, .xls, .csv) and PDF files are allowed.' });
         }
       } else {
         const isPdfExt = ext === '.pdf';
         if (!isPdfExt) {
           // Cleanup uploaded files
-          try { fs.unlinkSync(file.path); } catch (e) {}
+          try { fs.unlinkSync(file.path); } catch (e) { }
           return res.status(400).json({ error: 'Only PDF files are allowed for Drawings.' });
         }
       }
@@ -6005,7 +6108,7 @@ app.post('/api/part-number-masters/:id/documents', authorize(['Admin', 'Manager'
     const insertedDocs = [];
     for (const file of files) {
       const relPath = path.relative(path.join(__dirname, 'uploads'), file.path);
-      
+
       // Revision calculation: deterministic & backend-controlled
       const maxRevRes = await pool.query(
         `SELECT COALESCE(MAX(revision_number), -1) AS max_rev 
@@ -6089,7 +6192,7 @@ app.delete('/api/part-number-masters/:id/documents/:docId', authorize(['Admin', 
   try {
     const deleted = await pool.query('DELETE FROM part_number_documents WHERE id = $1 AND part_number_id = $2 RETURNING *', [req.params.docId, req.params.id]);
     if (deleted.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
-    
+
     const doc = deleted.rows[0];
     if (doc.is_current) {
       await pool.query(
@@ -6135,32 +6238,32 @@ const templateHandler = (req, res) => {
   // ── Sheet 1: Field Reference ─────────────────────────────────────────────
   const ref = [
     ['SECTION', 'FIELD', 'EXAMPLE / ALLOWED VALUES', 'REQUIRED?', 'NOTES'],
-    ['── ORDER HEADER ──','','','',''],
-    ['Company & Location','company_name','Acme Corp','YES','Must match Masters. Case-insensitive.'],
-    ['Company & Location','company_city','Mumbai','YES','Must match Masters location city.'],
-    ['Dates','order_date','2026-05-19','YES','Format: YYYY-MM-DD'],
-    ['Dates','delivery_date','2026-07-31','YES','Overall delivery date. YYYY-MM-DD'],
-    ['PO Details','po_number','PO-2026-1234','YES','Groups rows into one order. Same PO = same order.'],
-    ['PO Details','priority','Medium','YES','Low | Medium | High | Urgent'],
-    ['PO Details','packaging_type','Wooden Packaging','NO','Wooden Packaging | Foam Packaging'],
-    ['PO Details','end_client_name','Basavanakolla site','NO','End client name / site location'],
-    ['PO Details','project_name','Mooviboost Project','NO','Project / System Name'],
-    ['PO Details','order_notes','Handle with care.','NO','Overall order notes'],
-    ['PO Details','gst_number','27AAAAA1111A1Z1','NO','GST Number of client'],
-    ['PO Details','reference_number','REF-2026-99','NO','Customer Reference Number'],
-    ['PO Details','classification','Standard','NO','Standard | Non-Standard (Defaults to Standard)'],
-    ['── LINE ITEMS ──','','','','One row per line item; repeat po_number to group into one order'],
-    ['Line Item','line_item_number','0001','YES','0001, 0002, 0003 etc.'],
-    ['Line Item','material_description','VFD Control Panel 22kW','YES','Full description'],
-    ['Line Item','part_number','VFD-22K-STD','NO','Internal / customer part number'],
-    ['Line Item','panel_type_size','VFD Panel 800x600','NO','Physical type/size'],
-    ['Line Item','quantity','3','YES','Positive integer'],
-    ['Line Item','unit','Nos','YES','e.g. Nos, Sets, Pcs'],
-    ['Line Item','unit_price','45000','YES','Numeric only, no Rs.'],
-    ['Line Item','total_price','135000','AUTO','quantity x unit_price (leave blank — auto-calculated)'],
-    ['Line Item','line_item_delivery_date','2026-06-30','NO','YYYY-MM-DD; defaults to delivery_date'],
-    ['Line Item','line_item_notes','FAT required before dispatch','NO','Item-level notes'],
-    ['Line Item','tag','TG-01','NO','Line item tag (combined with reference_number as Ref/Tag)'],
+    ['── ORDER HEADER ──', '', '', '', ''],
+    ['Company & Location', 'company_name', 'Acme Corp', 'YES', 'Must match Masters. Case-insensitive.'],
+    ['Company & Location', 'company_city', 'Mumbai', 'YES', 'Must match Masters location city.'],
+    ['Dates', 'order_date', '2026-05-19', 'YES', 'Format: YYYY-MM-DD'],
+    ['Dates', 'delivery_date', '2026-07-31', 'YES', 'Overall delivery date. YYYY-MM-DD'],
+    ['PO Details', 'po_number', 'PO-2026-1234', 'YES', 'Groups rows into one order. Same PO = same order.'],
+    ['PO Details', 'priority', 'Medium', 'YES', 'Low | Medium | High | Urgent'],
+    ['PO Details', 'packaging_type', 'Wooden Packaging', 'NO', 'Wooden Packaging | Foam Packaging'],
+    ['PO Details', 'end_client_name', 'Basavanakolla site', 'NO', 'End client name / site location'],
+    ['PO Details', 'project_name', 'Mooviboost Project', 'NO', 'Project / System Name'],
+    ['PO Details', 'order_notes', 'Handle with care.', 'NO', 'Overall order notes'],
+    ['PO Details', 'gst_number', '27AAAAA1111A1Z1', 'NO', 'GST Number of client'],
+    ['PO Details', 'reference_number', 'REF-2026-99', 'NO', 'Customer Reference Number'],
+    ['PO Details', 'classification', 'Standard', 'NO', 'Standard | Non-Standard (Defaults to Standard)'],
+    ['── LINE ITEMS ──', '', '', '', 'One row per line item; repeat po_number to group into one order'],
+    ['Line Item', 'line_item_number', '0001', 'YES', '0001, 0002, 0003 etc.'],
+    ['Line Item', 'material_description', 'VFD Control Panel 22kW', 'YES', 'Full description'],
+    ['Line Item', 'part_number', 'VFD-22K-STD', 'NO', 'Internal / customer part number'],
+    ['Line Item', 'panel_type_size', 'VFD Panel 800x600', 'NO', 'Physical type/size'],
+    ['Line Item', 'quantity', '3', 'YES', 'Positive integer'],
+    ['Line Item', 'unit', 'Nos', 'YES', 'e.g. Nos, Sets, Pcs'],
+    ['Line Item', 'unit_price', '45000', 'YES', 'Numeric only, no Rs.'],
+    ['Line Item', 'total_price', '135000', 'AUTO', 'quantity x unit_price (leave blank — auto-calculated)'],
+    ['Line Item', 'line_item_delivery_date', '2026-06-30', 'NO', 'YYYY-MM-DD; defaults to delivery_date'],
+    ['Line Item', 'line_item_notes', 'FAT required before dispatch', 'NO', 'Item-level notes'],
+    ['Line Item', 'tag', 'TG-01', 'NO', 'Line item tag (combined with reference_number as Ref/Tag)'],
   ];
   const ws1 = XLSX.utils.aoa_to_sheet(ref);
   ws1['!cols'] = [{ wch: 22 }, { wch: 28 }, { wch: 42 }, { wch: 12 }, { wch: 60 }];
@@ -6168,32 +6271,32 @@ const templateHandler = (req, res) => {
 
   // ── Sheet 2: Import Template — 2000 blank rows ready for bulk paste ──────
   const COLS = [
-    'company_name','company_city','order_date','delivery_date',
-    'po_number','priority','packaging_type','end_client_name','project_name','order_notes',
-    'gst_number','reference_number','classification',
-    'line_item_number','material_description','part_number','panel_type_size',
-    'quantity','unit','unit_price','total_price',
-    'line_item_delivery_date','line_item_notes','tag'
+    'company_name', 'company_city', 'order_date', 'delivery_date',
+    'po_number', 'priority', 'packaging_type', 'end_client_name', 'project_name', 'order_notes',
+    'gst_number', 'reference_number', 'classification',
+    'line_item_number', 'material_description', 'part_number', 'panel_type_size',
+    'quantity', 'unit', 'unit_price', 'total_price',
+    'line_item_delivery_date', 'line_item_notes', 'tag'
   ];
 
   // Visual group-label row so users understand which columns are order-level vs item-level
   const groupRow = [
     '<-- ORDER LEVEL: repeat these 13 columns on every row of the same PO -->',
-    '','','','','','','','','','','','',
+    '', '', '', '', '', '', '', '', '', '', '', '',
     '<-- LINE ITEM LEVEL: one row = one item in the order -->',
-    '','','','','','','','','',''
+    '', '', '', '', '', '', '', '', '', ''
   ];
 
   const exampleRows = [
     // ORDER 1 — PO-2026-1001 — 3 line items (same PO groups them into 1 order)
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','Rush order — deliver before monsoon','27AAAAA1111A1Z1','REF-2026-99','Standard','00010','VFD Control Panel 22kW','VFD-22K-STD','800x600x300 mm',3,'Nos',45000,135000,'2026-06-30','FAT required before dispatch','TG-01'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00020','Motor Control Centre 8 Way','MCC-400A-8W','1600x800x400 mm',2,'Nos',72000,144000,'2026-07-15','','TG-02'],
-    ['Acme Corp','Mumbai','2026-05-20','2026-07-31','PO-2026-1001','High','Wooden Packaging','Basavanakolla site','Mooviboost Line 1','','27AAAAA1111A1Z1','REF-2026-99','Standard','00030','Power Factor Correction Panel','PFCP-100K','1000x800x300 mm',1,'Nos',38000,38000,'2026-07-20','Include capacitor bank','TG-03'],
+    ['Acme Corp', 'Mumbai', '2026-05-20', '2026-07-31', 'PO-2026-1001', 'High', 'Wooden Packaging', 'Basavanakolla site', 'Mooviboost Line 1', 'Rush order — deliver before monsoon', '27AAAAA1111A1Z1', 'REF-2026-99', 'Standard', '00010', 'VFD Control Panel 22kW', 'VFD-22K-STD', '800x600x300 mm', 3, 'Nos', 45000, 135000, '2026-06-30', 'FAT required before dispatch', 'TG-01'],
+    ['Acme Corp', 'Mumbai', '2026-05-20', '2026-07-31', 'PO-2026-1001', 'High', 'Wooden Packaging', 'Basavanakolla site', 'Mooviboost Line 1', '', '27AAAAA1111A1Z1', 'REF-2026-99', 'Standard', '00020', 'Motor Control Centre 8 Way', 'MCC-400A-8W', '1600x800x400 mm', 2, 'Nos', 72000, 144000, '2026-07-15', '', 'TG-02'],
+    ['Acme Corp', 'Mumbai', '2026-05-20', '2026-07-31', 'PO-2026-1001', 'High', 'Wooden Packaging', 'Basavanakolla site', 'Mooviboost Line 1', '', '27AAAAA1111A1Z1', 'REF-2026-99', 'Standard', '00030', 'Power Factor Correction Panel', 'PFCP-100K', '1000x800x300 mm', 1, 'Nos', 38000, 38000, '2026-07-20', 'Include capacitor bank', 'TG-03'],
     // ORDER 2 — PO-2026-1002 — 1 line item
-    ['Beta Industries','Pune','2026-05-22','2026-08-15','PO-2026-1002','Medium','Foam Packaging','Pune Site','Solar Grid System','','27BBBBB2222B2Z2','REF-2026-100','Non-Standard','00010','PLC Automation Panel','PLC-S7-300','600x400x300 mm',1,'Nos',90000,90000,'2026-08-15','Include Siemens S7-300','PLC-01'],
+    ['Beta Industries', 'Pune', '2026-05-22', '2026-08-15', 'PO-2026-1002', 'Medium', 'Foam Packaging', 'Pune Site', 'Solar Grid System', '', '27BBBBB2222B2Z2', 'REF-2026-100', 'Non-Standard', '00010', 'PLC Automation Panel', 'PLC-S7-300', '600x400x300 mm', 1, 'Nos', 90000, 90000, '2026-08-15', 'Include Siemens S7-300', 'PLC-01'],
     // ORDER 3 — PO-2026-1003 — 2 line items
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','Standard delivery','','','Standard','00010','Distribution Board 8 Way','DB-8W-63A','500x400x200 mm',5,'Nos',12000,60000,'2026-09-01','',''],
-    ['Gamma Systems','Chennai','2026-05-25','2026-09-01','PO-2026-1003','Low','Wooden Packaging','','Warehouse Expansion','','','','Standard','00020','Surge Protection Device','SPD-40KA','',5,'Nos',4500,22500,'2026-09-01','',''],
+    ['Gamma Systems', 'Chennai', '2026-05-25', '2026-09-01', 'PO-2026-1003', 'Low', 'Wooden Packaging', '', 'Warehouse Expansion', 'Standard delivery', '', '', 'Standard', '00010', 'Distribution Board 8 Way', 'DB-8W-63A', '500x400x200 mm', 5, 'Nos', 12000, 60000, '2026-09-01', '', ''],
+    ['Gamma Systems', 'Chennai', '2026-05-25', '2026-09-01', 'PO-2026-1003', 'Low', 'Wooden Packaging', '', 'Warehouse Expansion', '', '', '', 'Standard', '00020', 'Surge Protection Device', 'SPD-40KA', '', 5, 'Nos', 4500, 22500, '2026-09-01', '', ''],
   ];
 
   // Pre-allocate 2000 blank rows so the sheet is bulk-paste ready
@@ -6201,7 +6304,7 @@ const templateHandler = (req, res) => {
 
   const tmpl = [groupRow, COLS, ...exampleRows, ...blankRows];
   const ws2 = XLSX.utils.aoa_to_sheet(tmpl);
-  ws2['!cols'] = [20,15,13,15,20,10,18,22,38,22,22,16,18,32,18,22,10,8,12,12,24,38].map(w => ({ wch: w }));
+  ws2['!cols'] = [20, 15, 13, 15, 20, 10, 18, 22, 38, 22, 22, 16, 18, 32, 18, 22, 10, 8, 12, 12, 24, 38].map(w => ({ wch: w }));
   // Freeze top 2 rows — headers stay visible scrolling through thousands of rows
   ws2['!freeze'] = { xSplit: 0, ySplit: 2, topLeftCell: 'A3', activePane: 'bottomLeft' };
   XLSX.utils.book_append_sheet(wb, ws2, 'Import Template');
@@ -6246,19 +6349,19 @@ const templateHandler = (req, res) => {
 
   // ── Sheet 4: Validation Rules ─────────────────────────────────────────────
   const rules = [
-    ['FIELD','TYPE','REQUIRED','ALLOWED VALUES / FORMAT','IF WRONG'],
-    ['company_name','Text','YES','Exact name in Masters (case-insensitive)','Order fails — company not found'],
-    ['company_city','Text','YES','Exact city in Masters (case-insensitive)','Order fails — location not found'],
-    ['order_date','Date','YES','YYYY-MM-DD','Rejected if invalid'],
-    ['delivery_date','Date','YES','YYYY-MM-DD','Rejected if invalid'],
-    ['po_number','Text','YES','Any alphanumeric string','Row skipped if blank'],
-    ['priority','Enum','YES','Low | Medium | High | Urgent','Defaults to Medium'],
-    ['packaging_type','Enum','NO','Wooden Packaging | Foam Packaging','Left blank if invalid'],
-    ['end_client_name','Text','NO','End client name / site location','Left blank if missing'],
-    ['quantity','Integer','YES','Positive whole number','Defaults to 1'],
-    ['unit','Text','YES','Nos, Sets, Pcs ...','Defaults to Nos'],
-    ['unit_price','Decimal','YES','Numeric, no Rs.','Defaults to 0'],
-    ['total_price','Decimal','AUTO','quantity x unit_price','Always recalculated server-side'],
+    ['FIELD', 'TYPE', 'REQUIRED', 'ALLOWED VALUES / FORMAT', 'IF WRONG'],
+    ['company_name', 'Text', 'YES', 'Exact name in Masters (case-insensitive)', 'Order fails — company not found'],
+    ['company_city', 'Text', 'YES', 'Exact city in Masters (case-insensitive)', 'Order fails — location not found'],
+    ['order_date', 'Date', 'YES', 'YYYY-MM-DD', 'Rejected if invalid'],
+    ['delivery_date', 'Date', 'YES', 'YYYY-MM-DD', 'Rejected if invalid'],
+    ['po_number', 'Text', 'YES', 'Any alphanumeric string', 'Row skipped if blank'],
+    ['priority', 'Enum', 'YES', 'Low | Medium | High | Urgent', 'Defaults to Medium'],
+    ['packaging_type', 'Enum', 'NO', 'Wooden Packaging | Foam Packaging', 'Left blank if invalid'],
+    ['end_client_name', 'Text', 'NO', 'End client name / site location', 'Left blank if missing'],
+    ['quantity', 'Integer', 'YES', 'Positive whole number', 'Defaults to 1'],
+    ['unit', 'Text', 'YES', 'Nos, Sets, Pcs ...', 'Defaults to Nos'],
+    ['unit_price', 'Decimal', 'YES', 'Numeric, no Rs.', 'Defaults to 0'],
+    ['total_price', 'Decimal', 'AUTO', 'quantity x unit_price', 'Always recalculated server-side'],
   ];
   const ws4 = XLSX.utils.aoa_to_sheet(rules);
   ws4['!cols'] = [{ wch: 26 }, { wch: 10 }, { wch: 12 }, { wch: 48 }, { wch: 42 }];
@@ -6401,9 +6504,9 @@ const seedSayaUser = async () => {
         `INSERT INTO users (username, email, password, role) 
          VALUES ($1, $2, $3, $4)`,
         [
-          'Saya', 
-          'sayamumbaikar26@gmail.com', 
-          '$2a$10$dTMz2obf/OXXRbCa.K.Jxeoj9/NTWRR4CjXohpCQzp.MBIl3keQ22', 
+          'Saya',
+          'sayamumbaikar26@gmail.com',
+          '$2a$10$dTMz2obf/OXXRbCa.K.Jxeoj9/NTWRR4CjXohpCQzp.MBIl3keQ22',
           'Admin'
         ]
       );
