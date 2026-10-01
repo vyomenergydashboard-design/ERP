@@ -1,71 +1,63 @@
-# Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents
+# Spec & Implementation Plan: Complete Text Visibility & Auto-Fit Across Table Views
 
-## Architectural Overview
-This plan implements the Design Department Confirmation Gate and dynamic Step 2 ("Release Documents") status progression. It connects the Table View classification dropdown with backend transactional step updates and real-time document detection for both Standard and Non-Standard panels.
-
----
-
-## Phases & Build Order
-
-```
-Phase 1: DB Migration & Query Enrichment (server/run_deployment_migrations.js, server/index.js)
-   │
-   ▼
-Phase 2: Confirmation API & Dynamic Document Evaluator (server/index.js)
-   │
-   ▼
-Phase 3: Table View Confirmation UI & Optimistic Updates (src/components/AllOrdersTableView.jsx, src/index.css)
-   │
-   ▼
-Phase 4: Part Number Modal Hook & Real-Time Sync (src/components/AllOrdersTableView.jsx, src/components/StepModal.jsx)
-   │
-   ▼
-Phase 5: Verification, PO System Tests, Code Review & Graphify
-```
+## 1. Objective
+Enable users in every department and module to view all table contents, headers, and statuses completely without truncation. Ensure that when any cell content exceeds visible bounds, rich informative tooltips provide 100% of the details (including status, step, reason, actor, and date). Provide 1-click double-click column auto-fit to adapt column widths to their widest content.
 
 ---
 
-## Major Components & Dependencies
+## 2. Requirements & Acceptance Criteria
 
-1. **Database Schema (`server/run_deployment_migrations.js`):**
-   - Add `design_confirmed`, `design_confirmed_at`, `design_confirmed_by` to `order_units`.
-   - Additive and non-destructive.
+### A. Comprehensive Column Width & Safe Minimum Scale
+- **Status Column (`unit_status`):**
+  - Increase default width from `130px` to `220px` (min safe width: `190px`).
+  - Ensures full status badges like `✕ Cancelled @ Sales Clearance` and `⏸ Hold @ Mechanical Assembly` are completely visible.
+- **Serial Number Column (`short_serial`):**
+  - Increase default width from `130px` to `155px` (min safe width: `145px`).
+  - Prevents header truncation to `SERIA...`.
+- **Priority Column (`priority`):**
+  - Increase default width from `115px` to `140px` (min safe width: `130px`).
+  - Prevents header truncation to `PRI...`.
+- **Delivery Date Column (`delivery_date`):**
+  - Increase default width from `130px` to `155px` (min safe width: `140px`).
+  - Prevents header truncation to `DELIV...`.
+- **Project Name Column (`project_name`):**
+  - Increase default width from `160px` to `185px` (min safe width: `165px`).
+  - Prevents header truncation to `PROJEC...`.
+- **Description Column (`material_description`):**
+  - Increase default width from `230px` to `255px` (min safe width: `220px`).
+- **Comments Column (`panel_comments`):**
+  - Increase default width from `200px` to `220px` (min safe width: `185px`).
+- **Company / Client Column (`company_name`):**
+  - Increase default width from `185px` to `200px` (min safe width: `175px`).
 
-2. **Backend Engine (`server/index.js`):**
-   - Document Evaluator: determines if Drawing and BOM are present for a given unit (Standard vs Non-Standard).
-   - Endpoint `POST /api/units/:id/design-confirm`:
-     - Sets unit `design_confirmed = true`.
-     - Marks Step 1 ("Review & Classify") as `done`.
-     - Evaluates documents: both present → Step 2 `done`; 1 present → Step 2 `inprogress`; 0 present → Step 2 `pending`.
-   - Endpoint `PUT /api/units/:id`:
-     - When `classification` changes, resets `design_confirmed = false` and reverts steps for re-inspection.
-   - Query updates:
-     - Include confirmation fields and `design_confirmed_by_name` in `/api/units` and `/api/orders` fetches.
+### B. Auto-Upgrade of Squashed Widths in LocalStorage
+- When initializing `columnWidths` from `localStorage`, check all keys against `MIN_COL_WIDTHS`.
+- Any existing saved widths that are squashed or below `MIN_COL_WIDTHS` must automatically upgrade to the comfortable minimum so returning users instantly see full text without needing a manual reset.
 
-3. **Frontend Presentation (`src/components/AllOrdersTableView.jsx`, `src/index.css`):**
-   - In `Type (Design)` column:
-     - Render `Confirm` button if `!design_confirmed` (clickable for `Design` and `Admin`).
-     - Render `✓ Confirmed` badge if `design_confirmed`.
-     - Clicking `Confirm` makes optimistic UI update and calls `POST /api/units/:id/design-confirm`.
-     - Changing classification dropdown resets confirmation.
-     - Document upload/delete in Part Number modal dynamically refreshes Step 2 state.
+### C. Double-Click Auto-Fit on Column Resize Handles
+- Add `onDoubleClick` handler to `.erp-resize-handle`.
+- Double-clicking the resize handle calculates the maximum character length across visible rows and header, automatically adjusting the column width to fit all content cleanly.
+
+### D. Rich, Informative, Unmasked Tooltips
+- Fix tooltip conflict on `unit_status`: Remove redundant/low-quality child `title="Cancelled: Cancelled"` that masked the parent `td` tooltip.
+- Ensure the tooltip shows full context:
+  - `Cancelled @ [Step Name]`
+  - `Cancelled by: [User Name] on [Date]`
+  - `Reason: [Reason]`
+  - Order #, Serial #, and Client
+- Apply rich tooltips across all columns (Serial, PO, Reference, Description, Comments, Project, Status, Priority, Delivery).
+
+### E. Department Worklists & Other Modules
+- Check `DeptWorklist.jsx` and other table views to ensure status pills and steps do not clip text and have full hover tooltips.
 
 ---
 
-## Risks & Mitigation Strategies
+## 3. Implementation Steps
 
-| Risk | Mitigation |
-|---|---|
-| Concurrent updates to Step 1 & Step 2 | Dedicated PostgreSQL transaction (`BEGIN` / `COMMIT`) with scoped error handling and guaranteed release. |
-| Inadvertent auto-completion of unconfirmed panels | Step 2 can ONLY transition to `done` if `design_confirmed === true` AND both documents exist. |
-| Order numbers or unit serial sequence corruption | No updates touch order IDs, numbers, or serial counters. Strictly additive fields. |
-| UI scroll jump on table cell interaction | Local state is updated optimistically via `setUnits` and `onSaveInlineCell` without re-mounting the table. |
-
----
-
-## Verification Checkpoints
-
-1. **Checkpoint 1 (DB & Backend):** Execute deployment migration, test `POST /api/units/:id/design-confirm` with mock data.
-2. **Checkpoint 2 (Frontend Rendering):** Verify `Confirm` button and `✓ Confirmed` badge appear in the table cell with proper RBAC.
-3. **Checkpoint 3 (Integration):** Verify full workflow across Standard (Master Catalog) and Non-Standard (Custom uploads) panels.
-4. **Checkpoint 4 (Build & Review):** `npm run check` and `npm run build` pass cleanly; subagent review audits correctness.
+1. **Step 1:** Update `DEFAULT_COL_WIDTHS` and `MIN_COL_WIDTHS` in `src/components/AllOrdersTableView.jsx`.
+2. **Step 2:** Enhance column widths initialization in `AllOrdersTableView.jsx` to migrate old squashed widths (`erp_all_colWidths_v5`).
+3. **Step 3:** Implement double-click auto-fit logic (`handleAutoFitColumn`) on column resize handles.
+4. **Step 4:** Refine status badge rendering and remove nested child title masking in `renderCellContent`.
+5. **Step 5:** Enhance `getCellTooltip` to return full, structured information for statuses and text columns.
+6. **Step 6:** Inspect and adjust `DeptWorklist.jsx` for consistent status display and unmasked tooltips.
+7. **Step 7:** Verify build and test suite (`npm run check`, `npm run build`, `test_po_system.js`).

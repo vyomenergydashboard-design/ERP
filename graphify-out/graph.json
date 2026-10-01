@@ -9,8 +9,8 @@
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
+      "community": 1,
+      "community_name": "App.jsx",
       "file_type": "code",
       "norm_label": "errorboundary",
       "source_file": "src/components/ErrorBoundary.jsx",
@@ -89,18 +89,6 @@
       "source_location": "L5"
     },
     {
-      "id": "src_components_bulkimportmodal_bulkimportmodal",
-      "label": "BulkImportModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "bulkimportmodal()",
-      "source_file": "src/components/BulkImportModal.jsx",
-      "source_location": "L3"
-    },
-    {
       "id": "src_components_deptworklist_deptworklist",
       "label": "DeptWorklist()",
       "_callable": true,
@@ -110,55 +98,79 @@
       "file_type": "code",
       "norm_label": "deptworklist()",
       "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L312"
+      "source_location": "L324"
     },
     {
-      "id": "src_components_deptworklist_steppill",
-      "label": "StepPill()",
+      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
+      "label": ".componentDidCatch()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "steppill()",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L34"
+      "norm_label": ".componentdidcatch()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L19"
     },
     {
-      "id": "src_components_deptworklist_unitrow",
-      "label": "UnitRow()",
+      "id": "src_components_errorboundary_errorboundary_constructor",
+      "label": ".constructor()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "unitrow()",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L68"
+      "norm_label": ".constructor()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L5"
     },
     {
-      "id": "src_components_documentdirectory_documentdirectory",
-      "label": "DocumentDirectory()",
+      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
+      "label": ".getDerivedStateFromError()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "documentdirectory()",
-      "source_file": "src/components/DocumentDirectory.jsx",
-      "source_location": "L8"
+      "norm_label": ".getderivedstatefromerror()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L15"
     },
     {
-      "id": "src_components_documentmanager_documentmanager",
-      "label": "DocumentManager()",
+      "id": "src_components_errorboundary_errorboundary_handlereload",
+      "label": ".handleReload()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "documentmanager()",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L9"
+      "norm_label": ".handlereload()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L31"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_handlereset",
+      "label": ".handleReset()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".handlereset()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L24"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_render",
+      "label": ".render()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".render()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L35"
     },
     {
       "id": "src_components_flowview_flowview",
@@ -221,42 +233,6 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_orderimport_orderimport",
-      "label": "OrderImport()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "orderimport()",
-      "source_file": "src/components/OrderImport.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_orderlist_orderlist",
-      "label": "OrderList()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "orderlist()",
-      "source_file": "src/components/OrderList.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_settings_settingsview",
-      "label": "SettingsView()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "settingsview()",
-      "source_file": "src/components/Settings.jsx",
-      "source_location": "L4"
-    },
-    {
       "id": "src_components_sidenav_navitem",
       "label": "NavItem()",
       "_callable": true,
@@ -281,28 +257,52 @@
       "source_location": "L36"
     },
     {
-      "id": "src_components_stepmodal_stepmodal",
-      "label": "StepModal()",
+      "id": "src_components_statsrow_aggregatestats",
+      "label": "AggregateStats()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "stepmodal()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L17"
+      "norm_label": "aggregatestats()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L64"
     },
     {
-      "id": "src_components_stepmodal_todateinput",
-      "label": "toDateInput()",
+      "id": "src_components_statsrow_dayschip",
+      "label": "DaysChip()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "todateinput()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L7"
+      "norm_label": "dayschip()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_statsrow_orderstats",
+      "label": "OrderStats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "orderstats()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_statsrow_statsrow",
+      "label": "StatsRow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "statsrow()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L209"
     },
     {
       "id": "src_components_tableview_statusbadge",
@@ -542,7 +542,7 @@
       "file_type": "code",
       "norm_label": "allorderstableview()",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2714"
+      "source_location": "L2730"
     },
     {
       "id": "src_components_allorderstableview_calculateunitstatus",
@@ -674,7 +674,7 @@
       "file_type": "code",
       "norm_label": "rendercellcontent()",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L895"
+      "source_location": "L911"
     },
     {
       "id": "src_components_addpartmastermodal_addpartmastermodal",
@@ -682,11 +682,47 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "addpartmastermodal()",
       "source_file": "src/components/AddPartMasterModal.jsx",
       "source_location": "L6"
+    },
+    {
+      "id": "src_components_deptworklist_steppill",
+      "label": "StepPill()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "steppill()",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L34"
+    },
+    {
+      "id": "src_components_deptworklist_unitrow",
+      "label": "UnitRow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "unitrow()",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L68"
+    },
+    {
+      "id": "src_components_documentdirectory_documentdirectory",
+      "label": "DocumentDirectory()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "documentdirectory()",
+      "source_file": "src/components/DocumentDirectory.jsx",
+      "source_location": "L8"
     },
     {
       "id": "src_components_editreftagmodal_editreftagmodal",
@@ -694,7 +730,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "editreftagmodal()",
       "source_file": "src/components/EditRefTagModal.jsx",
@@ -706,7 +742,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "modal()",
       "source_file": "src/components/Modal.jsx",
@@ -718,7 +754,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "getdefaultformdata()",
       "source_file": "src/components/OrderCreationFlow.jsx",
@@ -730,7 +766,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "getinitialformdata()",
       "source_file": "src/components/OrderCreationFlow.jsx",
@@ -742,7 +778,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "gettodaydatestr()",
       "source_file": "src/components/OrderCreationFlow.jsx",
@@ -754,7 +790,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "ordercreationflow()",
       "source_file": "src/components/OrderCreationFlow.jsx",
@@ -766,7 +802,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "panelsizesearchselect()",
       "source_file": "src/components/PanelSizeSearchSelect.jsx",
@@ -778,7 +814,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "partnumbersearchselect()",
       "source_file": "src/components/PartNumberSearchSelect.jsx",
@@ -790,7 +826,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "relativetime()",
       "source_file": "src/components/RightPanel.jsx",
@@ -802,11 +838,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "rightpanel()",
       "source_file": "src/components/RightPanel.jsx",
       "source_location": "L17"
+    },
+    {
+      "id": "src_components_settings_settingsview",
+      "label": "SettingsView()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "settingsview()",
+      "source_file": "src/components/Settings.jsx",
+      "source_location": "L4"
     },
     {
       "id": "src_components_documentpreviewmodal_documentpreviewmodal",
@@ -998,7 +1046,7 @@
       "file_type": "code",
       "norm_label": "authorize()",
       "source_file": "server/index.js",
-      "source_location": "L994"
+      "source_location": "L1009"
     },
     {
       "id": "server_index_deriveunitstatus",
@@ -1034,7 +1082,7 @@
       "file_type": "code",
       "norm_label": "formatordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L949"
+      "source_location": "L964"
     },
     {
       "id": "server_index_generateordernumber",
@@ -1046,7 +1094,7 @@
       "file_type": "code",
       "norm_label": "generateordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L972"
+      "source_location": "L987"
     },
     {
       "id": "server_index_initdb",
@@ -1106,7 +1154,7 @@
       "file_type": "code",
       "norm_label": "loginratelimiter()",
       "source_file": "server/index.js",
-      "source_location": "L874"
+      "source_location": "L889"
     },
     {
       "id": "server_index_parseordercounter",
@@ -1118,7 +1166,7 @@
       "file_type": "code",
       "norm_label": "parseordercounter()",
       "source_file": "server/index.js",
-      "source_location": "L956"
+      "source_location": "L971"
     },
     {
       "id": "server_index_propagatecustomfieldstodb",
@@ -1130,7 +1178,7 @@
       "file_type": "code",
       "norm_label": "propagatecustomfieldstodb()",
       "source_file": "server/index.js",
-      "source_location": "L2789"
+      "source_location": "L2804"
     },
     {
       "id": "server_index_resolvecustomfieldvalues",
@@ -1142,7 +1190,7 @@
       "file_type": "code",
       "norm_label": "resolvecustomfieldvalues()",
       "source_file": "server/index.js",
-      "source_location": "L2645"
+      "source_location": "L2660"
     },
     {
       "id": "server_index_sanitizeoriginalfilename",
@@ -1154,7 +1202,7 @@
       "file_type": "code",
       "norm_label": "sanitizeoriginalfilename()",
       "source_file": "server/index.js",
-      "source_location": "L905"
+      "source_location": "L920"
     },
     {
       "id": "server_index_seedsayauser",
@@ -1166,7 +1214,7 @@
       "file_type": "code",
       "norm_label": "seedsayauser()",
       "source_file": "server/index.js",
-      "source_location": "L6286"
+      "source_location": "L6301"
     },
     {
       "id": "server_index_senddepartmenthandoveremail",
@@ -1226,7 +1274,7 @@
       "file_type": "code",
       "norm_label": "templatehandler()",
       "source_file": "server/index.js",
-      "source_location": "L6117"
+      "source_location": "L6132"
     },
     {
       "id": "server_index_updateorderqcstatusfromsteps",
@@ -1250,7 +1298,7 @@
       "file_type": "code",
       "norm_label": "uploadfilefilter()",
       "source_file": "server/index.js",
-      "source_location": "L918"
+      "source_location": "L933"
     },
     {
       "id": "server_migrate_2627_order_numbers_extractyearfromorder",
@@ -1385,124 +1433,148 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
-      "label": ".componentDidCatch()",
+      "id": "src_components_bulkimportmodal_bulkimportmodal",
+      "label": "BulkImportModal()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "ErrorBoundary",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "code",
-      "norm_label": ".componentdidcatch()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L19"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_constructor",
-      "label": ".constructor()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L5"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
-      "label": ".getDerivedStateFromError()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".getderivedstatefromerror()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereload",
-      "label": ".handleReload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".handlereload()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L31"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereset",
-      "label": ".handleReset()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".handlereset()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L24"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_render",
-      "label": ".render()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".render()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L35"
-    },
-    {
-      "id": "src_components_statsrow_aggregatestats",
-      "label": "AggregateStats()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": "aggregatestats()",
-      "source_file": "src/components/StatsRow.jsx",
-      "source_location": "L64"
-    },
-    {
-      "id": "src_components_statsrow_dayschip",
-      "label": "DaysChip()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": "dayschip()",
-      "source_file": "src/components/StatsRow.jsx",
+      "norm_label": "bulkimportmodal()",
+      "source_file": "src/components/BulkImportModal.jsx",
       "source_location": "L3"
     },
     {
-      "id": "src_components_statsrow_orderstats",
-      "label": "OrderStats()",
+      "id": "src_components_documentmanager_documentmanager",
+      "label": "DocumentManager()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "ErrorBoundary",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "code",
-      "norm_label": "orderstats()",
-      "source_file": "src/components/StatsRow.jsx",
+      "norm_label": "documentmanager()",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L9"
+    },
+    {
+      "id": "src_components_excelsheetviewer_excelsheetviewer",
+      "label": "ExcelSheetViewer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "excelsheetviewer()",
+      "source_file": "src/components/ExcelSheetViewer.jsx",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_formatfilesize",
+      "label": "formatFileSize()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "formatfilesize()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
       "source_location": "L12"
     },
     {
-      "id": "src_components_statsrow_statsrow",
-      "label": "StatsRow()",
+      "id": "src_components_orderdocumentsmodal_getdoccategorylabel",
+      "label": "getDocCategoryLabel()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "ErrorBoundary",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "code",
-      "norm_label": "statsrow()",
-      "source_file": "src/components/StatsRow.jsx",
-      "source_location": "L209"
+      "norm_label": "getdoccategorylabel()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L47"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_getdocumenturl",
+      "label": "getDocumentUrl()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "getdocumenturl()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_getfiletype",
+      "label": "getFileType()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "getfiletype()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L37"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_orderdocumentsmodal",
+      "label": "OrderDocumentsModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderdocumentsmodal()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L56"
+    },
+    {
+      "id": "src_components_orderimport_orderimport",
+      "label": "OrderImport()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderimport()",
+      "source_file": "src/components/OrderImport.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_orderlist_orderlist",
+      "label": "OrderList()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderlist()",
+      "source_file": "src/components/OrderList.jsx",
+      "source_location": "L7"
+    },
+    {
+      "id": "src_components_stepmodal_stepmodal",
+      "label": "StepModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_stepmodal_todateinput",
+      "label": "toDateInput()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "todateinput()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L7"
     },
     {
       "id": "scratch_check_indexes_check",
@@ -1539,78 +1611,6 @@
       "norm_label": "remove_emojis_from_file()",
       "source_file": "scratch/replace_emojis.py",
       "source_location": "L3"
-    },
-    {
-      "id": "src_components_excelsheetviewer_excelsheetviewer",
-      "label": "ExcelSheetViewer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "excelsheetviewer()",
-      "source_file": "src/components/ExcelSheetViewer.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_formatfilesize",
-      "label": "formatFileSize()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "formatfilesize()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getdoccategorylabel",
-      "label": "getDocCategoryLabel()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getdoccategorylabel()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L47"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getdocumenturl",
-      "label": "getDocumentUrl()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getdocumenturl()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L20"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getfiletype",
-      "label": "getFileType()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getfiletype()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L37"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_orderdocumentsmodal",
-      "label": "OrderDocumentsModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "orderdocumentsmodal()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L56"
     },
     {
       "id": "package",
@@ -1888,15 +1888,15 @@
       "source_location": "L18"
     },
     {
-      "id": "ref_react_dom",
-      "label": "react-dom",
+      "id": "ref_react_router_dom",
+      "label": "react-router-dom",
       "_origin": "ast",
       "community": 0,
       "community_name": "package.json",
       "file_type": "concept",
-      "norm_label": "react-dom",
+      "norm_label": "react-router-dom",
       "source_file": "package.json",
-      "source_location": "L16"
+      "source_location": "L17"
     },
     {
       "id": "ref_tanstack_react_query",
@@ -2075,127 +2075,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_bulkimportmodal",
-      "label": "BulkImportModal.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "bulkimportmodal.jsx",
-      "source_file": "src/components/BulkImportModal.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_deptworklist",
-      "label": "DeptWorklist.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "deptworklist.jsx",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_deptworklist_dept_colors",
-      "label": "DEPT_COLORS",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "dept_colors",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L21"
-    },
-    {
-      "id": "src_components_deptworklist_priority_config",
-      "label": "PRIORITY_CONFIG",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "priority_config",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_deptworklist_step_status_config",
-      "label": "STEP_STATUS_CONFIG",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "step_status_config",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L11"
-    },
-    {
-      "id": "src_components_documentdirectory",
-      "label": "DocumentDirectory.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "documentdirectory.jsx",
-      "source_file": "src/components/DocumentDirectory.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_documentdirectory_doc_types",
-      "label": "DOC_TYPES",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "doc_types",
-      "source_file": "src/components/DocumentDirectory.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_documentmanager",
-      "label": "DocumentManager.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "documentmanager.jsx",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_documentmanager_doc_types",
-      "label": "DOC_TYPES",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "doc_types",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_documentmanager_po_authorized_roles",
-      "label": "PO_AUTHORIZED_ROLES",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "po_authorized_roles",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_errorboundary",
-      "label": "ErrorBoundary.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "errorboundary.jsx",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_flowview",
       "label": "FlowView.jsx",
       "_origin": "ast",
@@ -2218,17 +2097,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_login",
-      "label": "Login.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "login.jsx",
-      "source_file": "src/components/Login.jsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_logsview",
       "label": "LogsView.jsx",
       "_origin": "ast",
@@ -2237,39 +2105,6 @@
       "file_type": "code",
       "norm_label": "logsview.jsx",
       "source_file": "src/components/LogsView.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_orderimport",
-      "label": "OrderImport.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "orderimport.jsx",
-      "source_file": "src/components/OrderImport.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_orderlist",
-      "label": "OrderList.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "orderlist.jsx",
-      "source_file": "src/components/OrderList.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_settings",
-      "label": "Settings.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "settings.jsx",
-      "source_file": "src/components/Settings.jsx",
       "source_location": "L1"
     },
     {
@@ -2306,14 +2141,14 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_stepmodal",
-      "label": "StepModal.jsx",
+      "id": "src_components_statsrow",
+      "label": "StatsRow.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "stepmodal.jsx",
-      "source_file": "src/components/StepModal.jsx",
+      "norm_label": "statsrow.jsx",
+      "source_file": "src/components/StatsRow.jsx",
       "source_location": "L1"
     },
     {
@@ -2416,37 +2251,15 @@
       "source_location": "L1"
     },
     {
-      "id": "ref_lucide_react",
-      "label": "lucide-react",
+      "id": "ref_react_dom",
+      "label": "react-dom",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "concept",
-      "norm_label": "lucide-react",
+      "norm_label": "react-dom",
       "source_file": "package.json",
-      "source_location": "L14"
-    },
-    {
-      "id": "ref_react",
-      "label": "react",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "concept",
-      "norm_label": "react",
-      "source_file": "package.json",
-      "source_location": "L15"
-    },
-    {
-      "id": "ref_react_router_dom",
-      "label": "react-router-dom",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "concept",
-      "norm_label": "react-router-dom",
-      "source_file": "package.json",
-      "source_location": "L17"
+      "source_location": "L16"
     },
     {
       "id": "src_components_planningmodule",
@@ -2861,7 +2674,7 @@
       "label": "plan.md",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "plan.md",
@@ -2869,99 +2682,99 @@
       "source_location": "L1"
     },
     {
-      "id": "tasks_plan_architectural_overview",
-      "label": "Architectural Overview",
+      "id": "tasks_plan_1_objective",
+      "label": "1. Objective",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "architectural overview",
+      "norm_label": "1. objective",
       "source_file": "tasks/plan.md",
       "source_location": "L3"
     },
     {
-      "id": "tasks_plan_major_components_dependencies",
-      "label": "Major Components & Dependencies",
+      "id": "tasks_plan_2_requirements_acceptance_criteria",
+      "label": "2. Requirements & Acceptance Criteria",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "major components & dependencies",
-      "source_file": "tasks/plan.md",
-      "source_location": "L28"
-    },
-    {
-      "id": "tasks_plan_phases_build_order",
-      "label": "Phases & Build Order",
-      "_origin": "ast",
-      "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "phases & build order",
+      "norm_label": "2. requirements & acceptance criteria",
       "source_file": "tasks/plan.md",
       "source_location": "L8"
     },
     {
-      "id": "tasks_plan_risks_mitigation_strategies",
-      "label": "Risks & Mitigation Strategies",
+      "id": "tasks_plan_a_comprehensive_column_width_safe_minimum_scale",
+      "label": "A. Comprehensive Column Width & Safe Minimum Scale",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "risks & mitigation strategies",
+      "norm_label": "a. comprehensive column width & safe minimum scale",
       "source_file": "tasks/plan.md",
-      "source_location": "L55"
+      "source_location": "L10"
     },
     {
-      "id": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "label": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "id": "tasks_plan_b_auto_upgrade_of_squashed_widths_in_localstorage",
+      "label": "B. Auto-Upgrade of Squashed Widths in LocalStorage",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "technical implementation plan: design department confirmation & dynamic release documents",
+      "norm_label": "b. auto-upgrade of squashed widths in localstorage",
       "source_file": "tasks/plan.md",
-      "source_location": "L1"
+      "source_location": "L33"
     },
     {
-      "id": "tasks_plan_verification_checkpoints",
-      "label": "Verification Checkpoints",
+      "id": "tasks_plan_c_double_click_auto_fit_on_column_resize_handles",
+      "label": "C. Double-Click Auto-Fit on Column Resize Handles",
       "_origin": "ast",
       "community": 18,
-      "community_name": "Technical Implementation Plan: Design Department Confirmation & Dynamic Release Documents",
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "verification checkpoints",
+      "norm_label": "c. double-click auto-fit on column resize handles",
       "source_file": "tasks/plan.md",
-      "source_location": "L66"
+      "source_location": "L37"
     },
     {
-      "id": "tasks_todo",
-      "label": "todo.md",
+      "id": "tasks_plan_d_rich_informative_unmasked_tooltips",
+      "label": "D. Rich, Informative, Unmasked Tooltips",
       "_origin": "ast",
-      "community": 19,
-      "community_name": "todo.md",
-      "file_type": "document",
-      "node_kind": "page",
-      "norm_label": "todo.md",
-      "source_file": "tasks/todo.md",
-      "source_location": "L1"
-    },
-    {
-      "id": "tasks_todo_tasks_design_confirmation_gate_dynamic_release_documents",
-      "label": "Tasks: Design Confirmation Gate & Dynamic Release Documents",
-      "_origin": "ast",
-      "community": 19,
-      "community_name": "todo.md",
+      "community": 18,
+      "community_name": "2. Requirements & Acceptance Criteria",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "tasks: design confirmation gate & dynamic release documents",
-      "source_file": "tasks/todo.md",
+      "norm_label": "d. rich, informative, unmasked tooltips",
+      "source_file": "tasks/plan.md",
+      "source_location": "L41"
+    },
+    {
+      "id": "tasks_plan_e_department_worklists_other_modules",
+      "label": "E. Department Worklists & Other Modules",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "2. Requirements & Acceptance Criteria",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "e. department worklists & other modules",
+      "source_file": "tasks/plan.md",
+      "source_location": "L50"
+    },
+    {
+      "id": "tasks_plan_spec_implementation_plan_complete_text_visibility_auto_fit_across_table_views",
+      "label": "Spec & Implementation Plan: Complete Text Visibility & Auto-Fit Across Table Views",
+      "_origin": "ast",
+      "community": 18,
+      "community_name": "2. Requirements & Acceptance Criteria",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "spec & implementation plan: complete text visibility & auto-fit across table views",
+      "source_file": "tasks/plan.md",
       "source_location": "L1"
     },
     {
@@ -3039,7 +2852,7 @@
       "file_type": "code",
       "norm_label": "pouploadbar",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2438"
+      "source_location": "L2454"
     },
     {
       "id": "src_components_allorderstableview_pouploadmodal",
@@ -3050,7 +2863,7 @@
       "file_type": "code",
       "norm_label": "pouploadmodal",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1986"
+      "source_location": "L2002"
     },
     {
       "id": "src_components_allorderstableview_priority_order",
@@ -3094,7 +2907,43 @@
       "file_type": "code",
       "norm_label": "tablerow",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1788"
+      "source_location": "L1804"
+    },
+    {
+      "id": "tasks_plan_3_implementation_steps",
+      "label": "3. Implementation Steps",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "3. implementation steps",
+      "source_file": "tasks/plan.md",
+      "source_location": "L55"
+    },
+    {
+      "id": "tasks_todo",
+      "label": "todo.md",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "document",
+      "node_kind": "page",
+      "norm_label": "todo.md",
+      "source_file": "tasks/todo.md",
+      "source_location": "L1"
+    },
+    {
+      "id": "tasks_todo_tasks_complete_text_visibility_auto_fit_across_tables",
+      "label": "Tasks: Complete Text Visibility & Auto-Fit Across Tables",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "tasks: complete text visibility & auto-fit across tables",
+      "source_file": "tasks/todo.md",
+      "source_location": "L1"
     },
     {
       "id": "spec_design_confirmation_and_auto_release",
@@ -3341,21 +3190,109 @@
       "label": "AddPartMasterModal.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "addpartmastermodal.jsx",
       "source_file": "src/components/AddPartMasterModal.jsx",
       "source_location": "L1"
     },
     {
+      "id": "src_components_deptworklist",
+      "label": "DeptWorklist.jsx",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "deptworklist.jsx",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_deptworklist_dept_colors",
+      "label": "DEPT_COLORS",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "dept_colors",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L21"
+    },
+    {
+      "id": "src_components_deptworklist_priority_config",
+      "label": "PRIORITY_CONFIG",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "priority_config",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_components_deptworklist_step_status_config",
+      "label": "STEP_STATUS_CONFIG",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "step_status_config",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L11"
+    },
+    {
+      "id": "src_components_documentdirectory",
+      "label": "DocumentDirectory.jsx",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "documentdirectory.jsx",
+      "source_file": "src/components/DocumentDirectory.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentdirectory_doc_types",
+      "label": "DOC_TYPES",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "doc_types",
+      "source_file": "src/components/DocumentDirectory.jsx",
+      "source_location": "L4"
+    },
+    {
       "id": "src_components_editreftagmodal",
       "label": "EditRefTagModal.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "editreftagmodal.jsx",
       "source_file": "src/components/EditRefTagModal.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_errorboundary",
+      "label": "ErrorBoundary.jsx",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "errorboundary.jsx",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_login",
+      "label": "Login.jsx",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "login.jsx",
+      "source_file": "src/components/Login.jsx",
       "source_location": "L1"
     },
     {
@@ -3363,7 +3300,7 @@
       "label": "Modal.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "modal.jsx",
       "source_file": "src/components/Modal.jsx",
@@ -3374,7 +3311,7 @@
       "label": "OrderCreationFlow.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "ordercreationflow.jsx",
       "source_file": "src/components/OrderCreationFlow.jsx",
@@ -3385,7 +3322,7 @@
       "label": "PanelSizeSearchSelect.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "panelsizesearchselect.jsx",
       "source_file": "src/components/PanelSizeSearchSelect.jsx",
@@ -3396,7 +3333,7 @@
       "label": "PartNumberSearchSelect.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "partnumbersearchselect.jsx",
       "source_file": "src/components/PartNumberSearchSelect.jsx",
@@ -3407,11 +3344,44 @@
       "label": "RightPanel.jsx",
       "_origin": "ast",
       "community": 3,
-      "community_name": "OrderCreationFlow.jsx",
+      "community_name": "react",
       "file_type": "code",
       "norm_label": "rightpanel.jsx",
       "source_file": "src/components/RightPanel.jsx",
       "source_location": "L1"
+    },
+    {
+      "id": "src_components_settings",
+      "label": "Settings.jsx",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "code",
+      "norm_label": "settings.jsx",
+      "source_file": "src/components/Settings.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "ref_lucide_react",
+      "label": "lucide-react",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "concept",
+      "norm_label": "lucide-react",
+      "source_file": "package.json",
+      "source_location": "L14"
+    },
+    {
+      "id": "ref_react",
+      "label": "react",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "react",
+      "file_type": "concept",
+      "norm_label": "react",
+      "source_file": "package.json",
+      "source_location": "L15"
     },
     {
       "id": "src_components_documentpreviewmodal",
@@ -3609,7 +3579,7 @@
       "file_type": "code",
       "norm_label": "blocked_extensions",
       "source_file": "server/index.js",
-      "source_location": "L912"
+      "source_location": "L927"
     },
     {
       "id": "server_index_default_steps",
@@ -3664,7 +3634,7 @@
       "file_type": "code",
       "norm_label": "loginattempts",
       "source_file": "server/index.js",
-      "source_location": "L870"
+      "source_location": "L885"
     },
     {
       "id": "server_index_storage",
@@ -3675,7 +3645,7 @@
       "file_type": "code",
       "norm_label": "storage",
       "source_file": "server/index.js",
-      "source_location": "L927"
+      "source_location": "L942"
     },
     {
       "id": "server_index_transporter",
@@ -3697,7 +3667,7 @@
       "file_type": "code",
       "norm_label": "upload",
       "source_file": "server/index.js",
-      "source_location": "L942"
+      "source_location": "L957"
     },
     {
       "id": "server_migrate_2627_order_numbers",
@@ -3766,14 +3736,102 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_statsrow",
-      "label": "StatsRow.jsx",
+      "id": "src_components_bulkimportmodal",
+      "label": "BulkImportModal.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "ErrorBoundary",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "code",
-      "norm_label": "statsrow.jsx",
-      "source_file": "src/components/StatsRow.jsx",
+      "norm_label": "bulkimportmodal.jsx",
+      "source_file": "src/components/BulkImportModal.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentmanager",
+      "label": "DocumentManager.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "documentmanager.jsx",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentmanager_doc_types",
+      "label": "DOC_TYPES",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "doc_types",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_documentmanager_po_authorized_roles",
+      "label": "PO_AUTHORIZED_ROLES",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "po_authorized_roles",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L7"
+    },
+    {
+      "id": "src_components_excelsheetviewer",
+      "label": "ExcelSheetViewer.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "excelsheetviewer.jsx",
+      "source_file": "src/components/ExcelSheetViewer.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal",
+      "label": "OrderDocumentsModal.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderdocumentsmodal.jsx",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_orderimport",
+      "label": "OrderImport.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderimport.jsx",
+      "source_file": "src/components/OrderImport.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_orderlist",
+      "label": "OrderList.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderlist.jsx",
+      "source_file": "src/components/OrderList.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_stepmodal",
+      "label": "StepModal.jsx",
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal.jsx",
+      "source_file": "src/components/StepModal.jsx",
       "source_location": "L1"
     },
     {
@@ -4151,33 +4209,11 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_excelsheetviewer",
-      "label": "ExcelSheetViewer.jsx",
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "excelsheetviewer.jsx",
-      "source_file": "src/components/ExcelSheetViewer.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal",
-      "label": "OrderDocumentsModal.jsx",
-      "_origin": "ast",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "orderdocumentsmodal.jsx",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L1"
-    },
-    {
       "id": "spec_non_standard_panel_docs",
       "label": "SPEC-non-standard-panel-docs.md",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "spec-non-standard-panel-docs.md",
@@ -4189,7 +4225,7 @@
       "label": "1. Document Separation & Storage Isolation",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. document separation & storage isolation",
@@ -4201,7 +4237,7 @@
       "label": "2. Revision Calculation for Non-Standard Documents",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. revision calculation for non-standard documents",
@@ -4213,7 +4249,7 @@
       "label": "3. Role-Based Access Control (RBAC)",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. role-based access control (rbac)",
@@ -4225,7 +4261,7 @@
       "label": "Action Boundaries",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "action boundaries",
@@ -4237,7 +4273,7 @@
       "label": "Boundaries",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "boundaries",
@@ -4249,7 +4285,7 @@
       "label": "Code Style & Implementation Standard",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "code style & implementation standard",
@@ -4261,7 +4297,7 @@
       "label": "Commands",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "commands",
@@ -4273,7 +4309,7 @@
       "label": "Data Contracts & Architecture",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "data contracts & architecture",
@@ -4285,7 +4321,7 @@
       "label": "Non-Standard Document Card Implementation Sample",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "non-standard document card implementation sample",
@@ -4297,7 +4333,7 @@
       "label": "Objective",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "objective",
@@ -4309,7 +4345,7 @@
       "label": "Project Structure",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "project structure",
@@ -4321,7 +4357,7 @@
       "label": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "spec: non-standard panel drawings & bill of materials (bom)",
@@ -4333,7 +4369,7 @@
       "label": "Success Criteria",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "success criteria",
@@ -4345,7 +4381,7 @@
       "label": "Tech Stack & Commands",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tech stack & commands",
@@ -4357,7 +4393,7 @@
       "label": "Testing & Verification Strategy",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "testing & verification strategy",
@@ -4369,7 +4405,7 @@
       "label": "User Stories",
       "_origin": "ast",
       "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "user stories",
@@ -4509,6 +4545,18 @@
       "source_file": "index.html"
     },
     {
+      "id": "ref_xlsx",
+      "label": "ref_xlsx",
+      "_origin": "semantic",
+      "community": 6,
+      "community_name": "OrderDocumentsModal.jsx",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_xlsx",
+      "source_file": "",
+      "type": "external"
+    },
+    {
       "id": "ref_assert",
       "label": "ref_assert",
       "_origin": "semantic",
@@ -4529,18 +4577,6 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "os",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_xlsx",
-      "label": "ref_xlsx",
-      "_origin": "semantic",
-      "community": 9,
-      "community_name": "OrderDocumentsModal.jsx",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_xlsx",
       "source_file": "",
       "type": "external"
     }
@@ -4608,18 +4644,6 @@
     },
     {
       "source": "server_index_generateordernumber",
-      "target": "server_index_parseordercounter",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "server/index.js",
-      "source_location": "L979",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index_generateordernumber",
       "target": "server_index_formatordernumber",
       "relation": "calls",
       "_origin": "ast",
@@ -4627,7 +4651,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L990",
+      "source_location": "L1005",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index_generateordernumber",
+      "target": "server_index_parseordercounter",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "server/index.js",
+      "source_location": "L994",
       "weight": 1.0
     },
     {
@@ -4687,7 +4723,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L6428",
+      "source_location": "L6443",
       "weight": 1.0
     },
     {
@@ -4699,7 +4735,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L937",
+      "source_location": "L952",
       "weight": 1.0
     },
     {
@@ -5143,7 +5179,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3579",
+      "source_location": "L3694",
       "weight": 1.0
     },
     {
@@ -5155,7 +5191,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3579",
+      "source_location": "L3694",
       "weight": 1.0
     },
     {
@@ -5167,7 +5203,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3643",
+      "source_location": "L3758",
       "weight": 1.0
     },
     {
@@ -5179,7 +5215,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4156",
+      "source_location": "L4271",
       "weight": 1.0
     },
     {
@@ -5191,7 +5227,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4410",
+      "source_location": "L4526",
       "weight": 1.0
     },
     {
@@ -5203,7 +5239,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4579",
+      "source_location": "L4695",
       "weight": 1.0
     },
     {
@@ -5215,7 +5251,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4618",
+      "source_location": "L4734",
       "weight": 1.0
     },
     {
@@ -5227,7 +5263,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4633",
+      "source_location": "L4749",
       "weight": 1.0
     },
     {
@@ -5239,7 +5275,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4674",
+      "source_location": "L4790",
       "weight": 1.0
     },
     {
@@ -5287,7 +5323,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L846",
+      "source_location": "L849",
       "weight": 1.0
     },
     {
@@ -5299,7 +5335,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L884",
+      "source_location": "L900",
       "weight": 1.0
     },
     {
@@ -5311,7 +5347,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L884",
+      "source_location": "L900",
       "weight": 1.0
     },
     {
@@ -5323,7 +5359,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2696",
+      "source_location": "L2712",
       "weight": 1.0
     },
     {
@@ -5335,7 +5371,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1037",
+      "source_location": "L1053",
       "weight": 1.0
     },
     {
@@ -5347,7 +5383,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1165",
+      "source_location": "L1181",
       "weight": 1.0
     },
     {
@@ -5359,7 +5395,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1225",
+      "source_location": "L1241",
       "weight": 1.0
     },
     {
@@ -5371,7 +5407,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1479",
+      "source_location": "L1495",
       "weight": 1.0
     },
     {
@@ -5383,7 +5419,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1581",
+      "source_location": "L1597",
       "weight": 1.0
     },
     {
@@ -5395,7 +5431,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1600",
+      "source_location": "L1616",
       "weight": 1.0
     },
     {
@@ -5407,7 +5443,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1893",
+      "source_location": "L1909",
       "weight": 1.0
     },
     {
@@ -5419,7 +5455,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1916",
+      "source_location": "L1932",
       "weight": 1.0
     },
     {
@@ -5431,7 +5467,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1935",
+      "source_location": "L1951",
       "weight": 1.0
     },
     {
@@ -5467,7 +5503,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L719",
+      "source_location": "L731",
       "weight": 1.0
     },
     {
@@ -5479,7 +5515,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L198",
+      "source_location": "L210",
       "weight": 1.0
     },
     {
@@ -6031,19 +6067,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L2645",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_propagatecustomfieldstodb",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "server/index.js",
-      "source_location": "L2789",
+      "source_location": "L2660",
       "weight": 1.0
     },
     {
@@ -6056,6 +6080,18 @@
       "context": "call",
       "source_file": "server/index.js",
       "source_location": "L279",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
+      "target": "server_index_propagatecustomfieldstodb",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "server/index.js",
+      "source_location": "L2804",
       "weight": 1.0
     },
     {
@@ -6139,7 +6175,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L949",
+      "source_location": "L964",
       "weight": 1.0
     },
     {
@@ -6151,7 +6187,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L956",
+      "source_location": "L971",
       "weight": 1.0
     },
     {
@@ -6163,7 +6199,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L972",
+      "source_location": "L987",
       "weight": 1.0
     },
     {
@@ -9845,6 +9881,17 @@
     },
     {
       "source": "server_index",
+      "target": "server_index_authorize",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/index.js",
+      "source_location": "L1009",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
       "target": "server_index_senddepartmenthandoveremail",
       "relation": "contains",
       "_origin": "ast",
@@ -9895,7 +9942,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L6286",
+      "source_location": "L6301",
       "weight": 1.0
     },
     {
@@ -9950,7 +9997,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L870",
+      "source_location": "L885",
       "weight": 1.0
     },
     {
@@ -9961,7 +10008,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L905",
+      "source_location": "L920",
       "weight": 1.0
     },
     {
@@ -9972,7 +10019,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L912",
+      "source_location": "L927",
       "weight": 1.0
     },
     {
@@ -9983,7 +10030,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L927",
+      "source_location": "L942",
       "weight": 1.0
     },
     {
@@ -9994,7 +10041,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L942",
+      "source_location": "L957",
       "weight": 1.0
     },
     {
@@ -10006,17 +10053,6 @@
       "confidence_score": 1.0,
       "source_file": "server/index.js",
       "source_location": "L96",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_authorize",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "server/index.js",
-      "source_location": "L994",
       "weight": 1.0
     },
     {
@@ -11050,7 +11086,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1788",
+      "source_location": "L1804",
       "weight": 1.0
     },
     {
@@ -11061,7 +11097,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1986",
+      "source_location": "L2002",
       "weight": 1.0
     },
     {
@@ -11083,7 +11119,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2438",
+      "source_location": "L2454",
       "weight": 1.0
     },
     {
@@ -11094,7 +11130,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2714",
+      "source_location": "L2730",
       "weight": 1.0
     },
     {
@@ -11226,7 +11262,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L895",
+      "source_location": "L911",
       "weight": 1.0
     },
     {
@@ -11292,7 +11328,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L312",
+      "source_location": "L324",
       "weight": 1.0
     },
     {
@@ -12166,7 +12202,7 @@
     },
     {
       "source": "tasks_plan",
-      "target": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
+      "target": "tasks_plan_spec_implementation_plan_complete_text_visibility_auto_fit_across_table_views",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12176,19 +12212,63 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "target": "tasks_plan_major_components_dependencies",
+      "source": "tasks_plan_2_requirements_acceptance_criteria",
+      "target": "tasks_plan_a_comprehensive_column_width_safe_minimum_scale",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "tasks/plan.md",
-      "source_location": "L28",
+      "source_location": "L10",
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "target": "tasks_plan_architectural_overview",
+      "source": "tasks_plan_2_requirements_acceptance_criteria",
+      "target": "tasks_plan_b_auto_upgrade_of_squashed_widths_in_localstorage",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L33",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_2_requirements_acceptance_criteria",
+      "target": "tasks_plan_c_double_click_auto_fit_on_column_resize_handles",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L37",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_2_requirements_acceptance_criteria",
+      "target": "tasks_plan_d_rich_informative_unmasked_tooltips",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L41",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_2_requirements_acceptance_criteria",
+      "target": "tasks_plan_e_department_worklists_other_modules",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L50",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_spec_implementation_plan_complete_text_visibility_auto_fit_across_table_views",
+      "target": "tasks_plan_1_objective",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12198,8 +12278,8 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "target": "tasks_plan_risks_mitigation_strategies",
+      "source": "tasks_plan_spec_implementation_plan_complete_text_visibility_auto_fit_across_table_views",
+      "target": "tasks_plan_3_implementation_steps",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12209,19 +12289,8 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "target": "tasks_plan_verification_checkpoints",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tasks/plan.md",
-      "source_location": "L66",
-      "weight": 1.0
-    },
-    {
-      "source": "tasks_plan_technical_implementation_plan_design_department_confirmation_dynamic_release_documents",
-      "target": "tasks_plan_phases_build_order",
+      "source": "tasks_plan_spec_implementation_plan_complete_text_visibility_auto_fit_across_table_views",
+      "target": "tasks_plan_2_requirements_acceptance_criteria",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12232,7 +12301,7 @@
     },
     {
       "source": "tasks_todo",
-      "target": "tasks_todo_tasks_design_confirmation_gate_dynamic_release_documents",
+      "target": "tasks_todo_tasks_complete_text_visibility_auto_fit_across_tables",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12399,7 +12468,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L1048",
+      "source_location": "L1063",
       "weight": 1.0
     },
     {
@@ -12411,7 +12480,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L6261",
+      "source_location": "L6276",
       "weight": 1.0
     },
     {
@@ -12435,7 +12504,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "server/index.js",
-      "source_location": "L944",
+      "source_location": "L959",
       "weight": 1.0
     },
     {
@@ -12473,8 +12542,56 @@
       "source_file": "SPEC-non-standard-panel-docs.md",
       "source_location": "L152",
       "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_3_implementation_steps",
+      "target": "src_components_allorderstableview_getcelltooltip",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "getCellTooltip",
+      "source_file": "tasks/plan.md",
+      "source_location": "L61",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_todo_tasks_complete_text_visibility_auto_fit_across_tables",
+      "target": "src_components_allorderstableview_getcelltooltip",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "getCellTooltip",
+      "source_file": "tasks/todo.md",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_3_implementation_steps",
+      "target": "src_components_allorderstableview_rendercellcontent",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "renderCellContent",
+      "source_file": "tasks/plan.md",
+      "source_location": "L60",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_todo_tasks_complete_text_visibility_auto_fit_across_tables",
+      "target": "src_components_allorderstableview_rendercellcontent",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "renderCellContent",
+      "source_file": "tasks/todo.md",
+      "source_location": "L19",
+      "weight": 1.0
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "14b39a04bb4da983a09347a494a0b3b0d67c18c9"
+  "built_at_commit": "edd5b3307cd5aa3572bc5c0e06d279a5639a7da1"
 }

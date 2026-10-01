@@ -998,7 +998,7 @@
       "file_type": "code",
       "norm_label": "authorize()",
       "source_file": "server/index.js",
-      "source_location": "L994"
+      "source_location": "L1009"
     },
     {
       "id": "server_index_deriveunitstatus",
@@ -1034,7 +1034,7 @@
       "file_type": "code",
       "norm_label": "formatordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L949"
+      "source_location": "L964"
     },
     {
       "id": "server_index_generateordernumber",
@@ -1046,7 +1046,7 @@
       "file_type": "code",
       "norm_label": "generateordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L972"
+      "source_location": "L987"
     },
     {
       "id": "server_index_initdb",
@@ -1106,7 +1106,7 @@
       "file_type": "code",
       "norm_label": "loginratelimiter()",
       "source_file": "server/index.js",
-      "source_location": "L874"
+      "source_location": "L889"
     },
     {
       "id": "server_index_parseordercounter",
@@ -1118,7 +1118,7 @@
       "file_type": "code",
       "norm_label": "parseordercounter()",
       "source_file": "server/index.js",
-      "source_location": "L956"
+      "source_location": "L971"
     },
     {
       "id": "server_index_propagatecustomfieldstodb",
@@ -1130,7 +1130,7 @@
       "file_type": "code",
       "norm_label": "propagatecustomfieldstodb()",
       "source_file": "server/index.js",
-      "source_location": "L2789"
+      "source_location": "L2804"
     },
     {
       "id": "server_index_resolvecustomfieldvalues",
@@ -1142,7 +1142,7 @@
       "file_type": "code",
       "norm_label": "resolvecustomfieldvalues()",
       "source_file": "server/index.js",
-      "source_location": "L2645"
+      "source_location": "L2660"
     },
     {
       "id": "server_index_sanitizeoriginalfilename",
@@ -1154,7 +1154,7 @@
       "file_type": "code",
       "norm_label": "sanitizeoriginalfilename()",
       "source_file": "server/index.js",
-      "source_location": "L905"
+      "source_location": "L920"
     },
     {
       "id": "server_index_seedsayauser",
@@ -1166,7 +1166,7 @@
       "file_type": "code",
       "norm_label": "seedsayauser()",
       "source_file": "server/index.js",
-      "source_location": "L6286"
+      "source_location": "L6301"
     },
     {
       "id": "server_index_senddepartmenthandoveremail",
@@ -1226,7 +1226,7 @@
       "file_type": "code",
       "norm_label": "templatehandler()",
       "source_file": "server/index.js",
-      "source_location": "L6117"
+      "source_location": "L6132"
     },
     {
       "id": "server_index_updateorderqcstatusfromsteps",
@@ -1250,7 +1250,7 @@
       "file_type": "code",
       "norm_label": "uploadfilefilter()",
       "source_file": "server/index.js",
-      "source_location": "L918"
+      "source_location": "L933"
     },
     {
       "id": "server_migrate_2627_order_numbers_extractyearfromorder",
@@ -3609,7 +3609,7 @@
       "file_type": "code",
       "norm_label": "blocked_extensions",
       "source_file": "server/index.js",
-      "source_location": "L912"
+      "source_location": "L927"
     },
     {
       "id": "server_index_default_steps",
@@ -3664,7 +3664,7 @@
       "file_type": "code",
       "norm_label": "loginattempts",
       "source_file": "server/index.js",
-      "source_location": "L870"
+      "source_location": "L885"
     },
     {
       "id": "server_index_storage",
@@ -3675,7 +3675,7 @@
       "file_type": "code",
       "norm_label": "storage",
       "source_file": "server/index.js",
-      "source_location": "L927"
+      "source_location": "L942"
     },
     {
       "id": "server_index_transporter",
@@ -3697,7 +3697,7 @@
       "file_type": "code",
       "norm_label": "upload",
       "source_file": "server/index.js",
-      "source_location": "L942"
+      "source_location": "L957"
     },
     {
       "id": "server_migrate_2627_order_numbers",
@@ -4608,18 +4608,6 @@
     },
     {
       "source": "server_index_generateordernumber",
-      "target": "server_index_parseordercounter",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "server/index.js",
-      "source_location": "L979",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index_generateordernumber",
       "target": "server_index_formatordernumber",
       "relation": "calls",
       "_origin": "ast",
@@ -4627,7 +4615,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L990",
+      "source_location": "L1005",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index_generateordernumber",
+      "target": "server_index_parseordercounter",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "server/index.js",
+      "source_location": "L994",
       "weight": 1.0
     },
     {
@@ -4687,7 +4687,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L6428",
+      "source_location": "L6443",
       "weight": 1.0
     },
     {
@@ -4699,7 +4699,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L937",
+      "source_location": "L952",
       "weight": 1.0
     },
     {
@@ -6031,19 +6031,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L2645",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_propagatecustomfieldstodb",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "server/index.js",
-      "source_location": "L2789",
+      "source_location": "L2660",
       "weight": 1.0
     },
     {
@@ -6056,6 +6044,18 @@
       "context": "call",
       "source_file": "server/index.js",
       "source_location": "L279",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
+      "target": "server_index_propagatecustomfieldstodb",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "server/index.js",
+      "source_location": "L2804",
       "weight": 1.0
     },
     {
@@ -6139,7 +6139,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L949",
+      "source_location": "L964",
       "weight": 1.0
     },
     {
@@ -6151,7 +6151,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L956",
+      "source_location": "L971",
       "weight": 1.0
     },
     {
@@ -6163,7 +6163,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L972",
+      "source_location": "L987",
       "weight": 1.0
     },
     {
@@ -9845,6 +9845,17 @@
     },
     {
       "source": "server_index",
+      "target": "server_index_authorize",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/index.js",
+      "source_location": "L1009",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
       "target": "server_index_senddepartmenthandoveremail",
       "relation": "contains",
       "_origin": "ast",
@@ -9895,7 +9906,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L6286",
+      "source_location": "L6301",
       "weight": 1.0
     },
     {
@@ -9950,7 +9961,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L870",
+      "source_location": "L885",
       "weight": 1.0
     },
     {
@@ -9961,7 +9972,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L905",
+      "source_location": "L920",
       "weight": 1.0
     },
     {
@@ -9972,7 +9983,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L912",
+      "source_location": "L927",
       "weight": 1.0
     },
     {
@@ -9983,7 +9994,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L927",
+      "source_location": "L942",
       "weight": 1.0
     },
     {
@@ -9994,7 +10005,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L942",
+      "source_location": "L957",
       "weight": 1.0
     },
     {
@@ -10006,17 +10017,6 @@
       "confidence_score": 1.0,
       "source_file": "server/index.js",
       "source_location": "L96",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_authorize",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "server/index.js",
-      "source_location": "L994",
       "weight": 1.0
     },
     {
@@ -12399,7 +12399,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L1048",
+      "source_location": "L1063",
       "weight": 1.0
     },
     {
@@ -12411,7 +12411,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L6261",
+      "source_location": "L6276",
       "weight": 1.0
     },
     {
@@ -12435,7 +12435,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "server/index.js",
-      "source_location": "L944",
+      "source_location": "L959",
       "weight": 1.0
     },
     {
@@ -12476,5 +12476,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "14b39a04bb4da983a09347a494a0b3b0d67c18c9"
+  "built_at_commit": "edd5b3307cd5aa3572bc5c0e06d279a5639a7da1"
 }

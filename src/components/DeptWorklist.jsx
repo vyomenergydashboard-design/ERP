@@ -130,30 +130,42 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
         <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
           <div>{unit.unit_serial}</div>
           {isHold && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
-              borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
-              color: '#fbbf24', fontSize: 10, fontWeight: 700
-            }}>
+            <div
+              title={unit.hold_reason ? `On Hold: ${unit.hold_reason}` : 'Unit is on hold'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
+                borderRadius: 4, background: 'rgba(245, 158, 11, 0.28)', border: '1px solid #f59e0b',
+                color: '#fbbf24', fontSize: 10, fontWeight: 700
+              }}
+            >
               <span>⏸</span> HOLD {unit.hold_step_name ? `@ ${unit.hold_step_name}` : (unit.order_hold_status === 'Approved' ? '(Order Level)' : (unit.hold_dept ? `@ ${unit.hold_dept}` : ''))}
             </div>
           )}
           {isHold && (unit.hold_reason || unit.order_hold_status === 'Approved') && (
-            <div style={{ fontSize: 10, color: '#fef3c7', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
+            <div
+              title={unit.hold_reason || (unit.order_hold_status === 'Approved' ? 'Order placed on hold' : '')}
+              style={{ fontSize: 10, color: '#fef3c7', marginTop: 2, fontStyle: 'italic', wordBreak: 'break-word', maxWidth: 260 }}
+            >
               {unit.hold_reason || (unit.order_hold_status === 'Approved' ? 'Order placed on hold' : '')}
             </div>
           )}
           {isCancelled && (
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
-              borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
-              color: '#f87171', fontSize: 10, fontWeight: 700
-            }}>
+            <div
+              title={unit.cancelled_reason ? `Cancelled: ${unit.cancelled_reason}` : 'Unit is cancelled'}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
+                borderRadius: 4, background: 'rgba(239, 68, 68, 0.28)', border: '1px solid #ef4444',
+                color: '#f87171', fontSize: 10, fontWeight: 700
+              }}
+            >
               <span>✕</span> CANCELLED {unit.cancelled_step_name ? `@ ${unit.cancelled_step_name}` : (String(unit.order_status || '').toLowerCase().startsWith('cancel') ? '(Order Level)' : (unit.cancelled_dept ? `@ ${unit.cancelled_dept}` : ''))}
             </div>
           )}
           {isCancelled && (unit.cancelled_reason || String(unit.order_status || '').toLowerCase().startsWith('cancel')) && (
-            <div style={{ fontSize: 10, color: '#fee2e2', marginTop: 2, fontStyle: 'italic', maxWidth: 180 }}>
+            <div
+              title={unit.cancelled_reason || 'Order cancelled'}
+              style={{ fontSize: 10, color: '#fee2e2', marginTop: 2, fontStyle: 'italic', wordBreak: 'break-word', maxWidth: 260 }}
+            >
               {unit.cancelled_reason || 'Order cancelled'}
             </div>
           )}
