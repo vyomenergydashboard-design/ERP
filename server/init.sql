@@ -165,10 +165,6 @@ CREATE TABLE IF NOT EXISTS unit_steps (
 );
 ALTER TABLE unit_steps ADD COLUMN IF NOT EXISTS default_doc_type TEXT DEFAULT 'General';
 
--- Seed default Admin user if not exists (password: admin123)
-INSERT INTO users (username, email, password, role)
-VALUES ('admin', 'admin@absolutemotion.in', '$2a$10$pM5q2/qZtJkKoLjQ3McavedSnylKyzJqHsQSPyhWFN.WKYluU8vSK', 'Admin')
-ON CONFLICT (username) DO NOTHING;
 
 -- Planning Module columns for orders
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS end_client_name TEXT;
@@ -332,20 +328,6 @@ ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS ip_rating TEXT;
 ALTER TABLE panel_size_masters ADD COLUMN IF NOT EXISTS comments TEXT;
 UPDATE panel_size_masters SET panel_size = COALESCE(panel_size, size_name) WHERE panel_size IS NULL;
 UPDATE panel_size_masters SET comments = COALESCE(comments, description) WHERE comments IS NULL;
-
-INSERT INTO panel_size_masters (panel_code, panel_size, size_name, ip_rating, comments, description) VALUES
-  ('PC-01', '800x600x300 mm', '800x600x300 mm', 'IP55', 'Standard Wall Mount Control Panel', 'Standard Wall Mount Control Panel'),
-  ('PC-02', '1000x800x300 mm', '1000x800x300 mm', 'IP55', 'Medium Wall Mount Control Panel', 'Medium Wall Mount Control Panel'),
-  ('PC-03', '1200x800x400 mm', '1200x800x400 mm', 'IP55', 'Large Wall Mount / Small Floor Standing Panel', 'Large Wall Mount / Small Floor Standing Panel'),
-  ('PC-04', '1600x800x400 mm', '1600x800x400 mm', 'IP55', 'Floor Standing Single Door Panel', 'Floor Standing Single Door Panel'),
-  ('PC-05', '2000x800x600 mm', '2000x800x600 mm', 'IP54', 'Floor Standing Standard PCC/MCC Panel', 'Floor Standing Standard PCC/MCC Panel'),
-  ('PC-06', '2000x1000x800 mm', '2000x1000x800 mm', 'IP54', 'Heavy Duty Floor Standing Double Door Panel', 'Heavy Duty Floor Standing Double Door Panel'),
-  ('PC-07', 'Custom', 'Custom', 'IP55', 'Customized Non-Standard Panel Dimensions', 'Customized Non-Standard Panel Dimensions')
-ON CONFLICT (size_name) DO UPDATE SET
-  panel_code = COALESCE(panel_size_masters.panel_code, EXCLUDED.panel_code),
-  panel_size = COALESCE(panel_size_masters.panel_size, EXCLUDED.panel_size),
-  ip_rating = COALESCE(panel_size_masters.ip_rating, EXCLUDED.ip_rating),
-  comments = COALESCE(panel_size_masters.comments, EXCLUDED.comments);
 
 ALTER TABLE order_units 
   ADD COLUMN IF NOT EXISTS classification TEXT DEFAULT 'Standard',
