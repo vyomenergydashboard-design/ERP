@@ -395,10 +395,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   );
 
   // A panel stays in Sales until Sales order steps AND unit Sales Clearance steps are done
-  const hasUnitSalesPending = stepsRes.rows.some(s => s.dept === 'Sales' && s.status !== 'done');
-  const isDesignConfirmed = Boolean(row.design_confirmed);
-
-  if ((!isSalesDone || hasUnitSalesPending) && !isDesignConfirmed) {
+  if (!isSalesDone || hasUnitSalesPending) {
     newDept = 'Sales';
     newStatus = 'Pending';
   } else {
@@ -2151,6 +2148,20 @@ app.post('/api/orders/:id/hold/resume', authorize(['Admin', 'Manager', 'Sales'])
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/orders/realign-pipeline', authorize(['Admin', 'Manager']), async (req, res) => {
+  try {
+    await runDeploymentMigrations();
+    const allUnits = await pool.query('SELECT id FROM order_units');
+    for (const u of allUnits.rows) {
+      await deriveUnitStatus(u.id, pool);
+    }
+    res.json({ success: true, message: 'Pipeline successfully realigned. Units without PO restored to Sales.' });
+  } catch (err) {
+    console.error('Failed to realign pipeline:', err);
+    res.status(500).json({ error: 'Failed to realign pipeline: ' + (err.message || err) });
   }
 });
 
