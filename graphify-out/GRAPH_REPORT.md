@@ -1,17 +1,17 @@
 # Graph Report - ERP  (2026-10-01)
 
 ## Corpus Check
-- 74 files · ~2,275,928 words
+- 74 files · ~2,275,548 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 13 file(s) not represented in the graph (top: .pptx 5, (none) 4, .example 1)
 
 ## Summary
-- 402 nodes · 698 edges · 25 communities (18 shown, 7 thin omitted)
+- 402 nodes · 692 edges · 26 communities (18 shown, 8 thin omitted)
 - Extraction: 99% EXTRACTED · 1% INFERRED · 0% AMBIGUOUS · INFERRED: 10 edges (avg confidence: 0.91)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dc076f86`
+- Built from commit: `9979151e`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -35,12 +35,13 @@
 - Docker Container Orchestration
 - Web Entry & Mount Point
 - Implementation Plan: Resilient & Dynamic Task Masters Lifecycle
-- DeptWorklist.jsx
+- ErrorBoundary
 - verify_codebase.js
 - Spec: Design Department Confirmation Gate & Dynamic Release Documents Status
 - Confirmed Statement of Intent: Design Department Confirmation & Auto Release Documents
 - dependencies
 - bcryptjs
+- initDB
 
 ## God Nodes (most connected - your core abstractions)
 1. `react` - 33 edges
@@ -69,15 +70,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (25 total, 7 thin omitted)
+## Communities (26 total, 8 thin omitted)
 
 ### Community 0 - "package.json"
 Cohesion: 0.06
 Nodes (30): dependencies, lucide-react, react, react-dom, react-router-dom, @tanstack/react-query, xlsx, zustand (+22 more)
 
 ### Community 1 - "App.jsx"
-Cohesion: 0.07
-Nodes (43): lucide-react, react, react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, Masters (+35 more)
+Cohesion: 0.06
+Nodes (52): lucide-react, react, react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, Masters (+44 more)
 
 ### Community 2 - "AllOrdersTableView.jsx"
 Cohesion: 0.16
@@ -85,7 +86,7 @@ Nodes (23): AllOrdersTableView(), BASE_COLUMNS, calculateUnitStatus(), DEFAULT_C
 
 ### Community 3 - "db.js"
 Cohesion: 0.14
-Nodes (9): pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials(), formatOrderNumber(), parseOrderCounter(), realignUnitSerials() (+1 more)
+Nodes (8): pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials(), formatOrderNumber(), parseOrderCounter(), realignUnitSerials()
 
 ### Community 4 - "Masters.jsx"
 Cohesion: 0.17
@@ -116,16 +117,12 @@ Cohesion: 0.06
 Nodes (31): ref_assert, ref_fs, jsonwebtoken, ref_os, ref_path, pg, pool, content (+23 more)
 
 ### Community 13 - "deriveUnitStatus"
-Cohesion: 0.22
-Nodes (9): deriveUnitStatus(), evaluateUnitDesignDocuments(), initDB(), seedSayaUser(), sendDepartmentHandoverEmail(), syncLineItemStatusFromUnits(), syncUnitDesignDocumentStatus(), updateOrderQCStatusFromSteps() (+1 more)
+Cohesion: 0.29
+Nodes (7): deriveUnitStatus(), evaluateUnitDesignDocuments(), seedSayaUser(), sendDepartmentHandoverEmail(), syncLineItemStatusFromUnits(), syncUnitDesignDocumentStatus(), Tasks: Resilient & Dynamic Task Masters Lifecycle
 
 ### Community 18 - "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle"
 Cohesion: 0.22
 Nodes (8): 1. Overview, 2. Architecture Decisions, 3. Task List, 4. Risks & Mitigations, Implementation Plan: Resilient & Dynamic Task Masters Lifecycle, Phase 1: Task Masters Deletion & Addition Mechanics, Phase 2: Pipeline State Machine & Sales Department Retention, Phase 3: Verification & Checkpoint
-
-### Community 19 - "DeptWorklist.jsx"
-Cohesion: 0.12
-Nodes (10): DEPT_COLORS, PRIORITY_CONFIG, STEP_STATUS_CONFIG, StepPill(), UnitRow(), ErrorBoundary, AggregateStats(), DaysChip() (+2 more)
 
 ### Community 20 - "verify_codebase.js"
 Cohesion: 0.14
@@ -143,25 +140,29 @@ Nodes (3): Confirmed Statement of Intent: Design Department Confirmation & Auto 
 Cohesion: 0.20
 Nodes (10): dependencies, bcryptjs, cors, dotenv, express, jsonwebtoken, multer, nodemailer (+2 more)
 
+### Community 25 - "initDB"
+Cohesion: 0.67
+Nodes (3): initDB(), updateOrderQCStatusFromSteps(), runDeploymentMigrations()
+
 ## Knowledge Gaps
 - **137 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+132 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 184 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `Masters.jsx`, `OrderCreationFlow.jsx`, `OrderDocumentsModal.jsx`, `PlanningModule.jsx`, `DeptWorklist.jsx`?**
+- **Why does `react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `Masters.jsx`, `OrderCreationFlow.jsx`, `OrderDocumentsModal.jsx`, `PlanningModule.jsx`?**
   _High betweenness centrality (0.246) - this node is a cross-community bridge._
-- **Why does `lucide-react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `Masters.jsx`, `OrderCreationFlow.jsx`, `OrderDocumentsModal.jsx`, `PlanningModule.jsx`, `DeptWorklist.jsx`?**
+- **Why does `lucide-react` connect `App.jsx` to `package.json`, `AllOrdersTableView.jsx`, `Masters.jsx`, `OrderCreationFlow.jsx`, `OrderDocumentsModal.jsx`, `PlanningModule.jsx`?**
   _High betweenness centrality (0.111) - this node is a cross-community bridge._
 - **Why does `jsonwebtoken` connect `test_design_confirmation.js` to `index.js`, `server/package.json`?**
-  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+  _High betweenness centrality (0.084) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
   _137 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.0625 - nodes in this community are weakly interconnected._
 - **Should `App.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.07372229760289462 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.06160506160506161 - nodes in this community are weakly interconnected._
 - **Should `db.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.14333333333333334 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.14130434782608695 - nodes in this community are weakly interconnected._

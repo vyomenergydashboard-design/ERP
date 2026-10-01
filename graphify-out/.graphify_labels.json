@@ -18,10 +18,11 @@
   "16": "Docker Container Orchestration",
   "17": "Web Entry & Mount Point",
   "18": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
-  "19": "DeptWorklist.jsx",
+  "19": "ErrorBoundary",
   "20": "verify_codebase.js",
   "21": "Spec: Design Department Confirmation Gate & Dynamic Release Documents Status",
   "22": "Confirmed Statement of Intent: Design Department Confirmation & Auto Release Documents",
   "23": "dependencies",
-  "24": "bcryptjs"
+  "24": "bcryptjs",
+  "25": "initDB"
 }

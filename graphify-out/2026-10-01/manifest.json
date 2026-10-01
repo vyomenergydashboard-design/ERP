@@ -30,9 +30,9 @@
     "semantic_hash": "9af0c146b2cebbffdd093ae04114b8d7"
   },
   "server/index.js": {
-    "mtime": 1790773526.6732352,
-    "seen": 1790773686.4745424,
-    "ast_hash": "1255d1a13e608a8ca77fdf32a770b6bf",
+    "mtime": 1790838620.560931,
+    "seen": 1790839070.9214518,
+    "ast_hash": "4ec777b043950419138c4a572b248ead",
     "semantic_hash": ""
   },
   "server/init.sql": {
@@ -78,9 +78,9 @@
     "semantic_hash": "3875bd9c30f6b35f94299d37cfb75c12"
   },
   "server/run_deployment_migrations.js": {
-    "mtime": 1790761110.8304777,
-    "seen": 1790761714.3804936,
-    "ast_hash": "9772399806bf7646b701101d88c0ad5e",
+    "mtime": 1790838695.8798342,
+    "seen": 1790839070.9230356,
+    "ast_hash": "d2a2d048d581cae54277cf851484d535",
     "semantic_hash": ""
   },
   "server/seed_tasks.sql": {
@@ -90,9 +90,9 @@
     "semantic_hash": ""
   },
   "server/test_po_system.js": {
-    "mtime": 1790672958.2767873,
-    "seen": 1790673524.6875842,
-    "ast_hash": "3733866ef4a7e4b5b833a125f5e40330",
+    "mtime": 1790838924.4132762,
+    "seen": 1790839070.923408,
+    "ast_hash": "0e33cb4561c91c44b83ecd2d0f4025d9",
     "semantic_hash": ""
   },
   "src/App.jsx": {
@@ -180,9 +180,9 @@
     "semantic_hash": "f25239394d040dca8fdbfc4401c49cfc"
   },
   "src/components/Masters.jsx": {
-    "mtime": 1790673477.4635327,
-    "seen": 1790673524.6909842,
-    "ast_hash": "cd9f86eb63e1a770cc5ab74899ef4366",
+    "mtime": 1790838670.1882644,
+    "seen": 1790839070.9293878,
+    "ast_hash": "b718c277e4df2aed9b9dd58ac8dc0381",
     "semantic_hash": ""
   },
   "src/components/Modal.jsx": {
@@ -816,15 +816,15 @@
     "semantic_hash": ""
   },
   "tasks/plan.md": {
-    "mtime": 1790832000.744966,
-    "seen": 1790832415.0653026,
-    "ast_hash": "072300bb273f0190673d8d35024630af",
+    "mtime": 1790838101.0264966,
+    "seen": 1790839070.9413297,
+    "ast_hash": "6e9666f94b8e3f5649d4a8e8e8e5e967",
     "semantic_hash": ""
   },
   "tasks/todo.md": {
-    "mtime": 1790832393.4751945,
-    "seen": 1790832415.065313,
-    "ast_hash": "e8eb35392455f2cc051094cb8aca5139",
+    "mtime": 1790839046.2330852,
+    "seen": 1790839070.9413328,
+    "ast_hash": "e935ed30411bf1cf961475ecd976e97c",
     "semantic_hash": ""
   },
   "src/components/DocumentPreviewModal.jsx": {
@@ -852,9 +852,9 @@
     "semantic_hash": ""
   },
   "server/test_sales_to_design_gate.js": {
-    "mtime": 1790764545.9221058,
-    "seen": 1790764625.4382195,
-    "ast_hash": "6a503e4abc104beda66386ae7ef0b3e3",
+    "mtime": 1790838995.379732,
+    "seen": 1790839070.923412,
+    "ast_hash": "fd8931ba49633a5e17e65a9c77d0e4e0",
     "semantic_hash": ""
   },
   "src/components/TechnicalDocsModal.jsx": {
@@ -867,6 +867,12 @@
     "mtime": 1790761647.5769823,
     "seen": 1790761714.3819537,
     "ast_hash": "cee9300f943287da56b537812268f63b",
+    "semantic_hash": ""
+  },
+  "server/test_task_masters_lifecycle.js": {
+    "mtime": 1790838820.4163365,
+    "seen": 1790839070.9237463,
+    "ast_hash": "29b71d8865b4a292057f8fd1fe4cdc93",
     "semantic_hash": ""
   }
 }

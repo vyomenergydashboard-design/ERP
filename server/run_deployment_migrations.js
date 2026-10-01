@@ -1,5 +1,4 @@
 import pool from './db.js';
-import { realignUnitSerials } from './realign_unit_serials_to_orders.js';
 
 export async function runDeploymentMigrations(clientParam) {
   const client = clientParam || await pool.connect();
@@ -79,13 +78,6 @@ export async function runDeploymentMigrations(clientParam) {
           comments = COALESCE(comments, description)
       WHERE panel_size IS NULL OR comments IS NULL;
 
-      UPDATE panel_size_masters
-      SET panel_code = 'PC-' || LPAD(id::text, 2, '0')
-      WHERE panel_code IS NULL OR panel_code = '';
-
-      UPDATE panel_size_masters
-      SET ip_rating = 'IP55'
-      WHERE ip_rating IS NULL OR ip_rating = '';
 
       CREATE TABLE IF NOT EXISTS part_number_masters (
         id SERIAL PRIMARY KEY,
@@ -163,8 +155,6 @@ export async function runDeploymentMigrations(clientParam) {
         AND ou.planned_dispatch_date IS NULL;
     `);
 
-    // 2. Re-align orders and unit serials so Order Number = Starting Unit Serial
-    await realignUnitSerials(client);
 
     // Ensure column_masters label for short_serial is 'Serial No.'
     await client.query(`
@@ -226,60 +216,6 @@ export async function runDeploymentMigrations(clientParam) {
       console.log('[Deployment Migration] Order number migration completed.');
     }
 
-    // 3. Align Unit Serials with Starting Order Number Counter
-    const minOrderRes = await client.query("SELECT MIN(order_number) as min_ord FROM orders WHERE order_number NOT LIKE 'TEMP-%'");
-    let targetStartSeq = 1;
-    if (minOrderRes.rows.length > 0 && minOrderRes.rows[0].min_ord) {
-      const cleanMin = minOrderRes.rows[0].min_ord.replace(/\D/g, '');
-      const parsedMin = parseInt(cleanMin.slice(-4), 10);
-      if (!isNaN(parsedMin) && parsedMin > 0) {
-        targetStartSeq = parsedMin;
-      }
-    }
-
-    const minUnitRes = await client.query("SELECT MIN(unit_id) as min_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
-    let currentMinUnitSeq = 0;
-    if (minUnitRes.rows.length > 0 && minUnitRes.rows[0].min_unit) {
-      const cleanMinU = minUnitRes.rows[0].min_unit.replace(/\D/g, '');
-      currentMinUnitSeq = parseInt(cleanMinU.slice(-4), 10) || 0;
-    }
-
-    const hasHyphenatedUnits = await client.query("SELECT COUNT(*) FROM order_units WHERE unit_id LIKE '%-%'");
-    const hyphenatedCount = parseInt(hasHyphenatedUnits.rows[0].count, 10);
-
-    if (hyphenatedCount > 0 || (currentMinUnitSeq > 0 && currentMinUnitSeq !== targetStartSeq)) {
-      console.log(`[Deployment Migration] Re-aligning unit serials starting from FY counter ${targetStartSeq}...`);
-      await client.query('BEGIN');
-
-      await client.query("UPDATE order_units SET unit_id = 'TEMP-' || unit_id");
-      const unitsToMigrate = await client.query(`
-        SELECT ou.id, o.order_date, o.created_at 
-        FROM order_units ou 
-        JOIN orders o ON ou.order_id = o.id 
-        ORDER BY ou.id ASC
-      `);
-
-      let uSeq = targetStartSeq;
-      let lastYr = null;
-
-      for (const unit of unitsToMigrate.rows) {
-        const yr = unit.order_date ? new Date(unit.order_date).getFullYear() : (unit.created_at ? new Date(unit.created_at).getFullYear() : new Date().getFullYear());
-        if (lastYr !== null && lastYr !== yr) {
-          uSeq = targetStartSeq;
-        }
-        lastYr = yr;
-
-        const startYr = String(yr % 100).padStart(2, '0');
-        const endYr = String((yr + 1) % 100).padStart(2, '0');
-        const newUnitSerial = `${startYr}${endYr}${String(uSeq).padStart(4, '0')}`;
-
-        await client.query("UPDATE order_units SET unit_id = $1, short_serial = $1 WHERE id = $2", [newUnitSerial, unit.id]);
-        uSeq++;
-      }
-
-      await client.query('COMMIT');
-      console.log('[Deployment Migration] Unit serials re-aligned successfully.');
-    }
 
 
     // ── High-Performance B-Tree Database Indexes ─────────────────────────
@@ -305,28 +241,24 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Index creation warning:', idxErr.message || idxErr);
     }
 
-    // ── Sync completed planning units to Production ───────────────────────
+    // ── Safe Cleanup of Unused Dummy Panel Sizes (PC-01 to PC-06) ────────
     try {
-      console.log('[Deployment Migration] Syncing planned/completed units to Production...');
-      await client.query(`
-        UPDATE unit_steps us
-        SET status = 'done', updated = COALESCE(updated, TO_CHAR(NOW(), 'HH12:MI AM'))
-        FROM order_units ou
-        WHERE us.order_unit_id = ou.id
-          AND us.dept = 'Planning'
-          AND (ou.status = 'Completed' OR ou.status = 'Production')
-          AND us.status != 'done';
+      const deletedDummySizes = await client.query(`
+        DELETE FROM panel_size_masters 
+        WHERE panel_code IN ('PC-01', 'PC-02', 'PC-03', 'PC-04', 'PC-05', 'PC-06') 
+          AND NOT EXISTS (
+            SELECT 1 FROM order_units ou WHERE ou.panel_type_size = panel_size_masters.size_name
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM order_line_items oli WHERE oli.panel_type_size = panel_size_masters.size_name
+          )
+        RETURNING panel_code, size_name;
       `);
-
-      await client.query(`
-        UPDATE order_units
-        SET current_dept = 'Production', status = 'Production'
-        WHERE (status = 'Completed' OR status = 'Production')
-          AND current_dept IN ('Planning', 'Sales');
-      `);
-      console.log('[Deployment Migration] Planning to Production sync complete.');
-    } catch (syncErr) {
-      console.error('[Deployment Migration] Planning to Production sync error:', syncErr);
+      if (deletedDummySizes.rows.length > 0) {
+        console.log(`[Deployment Migration] Cleaned up ${deletedDummySizes.rows.length} unused dummy panel sizes:`, deletedDummySizes.rows.map(r => r.panel_code).join(', '));
+      }
+    } catch (dummyErr) {
+      console.error('[Deployment Migration] Dummy panel size cleanup warning:', dummyErr.message || dummyErr);
     }
 
     // ── Resilient Task Cleanup & Sales Department Realignment ──

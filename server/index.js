@@ -10,7 +10,6 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
-import { realignUnitSerials } from './realign_unit_serials_to_orders.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -695,12 +694,6 @@ const initDB = async () => {
     console.error('Deployment migrations error:', err.message || err);
   }
 
-  try {
-    // Force sync unit serial alignment
-    await realignUnitSerials();
-  } catch (err) {
-    console.error('Realign unit serials error:', err.message || err);
-  }
 
   try {
 
@@ -6421,13 +6414,6 @@ const seedSayaUser = async () => {
           comments = COALESCE(comments, description)
       WHERE panel_size IS NULL OR comments IS NULL;
 
-      UPDATE panel_size_masters 
-      SET panel_code = 'PC-' || LPAD(id::text, 2, '0') 
-      WHERE panel_code IS NULL OR panel_code = '';
-
-      UPDATE panel_size_masters 
-      SET ip_rating = 'IP55' 
-      WHERE ip_rating IS NULL OR ip_rating = '';
 
       INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
         ('panel_code',      'Panel Code',        'LineItem', 'Text', true, 9),
@@ -6497,20 +6483,22 @@ const seedSayaUser = async () => {
     `);
     await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Viewer'");
 
-    const userRes = await pool.query("SELECT id FROM users WHERE username = 'Saya' OR email = 'sayamumbaikar26@gmail.com' LIMIT 1");
-    if (userRes.rows.length === 0) {
-      console.log('Seeding user Saya as Admin...');
+    // Seed default Admin user ONLY if the users table is completely empty (0 users exist)
+    const userCountRes = await pool.query('SELECT COUNT(*) FROM users');
+    const userCount = parseInt(userCountRes.rows[0].count, 10);
+    if (userCount === 0) {
+      console.log('No users found in database. Seeding initial default Admin user...');
       await pool.query(
         `INSERT INTO users (username, email, password, role) 
          VALUES ($1, $2, $3, $4)`,
         [
-          'Saya',
-          'sayamumbaikar26@gmail.com',
-          '$2a$10$dTMz2obf/OXXRbCa.K.Jxeoj9/NTWRR4CjXohpCQzp.MBIl3keQ22',
+          'admin',
+          'admin@absolutemotion.in',
+          '$2a$10$pM5q2/qZtJkKoLjQ3McavedSnylKyzJqHsQSPyhWFN.WKYluU8vSK',
           'Admin'
         ]
       );
-      console.log('User Saya successfully seeded.');
+      console.log('Initial Admin user successfully seeded.');
     }
 
     // Sync task_masters changes to existing order_steps and unit_steps
