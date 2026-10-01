@@ -395,6 +395,7 @@ const deriveUnitStatus = async (unitId, clientOrPool) => {
   );
 
   // A panel stays in Sales until Sales order steps AND unit Sales Clearance steps are done
+  const hasUnitSalesPending = stepsRes.rows.some(s => s.dept === 'Sales' && s.status !== 'done');
   if (!isSalesDone || hasUnitSalesPending) {
     newDept = 'Sales';
     newStatus = 'Pending';
