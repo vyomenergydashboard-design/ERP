@@ -4637,7 +4637,6 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
          OR o.hold_status = 'Approved'
          OR o.status = 'Cancelled'
          OR o.status ILIKE 'hold%'
-         OR ($1 = 'Design' AND EXISTS (SELECT 1 FROM unit_steps us WHERE us.order_unit_id = ou.id AND us.dept = 'Design' AND (us.status = 'done' OR us.status = 'completed')))
          OR ($1 = 'Production' AND (
            ou.current_dept = 'Production'
            OR ((ou.status = 'Completed' OR oli.status = 'Completed') AND ou.current_dept NOT IN ('QC', 'Dispatch', 'Accounts'))

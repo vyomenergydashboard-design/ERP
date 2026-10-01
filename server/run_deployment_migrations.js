@@ -293,15 +293,37 @@ export async function runDeploymentMigrations(clientParam) {
         console.log('[Deployment Migration] Ensured Upload PO task master exists.');
       }
 
-      // 3. Re-align orders and units: An order stays in Sales until Upload PO is completed
-      // Find orders where Upload PO is pending or missing
+      // 3. Ensure 'Upload PO' order step exists for every order
+      await client.query(`
+        INSERT INTO order_steps (order_id, task_id, dept, name, sub, special, requires_upload, default_doc_type, step_order, status)
+        SELECT o.id, tm.id, tm.dept, tm.name, tm.sub, tm.special, tm.requires_upload, tm.default_doc_type, 0, 
+               CASE WHEN EXISTS (SELECT 1 FROM documents d WHERE d.entity_type = 'Order' AND d.entity_id = o.id AND d.doc_type = 'PO') THEN 'done' ELSE 'pending' END
+        FROM orders o
+        CROSS JOIN (SELECT * FROM task_masters WHERE dept = 'Sales' AND name = 'Upload PO' LIMIT 1) tm
+        WHERE NOT EXISTS (
+          SELECT 1 FROM order_steps os WHERE os.order_id = o.id AND os.name = 'Upload PO'
+        )
+      `);
+
+      // 4. Any order with NO PO document uploaded must have its Upload PO milestone set to pending
+      await client.query(`
+        UPDATE order_steps os
+        SET status = 'pending', notes = 'Awaiting PO upload.'
+        FROM orders o
+        WHERE os.order_id = o.id
+          AND os.name = 'Upload PO'
+          AND NOT EXISTS (
+            SELECT 1 FROM documents d WHERE d.entity_type = 'Order' AND d.entity_id = o.id AND d.doc_type = 'PO'
+          )
+      `);
+
+      // 5. Re-align orders and units: An order stays in Sales until Upload PO document is uploaded
+      // Any unit belonging to an order without a PO document must be in Sales
       const misalignedUnits = await client.query(`
         UPDATE order_units ou
-        SET current_dept = 'Sales', status = 'Pending'
+        SET current_dept = 'Sales', status = 'Pending', design_confirmed = false, design_confirmed_at = NULL, design_confirmed_by = NULL
         FROM orders o
         WHERE ou.order_id = o.id
-          AND ou.current_dept = 'Design'
-          AND ou.design_confirmed = false
           AND ou.hold_status NOT IN ('Hold', 'Cancelled')
           AND ou.status NOT IN ('Cancelled', 'Hold', 'On Hold')
           AND (
