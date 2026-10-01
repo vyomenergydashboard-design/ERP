@@ -2,7 +2,7 @@
   "0": "package.json",
   "1": "App.jsx",
   "2": "AllOrdersTableView.jsx",
-  "3": "react",
+  "3": "planningData.js",
   "4": "Masters.jsx",
   "5": "index.js",
   "6": "OrderDocumentsModal.jsx",
@@ -12,11 +12,12 @@
   "10": "PlanningModule.jsx",
   "11": "verify_codebase.js",
   "12": "Startup Synchronization & Serials",
+  "13": "todo.md",
   "14": "Workflow Status & Email Alerts",
   "15": "System Architecture & Guidelines",
   "16": "Docker Container Orchestration",
   "17": "Web Entry & Mount Point",
-  "18": "2. Requirements & Acceptance Criteria",
+  "18": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
   "21": "Spec: Design Department Confirmation Gate & Dynamic Release Documents Status",
   "22": "Confirmed Statement of Intent: Design Department Confirmation & Auto Release Documents"
 }

@@ -125,10 +125,10 @@ function AggregateStats({ activeStatFilter, onSelectStatFilter }) {
           <div className="stat-label" style={{ margin: 0 }}>Active Orders & Items</div>
           {activeStatFilter === 'all' && <span className="stat-active-pill">Active</span>}
         </div>
-        <div className="stat-value" style={{ color: 'var(--text)' }}>
-          {data.totalLineItems}
-          <span style={{ fontSize: '13px', color: 'var(--text3)', fontWeight: 'normal', marginLeft: '6px' }}>
-            ({data.total} Orders)
+        <div className="stat-value" style={{ color: 'var(--text)', display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'nowrap' }}>
+          <span>{data.totalLineItems}</span>
+          <span style={{ fontSize: '12px', color: 'var(--text3)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+            ({data.total} orders)
           </span>
         </div>
         <div className="stat-sub">in pipeline · click to view all</div>

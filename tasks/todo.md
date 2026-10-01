@@ -1,29 +1,21 @@
-# Tasks: Complete Text Visibility & Auto-Fit Across Tables
+# Tasks: Premium Dark Mode & UI/UX Modernization
 
-- [x] **Task 1: Upgrade Default Column Widths & Safe Minimums**
-  - **Description:** Update `DEFAULT_COL_WIDTHS` and `MIN_COL_WIDTHS` in `src/components/AllOrdersTableView.jsx` to generous, comfortable values (status: 220px, serial: 155px, priority: 140px, delivery: 155px, project: 185px, description: 255px, comments: 220px, client: 200px).
-  - **Acceptance:** Full headers and status badges fit without truncation.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+- [x] **Task 1: Core Design Tokens Overhaul in `src/index.css`**
+  - **Description:** Replace harsh pitch-black backgrounds and high-glare white text with modern slate-navy dark mode tokens (`--bg: #0b0f19`, `--bg2: #111827`, `--bg3: #1a2234`, `--border: #1f293d`, `--text: #f1f5f9`, `--text2: #94a3b8`).
+  - **Files:** `src/index.css`
 
-- [x] **Task 2: Automatic LocalStorage Width Migration**
-  - **Description:** Update the localStorage column width loader in `AllOrdersTableView.jsx` to enforce `MIN_COL_WIDTHS` and bump storage version to `erp_all_colWidths_v5`.
-  - **Acceptance:** Existing sessions with squashed widths auto-upgrade to readable widths immediately.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+- [x] **Task 2: Stat Cards Refinement & Wrapping Fix**
+  - **Description:** Remove thick 4px neon top borders in `.stat-card`, replace with sleek subtle top gradients, and fix awkward text wrapping in `StatsRow.jsx` (`{data.totalLineItems} ({data.total} Orders)`).
+  - **Files:** `src/components/StatsRow.jsx`, `src/index.css`
 
-- [x] **Task 3: Implement Double-Click Auto-Fit on Column Resize Handles**
-  - **Description:** Add `onDoubleClick={() => handleAutoFitColumn(colKey)}` on `.erp-resize-handle`. Measure maximum text length for visible rows and header, automatically sizing the column.
-  - **Acceptance:** Double-clicking column divider smoothly expands/shrinks column to fit text completely.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+- [x] **Task 3: Modern Table Row & Cell Aesthetics in `AllOrdersTableView.jsx`**
+  - **Description:** Replace 1990s blue underlined serial links with sleek industrial asset badges, refine cancelled/hold row background tints, and polish table search & filter controls.
+  - **Files:** `src/components/AllOrdersTableView.jsx`, `src/index.css`
 
-- [x] **Task 4: Rich, Informative & Unmasked Tooltips**
-  - **Description:** Fix `case 'unit_status':` in `renderCellContent` to remove child `title` masking. Enhance `getCellTooltip` so hovering over any cell displays 100% of the information (status, step name, reason, actor, date).
-  - **Acceptance:** Hovering over status shows `Cancelled @ Sales Clearance` with actor, date, and reason, not generic `Cancelled: Cancelled`.
-  - **Files:** `src/components/AllOrdersTableView.jsx`
+- [x] **Task 4: Polish Header, Sidenav, and Right Inspector Panel**
+  - **Description:** Modernize header search bar, theme toggle, user badge, sidebar active states, and right inspector panel activity log readability.
+  - **Files:** `src/components/Header.jsx`, `src/components/RightPanel.jsx`, `src/index.css`
 
-- [x] **Task 5: Refine DeptWorklist & General Table Styles**
-  - **Description:** Ensure status pills and steps in `DeptWorklist.jsx` have full text visibility and descriptive tooltips.
-  - **Files:** `src/components/DeptWorklist.jsx`, `src/index.css`
-
-- [x] **Task 6: Verification & Build Validation**
-  - **Description:** Run `npm run check`, `npm run build`, and integration test suite to verify 0 regressions.
-  - **Files:** `server/test_po_system.js`, `dist/`
+- [x] **Task 5: Production Build & Validation**
+  - **Description:** Run `npm run build` and backend test suite to guarantee 0 regressions and verify visual quality.
+  - **Files:** `dist/`, `server/test_po_system.js`

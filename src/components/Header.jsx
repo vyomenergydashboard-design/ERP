@@ -340,37 +340,36 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         .order-search-input {
           background: var(--bg3);
           border: 1px solid var(--border);
-          border-radius: 30px;
+          border-radius: 8px;
           color: var(--text);
-          padding: 8px 30px 8px 36px;
+          padding: 7px 30px 7px 34px;
           font-size: 12px;
-          width: 260px;
+          width: 270px;
           outline: none;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
         }
         .order-search-input:hover {
           border-color: var(--border2);
         }
         .order-search-input:focus {
-          border-color: var(--accent);
+          border-color: var(--blue);
           background: var(--bg2);
-          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12), 0 4px 12px rgba(245, 158, 11, 0.04);
+          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
         }
         .search-icon {
           position: absolute;
-          left: 12px;
+          left: 11px;
           color: var(--text3);
           pointer-events: none;
         }
         .clear-search {
           position: absolute;
-          right: 12px;
+          right: 10px;
           background: none;
           border: none;
           color: var(--text3);
           cursor: pointer;
-          font-size: 16px;
+          font-size: 15px;
           line-height: 1;
           padding: 0;
         }
@@ -385,17 +384,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           overflow-y: auto;
           background: var(--bg2);
           border: 1px solid var(--border2);
-          border-radius: 12px;
-          box-shadow: 0 12px 36px rgba(0,0,0,0.18);
+          border-radius: 10px;
+          box-shadow: 0 12px 36px rgba(0,0,0,0.3);
           z-index: 1000;
-          padding: 6px;
+          padding: 5px;
         }
         .search-dropdown-item {
-          padding: 10px 14px;
+          padding: 8px 12px;
           cursor: pointer;
           font-size: 12px;
           color: var(--text2);
-          border-radius: 8px;
+          border-radius: 6px;
           margin-bottom: 2px;
           transition: background 0.15s, color 0.15s;
         }
@@ -409,38 +408,62 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-right: 16px;
-          color: var(--text2);
+          margin-right: 14px;
+          padding: 4px 10px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          color: var(--text);
           font-size: 12px;
+          font-weight: 500;
         }
         .clock-wrapper {
-          margin-right: 16px;
+          margin-right: 14px;
           font-family: var(--font-mono);
           font-size: 11px;
           color: var(--text3);
+          background: var(--bg3);
+          padding: 5px 9px;
+          border-radius: 6px;
+          border: 1px solid var(--border);
         }
         .theme-toggle-btn {
-          background: var(--bg4);
-          border: 1px solid var(--border2);
-          border-radius: 6px;
+          background: var(--bg3);
+          border: 1px solid var(--border);
+          border-radius: 8px;
           color: var(--text2);
           cursor: pointer;
           display: flex;
           align-items: center;
-          padding: 5px 10px;
+          padding: 6px 10px;
           margin-right: 8px;
-          transition: all 0.2s;
-          gap: 5px;
+          transition: all 0.15s;
+          gap: 6px;
           font-size: 12px;
+          font-weight: 500;
         }
         .theme-toggle-btn:hover {
-          color: var(--accent);
-          border-color: var(--accent);
+          color: var(--text);
+          background: var(--bg4);
+          border-color: var(--border2);
         }
         .logout-btn {
           display: flex;
           align-items: center;
           gap: 6px;
+          background: transparent;
+          border: 1px solid var(--border);
+          border-radius: 8px;
+          padding: 6px 12px;
+          color: var(--text2);
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+        .logout-btn:hover {
+          background: rgba(239, 68, 68, 0.12);
+          border-color: rgba(239, 68, 68, 0.35);
+          color: var(--red);
         }
 
         /* Responsive styling for small laptops / tablets */

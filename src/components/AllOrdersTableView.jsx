@@ -843,9 +843,10 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
 
     case 'unit_status': {
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
-        const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+        let holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || '';
+        if (holdStep.trim().toLowerCase() === 'hold' || holdStep.trim().toLowerCase() === 'current step') holdStep = '';
         return [
-          `Status: On Hold @ ${holdStep}`,
+          holdStep ? `Status: On Hold @ ${holdStep}` : 'Status: On Hold',
           `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? formatFastDateTime(unit.held_at) : 'N/A'}`,
           `Reason: ${unit.hold_reason || 'No reason specified'}`,
           `Order #: ${unit.order_number}`,
@@ -853,9 +854,10 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
         ].filter(Boolean).join('\n');
       }
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
-        const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+        let cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || '';
+        if (cancelStep.trim().toLowerCase() === 'cancelled' || cancelStep.trim().toLowerCase() === 'cancel' || cancelStep.trim().toLowerCase() === 'current step') cancelStep = '';
         return [
-          `Status: Cancelled @ ${cancelStep}`,
+          cancelStep ? `Status: Cancelled @ ${cancelStep}` : 'Status: Cancelled',
           `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? formatFastDateTime(unit.cancelled_at) : 'N/A'}`,
           `Reason: ${unit.cancelled_reason || 'No reason specified'}`,
           `Order #: ${unit.order_number}`,
@@ -944,8 +946,8 @@ function renderCellContent({
       return (
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
           <span
+            className="erp-order-badge"
             onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
-            style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--blue)', fontSize: 12, cursor: 'pointer' }}
           >
             {unit.order_number}
           </span>
@@ -994,9 +996,9 @@ function renderCellContent({
       return (
         <div
           onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
+          style={{ display: 'inline-flex', alignItems: 'center', cursor: 'pointer' }}
         >
-          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#3b82f6', fontSize: 12, textDecoration: 'underline' }}>
+          <span className="erp-serial-badge">
             {unit.unit_serial}
           </span>
         </div>
@@ -1108,18 +1110,20 @@ function renderCellContent({
 
     case 'unit_status': {
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
-        const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+        let holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || '';
+        if (holdStep.trim().toLowerCase() === 'hold' || holdStep.trim().toLowerCase() === 'current step') holdStep = '';
         return (
           <span className="erp-status-pill hold">
-            <span>⏸</span> Hold @ {holdStep}
+            <span>⏸</span> {holdStep ? `Hold @ ${holdStep}` : 'On Hold'}
           </span>
         );
       }
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
-        const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+        let cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || '';
+        if (cancelStep.trim().toLowerCase() === 'cancelled' || cancelStep.trim().toLowerCase() === 'cancel' || cancelStep.trim().toLowerCase() === 'current step') cancelStep = '';
         return (
           <span className="erp-status-pill cancelled">
-            <span>✕</span> Cancelled @ {cancelStep}
+            <span>✕</span> {cancelStep ? `Cancelled @ ${cancelStep}` : 'Cancelled'}
           </span>
         );
       }
