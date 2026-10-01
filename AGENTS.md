@@ -28,7 +28,7 @@ Vyom ERP is a full-stack manufacturing ERP and production planning system design
 ```
 
 ### Core Business Workflow
-1. **Sales:** Uploads customer PO & specs, creates order with line items, sets target dates. Panels remain in `Sales` until unit-level Sales Clearance is completed.
+1. **Sales:** Uploads customer PO & specs, creates order with line items, sets target dates. Panels remain in `Sales` until mandatory Sales tasks (such as `Upload PO`) and any configured unit-level Sales steps are completed.
 2. **Design:** Reviews classification (Standard vs Non-Standard), releases BOM, layout, and electrical drawings. **STRICT INVARIANT: Without BOTH Drawing and BOM uploaded and Design confirmed, NO panel can advance to Purchase or any subsequent department.**
 3. **Purchase & Stores:** Checks BOM stock against inventory, flags shortfalls, raises purchase POs, confirms material acceptance.
 4. **Planning:** Allocates daily production capacity, schedules wiring and mounting, sets dispatch commitments.
@@ -149,6 +149,15 @@ docker-compose --profile prod up --build -d
 ```bash
 # Run backend PO hierarchy and integration test suite
 node server/test_po_system.js
+
+# Run task masters lifecycle & non-advancing deletion test suite
+node server/test_task_masters_lifecycle.js
+
+# Run Sales-to-Design gate test suite
+node server/test_sales_to_design_gate.js
+
+# Run security and hardening verification suite
+node server/test_security_hardening.js
 ```
 
 ---
@@ -255,6 +264,12 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
    - The `Release Documents` step can only transition to `done` when `hasDrawing && hasBom && designConfirmed` are all true.
    - In `deriveUnitStatus`, an unbreakable hard gate blocks advancing `current_dept` beyond `Design` if either Drawing or BOM is missing.
 
-8. **Sales Clearance to Design Gate:**
-   - A panel only comes to Design after Sales has completed unit-level Sales clearance (`unit.current_dept === 'Sales'` until Sales clearance is done).
-   - Design confirmation (`POST /api/units/:id/design-confirm`) is strictly blocked with HTTP 400 if Sales clearance is pending.
+8. **Sales to Design Gate:**
+   - A panel only comes to Design after Sales has completed all mandatory Sales tasks (`Upload PO`) and any configured Sales clearance steps (`unit.current_dept === 'Sales'` until Sales tasks are done).
+   - Design confirmation (`POST /api/units/:id/design-confirm`) is strictly blocked with HTTP 400 if Sales tasks or clearances are pending.
+
+9. **Dynamic Task Masters Lifecycle & Department Isolation:**
+   - Admins have complete freedom to create, edit, or delete task templates in Task Masters (`task_masters`).
+   - **Non-Advancing Deletion:** Deleting a task template removes that step from active orders but must NEVER trigger a global `deriveUnitStatus` re-evaluation that advances orders into subsequent departments.
+   - **Selective Addition:** Creating a task template in a department only adds it to active orders/units currently in that department or upstream (`PIPELINE.slice(0, deptIdx + 1)`). It must NEVER be added retroactively to orders that have already passed that department or completed/cancelled.
+   - **No Auto-Truncation:** On server startup, `task_masters` is NEVER truncated. Defaults are seeded only if the table is completely empty.

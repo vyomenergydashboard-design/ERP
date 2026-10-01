@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1790831333.5399866,
-    "seen": 1790831471.033998,
-    "ast_hash": "1d0e46da8410774b4a0fa793f578a995",
+    "mtime": 1790832281.4608643,
+    "seen": 1790832415.045976,
+    "ast_hash": "5877c9517e23ffc1c8ba1c7a60471c72",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -162,10 +162,10 @@
     "semantic_hash": ""
   },
   "src/components/Header.jsx": {
-    "mtime": 1790155345.6846237,
-    "seen": 1790583506.6197393,
-    "ast_hash": "ca49fad31a63b3df0d4d76d25b4aa8b5",
-    "semantic_hash": "ca49fad31a63b3df0d4d76d25b4aa8b5"
+    "mtime": 1790832357.7879622,
+    "seen": 1790832415.0490708,
+    "ast_hash": "b946c7dce376d775a25a15d1c26cb229",
+    "semantic_hash": ""
   },
   "src/components/Login.jsx": {
     "mtime": 1789985790.1552644,
@@ -252,10 +252,10 @@
     "semantic_hash": "115f9fe9ba795189b3f6c2a4b212dfef"
   },
   "src/components/StatsRow.jsx": {
-    "mtime": 1789985790.182484,
-    "seen": 1790583506.6197565,
-    "ast_hash": "621d09a01b5360adc66ed324caa0a66b",
-    "semantic_hash": "621d09a01b5360adc66ed324caa0a66b"
+    "mtime": 1790832251.4357765,
+    "seen": 1790832415.0548115,
+    "ast_hash": "dd0256b6b4b845cfba76de13e2263cd5",
+    "semantic_hash": ""
   },
   "src/components/StepModal.jsx": {
     "mtime": 1790150049.8022473,
@@ -816,15 +816,15 @@
     "semantic_hash": ""
   },
   "tasks/plan.md": {
-    "mtime": 1790830915.3461404,
-    "seen": 1790831471.061085,
-    "ast_hash": "8781f42455deadbae17f1d8405332cfd",
+    "mtime": 1790832000.744966,
+    "seen": 1790832415.0653026,
+    "ast_hash": "072300bb273f0190673d8d35024630af",
     "semantic_hash": ""
   },
   "tasks/todo.md": {
-    "mtime": 1790831444.0914812,
-    "seen": 1790831471.0610898,
-    "ast_hash": "973b3cfe036e9bc4479cd7b983353092",
+    "mtime": 1790832393.4751945,
+    "seen": 1790832415.065313,
+    "ast_hash": "e8eb35392455f2cc051094cb8aca5139",
     "semantic_hash": ""
   },
   "src/components/DocumentPreviewModal.jsx": {

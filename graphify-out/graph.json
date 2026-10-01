@@ -9,8 +9,8 @@
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
       "file_type": "code",
       "norm_label": "errorboundary",
       "source_file": "src/components/ErrorBoundary.jsx",
@@ -65,16 +65,40 @@
       "source_location": "L30"
     },
     {
-      "id": "src_components_addpartmastermodal_addpartmastermodal",
-      "label": "AddPartMasterModal()",
+      "id": "src_components_boardview_boardview",
+      "label": "BoardView()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "addpartmastermodal()",
-      "source_file": "src/components/AddPartMasterModal.jsx",
-      "source_location": "L6"
+      "norm_label": "boardview()",
+      "source_file": "src/components/BoardView.jsx",
+      "source_location": "L10"
+    },
+    {
+      "id": "src_components_boardview_statusbadge",
+      "label": "StatusBadge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "statusbadge()",
+      "source_file": "src/components/BoardView.jsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_components_bulkimportmodal_bulkimportmodal",
+      "label": "BulkImportModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "bulkimportmodal()",
+      "source_file": "src/components/BulkImportModal.jsx",
+      "source_location": "L3"
     },
     {
       "id": "src_components_deptworklist_deptworklist",
@@ -89,30 +113,6 @@
       "source_location": "L324"
     },
     {
-      "id": "src_components_deptworklist_steppill",
-      "label": "StepPill()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "steppill()",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L34"
-    },
-    {
-      "id": "src_components_deptworklist_unitrow",
-      "label": "UnitRow()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "unitrow()",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L68"
-    },
-    {
       "id": "src_components_documentdirectory_documentdirectory",
       "label": "DocumentDirectory()",
       "_callable": true,
@@ -125,88 +125,40 @@
       "source_location": "L8"
     },
     {
-      "id": "src_components_editreftagmodal_editreftagmodal",
-      "label": "EditRefTagModal()",
+      "id": "src_components_documentmanager_documentmanager",
+      "label": "DocumentManager()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "editreftagmodal()",
-      "source_file": "src/components/EditRefTagModal.jsx",
-      "source_location": "L5"
+      "norm_label": "documentmanager()",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L9"
     },
     {
-      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
-      "label": ".componentDidCatch()",
+      "id": "src_components_flowview_flowview",
+      "label": "FlowView()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": ".componentdidcatch()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L19"
+      "norm_label": "flowview()",
+      "source_file": "src/components/FlowView.jsx",
+      "source_location": "L12"
     },
     {
-      "id": "src_components_errorboundary_errorboundary_constructor",
-      "label": ".constructor()",
+      "id": "src_components_flowview_statusbadge",
+      "label": "StatusBadge()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L5"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
-      "label": ".getDerivedStateFromError()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": ".getderivedstatefromerror()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereload",
-      "label": ".handleReload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": ".handlereload()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L31"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereset",
-      "label": ".handleReset()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": ".handlereset()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L24"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_render",
-      "label": ".render()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": ".render()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L35"
+      "norm_label": "statusbadge()",
+      "source_file": "src/components/FlowView.jsx",
+      "source_location": "L7"
     },
     {
       "id": "src_components_header_header",
@@ -245,112 +197,28 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_modal_modal",
-      "label": "Modal()",
+      "id": "src_components_orderimport_orderimport",
+      "label": "OrderImport()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "modal()",
-      "source_file": "src/components/Modal.jsx",
+      "norm_label": "orderimport()",
+      "source_file": "src/components/OrderImport.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_orderlist_orderlist",
+      "label": "OrderList()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "orderlist()",
+      "source_file": "src/components/OrderList.jsx",
       "source_location": "L7"
-    },
-    {
-      "id": "src_components_ordercreationflow_getdefaultformdata",
-      "label": "getDefaultFormData()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "getdefaultformdata()",
-      "source_file": "src/components/OrderCreationFlow.jsx",
-      "source_location": "L16"
-    },
-    {
-      "id": "src_components_ordercreationflow_getinitialformdata",
-      "label": "getInitialFormData()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "getinitialformdata()",
-      "source_file": "src/components/OrderCreationFlow.jsx",
-      "source_location": "L43"
-    },
-    {
-      "id": "src_components_ordercreationflow_gettodaydatestr",
-      "label": "getTodayDateStr()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "gettodaydatestr()",
-      "source_file": "src/components/OrderCreationFlow.jsx",
-      "source_location": "L6"
-    },
-    {
-      "id": "src_components_ordercreationflow_ordercreationflow",
-      "label": "OrderCreationFlow()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "ordercreationflow()",
-      "source_file": "src/components/OrderCreationFlow.jsx",
-      "source_location": "L65"
-    },
-    {
-      "id": "src_components_panelsizesearchselect_panelsizesearchselect",
-      "label": "PanelSizeSearchSelect()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "panelsizesearchselect()",
-      "source_file": "src/components/PanelSizeSearchSelect.jsx",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_components_partnumbersearchselect_partnumbersearchselect",
-      "label": "PartNumberSearchSelect()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "partnumbersearchselect()",
-      "source_file": "src/components/PartNumberSearchSelect.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_rightpanel_relativetime",
-      "label": "relativeTime()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "relativetime()",
-      "source_file": "src/components/RightPanel.jsx",
-      "source_location": "L6"
-    },
-    {
-      "id": "src_components_rightpanel_rightpanel",
-      "label": "RightPanel()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "rightpanel()",
-      "source_file": "src/components/RightPanel.jsx",
-      "source_location": "L17"
     },
     {
       "id": "src_components_settings_settingsview",
@@ -365,52 +233,76 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_statsrow_aggregatestats",
-      "label": "AggregateStats()",
+      "id": "src_components_sidenav_navitem",
+      "label": "NavItem()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "aggregatestats()",
-      "source_file": "src/components/StatsRow.jsx",
-      "source_location": "L64"
+      "norm_label": "navitem()",
+      "source_file": "src/components/Sidenav.jsx",
+      "source_location": "L22"
     },
     {
-      "id": "src_components_statsrow_dayschip",
-      "label": "DaysChip()",
+      "id": "src_components_sidenav_sidenav",
+      "label": "Sidenav()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "dayschip()",
-      "source_file": "src/components/StatsRow.jsx",
+      "norm_label": "sidenav()",
+      "source_file": "src/components/Sidenav.jsx",
+      "source_location": "L36"
+    },
+    {
+      "id": "src_components_stepmodal_stepmodal",
+      "label": "StepModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_stepmodal_todateinput",
+      "label": "toDateInput()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "todateinput()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L7"
+    },
+    {
+      "id": "src_components_tableview_statusbadge",
+      "label": "StatusBadge()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "statusbadge()",
+      "source_file": "src/components/TableView.jsx",
       "source_location": "L3"
     },
     {
-      "id": "src_components_statsrow_orderstats",
-      "label": "OrderStats()",
+      "id": "src_components_tableview_tableview",
+      "label": "TableView()",
       "_callable": true,
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "orderstats()",
-      "source_file": "src/components/StatsRow.jsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_statsrow_statsrow",
-      "label": "StatsRow()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "statsrow()",
-      "source_file": "src/components/StatsRow.jsx",
-      "source_location": "L209"
+      "norm_label": "tableview()",
+      "source_file": "src/components/TableView.jsx",
+      "source_location": "L8"
     },
     {
       "id": "src_components_usermanagement_usermanagement",
@@ -521,40 +413,28 @@
       "source_location": "L85"
     },
     {
+      "id": "scratch_check_indexes_check",
+      "label": "check()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "check()",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L4"
+    },
+    {
       "id": "scratch_test_batch_po_runtest",
       "label": "runTest()",
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "runtest()",
       "source_file": "scratch/test_batch_po.mjs",
       "source_location": "L4"
-    },
-    {
-      "id": "scripts_verify_codebase_scandir",
-      "label": "scanDir()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "scandir()",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L62"
-    },
-    {
-      "id": "scripts_verify_codebase_scanfile",
-      "label": "scanFile()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "scanfile()",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L29"
     },
     {
       "id": "server_test_design_confirmation_assert",
@@ -562,7 +442,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "assert()",
       "source_file": "server/test_design_confirmation.js",
@@ -574,7 +454,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "runtestsuite()",
       "source_file": "server/test_design_confirmation.js",
@@ -586,7 +466,7 @@
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "assert()",
       "source_file": "server/test_po_system.js",
@@ -598,11 +478,23 @@
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "runtestsuite()",
       "source_file": "server/test_po_system.js",
       "source_location": "L30"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_run",
+      "label": "run()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "run()",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L14"
     },
     {
       "id": "server_test_security_hardening_runsecuritytests",
@@ -610,11 +502,263 @@
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "runsecuritytests()",
       "source_file": "server/test_security_hardening.js",
       "source_location": "L6"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_runtests",
+      "label": "runTests()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "runtests()",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L15"
+    },
+    {
+      "id": "server_index_deriveunitstatus",
+      "label": "deriveUnitStatus()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "deriveunitstatus()",
+      "source_file": "server/index.js",
+      "source_location": "L321"
+    },
+    {
+      "id": "server_index_evaluateunitdesigndocuments",
+      "label": "evaluateUnitDesignDocuments()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "evaluateunitdesigndocuments()",
+      "source_file": "server/index.js",
+      "source_location": "L488"
+    },
+    {
+      "id": "server_index_initdb",
+      "label": "initDB()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "initdb()",
+      "source_file": "server/index.js",
+      "source_location": "L682"
+    },
+    {
+      "id": "server_index_seedsayauser",
+      "label": "seedSayaUser()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "seedsayauser()",
+      "source_file": "server/index.js",
+      "source_location": "L6404"
+    },
+    {
+      "id": "server_index_senddepartmenthandoveremail",
+      "label": "sendDepartmentHandoverEmail()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "senddepartmenthandoveremail()",
+      "source_file": "server/index.js",
+      "source_location": "L104"
+    },
+    {
+      "id": "server_index_synclineitemstatusfromunits",
+      "label": "syncLineItemStatusFromUnits()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "synclineitemstatusfromunits()",
+      "source_file": "server/index.js",
+      "source_location": "L277"
+    },
+    {
+      "id": "server_index_syncunitdesigndocumentstatus",
+      "label": "syncUnitDesignDocumentStatus()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "syncunitdesigndocumentstatus()",
+      "source_file": "server/index.js",
+      "source_location": "L546"
+    },
+    {
+      "id": "server_index_updateorderqcstatusfromsteps",
+      "label": "updateOrderQCStatusFromSteps()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 13,
+      "community_name": "deriveUnitStatus",
+      "file_type": "code",
+      "norm_label": "updateorderqcstatusfromsteps()",
+      "source_file": "server/index.js",
+      "source_location": "L590"
+    },
+    {
+      "id": "src_components_deptworklist_steppill",
+      "label": "StepPill()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "steppill()",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L34"
+    },
+    {
+      "id": "src_components_deptworklist_unitrow",
+      "label": "UnitRow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "unitrow()",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L68"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
+      "label": ".componentDidCatch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".componentdidcatch()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L19"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
+      "label": ".getDerivedStateFromError()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".getderivedstatefromerror()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_handlereload",
+      "label": ".handleReload()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".handlereload()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L31"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_handlereset",
+      "label": ".handleReset()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".handlereset()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L24"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_render",
+      "label": ".render()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": ".render()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L35"
+    },
+    {
+      "id": "src_components_statsrow_aggregatestats",
+      "label": "AggregateStats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "aggregatestats()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L64"
+    },
+    {
+      "id": "src_components_statsrow_dayschip",
+      "label": "DaysChip()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "dayschip()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_statsrow_orderstats",
+      "label": "OrderStats()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "orderstats()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_statsrow_statsrow",
+      "label": "StatsRow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "statsrow()",
+      "source_file": "src/components/StatsRow.jsx",
+      "source_location": "L209"
     },
     {
       "id": "src_components_allorderstableview_allorderstableview",
@@ -761,136 +905,196 @@
       "source_location": "L913"
     },
     {
-      "id": "src_components_boardview_boardview",
-      "label": "BoardView()",
+      "id": "scripts_verify_codebase_scandir",
+      "label": "scanDir()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
+      "community": 20,
+      "community_name": "verify_codebase.js",
       "file_type": "code",
-      "norm_label": "boardview()",
-      "source_file": "src/components/BoardView.jsx",
-      "source_location": "L10"
+      "norm_label": "scandir()",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L62"
     },
     {
-      "id": "src_components_boardview_statusbadge",
-      "label": "StatusBadge()",
+      "id": "scripts_verify_codebase_scanfile",
+      "label": "scanFile()",
       "_callable": true,
       "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
+      "community": 20,
+      "community_name": "verify_codebase.js",
       "file_type": "code",
-      "norm_label": "statusbadge()",
-      "source_file": "src/components/BoardView.jsx",
-      "source_location": "L5"
+      "norm_label": "scanfile()",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L29"
     },
     {
-      "id": "src_components_documentmanager_documentmanager",
-      "label": "DocumentManager()",
+      "id": "scratch_test_board_test",
+      "label": "test()",
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "planningData.js",
+      "community_name": "db.js",
       "file_type": "code",
-      "norm_label": "documentmanager()",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L9"
-    },
-    {
-      "id": "src_components_flowview_flowview",
-      "label": "FlowView()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "flowview()",
-      "source_file": "src/components/FlowView.jsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_flowview_statusbadge",
-      "label": "StatusBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "statusbadge()",
-      "source_file": "src/components/FlowView.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_sidenav_navitem",
-      "label": "NavItem()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "navitem()",
-      "source_file": "src/components/Sidenav.jsx",
-      "source_location": "L22"
-    },
-    {
-      "id": "src_components_sidenav_sidenav",
-      "label": "Sidenav()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "sidenav()",
-      "source_file": "src/components/Sidenav.jsx",
-      "source_location": "L36"
-    },
-    {
-      "id": "src_components_stepmodal_stepmodal",
-      "label": "StepModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "stepmodal()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L17"
-    },
-    {
-      "id": "src_components_stepmodal_todateinput",
-      "label": "toDateInput()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "todateinput()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_tableview_statusbadge",
-      "label": "StatusBadge()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "statusbadge()",
-      "source_file": "src/components/TableView.jsx",
+      "norm_label": "test()",
+      "source_file": "scratch/test_board.js",
       "source_location": "L3"
     },
     {
-      "id": "src_components_tableview_tableview",
-      "label": "TableView()",
+      "id": "server_clear_orders_clearorders",
+      "label": "clearOrders()",
       "_callable": true,
       "_origin": "ast",
       "community": 3,
-      "community_name": "planningData.js",
+      "community_name": "db.js",
       "file_type": "code",
-      "norm_label": "tableview()",
-      "source_file": "src/components/TableView.jsx",
-      "source_location": "L8"
+      "norm_label": "clearorders()",
+      "source_file": "server/clear_orders.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_fix_order_53_number_fixorder53",
+      "label": "fixOrder53()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "fixorder53()",
+      "source_file": "server/fix_order_53_number.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_migrate_2627_order_numbers_extractyearfromorder",
+      "label": "extractYearFromOrder()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "extractyearfromorder()",
+      "source_file": "server/migrate_2627_order_numbers.js",
+      "source_location": "L28"
+    },
+    {
+      "id": "server_migrate_2627_order_numbers_formatordernumber",
+      "label": "formatOrderNumber()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "formatordernumber()",
+      "source_file": "server/migrate_2627_order_numbers.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_migrate_2627_order_numbers_migrate",
+      "label": "migrate()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate()",
+      "source_file": "server/migrate_2627_order_numbers.js",
+      "source_location": "L52"
+    },
+    {
+      "id": "server_migrate_2627_order_numbers_parseordercounter",
+      "label": "parseOrderCounter()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "parseordercounter()",
+      "source_file": "server/migrate_2627_order_numbers.js",
+      "source_location": "L10"
+    },
+    {
+      "id": "server_migrate_order_numbers_migrate",
+      "label": "migrate()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate()",
+      "source_file": "server/migrate_order_numbers.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_migrate_unit_planning_fields_migrateunitplanningfields",
+      "label": "migrateUnitPlanningFields()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrateunitplanningfields()",
+      "source_file": "server/migrate_unit_planning_fields.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_migrate_unit_serials_migrateunitserials",
+      "label": "migrateUnitSerials()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrateunitserials()",
+      "source_file": "server/migrate_unit_serials.js",
+      "source_location": "L4"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_formatordernumber",
+      "label": "formatOrderNumber()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "formatordernumber()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_parseordercounter",
+      "label": "parseOrderCounter()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "parseordercounter()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L10"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_realignunitserials",
+      "label": "realignUnitSerials()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "realignunitserials()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L18"
+    },
+    {
+      "id": "server_run_deployment_migrations_rundeploymentmigrations",
+      "label": "runDeploymentMigrations()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "rundeploymentmigrations()",
+      "source_file": "server/run_deployment_migrations.js",
+      "source_location": "L4"
     },
     {
       "id": "src_components_documentpreviewmodal_documentpreviewmodal",
@@ -1037,42 +1241,6 @@
       "source_location": "L8"
     },
     {
-      "id": "scratch_test_board_test",
-      "label": "test()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "test()",
-      "source_file": "scratch/test_board.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_clear_orders_clearorders",
-      "label": "clearOrders()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "clearorders()",
-      "source_file": "server/clear_orders.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_fix_order_53_number_fixorder53",
-      "label": "fixOrder53()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "fixorder53()",
-      "source_file": "server/fix_order_53_number.js",
-      "source_location": "L3"
-    },
-    {
       "id": "server_index_authorize",
       "label": "authorize()",
       "_callable": true,
@@ -1082,31 +1250,7 @@
       "file_type": "code",
       "norm_label": "authorize()",
       "source_file": "server/index.js",
-      "source_location": "L1009"
-    },
-    {
-      "id": "server_index_deriveunitstatus",
-      "label": "deriveUnitStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "deriveunitstatus()",
-      "source_file": "server/index.js",
-      "source_location": "L323"
-    },
-    {
-      "id": "server_index_evaluateunitdesigndocuments",
-      "label": "evaluateUnitDesignDocuments()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "evaluateunitdesigndocuments()",
-      "source_file": "server/index.js",
-      "source_location": "L476"
+      "source_location": "L1017"
     },
     {
       "id": "server_index_formatordernumber",
@@ -1118,7 +1262,7 @@
       "file_type": "code",
       "norm_label": "formatordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L964"
+      "source_location": "L972"
     },
     {
       "id": "server_index_generateordernumber",
@@ -1130,19 +1274,7 @@
       "file_type": "code",
       "norm_label": "generateordernumber()",
       "source_file": "server/index.js",
-      "source_location": "L987"
-    },
-    {
-      "id": "server_index_initdb",
-      "label": "initDB()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "initdb()",
-      "source_file": "server/index.js",
-      "source_location": "L670"
+      "source_location": "L995"
     },
     {
       "id": "server_index_islineitemonhold",
@@ -1190,7 +1322,7 @@
       "file_type": "code",
       "norm_label": "loginratelimiter()",
       "source_file": "server/index.js",
-      "source_location": "L889"
+      "source_location": "L897"
     },
     {
       "id": "server_index_parseordercounter",
@@ -1202,7 +1334,7 @@
       "file_type": "code",
       "norm_label": "parseordercounter()",
       "source_file": "server/index.js",
-      "source_location": "L971"
+      "source_location": "L979"
     },
     {
       "id": "server_index_propagatecustomfieldstodb",
@@ -1214,7 +1346,7 @@
       "file_type": "code",
       "norm_label": "propagatecustomfieldstodb()",
       "source_file": "server/index.js",
-      "source_location": "L2804"
+      "source_location": "L2812"
     },
     {
       "id": "server_index_resolvecustomfieldvalues",
@@ -1226,7 +1358,7 @@
       "file_type": "code",
       "norm_label": "resolvecustomfieldvalues()",
       "source_file": "server/index.js",
-      "source_location": "L2660"
+      "source_location": "L2668"
     },
     {
       "id": "server_index_sanitizeoriginalfilename",
@@ -1238,31 +1370,7 @@
       "file_type": "code",
       "norm_label": "sanitizeoriginalfilename()",
       "source_file": "server/index.js",
-      "source_location": "L920"
-    },
-    {
-      "id": "server_index_seedsayauser",
-      "label": "seedSayaUser()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "seedsayauser()",
-      "source_file": "server/index.js",
-      "source_location": "L6301"
-    },
-    {
-      "id": "server_index_senddepartmenthandoveremail",
-      "label": "sendDepartmentHandoverEmail()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "senddepartmenthandoveremail()",
-      "source_file": "server/index.js",
-      "source_location": "L106"
+      "source_location": "L928"
     },
     {
       "id": "server_index_sendholdrequestemail",
@@ -1274,31 +1382,7 @@
       "file_type": "code",
       "norm_label": "sendholdrequestemail()",
       "source_file": "server/index.js",
-      "source_location": "L195"
-    },
-    {
-      "id": "server_index_synclineitemstatusfromunits",
-      "label": "syncLineItemStatusFromUnits()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "synclineitemstatusfromunits()",
-      "source_file": "server/index.js",
-      "source_location": "L279"
-    },
-    {
-      "id": "server_index_syncunitdesigndocumentstatus",
-      "label": "syncUnitDesignDocumentStatus()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "syncunitdesigndocumentstatus()",
-      "source_file": "server/index.js",
-      "source_location": "L534"
+      "source_location": "L193"
     },
     {
       "id": "server_index_templatehandler",
@@ -1310,19 +1394,7 @@
       "file_type": "code",
       "norm_label": "templatehandler()",
       "source_file": "server/index.js",
-      "source_location": "L6132"
-    },
-    {
-      "id": "server_index_updateorderqcstatusfromsteps",
-      "label": "updateOrderQCStatusFromSteps()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "updateorderqcstatusfromsteps()",
-      "source_file": "server/index.js",
-      "source_location": "L578"
+      "source_location": "L6235"
     },
     {
       "id": "server_index_uploadfilefilter",
@@ -1334,271 +1406,139 @@
       "file_type": "code",
       "norm_label": "uploadfilefilter()",
       "source_file": "server/index.js",
-      "source_location": "L933"
+      "source_location": "L941"
     },
     {
-      "id": "server_migrate_2627_order_numbers_extractyearfromorder",
-      "label": "extractYearFromOrder()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "extractyearfromorder()",
-      "source_file": "server/migrate_2627_order_numbers.js",
-      "source_location": "L28"
-    },
-    {
-      "id": "server_migrate_2627_order_numbers_formatordernumber",
-      "label": "formatOrderNumber()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "formatordernumber()",
-      "source_file": "server/migrate_2627_order_numbers.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_migrate_2627_order_numbers_migrate",
-      "label": "migrate()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate()",
-      "source_file": "server/migrate_2627_order_numbers.js",
-      "source_location": "L52"
-    },
-    {
-      "id": "server_migrate_2627_order_numbers_parseordercounter",
-      "label": "parseOrderCounter()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "parseordercounter()",
-      "source_file": "server/migrate_2627_order_numbers.js",
-      "source_location": "L10"
-    },
-    {
-      "id": "server_migrate_order_numbers_migrate",
-      "label": "migrate()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate()",
-      "source_file": "server/migrate_order_numbers.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_migrate_unit_planning_fields_migrateunitplanningfields",
-      "label": "migrateUnitPlanningFields()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrateunitplanningfields()",
-      "source_file": "server/migrate_unit_planning_fields.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_migrate_unit_serials_migrateunitserials",
-      "label": "migrateUnitSerials()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrateunitserials()",
-      "source_file": "server/migrate_unit_serials.js",
-      "source_location": "L4"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders_formatordernumber",
-      "label": "formatOrderNumber()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "formatordernumber()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders_parseordercounter",
-      "label": "parseOrderCounter()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "parseordercounter()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L10"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders_realignunitserials",
-      "label": "realignUnitSerials()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "realignunitserials()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L18"
-    },
-    {
-      "id": "server_run_deployment_migrations_rundeploymentmigrations",
-      "label": "runDeploymentMigrations()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "rundeploymentmigrations()",
-      "source_file": "server/run_deployment_migrations.js",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_bulkimportmodal_bulkimportmodal",
-      "label": "BulkImportModal()",
+      "id": "src_components_addpartmastermodal_addpartmastermodal",
+      "label": "AddPartMasterModal()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "bulkimportmodal()",
-      "source_file": "src/components/BulkImportModal.jsx",
-      "source_location": "L3"
+      "norm_label": "addpartmastermodal()",
+      "source_file": "src/components/AddPartMasterModal.jsx",
+      "source_location": "L6"
     },
     {
-      "id": "src_components_excelsheetviewer_excelsheetviewer",
-      "label": "ExcelSheetViewer()",
+      "id": "src_components_editreftagmodal_editreftagmodal",
+      "label": "EditRefTagModal()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "excelsheetviewer()",
-      "source_file": "src/components/ExcelSheetViewer.jsx",
-      "source_location": "L4"
+      "norm_label": "editreftagmodal()",
+      "source_file": "src/components/EditRefTagModal.jsx",
+      "source_location": "L5"
     },
     {
-      "id": "src_components_orderdocumentsmodal_formatfilesize",
-      "label": "formatFileSize()",
+      "id": "src_components_modal_modal",
+      "label": "Modal()",
       "_callable": true,
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "formatfilesize()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L12"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getdoccategorylabel",
-      "label": "getDocCategoryLabel()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getdoccategorylabel()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L47"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getdocumenturl",
-      "label": "getDocumentUrl()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getdocumenturl()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L20"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_getfiletype",
-      "label": "getFileType()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "getfiletype()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L37"
-    },
-    {
-      "id": "src_components_orderdocumentsmodal_orderdocumentsmodal",
-      "label": "OrderDocumentsModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "orderdocumentsmodal()",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
-      "source_location": "L56"
-    },
-    {
-      "id": "src_components_orderimport_orderimport",
-      "label": "OrderImport()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "orderimport()",
-      "source_file": "src/components/OrderImport.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_orderlist_orderlist",
-      "label": "OrderList()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "code",
-      "norm_label": "orderlist()",
-      "source_file": "src/components/OrderList.jsx",
+      "norm_label": "modal()",
+      "source_file": "src/components/Modal.jsx",
       "source_location": "L7"
     },
     {
-      "id": "scratch_check_indexes_check",
-      "label": "check()",
+      "id": "src_components_ordercreationflow_getdefaultformdata",
+      "label": "getDefaultFormData()",
       "_callable": true,
       "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "check()",
-      "source_file": "scratch/check_indexes.mjs",
+      "norm_label": "getdefaultformdata()",
+      "source_file": "src/components/OrderCreationFlow.jsx",
+      "source_location": "L16"
+    },
+    {
+      "id": "src_components_ordercreationflow_getinitialformdata",
+      "label": "getInitialFormData()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "getinitialformdata()",
+      "source_file": "src/components/OrderCreationFlow.jsx",
+      "source_location": "L43"
+    },
+    {
+      "id": "src_components_ordercreationflow_gettodaydatestr",
+      "label": "getTodayDateStr()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "gettodaydatestr()",
+      "source_file": "src/components/OrderCreationFlow.jsx",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_components_ordercreationflow_ordercreationflow",
+      "label": "OrderCreationFlow()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "ordercreationflow()",
+      "source_file": "src/components/OrderCreationFlow.jsx",
+      "source_location": "L65"
+    },
+    {
+      "id": "src_components_panelsizesearchselect_panelsizesearchselect",
+      "label": "PanelSizeSearchSelect()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "panelsizesearchselect()",
+      "source_file": "src/components/PanelSizeSearchSelect.jsx",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_components_partnumbersearchselect_partnumbersearchselect",
+      "label": "PartNumberSearchSelect()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "partnumbersearchselect()",
+      "source_file": "src/components/PartNumberSearchSelect.jsx",
       "source_location": "L4"
     },
     {
-      "id": "server_test_sales_to_design_gate_run",
-      "label": "run()",
+      "id": "src_components_rightpanel_relativetime",
+      "label": "relativeTime()",
       "_callable": true,
       "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "run()",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L14"
+      "norm_label": "relativetime()",
+      "source_file": "src/components/RightPanel.jsx",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_components_rightpanel_rightpanel",
+      "label": "RightPanel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
+      "file_type": "code",
+      "norm_label": "rightpanel()",
+      "source_file": "src/components/RightPanel.jsx",
+      "source_location": "L17"
     },
     {
       "id": "scratch_replace_emojis_remove_emojis_from_file",
@@ -1611,6 +1551,78 @@
       "norm_label": "remove_emojis_from_file()",
       "source_file": "scratch/replace_emojis.py",
       "source_location": "L3"
+    },
+    {
+      "id": "src_components_excelsheetviewer_excelsheetviewer",
+      "label": "ExcelSheetViewer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "excelsheetviewer()",
+      "source_file": "src/components/ExcelSheetViewer.jsx",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_formatfilesize",
+      "label": "formatFileSize()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "formatfilesize()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_getdoccategorylabel",
+      "label": "getDocCategoryLabel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "getdoccategorylabel()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L47"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_getdocumenturl",
+      "label": "getDocumentUrl()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "getdocumenturl()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_getfiletype",
+      "label": "getFileType()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "getfiletype()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L37"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal_orderdocumentsmodal",
+      "label": "OrderDocumentsModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderdocumentsmodal()",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L56"
     },
     {
       "id": "package",
@@ -1888,15 +1900,15 @@
       "source_location": "L18"
     },
     {
-      "id": "ref_react_router_dom",
-      "label": "react-router-dom",
+      "id": "ref_react_dom",
+      "label": "react-dom",
       "_origin": "ast",
       "community": 0,
       "community_name": "package.json",
       "file_type": "concept",
-      "norm_label": "react-router-dom",
+      "norm_label": "react-dom",
       "source_file": "package.json",
-      "source_location": "L17"
+      "source_location": "L16"
     },
     {
       "id": "ref_tanstack_react_query",
@@ -2064,59 +2076,26 @@
       "source_location": "L20"
     },
     {
-      "id": "src_components_addpartmastermodal",
-      "label": "AddPartMasterModal.jsx",
+      "id": "src_components_boardview",
+      "label": "BoardView.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "addpartmastermodal.jsx",
-      "source_file": "src/components/AddPartMasterModal.jsx",
+      "norm_label": "boardview.jsx",
+      "source_file": "src/components/BoardView.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_deptworklist",
-      "label": "DeptWorklist.jsx",
+      "id": "src_components_bulkimportmodal",
+      "label": "BulkImportModal.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "deptworklist.jsx",
-      "source_file": "src/components/DeptWorklist.jsx",
+      "norm_label": "bulkimportmodal.jsx",
+      "source_file": "src/components/BulkImportModal.jsx",
       "source_location": "L1"
-    },
-    {
-      "id": "src_components_deptworklist_dept_colors",
-      "label": "DEPT_COLORS",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "dept_colors",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L21"
-    },
-    {
-      "id": "src_components_deptworklist_priority_config",
-      "label": "PRIORITY_CONFIG",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "priority_config",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_deptworklist_step_status_config",
-      "label": "STEP_STATUS_CONFIG",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "step_status_config",
-      "source_file": "src/components/DeptWorklist.jsx",
-      "source_location": "L11"
     },
     {
       "id": "src_components_documentdirectory",
@@ -2141,15 +2120,37 @@
       "source_location": "L4"
     },
     {
-      "id": "src_components_editreftagmodal",
-      "label": "EditRefTagModal.jsx",
+      "id": "src_components_documentmanager",
+      "label": "DocumentManager.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "editreftagmodal.jsx",
-      "source_file": "src/components/EditRefTagModal.jsx",
+      "norm_label": "documentmanager.jsx",
+      "source_file": "src/components/DocumentManager.jsx",
       "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentmanager_doc_types",
+      "label": "DOC_TYPES",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "doc_types",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_documentmanager_po_authorized_roles",
+      "label": "PO_AUTHORIZED_ROLES",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "po_authorized_roles",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L7"
     },
     {
       "id": "src_components_errorboundary",
@@ -2160,6 +2161,17 @@
       "file_type": "code",
       "norm_label": "errorboundary.jsx",
       "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_flowview",
+      "label": "FlowView.jsx",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "flowview.jsx",
+      "source_file": "src/components/FlowView.jsx",
       "source_location": "L1"
     },
     {
@@ -2196,58 +2208,25 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_modal",
-      "label": "Modal.jsx",
+      "id": "src_components_orderimport",
+      "label": "OrderImport.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "modal.jsx",
-      "source_file": "src/components/Modal.jsx",
+      "norm_label": "orderimport.jsx",
+      "source_file": "src/components/OrderImport.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_ordercreationflow",
-      "label": "OrderCreationFlow.jsx",
+      "id": "src_components_orderlist",
+      "label": "OrderList.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "ordercreationflow.jsx",
-      "source_file": "src/components/OrderCreationFlow.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_panelsizesearchselect",
-      "label": "PanelSizeSearchSelect.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "panelsizesearchselect.jsx",
-      "source_file": "src/components/PanelSizeSearchSelect.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_partnumbersearchselect",
-      "label": "PartNumberSearchSelect.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "partnumbersearchselect.jsx",
-      "source_file": "src/components/PartNumberSearchSelect.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_rightpanel",
-      "label": "RightPanel.jsx",
-      "_origin": "ast",
-      "community": 1,
-      "community_name": "App.jsx",
-      "file_type": "code",
-      "norm_label": "rightpanel.jsx",
-      "source_file": "src/components/RightPanel.jsx",
+      "norm_label": "orderlist.jsx",
+      "source_file": "src/components/OrderList.jsx",
       "source_location": "L1"
     },
     {
@@ -2262,14 +2241,58 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_statsrow",
-      "label": "StatsRow.jsx",
+      "id": "src_components_sidenav",
+      "label": "Sidenav.jsx",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "code",
-      "norm_label": "statsrow.jsx",
-      "source_file": "src/components/StatsRow.jsx",
+      "norm_label": "sidenav.jsx",
+      "source_file": "src/components/Sidenav.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_sidenav_admin_nav",
+      "label": "ADMIN_NAV",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "admin_nav",
+      "source_file": "src/components/Sidenav.jsx",
+      "source_location": "L16"
+    },
+    {
+      "id": "src_components_sidenav_primary_nav",
+      "label": "PRIMARY_NAV",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "primary_nav",
+      "source_file": "src/components/Sidenav.jsx",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_components_stepmodal",
+      "label": "StepModal.jsx",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal.jsx",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_tableview",
+      "label": "TableView.jsx",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "tableview.jsx",
+      "source_file": "src/components/TableView.jsx",
       "source_location": "L1"
     },
     {
@@ -2282,6 +2305,61 @@
       "norm_label": "usermanagement.jsx",
       "source_file": "src/components/UserManagement.jsx",
       "source_location": "L1"
+    },
+    {
+      "id": "src_data_planningdata",
+      "label": "planningData.js",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "planningdata.js",
+      "source_file": "src/data/planningData.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_data_planningdata_depts",
+      "label": "DEPTS",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "depts",
+      "source_file": "src/data/planningData.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_data_planningdata_initial_log",
+      "label": "INITIAL_LOG",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "initial_log",
+      "source_file": "src/data/planningData.js",
+      "source_location": "L38"
+    },
+    {
+      "id": "src_data_planningdata_initial_steps",
+      "label": "INITIAL_STEPS",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "initial_steps",
+      "source_file": "src/data/planningData.js",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_data_planningdata_status_badge_map",
+      "label": "STATUS_BADGE_MAP",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "status_badge_map",
+      "source_file": "src/data/planningData.js",
+      "source_location": "L49"
     },
     {
       "id": "src_hooks_useglobalmodalescape",
@@ -2328,15 +2406,15 @@
       "source_location": "L15"
     },
     {
-      "id": "ref_react_dom",
-      "label": "react-dom",
+      "id": "ref_react_router_dom",
+      "label": "react-router-dom",
       "_origin": "ast",
       "community": 1,
       "community_name": "App.jsx",
       "file_type": "concept",
-      "norm_label": "react-dom",
+      "norm_label": "react-router-dom",
       "source_file": "package.json",
-      "source_location": "L16"
+      "source_location": "L17"
     },
     {
       "id": "src_components_planningmodule",
@@ -2383,11 +2461,33 @@
       "source_location": "L4"
     },
     {
+      "id": "scratch_check_indexes",
+      "label": "check_indexes.mjs",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "check_indexes.mjs",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L1"
+    },
+    {
+      "id": "scratch_check_indexes_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L2"
+    },
+    {
       "id": "scratch_optimize_table_view",
       "label": "optimize_table_view.mjs",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "optimize_table_view.mjs",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2398,7 +2498,7 @@
       "label": "content",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "content",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2409,7 +2509,7 @@
       "label": "filePath",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "filepath",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2420,7 +2520,7 @@
       "label": "headerCbIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "headercbidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2431,7 +2531,7 @@
       "label": "startIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "startidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2442,7 +2542,7 @@
       "label": "tableEndIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "tableendidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -2453,117 +2553,18 @@
       "label": "test_batch_po.mjs",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "test_batch_po.mjs",
       "source_file": "scratch/test_batch_po.mjs",
       "source_location": "L1"
     },
     {
-      "id": "scripts_verify_codebase",
-      "label": "verify_codebase.js",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "verify_codebase.js",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "scripts_verify_codebase_dirname",
-      "label": "__dirname",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "__dirname",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L7"
-    },
-    {
-      "id": "scripts_verify_codebase_filename",
-      "label": "__filename",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "__filename",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L6"
-    },
-    {
-      "id": "scripts_verify_codebase_globalallowlist",
-      "label": "globalAllowList",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "globalallowlist",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L15"
-    },
-    {
-      "id": "scripts_verify_codebase_parser",
-      "label": "parser",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "parser",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L11"
-    },
-    {
-      "id": "scripts_verify_codebase_require",
-      "label": "require",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "require",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L9"
-    },
-    {
-      "id": "scripts_verify_codebase_rootdir",
-      "label": "rootDir",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "rootdir",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L8"
-    },
-    {
-      "id": "scripts_verify_codebase_srcdir",
-      "label": "srcDir",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "srcdir",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L74"
-    },
-    {
-      "id": "scripts_verify_codebase_traversemodule",
-      "label": "traverseModule",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "file_type": "code",
-      "norm_label": "traversemodule",
-      "source_file": "scripts/verify_codebase.js",
-      "source_location": "L12"
-    },
-    {
       "id": "server_test_design_confirmation",
       "label": "test_design_confirmation.js",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "test_design_confirmation.js",
       "source_file": "server/test_design_confirmation.js",
@@ -2574,7 +2575,7 @@
       "label": "adminToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "admintoken",
       "source_file": "server/test_design_confirmation.js",
@@ -2585,7 +2586,7 @@
       "label": "designToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "designtoken",
       "source_file": "server/test_design_confirmation.js",
@@ -2596,7 +2597,7 @@
       "label": "pool",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "pool",
       "source_file": "server/test_design_confirmation.js",
@@ -2607,7 +2608,7 @@
       "label": "salesToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "salestoken",
       "source_file": "server/test_design_confirmation.js",
@@ -2618,7 +2619,7 @@
       "label": "test_po_system.js",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "test_po_system.js",
       "source_file": "server/test_po_system.js",
@@ -2629,7 +2630,7 @@
       "label": "adminToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "admintoken",
       "source_file": "server/test_po_system.js",
@@ -2640,7 +2641,7 @@
       "label": "designToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "designtoken",
       "source_file": "server/test_po_system.js",
@@ -2651,7 +2652,7 @@
       "label": "pool",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "pool",
       "source_file": "server/test_po_system.js",
@@ -2662,33 +2663,143 @@
       "label": "salesToken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "salestoken",
       "source_file": "server/test_po_system.js",
       "source_location": "L14"
     },
     {
+      "id": "server_test_sales_to_design_gate",
+      "label": "test_sales_to_design_gate.js",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "test_sales_to_design_gate.js",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_designtoken",
+      "label": "designToken",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "designtoken",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L11"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_salestoken",
+      "label": "salesToken",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "salestoken",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L12"
+    },
+    {
       "id": "server_test_security_hardening",
       "label": "test_security_hardening.js",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "test_security_hardening.js",
       "source_file": "server/test_security_hardening.js",
       "source_location": "L1"
     },
     {
+      "id": "server_test_task_masters_lifecycle",
+      "label": "test_task_masters_lifecycle.js",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "test_task_masters_lifecycle.js",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_admintoken",
+      "label": "adminToken",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "admintoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L11"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_designtoken",
+      "label": "designToken",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "designtoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L13"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_salestoken",
+      "label": "salesToken",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "code",
+      "norm_label": "salestoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L12"
+    },
+    {
       "id": "ref_jsonwebtoken",
       "label": "jsonwebtoken",
       "_origin": "ast",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "file_type": "concept",
       "norm_label": "jsonwebtoken",
       "source_file": "server/package.json",
       "source_location": "L13"
+    },
+    {
+      "id": "ref_pg",
+      "label": "pg",
+      "_origin": "ast",
+      "community": 11,
+      "community_name": "test_design_confirmation.js",
+      "file_type": "concept",
+      "norm_label": "pg",
+      "source_file": "server/package.json",
+      "source_location": "L11"
     },
     {
       "id": "agents_rules_graphify",
@@ -2723,7 +2834,7 @@
       "label": "todo.md",
       "_origin": "ast",
       "community": 13,
-      "community_name": "todo.md",
+      "community_name": "deriveUnitStatus",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "todo.md",
@@ -2731,14 +2842,14 @@
       "source_location": "L1"
     },
     {
-      "id": "tasks_todo_tasks_premium_dark_mode_ui_ux_modernization",
-      "label": "Tasks: Premium Dark Mode & UI/UX Modernization",
+      "id": "tasks_todo_tasks_resilient_dynamic_task_masters_lifecycle",
+      "label": "Tasks: Resilient & Dynamic Task Masters Lifecycle",
       "_origin": "ast",
       "community": 13,
-      "community_name": "todo.md",
+      "community_name": "deriveUnitStatus",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "tasks: premium dark mode & ui/ux modernization",
+      "norm_label": "tasks: resilient & dynamic task masters lifecycle",
       "source_file": "tasks/todo.md",
       "source_location": "L1"
     },
@@ -2775,7 +2886,7 @@
       "label": "plan.md",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "plan.md",
@@ -2783,111 +2894,154 @@
       "source_location": "L1"
     },
     {
-      "id": "tasks_plan_1_objective",
-      "label": "1. Objective",
+      "id": "tasks_plan_1_overview",
+      "label": "1. Overview",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "1. objective",
+      "norm_label": "1. overview",
       "source_file": "tasks/plan.md",
       "source_location": "L3"
     },
     {
-      "id": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "label": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "id": "tasks_plan_2_architecture_decisions",
+      "label": "2. Architecture Decisions",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "2. requirements & visual standards (adhering to `/frontend-ui-engineering`)",
+      "norm_label": "2. architecture decisions",
       "source_file": "tasks/plan.md",
       "source_location": "L8"
     },
     {
-      "id": "tasks_plan_3_implementation_steps",
-      "label": "3. Implementation Steps",
+      "id": "tasks_plan_3_task_list",
+      "label": "3. Task List",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "3. implementation steps",
+      "norm_label": "3. task list",
       "source_file": "tasks/plan.md",
-      "source_location": "L44"
+      "source_location": "L25"
     },
     {
-      "id": "tasks_plan_a_core_dark_mode_token_overhaul_src_index_css",
-      "label": "A. Core Dark Mode Token Overhaul (`src/index.css`)",
+      "id": "tasks_plan_4_risks_mitigations",
+      "label": "4. Risks & Mitigations",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "a. core dark mode token overhaul (`src/index.css`)",
+      "norm_label": "4. risks & mitigations",
       "source_file": "tasks/plan.md",
-      "source_location": "L10"
+      "source_location": "L52"
     },
     {
-      "id": "tasks_plan_b_stat_cards_redesign_statsrow_jsx_src_index_css",
-      "label": "B. Stat Cards Redesign (`StatsRow.jsx` & `src/index.css`)",
+      "id": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
+      "label": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "b. stat cards redesign (`statsrow.jsx` & `src/index.css`)",
+      "norm_label": "implementation plan: resilient & dynamic task masters lifecycle",
       "source_file": "tasks/plan.md",
-      "source_location": "L21"
+      "source_location": "L1"
     },
     {
-      "id": "tasks_plan_c_master_table_view_modernization_allorderstableview_jsx_src_index_css",
-      "label": "C. Master Table View Modernization (`AllOrdersTableView.jsx` & `src/index.css`)",
+      "id": "tasks_plan_phase_1_task_masters_deletion_addition_mechanics",
+      "label": "Phase 1: Task Masters Deletion & Addition Mechanics",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "c. master table view modernization (`allorderstableview.jsx` & `src/index.css`)",
+      "norm_label": "phase 1: task masters deletion & addition mechanics",
       "source_file": "tasks/plan.md",
       "source_location": "L27"
     },
     {
-      "id": "tasks_plan_d_header_sidenav_refinement_header_jsx_sidenav_jsx_src_index_css",
-      "label": "D. Header & Sidenav Refinement (`Header.jsx`, `Sidenav.jsx`, `src/index.css`)",
+      "id": "tasks_plan_phase_2_pipeline_state_machine_sales_department_retention",
+      "label": "Phase 2: Pipeline State Machine & Sales Department Retention",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "d. header & sidenav refinement (`header.jsx`, `sidenav.jsx`, `src/index.css`)",
-      "source_file": "tasks/plan.md",
-      "source_location": "L33"
-    },
-    {
-      "id": "tasks_plan_e_right_inspector_panel_rightpanel_jsx_src_index_css",
-      "label": "E. Right Inspector Panel (`RightPanel.jsx` & `src/index.css`)",
-      "_origin": "ast",
-      "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "e. right inspector panel (`rightpanel.jsx` & `src/index.css`)",
+      "norm_label": "phase 2: pipeline state machine & sales department retention",
       "source_file": "tasks/plan.md",
       "source_location": "L37"
     },
     {
-      "id": "tasks_plan_spec_implementation_plan_premium_dark_mode_ui_ux_modernization",
-      "label": "Spec & Implementation Plan: Premium Dark Mode & UI/UX Modernization",
+      "id": "tasks_plan_phase_3_verification_checkpoint",
+      "label": "Phase 3: Verification & Checkpoint",
       "_origin": "ast",
       "community": 18,
-      "community_name": "2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)",
+      "community_name": "Implementation Plan: Resilient & Dynamic Task Masters Lifecycle",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "spec & implementation plan: premium dark mode & ui/ux modernization",
+      "norm_label": "phase 3: verification & checkpoint",
       "source_file": "tasks/plan.md",
+      "source_location": "L44"
+    },
+    {
+      "id": "src_components_deptworklist",
+      "label": "DeptWorklist.jsx",
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "deptworklist.jsx",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_deptworklist_dept_colors",
+      "label": "DEPT_COLORS",
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "dept_colors",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L21"
+    },
+    {
+      "id": "src_components_deptworklist_priority_config",
+      "label": "PRIORITY_CONFIG",
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "priority_config",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_components_deptworklist_step_status_config",
+      "label": "STEP_STATUS_CONFIG",
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "step_status_config",
+      "source_file": "src/components/DeptWorklist.jsx",
+      "source_location": "L11"
+    },
+    {
+      "id": "src_components_statsrow",
+      "label": "StatsRow.jsx",
+      "_origin": "ast",
+      "community": 19,
+      "community_name": "DeptWorklist.jsx",
+      "file_type": "code",
+      "norm_label": "statsrow.jsx",
+      "source_file": "src/components/StatsRow.jsx",
       "source_location": "L1"
     },
     {
@@ -3021,6 +3175,105 @@
       "norm_label": "tablerow",
       "source_file": "src/components/AllOrdersTableView.jsx",
       "source_location": "L1808"
+    },
+    {
+      "id": "scripts_verify_codebase",
+      "label": "verify_codebase.js",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "verify_codebase.js",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_verify_codebase_dirname",
+      "label": "__dirname",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "__dirname",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "scripts_verify_codebase_filename",
+      "label": "__filename",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "__filename",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L6"
+    },
+    {
+      "id": "scripts_verify_codebase_globalallowlist",
+      "label": "globalAllowList",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "globalallowlist",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L15"
+    },
+    {
+      "id": "scripts_verify_codebase_parser",
+      "label": "parser",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "parser",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L11"
+    },
+    {
+      "id": "scripts_verify_codebase_require",
+      "label": "require",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "require",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L9"
+    },
+    {
+      "id": "scripts_verify_codebase_rootdir",
+      "label": "rootDir",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "rootdir",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L8"
+    },
+    {
+      "id": "scripts_verify_codebase_srcdir",
+      "label": "srcDir",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "srcdir",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L74"
+    },
+    {
+      "id": "scripts_verify_codebase_traversemodule",
+      "label": "traverseModule",
+      "_origin": "ast",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "file_type": "code",
+      "norm_label": "traversemodule",
+      "source_file": "scripts/verify_codebase.js",
+      "source_location": "L12"
     },
     {
       "id": "spec_design_confirmation_and_auto_release",
@@ -3263,169 +3516,268 @@
       "source_location": "L3"
     },
     {
-      "id": "src_components_boardview",
-      "label": "BoardView.jsx",
+      "id": "server_package_dependencies",
+      "label": "dependencies",
       "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
+      "community": 23,
+      "community_name": "dependencies",
       "file_type": "code",
-      "norm_label": "boardview.jsx",
-      "source_file": "src/components/BoardView.jsx",
-      "source_location": "L1"
+      "norm_label": "dependencies",
+      "source_file": "server/package.json",
+      "source_location": "L9"
     },
     {
-      "id": "src_components_documentmanager",
-      "label": "DocumentManager.jsx",
+      "id": "server_package_dependencies_bcryptjs",
+      "label": "bcryptjs",
       "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
+      "community": 23,
+      "community_name": "dependencies",
       "file_type": "code",
-      "norm_label": "documentmanager.jsx",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_documentmanager_doc_types",
-      "label": "DOC_TYPES",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "doc_types",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_documentmanager_po_authorized_roles",
-      "label": "PO_AUTHORIZED_ROLES",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "po_authorized_roles",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_flowview",
-      "label": "FlowView.jsx",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "flowview.jsx",
-      "source_file": "src/components/FlowView.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_sidenav",
-      "label": "Sidenav.jsx",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "sidenav.jsx",
-      "source_file": "src/components/Sidenav.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_sidenav_admin_nav",
-      "label": "ADMIN_NAV",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "admin_nav",
-      "source_file": "src/components/Sidenav.jsx",
-      "source_location": "L16"
-    },
-    {
-      "id": "src_components_sidenav_primary_nav",
-      "label": "PRIMARY_NAV",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "primary_nav",
-      "source_file": "src/components/Sidenav.jsx",
-      "source_location": "L4"
-    },
-    {
-      "id": "src_components_stepmodal",
-      "label": "StepModal.jsx",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "stepmodal.jsx",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_tableview",
-      "label": "TableView.jsx",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "tableview.jsx",
-      "source_file": "src/components/TableView.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_data_planningdata",
-      "label": "planningData.js",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "planningdata.js",
-      "source_file": "src/data/planningData.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_data_planningdata_depts",
-      "label": "DEPTS",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "depts",
-      "source_file": "src/data/planningData.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_data_planningdata_initial_log",
-      "label": "INITIAL_LOG",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "initial_log",
-      "source_file": "src/data/planningData.js",
-      "source_location": "L38"
-    },
-    {
-      "id": "src_data_planningdata_initial_steps",
-      "label": "INITIAL_STEPS",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "initial_steps",
-      "source_file": "src/data/planningData.js",
+      "norm_label": "bcryptjs",
+      "source_file": "server/package.json",
       "source_location": "L12"
     },
     {
-      "id": "src_data_planningdata_status_badge_map",
-      "label": "STATUS_BADGE_MAP",
+      "id": "server_package_dependencies_cors",
+      "label": "cors",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "cors",
+      "source_file": "server/package.json",
+      "source_location": "L14"
+    },
+    {
+      "id": "server_package_dependencies_dotenv",
+      "label": "dotenv",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "dotenv",
+      "source_file": "server/package.json",
+      "source_location": "L15"
+    },
+    {
+      "id": "server_package_dependencies_express",
+      "label": "express",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "express",
+      "source_file": "server/package.json",
+      "source_location": "L10"
+    },
+    {
+      "id": "server_package_dependencies_jsonwebtoken",
+      "label": "jsonwebtoken",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "jsonwebtoken",
+      "source_file": "server/package.json",
+      "source_location": "L13"
+    },
+    {
+      "id": "server_package_dependencies_multer",
+      "label": "multer",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "multer",
+      "source_file": "server/package.json",
+      "source_location": "L16"
+    },
+    {
+      "id": "server_package_dependencies_nodemailer",
+      "label": "nodemailer",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "nodemailer",
+      "source_file": "server/package.json",
+      "source_location": "L17"
+    },
+    {
+      "id": "server_package_dependencies_pg",
+      "label": "pg",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "pg",
+      "source_file": "server/package.json",
+      "source_location": "L11"
+    },
+    {
+      "id": "server_package_dependencies_xlsx",
+      "label": "xlsx",
+      "_origin": "ast",
+      "community": 23,
+      "community_name": "dependencies",
+      "file_type": "code",
+      "norm_label": "xlsx",
+      "source_file": "server/package.json",
+      "source_location": "L18"
+    },
+    {
+      "id": "server_fix_admin",
+      "label": "fix_admin.js",
+      "_origin": "ast",
+      "community": 24,
+      "community_name": "bcryptjs",
+      "file_type": "code",
+      "norm_label": "fix_admin.js",
+      "source_file": "server/fix_admin.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_fix_admin_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 24,
+      "community_name": "bcryptjs",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/fix_admin.js",
+      "source_location": "L5"
+    },
+    {
+      "id": "ref_bcryptjs",
+      "label": "bcryptjs",
+      "_origin": "ast",
+      "community": 24,
+      "community_name": "bcryptjs",
+      "file_type": "concept",
+      "norm_label": "bcryptjs",
+      "source_file": "server/package.json",
+      "source_location": "L12"
+    },
+    {
+      "id": "scratch_test_board",
+      "label": "test_board.js",
       "_origin": "ast",
       "community": 3,
-      "community_name": "planningData.js",
+      "community_name": "db.js",
       "file_type": "code",
-      "norm_label": "status_badge_map",
-      "source_file": "src/data/planningData.js",
-      "source_location": "L49"
+      "norm_label": "test_board.js",
+      "source_file": "scratch/test_board.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_clear_orders",
+      "label": "clear_orders.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "clear_orders.js",
+      "source_file": "server/clear_orders.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_db",
+      "label": "db.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "db.js",
+      "source_file": "server/db.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_db_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/db.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "server_fix_order_53_number",
+      "label": "fix_order_53_number.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "fix_order_53_number.js",
+      "source_file": "server/fix_order_53_number.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_migrate_2627_order_numbers",
+      "label": "migrate_2627_order_numbers.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate_2627_order_numbers.js",
+      "source_file": "server/migrate_2627_order_numbers.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_migrate_order_numbers",
+      "label": "migrate_order_numbers.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate_order_numbers.js",
+      "source_file": "server/migrate_order_numbers.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_migrate_unit_planning_fields",
+      "label": "migrate_unit_planning_fields.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate_unit_planning_fields.js",
+      "source_file": "server/migrate_unit_planning_fields.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_migrate_unit_serials",
+      "label": "migrate_unit_serials.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "migrate_unit_serials.js",
+      "source_file": "server/migrate_unit_serials.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders",
+      "label": "realign_unit_serials_to_orders.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "realign_unit_serials_to_orders.js",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_run_deployment_migrations",
+      "label": "run_deployment_migrations.js",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "db.js",
+      "file_type": "code",
+      "norm_label": "run_deployment_migrations.js",
+      "source_file": "server/run_deployment_migrations.js",
+      "source_location": "L1"
     },
     {
       "id": "src_components_documentpreviewmodal",
@@ -3527,61 +3879,6 @@
       "source_location": "L1"
     },
     {
-      "id": "scratch_test_board",
-      "label": "test_board.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "test_board.js",
-      "source_file": "scratch/test_board.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_clear_orders",
-      "label": "clear_orders.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "clear_orders.js",
-      "source_file": "server/clear_orders.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_db",
-      "label": "db.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "db.js",
-      "source_file": "server/db.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_db_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/db.js",
-      "source_location": "L7"
-    },
-    {
-      "id": "server_fix_order_53_number",
-      "label": "fix_order_53_number.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "fix_order_53_number.js",
-      "source_file": "server/fix_order_53_number.js",
-      "source_location": "L1"
-    },
-    {
       "id": "server_index",
       "label": "index.js",
       "_origin": "ast",
@@ -3601,7 +3898,7 @@
       "file_type": "code",
       "norm_label": "allowedorigins",
       "source_file": "server/index.js",
-      "source_location": "L849"
+      "source_location": "L857"
     },
     {
       "id": "server_index_app",
@@ -3623,7 +3920,7 @@
       "file_type": "code",
       "norm_label": "blocked_extensions",
       "source_file": "server/index.js",
-      "source_location": "L927"
+      "source_location": "L935"
     },
     {
       "id": "server_index_default_steps",
@@ -3645,7 +3942,7 @@
       "file_type": "code",
       "norm_label": "defaultallowedorigins",
       "source_file": "server/index.js",
-      "source_location": "L838"
+      "source_location": "L846"
     },
     {
       "id": "server_index_dirname",
@@ -3678,7 +3975,7 @@
       "file_type": "code",
       "norm_label": "loginattempts",
       "source_file": "server/index.js",
-      "source_location": "L885"
+      "source_location": "L893"
     },
     {
       "id": "server_index_storage",
@@ -3689,7 +3986,7 @@
       "file_type": "code",
       "norm_label": "storage",
       "source_file": "server/index.js",
-      "source_location": "L942"
+      "source_location": "L950"
     },
     {
       "id": "server_index_transporter",
@@ -3700,7 +3997,7 @@
       "file_type": "code",
       "norm_label": "transporter",
       "source_file": "server/index.js",
-      "source_location": "L96"
+      "source_location": "L94"
     },
     {
       "id": "server_index_upload",
@@ -3711,172 +4008,84 @@
       "file_type": "code",
       "norm_label": "upload",
       "source_file": "server/index.js",
-      "source_location": "L957"
+      "source_location": "L965"
     },
     {
-      "id": "server_migrate_2627_order_numbers",
-      "label": "migrate_2627_order_numbers.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate_2627_order_numbers.js",
-      "source_file": "server/migrate_2627_order_numbers.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_migrate_order_numbers",
-      "label": "migrate_order_numbers.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate_order_numbers.js",
-      "source_file": "server/migrate_order_numbers.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_migrate_unit_planning_fields",
-      "label": "migrate_unit_planning_fields.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate_unit_planning_fields.js",
-      "source_file": "server/migrate_unit_planning_fields.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_migrate_unit_serials",
-      "label": "migrate_unit_serials.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "migrate_unit_serials.js",
-      "source_file": "server/migrate_unit_serials.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders",
-      "label": "realign_unit_serials_to_orders.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "realign_unit_serials_to_orders.js",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_run_deployment_migrations",
-      "label": "run_deployment_migrations.js",
-      "_origin": "ast",
-      "community": 5,
-      "community_name": "index.js",
-      "file_type": "code",
-      "norm_label": "run_deployment_migrations.js",
-      "source_file": "server/run_deployment_migrations.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_bulkimportmodal",
-      "label": "BulkImportModal.jsx",
+      "id": "src_components_addpartmastermodal",
+      "label": "AddPartMasterModal.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "bulkimportmodal.jsx",
-      "source_file": "src/components/BulkImportModal.jsx",
+      "norm_label": "addpartmastermodal.jsx",
+      "source_file": "src/components/AddPartMasterModal.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_excelsheetviewer",
-      "label": "ExcelSheetViewer.jsx",
+      "id": "src_components_editreftagmodal",
+      "label": "EditRefTagModal.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "excelsheetviewer.jsx",
-      "source_file": "src/components/ExcelSheetViewer.jsx",
+      "norm_label": "editreftagmodal.jsx",
+      "source_file": "src/components/EditRefTagModal.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_orderdocumentsmodal",
-      "label": "OrderDocumentsModal.jsx",
+      "id": "src_components_modal",
+      "label": "Modal.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "orderdocumentsmodal.jsx",
-      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "norm_label": "modal.jsx",
+      "source_file": "src/components/Modal.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_orderimport",
-      "label": "OrderImport.jsx",
+      "id": "src_components_ordercreationflow",
+      "label": "OrderCreationFlow.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "orderimport.jsx",
-      "source_file": "src/components/OrderImport.jsx",
+      "norm_label": "ordercreationflow.jsx",
+      "source_file": "src/components/OrderCreationFlow.jsx",
       "source_location": "L1"
     },
     {
-      "id": "src_components_orderlist",
-      "label": "OrderList.jsx",
+      "id": "src_components_panelsizesearchselect",
+      "label": "PanelSizeSearchSelect.jsx",
       "_origin": "ast",
       "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "orderlist.jsx",
-      "source_file": "src/components/OrderList.jsx",
+      "norm_label": "panelsizesearchselect.jsx",
+      "source_file": "src/components/PanelSizeSearchSelect.jsx",
       "source_location": "L1"
     },
     {
-      "id": "scratch_check_indexes",
-      "label": "check_indexes.mjs",
+      "id": "src_components_partnumbersearchselect",
+      "label": "PartNumberSearchSelect.jsx",
       "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "check_indexes.mjs",
-      "source_file": "scratch/check_indexes.mjs",
+      "norm_label": "partnumbersearchselect.jsx",
+      "source_file": "src/components/PartNumberSearchSelect.jsx",
       "source_location": "L1"
     },
     {
-      "id": "scratch_check_indexes_pool",
-      "label": "pool",
+      "id": "src_components_rightpanel",
+      "label": "RightPanel.jsx",
       "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
+      "community": 6,
+      "community_name": "OrderCreationFlow.jsx",
       "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "scratch/check_indexes.mjs",
-      "source_location": "L2"
-    },
-    {
-      "id": "server_fix_admin",
-      "label": "fix_admin.js",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "fix_admin.js",
-      "source_file": "server/fix_admin.js",
+      "norm_label": "rightpanel.jsx",
+      "source_file": "src/components/RightPanel.jsx",
       "source_location": "L1"
-    },
-    {
-      "id": "server_fix_admin_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/fix_admin.js",
-      "source_location": "L5"
     },
     {
       "id": "server_package",
@@ -3888,116 +4097,6 @@
       "norm_label": "server/package.json",
       "source_file": "server/package.json",
       "source_location": "L1"
-    },
-    {
-      "id": "server_package_dependencies",
-      "label": "dependencies",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "dependencies",
-      "source_file": "server/package.json",
-      "source_location": "L9"
-    },
-    {
-      "id": "server_package_dependencies_bcryptjs",
-      "label": "bcryptjs",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "bcryptjs",
-      "source_file": "server/package.json",
-      "source_location": "L12"
-    },
-    {
-      "id": "server_package_dependencies_cors",
-      "label": "cors",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "cors",
-      "source_file": "server/package.json",
-      "source_location": "L14"
-    },
-    {
-      "id": "server_package_dependencies_dotenv",
-      "label": "dotenv",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "dotenv",
-      "source_file": "server/package.json",
-      "source_location": "L15"
-    },
-    {
-      "id": "server_package_dependencies_express",
-      "label": "express",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "express",
-      "source_file": "server/package.json",
-      "source_location": "L10"
-    },
-    {
-      "id": "server_package_dependencies_jsonwebtoken",
-      "label": "jsonwebtoken",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "jsonwebtoken",
-      "source_file": "server/package.json",
-      "source_location": "L13"
-    },
-    {
-      "id": "server_package_dependencies_multer",
-      "label": "multer",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "multer",
-      "source_file": "server/package.json",
-      "source_location": "L16"
-    },
-    {
-      "id": "server_package_dependencies_nodemailer",
-      "label": "nodemailer",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "nodemailer",
-      "source_file": "server/package.json",
-      "source_location": "L17"
-    },
-    {
-      "id": "server_package_dependencies_pg",
-      "label": "pg",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "pg",
-      "source_file": "server/package.json",
-      "source_location": "L11"
-    },
-    {
-      "id": "server_package_dependencies_xlsx",
-      "label": "xlsx",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "xlsx",
-      "source_file": "server/package.json",
-      "source_location": "L18"
     },
     {
       "id": "server_package_main",
@@ -4066,61 +4165,6 @@
       "source_location": "L3"
     },
     {
-      "id": "server_test_sales_to_design_gate",
-      "label": "test_sales_to_design_gate.js",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "test_sales_to_design_gate.js",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_designtoken",
-      "label": "designToken",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "designtoken",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L11"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L7"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_salestoken",
-      "label": "salesToken",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "code",
-      "norm_label": "salestoken",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L12"
-    },
-    {
-      "id": "ref_bcryptjs",
-      "label": "bcryptjs",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "concept",
-      "norm_label": "bcryptjs",
-      "source_file": "server/package.json",
-      "source_location": "L12"
-    },
-    {
       "id": "ref_cors",
       "label": "cors",
       "_origin": "ast",
@@ -4176,17 +4220,6 @@
       "source_location": "L17"
     },
     {
-      "id": "ref_pg",
-      "label": "pg",
-      "_origin": "ast",
-      "community": 7,
-      "community_name": "server/package.json",
-      "file_type": "concept",
-      "norm_label": "pg",
-      "source_file": "server/package.json",
-      "source_location": "L11"
-    },
-    {
       "id": "server_package_json_ref_xlsx",
       "label": "xlsx",
       "_origin": "ast",
@@ -4209,11 +4242,33 @@
       "source_location": "L1"
     },
     {
+      "id": "src_components_excelsheetviewer",
+      "label": "ExcelSheetViewer.jsx",
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "excelsheetviewer.jsx",
+      "source_file": "src/components/ExcelSheetViewer.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_orderdocumentsmodal",
+      "label": "OrderDocumentsModal.jsx",
+      "_origin": "ast",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderdocumentsmodal.jsx",
+      "source_file": "src/components/OrderDocumentsModal.jsx",
+      "source_location": "L1"
+    },
+    {
       "id": "spec_non_standard_panel_docs",
       "label": "SPEC-non-standard-panel-docs.md",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "page",
       "norm_label": "spec-non-standard-panel-docs.md",
@@ -4225,7 +4280,7 @@
       "label": "1. Document Separation & Storage Isolation",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "1. document separation & storage isolation",
@@ -4237,7 +4292,7 @@
       "label": "2. Revision Calculation for Non-Standard Documents",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "2. revision calculation for non-standard documents",
@@ -4249,7 +4304,7 @@
       "label": "3. Role-Based Access Control (RBAC)",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "3. role-based access control (rbac)",
@@ -4261,7 +4316,7 @@
       "label": "Action Boundaries",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "action boundaries",
@@ -4273,7 +4328,7 @@
       "label": "Boundaries",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "boundaries",
@@ -4285,7 +4340,7 @@
       "label": "Code Style & Implementation Standard",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "code style & implementation standard",
@@ -4297,7 +4352,7 @@
       "label": "Commands",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "commands",
@@ -4309,7 +4364,7 @@
       "label": "Data Contracts & Architecture",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "data contracts & architecture",
@@ -4321,7 +4376,7 @@
       "label": "Non-Standard Document Card Implementation Sample",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "non-standard document card implementation sample",
@@ -4333,7 +4388,7 @@
       "label": "Objective",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "objective",
@@ -4345,7 +4400,7 @@
       "label": "Project Structure",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "project structure",
@@ -4357,7 +4412,7 @@
       "label": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "spec: non-standard panel drawings & bill of materials (bom)",
@@ -4369,7 +4424,7 @@
       "label": "Success Criteria",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "success criteria",
@@ -4381,7 +4436,7 @@
       "label": "Tech Stack & Commands",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "tech stack & commands",
@@ -4393,7 +4448,7 @@
       "label": "Testing & Verification Strategy",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "testing & verification strategy",
@@ -4405,7 +4460,7 @@
       "label": "User Stories",
       "_origin": "ast",
       "community": 9,
-      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "community_name": "OrderDocumentsModal.jsx",
       "file_type": "document",
       "node_kind": "heading",
       "norm_label": "user stories",
@@ -4425,26 +4480,14 @@
       "type": "external"
     },
     {
-      "id": "ref_babel_parser",
-      "label": "ref_babel_parser",
+      "id": "ref_assert",
+      "label": "ref_assert",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "external": true,
       "file_type": "concept",
-      "norm_label": "ref_babel_parser",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_babel_traverse",
-      "label": "ref_babel_traverse",
-      "_origin": "semantic",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_babel_traverse",
+      "norm_label": "ref_assert",
       "source_file": "",
       "type": "external"
     },
@@ -4453,22 +4496,10 @@
       "label": "ref_fs",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_fs",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_module",
-      "label": "ref_module",
-      "_origin": "semantic",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_module",
       "source_file": "",
       "type": "external"
     },
@@ -4477,7 +4508,7 @@
       "label": "ref_os",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_os",
@@ -4489,22 +4520,10 @@
       "label": "ref_path",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "verify_codebase.js",
+      "community_name": "test_design_confirmation.js",
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_path",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_url",
-      "label": "ref_url",
-      "_origin": "semantic",
-      "community": 11,
-      "community_name": "verify_codebase.js",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_url",
       "source_file": "",
       "type": "external"
     },
@@ -4545,26 +4564,50 @@
       "source_file": "index.html"
     },
     {
-      "id": "ref_xlsx",
-      "label": "ref_xlsx",
+      "id": "ref_babel_parser",
+      "label": "ref_babel_parser",
       "_origin": "semantic",
-      "community": 6,
-      "community_name": "OrderDocumentsModal.jsx",
+      "community": 20,
+      "community_name": "verify_codebase.js",
       "external": true,
       "file_type": "concept",
-      "norm_label": "ref_xlsx",
+      "norm_label": "ref_babel_parser",
       "source_file": "",
       "type": "external"
     },
     {
-      "id": "ref_assert",
-      "label": "ref_assert",
+      "id": "ref_babel_traverse",
+      "label": "ref_babel_traverse",
       "_origin": "semantic",
-      "community": 7,
-      "community_name": "server/package.json",
+      "community": 20,
+      "community_name": "verify_codebase.js",
       "external": true,
       "file_type": "concept",
-      "norm_label": "ref_assert",
+      "norm_label": "ref_babel_traverse",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_module",
+      "label": "ref_module",
+      "_origin": "semantic",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_module",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_url",
+      "label": "ref_url",
+      "_origin": "semantic",
+      "community": 20,
+      "community_name": "verify_codebase.js",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_url",
       "source_file": "",
       "type": "external"
     },
@@ -4577,6 +4620,18 @@
       "external": true,
       "file_type": "concept",
       "norm_label": "os",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_xlsx",
+      "label": "ref_xlsx",
+      "_origin": "semantic",
+      "community": 9,
+      "community_name": "OrderDocumentsModal.jsx",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_xlsx",
       "source_file": "",
       "type": "external"
     }
@@ -4615,7 +4670,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L443",
+      "source_location": "L451",
       "weight": 1.0
     },
     {
@@ -4627,7 +4682,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L461",
+      "source_location": "L473",
       "weight": 1.0
     },
     {
@@ -4639,19 +4694,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L471",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index_generateordernumber",
-      "target": "server_index_formatordernumber",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "server/index.js",
-      "source_location": "L1005",
+      "source_location": "L483",
       "weight": 1.0
     },
     {
@@ -4663,7 +4706,19 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L994",
+      "source_location": "L1002",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index_generateordernumber",
+      "target": "server_index_formatordernumber",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "server/index.js",
+      "source_location": "L1013",
       "weight": 1.0
     },
     {
@@ -4675,7 +4730,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L681",
+      "source_location": "L693",
       "weight": 1.0
     },
     {
@@ -4687,7 +4742,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L688",
+      "source_location": "L700",
       "weight": 1.0
     },
     {
@@ -4699,7 +4754,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L805",
+      "source_location": "L813",
       "weight": 1.0
     },
     {
@@ -4711,7 +4766,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L815",
+      "source_location": "L823",
       "weight": 1.0
     },
     {
@@ -4723,7 +4778,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L6443",
+      "source_location": "L6546",
       "weight": 1.0
     },
     {
@@ -4735,7 +4790,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L952",
+      "source_location": "L960",
       "weight": 1.0
     },
     {
@@ -4747,7 +4802,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L535",
+      "source_location": "L547",
       "weight": 1.0
     },
     {
@@ -4759,7 +4814,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L574",
+      "source_location": "L586",
       "weight": 1.0
     },
     {
@@ -5659,7 +5714,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/Masters.jsx",
-      "source_location": "L1345",
+      "source_location": "L1353",
       "weight": 1.0
     },
     {
@@ -5671,7 +5726,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/Masters.jsx",
-      "source_location": "L1855",
+      "source_location": "L1870",
       "weight": 1.0
     },
     {
@@ -5683,7 +5738,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/Masters.jsx",
-      "source_location": "L2026",
+      "source_location": "L2041",
       "weight": 1.0
     },
     {
@@ -5695,7 +5750,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/Masters.jsx",
-      "source_location": "L2340",
+      "source_location": "L2355",
       "weight": 1.0
     },
     {
@@ -5707,7 +5762,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/Masters.jsx",
-      "source_location": "L739",
+      "source_location": "L741",
       "weight": 1.0
     },
     {
@@ -6055,7 +6110,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L195",
+      "source_location": "L193",
       "weight": 1.0
     },
     {
@@ -6067,7 +6122,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L2660",
+      "source_location": "L2668",
       "weight": 1.0
     },
     {
@@ -6079,7 +6134,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L279",
+      "source_location": "L277",
       "weight": 1.0
     },
     {
@@ -6091,7 +6146,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L2804",
+      "source_location": "L2812",
       "weight": 1.0
     },
     {
@@ -6115,7 +6170,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L323",
+      "source_location": "L321",
       "weight": 1.0
     },
     {
@@ -6139,7 +6194,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L476",
+      "source_location": "L488",
       "weight": 1.0
     },
     {
@@ -6151,7 +6206,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L534",
+      "source_location": "L546",
       "weight": 1.0
     },
     {
@@ -6163,7 +6218,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L578",
+      "source_location": "L590",
       "weight": 1.0
     },
     {
@@ -6175,7 +6230,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L964",
+      "source_location": "L972",
       "weight": 1.0
     },
     {
@@ -6187,7 +6242,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L971",
+      "source_location": "L979",
       "weight": 1.0
     },
     {
@@ -6199,7 +6254,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "server/index.js",
-      "source_location": "L987",
+      "source_location": "L995",
       "weight": 1.0
     },
     {
@@ -7972,6 +8027,42 @@
       "context": "import",
       "source_file": "server/test_security_hardening.js",
       "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "ref_assert",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "ref_pg",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "ref_jsonwebtoken",
+      "relation": "imports_from",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L3",
       "weight": 1.0
     },
     {
@@ -9887,7 +9978,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L1009",
+      "source_location": "L1017",
       "weight": 1.0
     },
     {
@@ -9898,7 +9989,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L106",
+      "source_location": "L104",
       "weight": 1.0
     },
     {
@@ -9942,7 +10033,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L6301",
+      "source_location": "L6404",
       "weight": 1.0
     },
     {
@@ -9964,7 +10055,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L670",
+      "source_location": "L682",
       "weight": 1.0
     },
     {
@@ -9975,7 +10066,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L838",
+      "source_location": "L846",
       "weight": 1.0
     },
     {
@@ -9986,7 +10077,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L849",
+      "source_location": "L857",
       "weight": 1.0
     },
     {
@@ -9997,7 +10088,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L885",
+      "source_location": "L893",
       "weight": 1.0
     },
     {
@@ -10008,7 +10099,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L920",
+      "source_location": "L928",
       "weight": 1.0
     },
     {
@@ -10019,29 +10110,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L927",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_storage",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "server/index.js",
-      "source_location": "L942",
-      "weight": 1.0
-    },
-    {
-      "source": "server_index",
-      "target": "server_index_upload",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "server/index.js",
-      "source_location": "L957",
+      "source_location": "L935",
       "weight": 1.0
     },
     {
@@ -10052,7 +10121,29 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "server/index.js",
-      "source_location": "L96",
+      "source_location": "L94",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
+      "target": "server_index_storage",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/index.js",
+      "source_location": "L950",
+      "weight": 1.0
+    },
+    {
+      "source": "server_index",
+      "target": "server_index_upload",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/index.js",
+      "source_location": "L965",
       "weight": 1.0
     },
     {
@@ -10537,6 +10628,61 @@
       "confidence_score": 1.0,
       "source_file": "server/test_security_hardening.js",
       "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "server_test_task_masters_lifecycle_admintoken",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "server_test_task_masters_lifecycle_salestoken",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "server_test_task_masters_lifecycle_designtoken",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "server_test_task_masters_lifecycle_runtests",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "server_test_task_masters_lifecycle",
+      "target": "server_test_task_masters_lifecycle_pool",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L7",
       "weight": 1.0
     },
     {
@@ -12202,7 +12348,7 @@
     },
     {
       "source": "tasks_plan",
-      "target": "tasks_plan_spec_implementation_plan_premium_dark_mode_ui_ux_modernization",
+      "target": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12212,30 +12358,8 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "target": "tasks_plan_a_core_dark_mode_token_overhaul_src_index_css",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tasks/plan.md",
-      "source_location": "L10",
-      "weight": 1.0
-    },
-    {
-      "source": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "target": "tasks_plan_b_stat_cards_redesign_statsrow_jsx_src_index_css",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tasks/plan.md",
-      "source_location": "L21",
-      "weight": 1.0
-    },
-    {
-      "source": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "target": "tasks_plan_c_master_table_view_modernization_allorderstableview_jsx_src_index_css",
+      "source": "tasks_plan_3_task_list",
+      "target": "tasks_plan_phase_1_task_masters_deletion_addition_mechanics",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12245,19 +12369,8 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "target": "tasks_plan_d_header_sidenav_refinement_header_jsx_sidenav_jsx_src_index_css",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tasks/plan.md",
-      "source_location": "L33",
-      "weight": 1.0
-    },
-    {
-      "source": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
-      "target": "tasks_plan_e_right_inspector_panel_rightpanel_jsx_src_index_css",
+      "source": "tasks_plan_3_task_list",
+      "target": "tasks_plan_phase_2_pipeline_state_machine_sales_department_retention",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12267,19 +12380,8 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_spec_implementation_plan_premium_dark_mode_ui_ux_modernization",
-      "target": "tasks_plan_1_objective",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "tasks/plan.md",
-      "source_location": "L3",
-      "weight": 1.0
-    },
-    {
-      "source": "tasks_plan_spec_implementation_plan_premium_dark_mode_ui_ux_modernization",
-      "target": "tasks_plan_3_implementation_steps",
+      "source": "tasks_plan_3_task_list",
+      "target": "tasks_plan_phase_3_verification_checkpoint",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12289,8 +12391,41 @@
       "weight": 1.0
     },
     {
-      "source": "tasks_plan_spec_implementation_plan_premium_dark_mode_ui_ux_modernization",
-      "target": "tasks_plan_2_requirements_visual_standards_adhering_to_frontend_ui_engineering",
+      "source": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
+      "target": "tasks_plan_3_task_list",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L25",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
+      "target": "tasks_plan_1_overview",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
+      "target": "tasks_plan_4_risks_mitigations",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tasks/plan.md",
+      "source_location": "L52",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_implementation_plan_resilient_dynamic_task_masters_lifecycle",
+      "target": "tasks_plan_2_architecture_decisions",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12301,7 +12436,7 @@
     },
     {
       "source": "tasks_todo",
-      "target": "tasks_todo_tasks_premium_dark_mode_ui_ux_modernization",
+      "target": "tasks_todo_tasks_resilient_dynamic_task_masters_lifecycle",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -12468,7 +12603,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L1063",
+      "source_location": "L1071",
       "weight": 1.0
     },
     {
@@ -12480,7 +12615,7 @@
       "confidence_score": 0.85,
       "context": "argument",
       "source_file": "server/index.js",
-      "source_location": "L6276",
+      "source_location": "L6379",
       "weight": 1.0
     },
     {
@@ -12504,7 +12639,7 @@
       "confidence_score": 0.85,
       "context": "collection",
       "source_file": "server/index.js",
-      "source_location": "L959",
+      "source_location": "L967",
       "weight": 1.0
     },
     {
@@ -12542,8 +12677,44 @@
       "source_file": "SPEC-non-standard-panel-docs.md",
       "source_location": "L152",
       "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_2_architecture_decisions",
+      "target": "server_index_deriveunitstatus",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "deriveUnitStatus",
+      "source_file": "tasks/plan.md",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_plan_phase_2_pipeline_state_machine_sales_department_retention",
+      "target": "server_index_deriveunitstatus",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "deriveUnitStatus",
+      "source_file": "tasks/plan.md",
+      "source_location": "L38",
+      "weight": 1.0
+    },
+    {
+      "source": "tasks_todo_tasks_resilient_dynamic_task_masters_lifecycle",
+      "target": "server_index_deriveunitstatus",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "context": "deriveUnitStatus",
+      "source_file": "tasks/todo.md",
+      "source_location": "L8",
+      "weight": 1.0
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "cc935bdae07e9115883b515bcf65ebae16d843b1"
+  "built_at_commit": "dc076f860cd41148599d9342dd32c2d7058994ba"
 }

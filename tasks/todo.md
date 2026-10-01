@@ -1,21 +1,25 @@
-# Tasks: Premium Dark Mode & UI/UX Modernization
+# Tasks: Resilient & Dynamic Task Masters Lifecycle
 
-- [x] **Task 1: Core Design Tokens Overhaul in `src/index.css`**
-  - **Description:** Replace harsh pitch-black backgrounds and high-glare white text with modern slate-navy dark mode tokens (`--bg: #0b0f19`, `--bg2: #111827`, `--bg3: #1a2234`, `--border: #1f293d`, `--text: #f1f5f9`, `--text2: #94a3b8`).
-  - **Files:** `src/index.css`
+- [x] **Task 1: Clean Removal of "Confirm Dispatch Date" & "Sales Clearance"**
+  - **Description:** Remove "Confirm Dispatch Date" and "Sales Clearance" from `task_masters` and step tables, remove them from `run_deployment_migrations.js`, and remove `CORE_PROTECTED_TASKS` block in `server/index.js` and `Masters.jsx`.
+  - **Files:** `server/index.js`, `server/run_deployment_migrations.js`, `src/components/Masters.jsx`
 
-- [x] **Task 2: Stat Cards Refinement & Wrapping Fix**
-  - **Description:** Remove thick 4px neon top borders in `.stat-card`, replace with sleek subtle top gradients, and fix awkward text wrapping in `StatsRow.jsx` (`{data.totalLineItems} ({data.total} Orders)`).
-  - **Files:** `src/components/StatsRow.jsx`, `src/index.css`
+- [x] **Task 2: Non-Advancing Task Deletion in `server/index.js`**
+  - **Description:** Refactor `DELETE /api/task_masters/:id` so deleting a task master deletes step instances without running a global `deriveUnitStatus` that pushes in-flight orders forward.
+  - **Files:** `server/index.js`
 
-- [x] **Task 3: Modern Table Row & Cell Aesthetics in `AllOrdersTableView.jsx`**
-  - **Description:** Replace 1990s blue underlined serial links with sleek industrial asset badges, refine cancelled/hold row background tints, and polish table search & filter controls.
-  - **Files:** `src/components/AllOrdersTableView.jsx`, `src/index.css`
+- [x] **Task 3: Selective Task Addition in `server/index.js`**
+  - **Description:** Refactor `POST /api/task_masters` so newly added tasks are populated into new orders and active orders currently in that department, but never into orders that have already passed that department or completed.
+  - **Files:** `server/index.js`
 
-- [x] **Task 4: Polish Header, Sidenav, and Right Inspector Panel**
-  - **Description:** Modernize header search bar, theme toggle, user badge, sidebar active states, and right inspector panel activity log readability.
-  - **Files:** `src/components/Header.jsx`, `src/components/RightPanel.jsx`, `src/index.css`
+- [x] **Task 4: Dynamic Department Progression & Sales Retention (`deriveUnitStatus`)**
+  - **Description:** Ensure units stay in Sales as long as Sales tasks (such as "Upload PO") are pending, and only advance to Design once Sales tasks are marked done.
+  - **Files:** `server/index.js`
 
-- [x] **Task 5: Production Build & Validation**
-  - **Description:** Run `npm run build` and backend test suite to guarantee 0 regressions and verify visual quality.
-  - **Files:** `dist/`, `server/test_po_system.js`
+- [x] **Task 5: Self-Healing Migration & Production Realignment**
+  - **Description:** Ensure `run_deployment_migrations.js` cleanly removes unused Sales tasks, realigns active orders with pending POs to Sales, and leaves downstream orders in their proper departments.
+  - **Files:** `server/run_deployment_migrations.js`
+
+- [x] **Task 6: Verification Tests & Production Build**
+  - **Description:** Verify deletion does not advance departments, verify addition does not affect downstream orders, run `node server/test_po_system.js`, and verify `npm run build`.
+  - **Files:** `server/test_po_system.js`, `dist/`

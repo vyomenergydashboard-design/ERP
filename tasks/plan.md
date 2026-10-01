@@ -1,50 +1,57 @@
-# Spec & Implementation Plan: Premium Dark Mode & UI/UX Modernization
+# Implementation Plan: Resilient & Dynamic Task Masters Lifecycle
 
-## 1. Objective
-Transform the ERP dark mode from a harsh, high-glare, pitch-black aesthetic with neon borders into a refined, cohesive, and modern enterprise design system (inspired by Linear, Vercel, and GitHub Dark Dimmed). Elevate readability, typography, component contrast, and data density across the application (Tables, Stat Cards, Header, Sidenav, and Right Panel).
-
----
-
-## 2. Requirements & Visual Standards (Adhering to `/frontend-ui-engineering`)
-
-### A. Core Dark Mode Token Overhaul (`src/index.css`)
-- **Backgrounds:** Replace pitch black (`#07080c`) with rich slate-navy (`--bg: #0b0f19`).
-- **Surfaces/Cards:** Clean, distinct surface (`--bg2: #111827`) and elevated surfaces (`--bg3: #1a2234`, `--bg4: #243048`).
-- **Borders:** Crisp, subtle borders (`--border: #1f293d`, `--border2: #2e3b52`) eliminating blurry shadows and harsh edges.
-- **Typography:**
-  - Primary text: Soft off-white (`--text: #f1f5f9`), eliminating eye strain and glare.
-  - Secondary text: Slate (`--text2: #94a3b8`).
-  - Muted text: Subtle slate (`--text3: #64748b`).
-- **Semantic Colors:**
-  - Modern sky blue (`--blue: #38bdf8`), emerald green (`--green: #10b981`), warm amber (`--amber: #fbbf24`), coral red (`--red: #f87171`), vyom orange (`--accent: #f97316`).
-
-### B. Stat Cards Redesign (`StatsRow.jsx` & `src/index.css`)
-- Eliminate the dated 4px thick neon colored top strips.
-- Implement subtle 2px top gradient hairlines and refined active ring states.
-- Fix broken number wrapping: Ensure `{data.totalLineItems}` and `({data.total} Orders)` stay on a single line with `flex-wrap: nowrap`.
-- Refine typography: Tracking from `1.5px` to clean `0.8px` uppercase.
-
-### C. Master Table View Modernization (`AllOrdersTableView.jsx` & `src/index.css`)
-- **Serial Numbers:** Replace raw blue underlined hyperlink text with a sleek, tech-styled serial tag (`rgba(56, 189, 248, 0.1)` bg, border, rounded, mono).
-- **Order Numbers:** Styled pill with integrated document paperclip icon.
-- **Row Highlight States:** Replace dark muddy "blood-red" cancelled row background with soft, semi-transparent coral tint (`rgba(239, 68, 68, 0.08)`) and amber tint for holds.
-- **Search & Filters:** Modern command-style search input with smooth focus ring, crisp filter selects, and segmented view toggle (`Board` / `Flow` / `Table`).
-
-### D. Header & Sidenav Refinement (`Header.jsx`, `Sidenav.jsx`, `src/index.css`)
-- **Header:** Cohesive 54px top bar with clean typography, search box, user avatar pill, and smooth dark/light toggle.
-- **Sidenav:** Crisp slate rail with modern hover transitions, subtle active indicator pill, and balanced contrast.
-
-### E. Right Inspector Panel (`RightPanel.jsx` & `src/index.css`)
-- Clean elevated section cards for "Selected Step" and "Order Overview".
-- Activity Log entries with readable timestamps, department badges, and high-contrast text.
-- Minimal toggle button that sits flush against the panel border.
+## 1. Overview
+Empower admins to freely add, edit, and delete task templates in Task Masters across all departments without artificial deletion blocks. Ensure deleting a task template removes that step from active orders without automatically advancing or shifting their current department. Ensure adding a task template never applies retroactively to orders that have already passed that department. Maintain orders in Sales until their mandatory Sales tasks (like "Upload PO") are completed.
 
 ---
 
-## 3. Implementation Steps
+## 2. Architecture Decisions
+1. **Dynamic Task Deletion (`DELETE /api/task_masters/:id`):**
+   - Remove the step instances linked to `task_id` from `order_steps` and `unit_steps`.
+   - Stop invoking global `deriveUnitStatus` on all orders during template deletion, which previously caused active units to prematurely jump forward into Design.
+   - Remove `CORE_PROTECTED_TASKS` deletion blocks in both backend API and frontend UI (`Masters.jsx`).
+2. **Selective Task Addition (`POST /api/task_masters`):**
+   - When a new task is created, add it only to new orders and active orders/units currently in that department.
+   - Never add new tasks to orders that have already progressed past that department or completed, preventing downstream manufacturing work from being blocked or pulled backward.
+3. **Sales Retention in `deriveUnitStatus`:**
+   - In `deriveUnitStatus`, an order remains in `Sales` as long as its Sales order tasks (such as "Upload PO") have not been completed (`status !== 'done'`).
+   - Units advance to `Design` only when Sales tasks are genuinely done.
+4. **Data Healing in `run_deployment_migrations.js`:**
+   - Remove "Confirm Dispatch Date" and "Sales Clearance" from `task_masters` and step tables.
+   - Realignt units with pending POs to `current_dept = 'Sales'` and `status = 'Pending'`.
 
-1. **Step 1:** Revise color tokens in `src/index.css` for dark mode and light mode harmony.
-2. **Step 2:** Refine `.stat-card` styling in `src/index.css` and fix layout wrapping in `src/components/StatsRow.jsx`.
-3. **Step 3:** Modernize table cells, serial number badges, and row highlight styling in `src/components/AllOrdersTableView.jsx` and `src/index.css`.
-4. **Step 4:** Polish Header, Sidenav, and RightPanel visual hierarchy and typography.
-5. **Step 5:** Validate production build (`cmd /c npm run build`) and PO test suite.
+---
+
+## 3. Task List
+
+### Phase 1: Task Masters Deletion & Addition Mechanics
+- [ ] **Task 1: Clean Removal of "Confirm Dispatch Date" & "Sales Clearance"**
+  - Delete "Confirm Dispatch Date" and "Sales Clearance" from `task_masters` and active steps.
+  - Remove from `run_deployment_migrations.js`.
+  - Remove `CORE_PROTECTED_TASKS` block in `server/index.js` and `Masters.jsx`.
+- [ ] **Task 2: Non-Advancing Task Deletion in `server/index.js`**
+  - Update `DELETE /api/task_masters/:id` to remove the task without shifting orders' current departments.
+- [ ] **Task 3: Selective Task Addition in `server/index.js`**
+  - Update `POST /api/task_masters` to only apply new tasks to orders currently in that department, never to downstream/completed orders.
+
+### Phase 2: Pipeline State Machine & Sales Department Retention
+- [ ] **Task 4: Dynamic Department Progression & Sales Retention (`deriveUnitStatus`)**
+  - Enforce that orders in Sales remain in Sales while "Upload PO" (or any Sales order step) is pending.
+  - Units transition to Design only once Sales steps are done.
+- [ ] **Task 5: Self-Healing Migration & Production Realignment**
+  - Update `run_deployment_migrations.js` to ensure clean state and correct department positioning on boot.
+
+### Phase 3: Verification & Checkpoint
+- [ ] **Task 6: Verification Tests & Production Build**
+  - Verify task deletion does not shift order departments.
+  - Verify task addition does not affect downstream orders.
+  - Run PO system tests and `npm run build`.
+
+---
+
+## 4. Risks & Mitigations
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Deleting a task leaves an order with 0 tasks in that department | Low | Order stays in current department until explicitly moved or remaining tasks are completed |
+| Newly added task blocks an order already in production | High | Strict filter ensures only orders currently in that department receive the new task |
+| Database migration modifies order numbers or serials | Critical | Invariant: No updates to `order_number`, `unit_id`, or `short_serial` |

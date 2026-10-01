@@ -197,6 +197,7 @@ export default function Masters() {
     is_mandatory: true,
     requires_upload: false,
     default_doc_type: 'General',
+    level: 'unit',
     order_fields: []
   });
   const [taskCustomFields, setTaskCustomFields] = useState([]);
@@ -577,7 +578,7 @@ export default function Masters() {
           setShowCompanyModal(true);
         } else if (activeTab === 'tasks' && canEditMasters) {
           setEditingTaskId(null);
-          setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, order_fields: [] });
+          setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', level: 'unit', order_fields: [] });
           setTaskCustomFields([]);
           setShowFieldBuilder(false);
           setShowTaskModal(true);
@@ -701,7 +702,7 @@ export default function Masters() {
       if (res.ok) {
         setShowTaskModal(false);
         setEditingTaskId(null);
-        setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', order_fields: [] });
+        setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', level: 'unit', order_fields: [] });
         setTaskCustomFields([]);
         setShowFieldBuilder(false);
         fetchTasks();
@@ -721,6 +722,7 @@ export default function Masters() {
       is_mandatory: task.is_mandatory,
       requires_upload: task.requires_upload,
       default_doc_type: task.default_doc_type || 'General',
+      level: task.level || 'unit',
       order_fields: Array.isArray(task.order_fields) ? task.order_fields : (task.order_fields ? JSON.parse(task.order_fields) : [])
     });
     try {
@@ -762,7 +764,8 @@ export default function Masters() {
       if (res.ok) {
         fetchTasks();
       } else {
-        alert('Failed to delete task');
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'Failed to delete task');
       }
     } catch (err) { console.error(err); }
   };
@@ -860,7 +863,7 @@ export default function Masters() {
             {canEditMasters && (
               <button className="vbtn" onClick={() => {
                 setEditingTaskId(null);
-                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', order_fields: [] });
+                setTaskFormData({ dept: 'Sales', name: '', sub: '', special: '', is_mandatory: true, requires_upload: false, default_doc_type: 'General', level: 'unit', order_fields: [] });
                 setTaskCustomFields([]);
                 setShowFieldBuilder(false);
                 setShowTaskModal(true);
@@ -885,9 +888,14 @@ export default function Masters() {
                       <div key={task.id} style={{ background: 'var(--bg2)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontSize: '12px', color: dept.color, fontWeight: 'bold', textTransform: 'uppercase' }}>{task.dept}</span>
-                          <span style={{ fontSize: '10px', background: task.is_mandatory ? 'var(--blue-dim)' : 'var(--gray-dim)', color: task.is_mandatory ? 'var(--blue)' : 'var(--text3)', padding: '2px 6px', borderRadius: '4px' }}>
-                            {task.is_mandatory ? 'MANDATORY' : 'OPTIONAL'}
-                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <span style={{ fontSize: '10px', background: task.level === 'order' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: task.level === 'order' ? '#c084fc' : '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                              {task.level === 'order' ? 'ORDER LEVEL' : 'UNIT LEVEL'}
+                            </span>
+                            <span style={{ fontSize: '10px', background: task.is_mandatory ? 'var(--blue-dim)' : 'var(--gray-dim)', color: task.is_mandatory ? 'var(--blue)' : 'var(--text3)', padding: '2px 6px', borderRadius: '4px' }}>
+                              {task.is_mandatory ? 'MANDATORY' : 'OPTIONAL'}
+                            </span>
+                          </div>
                         </div>
                         <div style={{ color: 'var(--text)', fontWeight: '500', marginBottom: '4px' }}>{task.name}</div>
                         <div style={{ color: 'var(--text3)', fontSize: '12px', marginBottom: '12px' }}>{task.sub || 'No description'}</div>
@@ -1683,6 +1691,13 @@ export default function Masters() {
                   <label>Department</label>
                   <select className="form-select" value={taskFormData.dept} onChange={(e) => setTaskFormData({ ...taskFormData, dept: e.target.value })}>
                     {DEPTS.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
+                  </select>
+                </div>
+                <div className="modal-field">
+                  <label>Scope / Level</label>
+                  <select className="form-select" value={taskFormData.level || 'unit'} onChange={(e) => setTaskFormData({ ...taskFormData, level: e.target.value })}>
+                    <option value="unit">Unit Level (Per Panel / Serial)</option>
+                    <option value="order">Order Level (Whole Order)</option>
                   </select>
                 </div>
                 <div className="modal-field">
