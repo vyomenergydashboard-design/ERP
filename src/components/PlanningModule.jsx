@@ -194,9 +194,9 @@ export default function PlanningModule() {
     wiring_assigned: 155,
     wiring_expected: 155,
     expected_qc: 145,
-    priority: 115,
-    status: 130,
-    qc_status: 130,
+    priority: 135,
+    status: 220,
+    qc_status: 150,
     qc_date: 135,
     progress: 140,
     action: 90

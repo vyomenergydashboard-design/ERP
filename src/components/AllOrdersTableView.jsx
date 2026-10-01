@@ -98,43 +98,43 @@ const formatCustomDateTime = formatFastDateTime;
 const formatCustomDate = formatFastDate;
 
 const DEFAULT_COL_WIDTHS = {
-  order_number: 140,
-  short_serial: 130,
-  company_name: 185,
-  project_name: 160,
-  po_number: 175,
-  reference_number: 165,
-  end_client_name: 145,
-  part_number: 165,
-  panel_code: 135,
-  panel_type_size: 175,
-  panel_ip_rating: 120,
-  panel_comments: 200,
-  material_description: 230,
-  classification: 220,
-  priority: 115,
-  delivery_date: 130,
-  unit_status: 130,
+  order_number: 145,
+  short_serial: 160,
+  company_name: 205,
+  project_name: 190,
+  po_number: 180,
+  reference_number: 180,
+  end_client_name: 165,
+  part_number: 175,
+  panel_code: 145,
+  panel_type_size: 190,
+  panel_ip_rating: 130,
+  panel_comments: 230,
+  material_description: 260,
+  classification: 225,
+  priority: 140,
+  delivery_date: 155,
+  unit_status: 235,
 };
 
 const MIN_COL_WIDTHS = {
   order_number: 135,
-  short_serial: 125,
-  company_name: 160,
-  project_name: 140,
-  po_number: 170,
+  short_serial: 145,
+  company_name: 175,
+  project_name: 165,
+  po_number: 165,
   reference_number: 160,
-  end_client_name: 135,
-  part_number: 155,
+  end_client_name: 145,
+  part_number: 160,
   panel_code: 130,
-  panel_type_size: 165,
-  panel_ip_rating: 115,
-  panel_comments: 180,
-  material_description: 200,
+  panel_type_size: 170,
+  panel_ip_rating: 120,
+  panel_comments: 190,
+  material_description: 220,
   classification: 200,
-  priority: 110,
-  delivery_date: 125,
-  unit_status: 125,
+  priority: 130,
+  delivery_date: 140,
+  unit_status: 195,
 };
 
 export const getDocUrl = (doc) => {
@@ -841,19 +841,35 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
       ].filter(Boolean).join('\n');
     }
 
-    case 'unit_status':
+    case 'unit_status': {
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
-        return `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? formatFastDateTime(unit.held_at) : 'N/A'}\nReason: ${unit.hold_reason || 'No reason specified'}`;
+        const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+        return [
+          `Status: On Hold @ ${holdStep}`,
+          `Held by: ${unit.held_by_name || 'User'} on ${unit.held_at ? formatFastDateTime(unit.held_at) : 'N/A'}`,
+          `Reason: ${unit.hold_reason || 'No reason specified'}`,
+          `Order #: ${unit.order_number}`,
+          unit.unit_serial ? `Serial: ${unit.unit_serial}` : null
+        ].filter(Boolean).join('\n');
       }
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
-        return `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? formatFastDateTime(unit.cancelled_at) : 'N/A'}\nReason: ${unit.cancelled_reason || 'No reason specified'}`;
+        const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+        return [
+          `Status: Cancelled @ ${cancelStep}`,
+          `Cancelled by: ${unit.cancelled_by_name || 'User'} on ${unit.cancelled_at ? formatFastDateTime(unit.cancelled_at) : 'N/A'}`,
+          `Reason: ${unit.cancelled_reason || 'No reason specified'}`,
+          `Order #: ${unit.order_number}`,
+          unit.unit_serial ? `Serial: ${unit.unit_serial}` : null
+        ].filter(Boolean).join('\n');
       }
       return [
         `Status: ${status}`,
+        unit.current_dept ? `Department: ${unit.current_dept}` : null,
+        `Order #: ${unit.order_number}`,
         unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
-        unit.order_number ? `Order #: ${unit.order_number}` : null,
         unit.company_name ? `Client: ${unit.company_name}` : null
       ].filter(Boolean).join('\n');
+    }
 
     case 'material_description':
       return [
@@ -1094,7 +1110,7 @@ function renderCellContent({
       if (status === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
         const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
         return (
-          <span className="erp-status-pill hold" title={`On Hold: ${unit.hold_reason || 'No reason specified'}`}>
+          <span className="erp-status-pill hold">
             <span>⏸</span> Hold @ {holdStep}
           </span>
         );
@@ -1102,7 +1118,7 @@ function renderCellContent({
       if (status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
         const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
         return (
-          <span className="erp-status-pill cancelled" title={`Cancelled: ${unit.cancelled_reason || 'No reason specified'}`}>
+          <span className="erp-status-pill cancelled">
             <span>✕</span> Cancelled @ {cancelStep}
           </span>
         );
@@ -2963,16 +2979,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV4 = localStorage.getItem('erp_all_colWidths_v4');
-      const saved = savedV4 || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
+      const savedV5 = localStorage.getItem('erp_all_colWidths_v5');
+      const saved = savedV5 || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = { ...DEFAULT_COL_WIDTHS };
         for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
           if (parsed[k] !== undefined) {
             const minSafe = MIN_COL_WIDTHS[k] || 120;
-            // Upgrade any old squashed widths from previous versions
-            merged[k] = Math.max(Number(parsed[k]) || minSafe, minSafe);
+            const savedVal = Number(parsed[k]);
+            if (!savedV5) {
+              // Upgrading from older version: if saved value was squashed (< minSafe), upgrade to DEFAULT_COL_WIDTHS[k]
+              merged[k] = (savedVal && savedVal >= minSafe) ? savedVal : DEFAULT_COL_WIDTHS[k];
+            } else {
+              merged[k] = Math.max(savedVal || minSafe, minSafe);
+            }
           }
         }
         for (const [k, v] of Object.entries(parsed)) {
@@ -2991,7 +3012,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v4', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3074,6 +3095,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v2');
     localStorage.removeItem('erp_all_colWidths_v3');
     localStorage.removeItem('erp_all_colWidths_v4');
+    localStorage.removeItem('erp_all_colWidths_v5');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3119,7 +3141,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v4', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -3129,6 +3151,99 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const handleAutoFitColumn = (colKey, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    const colDef = allColumns.find(c => c.key === colKey);
+    const headerLabel = colDef?.label || colKey;
+    const minSafe = MIN_COL_WIDTHS[colKey] || 120;
+
+    // Header minimum required width: label text + grip + sort icon + pin button + padding
+    let maxCharLen = headerLabel.length;
+    let baseExtraPadding = 65;
+
+    // Scan up to 150 displayed units to determine longest content
+    const sampleUnits = displayedUnits.slice(0, 150);
+    for (const unit of sampleUnits) {
+      let cellStr = '';
+      switch (colKey) {
+        case 'order_number':
+          cellStr = String(unit.order_number || '');
+          break;
+        case 'short_serial':
+        case 'unit_serial':
+          cellStr = String(unit.unit_serial || unit.short_serial || '');
+          break;
+        case 'company_name':
+          cellStr = `${unit.company_name || ''}${unit.company_city ? ` · ${unit.company_city}` : ''}`;
+          break;
+        case 'project_name':
+          cellStr = String(unit.project_name || '');
+          break;
+        case 'po_number':
+          cellStr = String(unit.po_number || '');
+          break;
+        case 'reference_number':
+          cellStr = `${unit.reference_number || ''}${unit.tag ? `/${unit.tag}` : ''}`;
+          break;
+        case 'classification':
+          cellStr = 'Standard - Confirmed';
+          break;
+        case 'priority':
+          cellStr = String(unit.priority || 'Medium');
+          break;
+        case 'delivery_date':
+          cellStr = unit.delivery_date ? '00 MMM 0000 OVERDUE' : '';
+          break;
+        case 'unit_status': {
+          const st = getUnitStatus(unit);
+          if (st === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
+            const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
+            cellStr = `Hold @ ${holdStep}`;
+          } else if (st === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
+            const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
+            cellStr = `Cancelled @ ${cancelStep}`;
+          } else {
+            cellStr = String(st || '');
+          }
+          break;
+        }
+        case 'material_description':
+          cellStr = String(unit.material_description || '');
+          break;
+        case 'panel_comments':
+          cellStr = String(unit.panel_comments || '');
+          break;
+        case 'panel_code':
+          cellStr = String(unit.panel_code || '');
+          break;
+        case 'panel_ip_rating':
+          cellStr = String(unit.panel_ip_rating || '');
+          break;
+        default:
+          cellStr = String(unit[colKey] || unit.custom_fields?.[colKey] || '');
+          break;
+      }
+      if (cellStr.length > maxCharLen) {
+        maxCharLen = cellStr.length;
+      }
+    }
+
+    const estimatedWidth = Math.ceil(maxCharLen * 8.2) + baseExtraPadding;
+    const finalWidth = Math.min(Math.max(estimatedWidth, minSafe), 650);
+
+    setColumnWidths(prev => {
+      const updated = { ...prev, [colKey]: finalWidth };
+      try {
+        localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(updated));
+      } catch (err) {}
+      return updated;
+    });
   };
 
   const token = localStorage.getItem('token');
@@ -4012,7 +4127,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       zIndex: pinned ? (isHeader ? 24 : 3) : (isHeader ? 20 : 1),
       background: isHeader ? 'var(--bg2)' : undefined,
       willChange: pinned ? 'transform' : undefined,
-      boxShadow: lastPin ? (isHeader ? '6px 0 16px -2px rgba(0,0,0,0.55)' : '4px 0 12px -3px rgba(0,0,0,0.4)') : undefined
+      borderRight: lastPin ? '2px solid var(--blue, #3b82f6)' : undefined
     };
   };
 
@@ -4396,8 +4511,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     {/* Column Resize Handle */}
                     <div
                       onMouseDown={(e) => handleResizeStart(e, colKey)}
+                      onDoubleClick={(e) => handleAutoFitColumn(colKey, e)}
                       onClick={(e) => e.stopPropagation()}
-                      title="Drag to resize column"
+                      title="Drag to resize. Double-click to auto-fit to content."
                       className="erp-resize-handle"
                     />
                   </th>

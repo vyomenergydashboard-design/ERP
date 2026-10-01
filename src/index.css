@@ -2467,13 +2467,11 @@ body.resizing-active * {
 .erp-th.last-pinned,
 .erp-td.last-pinned {
   border-right: 2px solid rgba(59, 130, 246, 0.45) !important;
-  box-shadow: 6px 0 16px -2px rgba(0, 0, 0, 0.55) !important;
 }
 
 [data-theme="light"] .erp-th.last-pinned,
 [data-theme="light"] .erp-td.last-pinned {
   border-right: 2px solid #3b82f6 !important;
-  box-shadow: 4px 0 12px -2px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* ── Row Hover & Selection Dynamics ── */
