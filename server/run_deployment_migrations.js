@@ -5,6 +5,27 @@ export async function runDeploymentMigrations(clientParam) {
   const shouldRelease = !clientParam;
 
   try {
+    // 0. Ensure critical columns exist on order_units immediately and independently
+    const criticalCols = [
+      'po_override_unlinked BOOLEAN DEFAULT FALSE',
+      'sales_cleared BOOLEAN DEFAULT FALSE',
+      'sales_cleared_at TIMESTAMP WITH TIME ZONE',
+      'sales_cleared_by INTEGER',
+      'design_confirmed BOOLEAN DEFAULT FALSE',
+      'design_confirmed_at TIMESTAMP WITH TIME ZONE',
+      'design_confirmed_by INTEGER',
+      'po_number TEXT',
+      'po_doc_id INTEGER',
+      'tag TEXT'
+    ];
+    for (const colDef of criticalCols) {
+      try {
+        await client.query(`ALTER TABLE order_units ADD COLUMN IF NOT EXISTS ${colDef}`);
+      } catch (colErr) {
+        console.warn(`[Deployment Migration] Column check notice (${colDef}):`, colErr.message);
+      }
+    }
+
     // 1. Ensure columns exist on order_units
     await client.query(`
       ALTER TABLE order_units 
