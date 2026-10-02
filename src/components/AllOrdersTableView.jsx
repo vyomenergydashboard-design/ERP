@@ -673,6 +673,22 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
   if (rawUnitStatus === 'dispatched' || isStatusDone(rawUnitStatus)) return 'Completed';
   if (unit.dept_steps?.some(s => String(s.status).toLowerCase() === 'blocked')) return 'Blocked';
 
+  const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
+  const filterDeptIdx = PIPELINE.indexOf(currentFilter);
+  const unitDeptIdx = PIPELINE.indexOf(unit.current_dept);
+
+  if (filterDeptIdx !== -1) {
+    if (unit.is_dept_completed === true || unit.is_downstream === true) {
+      return 'Completed';
+    }
+    if (unitDeptIdx !== -1 && unitDeptIdx > filterDeptIdx) {
+      return 'Completed';
+    }
+    if (currentFilter === 'Sales' && unit.current_dept && unit.current_dept !== 'Sales') {
+      return 'Completed';
+    }
+  }
+
   // Design workflow evaluation
   const isDesignWorkflow = currentFilter === 'Design' || userRole?.toLowerCase() === 'design';
   const stepsToCheck = isDesignWorkflow

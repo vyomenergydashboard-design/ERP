@@ -71,6 +71,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   const doneCount = steps.filter(s => s.status === 'done').length;
   const allDone = doneCount === steps.length && steps.length > 0;
   const hasBlocked = steps.some(s => s.status === 'blocked');
+  const isCompleted = unit.is_dept_completed === true || unit.is_downstream === true || allDone;
 
   const isHold = unit.hold_status === 'Hold' || 
                  unit.order_hold_status === 'Approved' || 
@@ -82,14 +83,17 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
 
   const getCanEditStep = (step) => {
     if (isHold || isCancelled) return false;
+    if (unit.is_downstream && !['admin', 'manager'].includes(currentUser.role?.toLowerCase())) return false;
     return ['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
   };
 
-  const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : allDone ? 'var(--green)' : 'transparent';
+  const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : isCompleted ? 'var(--green)' : 'transparent';
   const rowBg = isCancelled 
     ? (expanded ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
     : isHold
     ? (expanded ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.18)')
+    : isCompleted
+    ? (expanded ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.04)')
     : (expanded ? 'rgba(37, 99, 235, 0.22)' : 'transparent');
 
   return (
@@ -129,6 +133,18 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
         {/* Unit ID */}
         <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 700, color: 'var(--text)', fontSize: 13 }}>
           <div>{unit.unit_serial}</div>
+          {unit.current_dept && unit.current_dept !== dept && !isHold && !isCancelled && (
+            <div
+              title={`Panel completed in ${dept} and is currently in ${unit.current_dept}`}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, padding: '2px 8px',
+                borderRadius: 4, background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#10b981', fontSize: 10, fontWeight: 700
+              }}
+            >
+              <span>✓</span> Completed · Now in {unit.current_dept}
+            </div>
+          )}
           {isHold && (
             <div
               title={unit.hold_reason ? `On Hold: ${unit.hold_reason}` : 'Unit is on hold'}
@@ -223,10 +239,10 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
             fontSize: 12, fontWeight: 700,
-            color: allDone ? 'var(--green)' : hasBlocked ? 'var(--red)' : 'var(--text2)',
+            color: (isCompleted || allDone) ? 'var(--green)' : hasBlocked ? 'var(--red)' : 'var(--text2)',
           }}>
-            {allDone ? <CheckCircle2 size={13} /> : hasBlocked ? <AlertCircle size={13} /> : <Clock size={13} />}
-            {doneCount}/{steps.length}
+            {(isCompleted || allDone) ? <CheckCircle2 size={13} /> : hasBlocked ? <AlertCircle size={13} /> : <Clock size={13} />}
+            {steps.length === 0 && isCompleted ? 'Done' : `${doneCount}/${steps.length}`}
           </div>
         </td>
 
@@ -455,6 +471,17 @@ export default function DeptWorklist({ dept }) {
     }
   };
 
+  // Unit status evaluation helpers
+  const isHoldUnit = (u) => u.hold_status === 'Hold' || u.order_hold_status === 'Approved' || String(u.order_status || '').toLowerCase().startsWith('hold') || String(u.unit_status || '').toLowerCase().startsWith('hold') || (u.dept_steps || []).some(s => s.status === 'hold');
+  const isCancelledUnit = (u) => u.hold_status === 'Cancelled' || String(u.order_status || '').toLowerCase().startsWith('cancel') || String(u.unit_status || '').toLowerCase().startsWith('cancel') || (u.dept_steps || []).some(s => s.status === 'cancelled');
+
+  const isCompletedUnit = (u) => {
+    if (isHoldUnit(u) || isCancelledUnit(u)) return false;
+    if (u.is_dept_completed === true || u.is_downstream === true) return true;
+    const steps = u.dept_steps || [];
+    return steps.length > 0 && steps.every(s => s.status === 'done');
+  };
+
   // Filtering
   const filteredUnits = units.filter(u => {
     if (search.trim() !== '') {
@@ -476,31 +503,21 @@ export default function DeptWorklist({ dept }) {
       );
       if (!matchesAllTokens) return false;
     }
-    const isUnitHold = u.hold_status === 'Hold' || 
-                       u.order_hold_status === 'Approved' || 
-                       String(u.order_status || '').toLowerCase().startsWith('hold') || 
-                       String(u.unit_status || '').toLowerCase().startsWith('hold') || 
-                       (u.dept_steps || []).some(s => s.status === 'hold');
-
-    const isUnitCancelled = u.hold_status === 'Cancelled' || 
-                            String(u.order_status || '').toLowerCase().startsWith('cancel') || 
-                            String(u.unit_status || '').toLowerCase().startsWith('cancel') || 
-                            (u.dept_steps || []).some(s => s.status === 'cancelled');
+    const isUnitHold = isHoldUnit(u);
+    const isUnitCancelled = isCancelledUnit(u);
 
     if (filter === 'done') {
-      if (isUnitHold || isUnitCancelled) return false;
-      const steps = u.dept_steps || [];
-      return steps.length > 0 && steps.every(s => s.status === 'done');
+      return isCompletedUnit(u);
     }
     if (filter === 'inprogress') {
-      if (isUnitHold || isUnitCancelled) return false;
+      if (isUnitHold || isUnitCancelled || isCompletedUnit(u)) return false;
       const steps = u.dept_steps || [];
       const anyDone = steps.some(s => s.status === 'done');
       const allDone = steps.length > 0 && steps.every(s => s.status === 'done');
       return steps.some(s => s.status === 'inprogress' || s.status === 'review') || (anyDone && !allDone);
     }
     if (filter === 'pending') {
-      if (isUnitHold || isUnitCancelled) return false;
+      if (isUnitHold || isUnitCancelled || isCompletedUnit(u)) return false;
       const steps = u.dept_steps || [];
       return steps.every(s => s.status === 'pending') || steps.length === 0;
     }
@@ -570,11 +587,8 @@ export default function DeptWorklist({ dept }) {
 
 
   const totalUnits = units.length;
-  const isHoldUnit = (u) => u.hold_status === 'Hold' || u.order_hold_status === 'Approved' || String(u.order_status || '').toLowerCase().startsWith('hold') || String(u.unit_status || '').toLowerCase().startsWith('hold') || (u.dept_steps || []).some(s => s.status === 'hold');
-  const isCancelledUnit = (u) => u.hold_status === 'Cancelled' || String(u.order_status || '').toLowerCase().startsWith('cancel') || String(u.unit_status || '').toLowerCase().startsWith('cancel') || (u.dept_steps || []).some(s => s.status === 'cancelled');
-
-  const doneUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).every(s => s.status === 'done') && (u.dept_steps || []).length > 0).length;
-  const inProgUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).some(s => s.status === 'inprogress')).length;
+  const doneUnits = units.filter(isCompletedUnit).length;
+  const inProgUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && !isCompletedUnit(u) && (u.dept_steps || []).some(s => s.status === 'inprogress')).length;
   const blockedUnits = units.filter(u => !isHoldUnit(u) && !isCancelledUnit(u) && (u.dept_steps || []).some(s => s.status === 'blocked')).length;
   const holdUnits = units.filter(isHoldUnit).length;
   const cancelledUnits = units.filter(isCancelledUnit).length;
