@@ -38,7 +38,11 @@ export async function runDeploymentMigrations(clientParam) {
       ADD COLUMN IF NOT EXISTS tag TEXT,
       ADD COLUMN IF NOT EXISTS design_confirmed BOOLEAN DEFAULT FALSE,
       ADD COLUMN IF NOT EXISTS design_confirmed_at TIMESTAMP WITH TIME ZONE,
-      ADD COLUMN IF NOT EXISTS design_confirmed_by INTEGER REFERENCES users(id);
+      ADD COLUMN IF NOT EXISTS design_confirmed_by INTEGER REFERENCES users(id),
+      ADD COLUMN IF NOT EXISTS po_override_unlinked BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS sales_cleared BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS sales_cleared_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS sales_cleared_by INTEGER REFERENCES users(id);
 
       ALTER TABLE unit_steps
       ADD COLUMN IF NOT EXISTS hold_reason TEXT,
@@ -326,6 +330,13 @@ export async function runDeploymentMigrations(clientParam) {
         WHERE ou.order_id = o.id
           AND ou.hold_status NOT IN ('Hold', 'Cancelled')
           AND ou.status NOT IN ('Cancelled', 'Hold', 'On Hold')
+          AND COALESCE(ou.sales_cleared, false) = false
+          AND ou.po_doc_id IS NULL
+          AND (ou.po_number IS NULL OR ou.po_number = '')
+          AND NOT EXISTS (
+            SELECT 1 FROM documents d 
+            WHERE d.entity_type = 'Unit' AND d.entity_id = ou.id AND d.doc_type = 'PO'
+          )
           AND (
             NOT EXISTS (
               SELECT 1 FROM documents d 
