@@ -722,6 +722,23 @@ const initDB = async () => {
     console.error('Database initialization (init.sql) warning:', err.message || err);
   }
 
+  // Guarantee critical order_units columns exist on boot
+  for (const colDef of [
+    'po_override_unlinked BOOLEAN DEFAULT FALSE',
+    'sales_cleared BOOLEAN DEFAULT FALSE',
+    'sales_cleared_at TIMESTAMP WITH TIME ZONE',
+    'sales_cleared_by INTEGER',
+    'design_confirmed BOOLEAN DEFAULT FALSE',
+    'design_confirmed_at TIMESTAMP WITH TIME ZONE',
+    'design_confirmed_by INTEGER'
+  ]) {
+    try {
+      await pool.query(`ALTER TABLE order_units ADD COLUMN IF NOT EXISTS ${colDef}`);
+    } catch (e) {
+      console.warn(`[Bootstrap] order_units column check (${colDef}):`, e.message);
+    }
+  }
+
   try {
     await runDeploymentMigrations();
   } catch (err) {
@@ -2188,8 +2205,40 @@ app.post('/api/orders/:id/hold/resume', authorize(['Admin', 'Manager', 'Sales'])
   }
 });
 
+app.get('/api/diagnostic-status', async (req, res) => {
+  try {
+    const colRes = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'order_units' 
+        AND column_name IN ('sales_cleared', 'sales_cleared_at', 'sales_cleared_by', 'po_override_unlinked')
+    `);
+    const ordersCount = await pool.query('SELECT count(*) FROM orders');
+    const unitsCount = await pool.query('SELECT count(*) FROM order_units');
+    res.json({
+      serverTime: new Date().toISOString(),
+      columnsFound: colRes.rows.map(r => r.column_name),
+      ordersCount: ordersCount.rows[0].count,
+      unitsCount: unitsCount.rows[0].count,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/orders/realign-pipeline', authorize(['Admin', 'Manager']), async (req, res) => {
   try {
+    for (const colDef of [
+      'po_override_unlinked BOOLEAN DEFAULT FALSE',
+      'sales_cleared BOOLEAN DEFAULT FALSE',
+      'sales_cleared_at TIMESTAMP WITH TIME ZONE',
+      'sales_cleared_by INTEGER'
+    ]) {
+      try {
+        await pool.query(`ALTER TABLE order_units ADD COLUMN IF NOT EXISTS ${colDef}`);
+      } catch (colErr) {
+        console.warn(`[Realign Pipeline] Column check notice (${colDef}):`, colErr.message);
+      }
+    }
     await runDeploymentMigrations();
     const allUnits = await pool.query('SELECT id FROM order_units');
     for (const u of allUnits.rows) {
