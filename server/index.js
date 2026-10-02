@@ -4560,22 +4560,36 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         u_conf.username AS design_confirmed_by_name,
         oli.quantity   AS batch_qty,
         (
-          SELECT json_agg(
-            json_build_object(
-              'id', us.id,
-              'name', us.name,
-              'status', us.status,
-              'dept', us.dept,
-              'notes', us.notes,
-              'updated', us.updated,
-              'hold_reason', us.hold_reason,
-              'held_by', us.held_by,
-              'hold_at', us.hold_at,
-              'assigned_user_id', us.assigned_user_id
-            ) ORDER BY us.id
-          )
-          FROM unit_steps us
-          WHERE us.order_unit_id = ou.id AND us.dept = (CASE WHEN $1 = 'Sales' THEN ou.current_dept ELSE $1 END)
+          SELECT json_agg(sub.step_obj)
+          FROM (
+            SELECT json_build_object(
+              'id', s.id,
+              'name', s.name,
+              'status', s.status,
+              'dept', s.dept,
+              'notes', s.notes,
+              'updated', s.updated,
+              'hold_reason', s.hold_reason,
+              'held_by', s.held_by,
+              'hold_at', s.hold_at,
+              'assigned_user_id', s.assigned_user_id
+            ) AS step_obj,
+            s.step_order,
+            s.id
+            FROM (
+              SELECT us.id, us.name, us.status, us.dept, us.notes, us.updated, us.hold_reason, us.held_by, us.hold_at, us.assigned_user_id, us.step_order
+              FROM unit_steps us
+              WHERE us.order_unit_id = ou.id 
+                AND us.dept = (CASE WHEN $1 = 'all' THEN ou.current_dept ELSE $1 END)
+              UNION ALL
+              SELECT os.id, os.name, os.status, os.dept, os.notes, os.updated, NULL::text AS hold_reason, NULL::text AS held_by, NULL::timestamptz AS hold_at, NULL::integer AS assigned_user_id, os.step_order
+              FROM order_steps os
+              WHERE os.order_id = o.id 
+                AND os.dept = 'Sales'
+                AND ($1 = 'Sales' OR ($1 = 'all' AND ou.current_dept = 'Sales'))
+            ) s
+            ORDER BY s.step_order ASC NULLS LAST, s.id ASC
+          ) sub
         ) AS dept_steps,
         (
           SELECT json_agg(
@@ -4614,7 +4628,36 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
           SELECT count(*)::int
           FROM order_steps os
           WHERE os.order_id = o.id AND os.status = 'done'
-        ) AS order_done_step_count
+        ) AS order_done_step_count,
+        CASE 
+          WHEN $1 != 'all' AND (
+            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
+            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+            OR (ou.status IN ('Dispatched', 'Completed') AND $1 != 'Accounts')
+          )
+          THEN true 
+          ELSE false 
+        END AS is_downstream,
+        CASE 
+          WHEN $1 != 'all' AND (
+            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
+            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+            OR ou.status IN ('Dispatched', 'Completed')
+            OR (
+              ou.current_dept = $1 AND NOT EXISTS (
+                SELECT 1 FROM unit_steps us 
+                WHERE us.order_unit_id = ou.id AND us.dept = $1 AND us.status != 'done'
+              ) AND (
+                $1 != 'Sales' OR NOT EXISTS (
+                  SELECT 1 FROM order_steps os 
+                  WHERE os.order_id = o.id AND os.dept = 'Sales' AND os.status != 'done'
+                )
+              )
+            )
+          )
+          THEN true
+          ELSE false
+        END AS is_dept_completed
       FROM order_units ou
       JOIN orders o         ON ou.order_id = o.id
       JOIN order_line_items oli ON ou.line_item_id = oli.id
@@ -4643,6 +4686,11 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       ) oindentdoc ON true
       WHERE $1 = 'all' 
          OR ou.current_dept = $1 
+         OR (
+           array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
+           array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+         )
+         OR (ou.status IN ('Dispatched', 'Completed') AND $1 != 'Accounts')
          OR ou.hold_status IN ('Hold', 'Cancelled')
          OR ou.status = 'Cancelled'
          OR ou.status ILIKE 'hold%'
