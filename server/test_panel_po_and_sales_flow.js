@@ -241,6 +241,75 @@ async function runTests() {
     assert(u1AfterClear.sales_cleared === false, 'Sibling Unit 1 sales_cleared must remain false');
     console.log('✓ Test 4 Passed: Manual panel sales clear without PO applies strictly to individual panel.');
 
+    // -------------------------------------------------------------
+    // Test 5: Verify BOTH PO document and PO number are strictly required
+    // -------------------------------------------------------------
+    console.log('\nTest 5: Verifying both PO document AND PO number are required for auto-advancement...');
+    const createForm5 = new FormData();
+    createForm5.append('company_location_id', String(locId));
+    createForm5.append('order_date', '2026-10-02');
+    createForm5.append('priority', 'Low');
+    createForm5.append('lineItems', JSON.stringify([
+      { material_description: 'Test Gating Panel', quantity: 1, unit: 'Nos', unit_price: 1500, total_price: 1500 }
+    ]));
+    const createRes5 = await fetch(`${API_BASE}/api/orders`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: createForm5
+    });
+    const order5 = (await createRes5.json()).order;
+    const unit5Res = await pool.query('SELECT id, current_dept FROM order_units WHERE order_id = $1', [order5.id]);
+    const unit5 = unit5Res.rows[0];
+    assert(unit5.current_dept === 'Sales', 'Unit 5 starts in Sales');
+
+    // 5A: Set po_number only (no document)
+    await fetch(`${API_BASE}/api/units/${unit5.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ po_number: 'PO-TEXT-ONLY-123' })
+    });
+    const u5AfterPoNum = (await pool.query('SELECT current_dept, po_number, po_doc_id FROM order_units WHERE id = $1', [unit5.id])).rows[0];
+    console.log(`Unit 5 with po_number only: dept=${u5AfterPoNum.current_dept}`);
+    assert(u5AfterPoNum.current_dept === 'Sales', `Unit with ONLY po_number must stay in Sales (got ${u5AfterPoNum.current_dept})`);
+
+    // 5B: Now upload PO document for Unit 5
+    const uploadForm5 = new FormData();
+    uploadForm5.append('entity_type', 'Unit');
+    uploadForm5.append('entity_id', String(unit5.id));
+    uploadForm5.append('doc_type', 'PO');
+    uploadForm5.append('files', new Blob(['%PDF-1.4 unit 5 po document'], { type: 'application/pdf' }), 'unit5_po.pdf');
+    const uploadRes5 = await fetch(`${API_BASE}/api/documents/upload`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${salesToken}` },
+      body: uploadForm5
+    });
+    assert(uploadRes5.status === 200 || uploadRes5.status === 201, `Upload PO doc for Unit 5 returned 200/201 (got ${uploadRes5.status})`);
+
+    const u5AfterDoc = (await pool.query('SELECT current_dept, po_number, po_doc_id FROM order_units WHERE id = $1', [unit5.id])).rows[0];
+    console.log(`Unit 5 with BOTH doc and po_number: dept=${u5AfterDoc.current_dept}, po_number=${u5AfterDoc.po_number}, po_doc_id=${u5AfterDoc.po_doc_id}`);
+    assert(u5AfterDoc.current_dept === 'Design', `Unit with BOTH PO doc and PO number must auto-advance to Design (got ${u5AfterDoc.current_dept})`);
+
+    // 5C: Clear po_number on Unit 5 (PO doc remains)
+    await fetch(`${API_BASE}/api/units/${unit5.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ po_number: '' })
+    });
+    const u5AfterClearPoNum = (await pool.query('SELECT current_dept, po_number FROM order_units WHERE id = $1', [unit5.id])).rows[0];
+    console.log(`Unit 5 after clearing po_number: dept=${u5AfterClearPoNum.current_dept}`);
+    assert(u5AfterClearPoNum.current_dept === 'Sales', `Unit without po_number must drop back to Sales (got ${u5AfterClearPoNum.current_dept})`);
+
+    // 5D: Re-add po_number
+    await fetch(`${API_BASE}/api/units/${unit5.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${adminToken}` },
+      body: JSON.stringify({ po_number: 'PO-RESTORED-456' })
+    });
+    const u5AfterRestore = (await pool.query('SELECT current_dept, po_number FROM order_units WHERE id = $1', [unit5.id])).rows[0];
+    console.log(`Unit 5 after restoring po_number: dept=${u5AfterRestore.current_dept}`);
+    assert(u5AfterRestore.current_dept === 'Design', `Unit with PO restored must return to Design (got ${u5AfterRestore.current_dept})`);
+    console.log('✓ Test 5 Passed: Strictly both PO document and PO number trigger auto-advancement.');
+
     console.log('\n--- All Panel PO and Sales Flow Tests in this run passed successfully! ---');
   } catch (err) {
     console.error('✗ Test failed:', err.message);

@@ -319,7 +319,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, o.classification, o.hold_status as order_hold_status
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -364,27 +364,63 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
     [unitId]
   );
 
+  // Check individual panel PO resolution
+  const isSalesCleared = row.sales_cleared === true;
+  const isUnlinked = row.po_override_unlinked === true;
+  const unitPoNum = row.unit_po_number ? String(row.unit_po_number).trim() : '';
+  const orderPoNum = (!isUnlinked && row.order_po_number) ? String(row.order_po_number).trim() : '';
+  const resolvedPoNumber = unitPoNum || orderPoNum;
+  const hasPoNumber = Boolean(resolvedPoNumber);
+
+  let hasPoDoc = false;
+  if (row.po_doc_id) {
+    hasPoDoc = true;
+  } else {
+    const unitDocRes = await clientOrPool.query(
+      `SELECT 1 FROM documents WHERE entity_type = 'Unit' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1`,
+      [unitId]
+    );
+    if (unitDocRes.rows.length > 0) {
+      hasPoDoc = true;
+    } else if (!isUnlinked) {
+      const orderDocRes = await clientOrPool.query(
+        `SELECT 1 FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1`,
+        [orderId]
+      );
+      if (orderDocRes.rows.length > 0) {
+        hasPoDoc = true;
+      }
+    }
+  }
+
+  const hasPanelPo = hasPoDoc && hasPoNumber;
+
   // Check if Sales order-level steps (like Upload PO) are completed (non-mandatory tasks do not block pipeline)
   const salesOrderStepsRes = await clientOrPool.query(
-    `SELECT os.status, COALESCE(tm.is_mandatory, true) as is_mandatory 
+    `SELECT os.status, os.name, COALESCE(tm.is_mandatory, true) as is_mandatory 
      FROM order_steps os
      LEFT JOIN task_masters tm ON os.task_id = tm.id
      WHERE os.order_id = $1 AND os.dept = 'Sales'`,
     [orderId]
   );
   
-  // If there are Sales order steps, check that all mandatory ones are done.
-  // If there are no Sales order steps at all, check if a PO document was uploaded.
-  let isSalesDone = false;
-  if (salesOrderStepsRes.rows.length > 0) {
-    isSalesDone = salesOrderStepsRes.rows.every(s => s.status === 'done' || s.is_mandatory === false);
-  } else {
+  const uploadPoOrderStep = salesOrderStepsRes.rows.find(s => s.name === 'Upload PO');
+  const orderPoStepDone = uploadPoOrderStep ? (uploadPoOrderStep.status === 'done' && !isUnlinked) : false;
+  const otherSalesOrderStepsPending = salesOrderStepsRes.rows.some(
+    s => s.name !== 'Upload PO' && s.is_mandatory && s.status !== 'done'
+  );
+
+  let hasOrderDocFallback = false;
+  if (salesOrderStepsRes.rows.length === 0 && !isUnlinked) {
     const poDocCheck = await clientOrPool.query(
       `SELECT 1 FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1`,
       [orderId]
     );
-    isSalesDone = poDocCheck.rows.length > 0;
+    hasOrderDocFallback = poDocCheck.rows.length > 0;
   }
+
+  const isPoSatisfied = hasPanelPo || orderPoStepDone || isSalesCleared || hasOrderDocFallback;
+  const isSalesDone = isPoSatisfied && !otherSalesOrderStepsPending;
 
   let newStatus = 'Pending';
   let newDept = 'Sales';
@@ -394,7 +430,7 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
     [unitId]
   );
 
-  // A panel stays in Sales until Sales order steps AND unit Sales Clearance steps are done
+  // A panel stays in Sales until Sales is done AND any unit Sales Clearance steps are done
   const hasUnitSalesPending = stepsRes.rows.some(s => s.dept === 'Sales' && s.status !== 'done');
   if (!isSalesDone || hasUnitSalesPending) {
     newDept = 'Sales';
@@ -4261,6 +4297,8 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       if (!cleanPo) {
         updates.push(`po_doc_id = $${idx++}`);
         values.push(null);
+      } else {
+        updates.push('po_override_unlinked = false');
       }
     }
 
@@ -4308,6 +4346,12 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
         [updatedStr, realId]
       );
       await syncUnitDesignDocumentStatus(pool, realId, req.user.id);
+    } else {
+      try {
+        await deriveUnitStatus(realId, pool);
+      } catch (dErr) {
+        console.warn('deriveUnitStatus warn in update unit:', dErr);
+      }
     }
 
     let logAction = `Updated unit ${unit.unit_id}`;
@@ -4525,12 +4569,16 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.cancelled_at,
         o.id           AS order_id,
         o.order_number,
-        COALESCE(ou.po_number, o.po_number) AS po_number,
+        CASE WHEN COALESCE(ou.po_override_unlinked, false) = true THEN ou.po_number ELSE COALESCE(ou.po_number, o.po_number) END AS po_number,
         ou.po_number   AS unit_po_number,
         o.po_number    AS order_po_number,
         ou.po_doc_id,
-        COALESCE(podoc.file_path, opodoc.file_path) AS po_file_path,
-        COALESCE(podoc.file_name, opodoc.file_name) AS po_file_name,
+        ou.po_override_unlinked,
+        ou.sales_cleared,
+        ou.sales_cleared_at,
+        ou.sales_cleared_by,
+        CASE WHEN COALESCE(ou.po_override_unlinked, false) = true THEN podoc.file_path ELSE COALESCE(podoc.file_path, opodoc.file_path) END AS po_file_path,
+        CASE WHEN COALESCE(ou.po_override_unlinked, false) = true THEN podoc.file_name ELSE COALESCE(podoc.file_name, opodoc.file_name) END AS po_file_name,
         o.reference_number,
         COALESCE(ou.tag, oli.tag) AS tag,
         oindentdoc.file_path AS indent_file_path,
@@ -4936,6 +4984,27 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
       }
     }
 
+    if (hasPO && entity_type === 'Unit' && savedDocs.length > 0) {
+      const poDoc = savedDocs[0];
+      const poNum = req.body.po_number;
+      if (poNum && poNum.trim()) {
+        await pool.query(
+          'UPDATE order_units SET po_doc_id = $1, po_number = $2, po_override_unlinked = false WHERE id = $3',
+          [poDoc.id, poNum.trim(), entity_id]
+        );
+      } else {
+        await pool.query(
+          'UPDATE order_units SET po_doc_id = $1, po_override_unlinked = false WHERE id = $2',
+          [poDoc.id, entity_id]
+        );
+      }
+      try {
+        await deriveUnitStatus(entity_id, pool);
+      } catch (dErr) {
+        console.warn('deriveUnitStatus warn in upload unit PO:', dErr);
+      }
+    }
+
     const isDesignDoc = ['drawing', 'bom', 'bill of materials'].includes(String(doc_type || '').toLowerCase());
     if (isDesignDoc) {
       if (entity_type === 'Unit') {
@@ -5027,12 +5096,12 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     // 2. Update order_units table for all selected unit IDs
     await pool.query(
       `UPDATE order_units
-       SET po_number = $1, po_doc_id = $2
+       SET po_number = $1, po_doc_id = $2, po_override_unlinked = false
        WHERE id = ANY($3::int[])`,
       [cleanPo, savedDoc.id, unit_ids]
     );
 
-    // 3. Update orders table po_number if not already set AND all units in this order are included
+    // 3. Update orders table po_number if all units in this order have POs
     const orderIds = [...new Set(unitRes.rows.map(u => u.order_id).filter(Boolean))];
     if (orderIds.length > 0) {
       for (const ordId of orderIds) {
@@ -5040,8 +5109,17 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
         const totalUnits = parseInt(totalUnitsRes.rows[0]?.total || 0);
         const selectedUnitsInOrder = unitRes.rows.filter(u => u.order_id === ordId).length;
 
-        // Only update order-level PO if all units of this order are included
-        if (selectedUnitsInOrder >= totalUnits) {
+        const unitsWithoutPoRes = await pool.query(
+          `SELECT COUNT(*) as cnt FROM order_units 
+           WHERE order_id = $1 
+             AND (po_number IS NULL OR po_number = '' OR (po_doc_id IS NULL AND po_override_unlinked = true))
+             AND COALESCE(sales_cleared, false) = false`,
+          [ordId]
+        );
+        const allUnitsHavePo = parseInt(unitsWithoutPoRes.rows[0]?.cnt || 0) === 0;
+
+        // Only update order-level PO if all units of this order are included or have POs
+        if (selectedUnitsInOrder >= totalUnits || allUnitsHavePo) {
           await pool.query(
             `UPDATE orders SET po_number = $1 WHERE id = $2 AND (po_number IS NULL OR po_number = '')`,
             [cleanPo, ordId]
@@ -5056,14 +5134,14 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
               [ordId, req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
             );
           }
-        }
 
-        // Auto-resolve 'Upload PO' milestone in order_steps
-        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        await pool.query(
-          `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
-          [`PO #${cleanPo} uploaded.`, updatedStr, ordId]
-        );
+          // Auto-resolve 'Upload PO' milestone in order_steps
+          const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+          await pool.query(
+            `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
+            [`PO #${cleanPo} uploaded.`, updatedStr, ordId]
+          );
+        }
       }
     }
 
@@ -5121,12 +5199,16 @@ app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']
     // Check if unit has a specific po_doc_id
     if (unit.po_doc_id) {
       const oldDocId = unit.po_doc_id;
-      // 1. Unlink from this unit
-      await pool.query('UPDATE order_units SET po_doc_id = NULL WHERE id = $1', [unit.id]);
+      // 1. Unlink and clear PO data from this unit
+      await pool.query(
+        'UPDATE order_units SET po_doc_id = NULL, po_number = NULL, po_override_unlinked = true WHERE id = $1',
+        [unit.id]
+      );
 
-      // 2. Check if any other units still reference this document
+      // 2. Check if any other units or orders still reference this document
       const otherRef = await pool.query('SELECT id FROM order_units WHERE po_doc_id = $1 LIMIT 1', [oldDocId]);
-      if (otherRef.rows.length === 0) {
+      const ordRef = await pool.query("SELECT id FROM documents WHERE id = $1 AND entity_type = 'Order' LIMIT 1", [oldDocId]);
+      if (otherRef.rows.length === 0 && ordRef.rows.length === 0) {
         const docRes = await pool.query('SELECT file_path FROM documents WHERE id = $1', [oldDocId]);
         if (docRes.rows.length > 0 && docRes.rows[0].file_path && fs.existsSync(docRes.rows[0].file_path)) {
           try { fs.unlinkSync(docRes.rows[0].file_path); } catch (e) { console.warn('Failed to delete file from disk:', e); }
@@ -5134,31 +5216,63 @@ app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']
         await pool.query('DELETE FROM documents WHERE id = $1', [oldDocId]);
       }
     } else {
-      // If no unit-level po_doc_id, check if there is an order-level PO document
-      const orderDocRes = await pool.query(
-        "SELECT id, file_path FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO'",
-        [unit.order_id]
+      // If no unit-level po_doc_id, mark this unit as unlinked from the shared order PO
+      // and nullify its po_number. Do NOT delete the shared order PO document.
+      await pool.query(
+        'UPDATE order_units SET po_override_unlinked = true, po_number = NULL, po_doc_id = NULL WHERE id = $1',
+        [unit.id]
       );
-      if (orderDocRes.rows.length > 0) {
-        for (const doc of orderDocRes.rows) {
-          if (doc.file_path && fs.existsSync(doc.file_path)) {
-            try { fs.unlinkSync(doc.file_path); } catch (e) { console.warn('Failed to delete order PO file:', e); }
-          }
-          await pool.query('DELETE FROM documents WHERE id = $1', [doc.id]);
-        }
-      }
     }
+
+    // 3. Immediately re-derive unit status so this unit returns to Sales
+    await deriveUnitStatus(unit.id, pool);
 
     // Write activity log
     await pool.query(
       `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
-      [req.user.id, unit.order_id, req.user.role, `Removed PO PDF document for serial ${unit.short_serial || unit.unit_id}`]
+      [req.user.id, unit.order_id, req.user.role, `Removed PO document for serial ${unit.short_serial || unit.unit_id}`]
     );
 
-    res.json({ success: true, message: 'PO PDF document removed successfully.' });
+    res.json({ success: true, message: 'PO document removed successfully.' });
   } catch (err) {
     console.error('Error removing unit PO document:', err);
     res.status(500).json({ error: 'Failed to remove PO document: ' + (err.message || err) });
+  }
+});
+
+app.post('/api/units/:id/sales-clear', authorize(['Sales', 'Admin', 'Manager']), async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).json({ error: 'Unit ID is required' });
+
+  try {
+    const numId = !isNaN(Number(id)) ? Number(id) : -1;
+    const unitRes = await pool.query(
+      'SELECT id, order_id, unit_id, short_serial FROM order_units WHERE id = $1 OR unit_id = $2',
+      [numId, String(id)]
+    );
+    if (unitRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Unit not found' });
+    }
+    const unit = unitRes.rows[0];
+
+    await pool.query(
+      `UPDATE order_units 
+       SET sales_cleared = true, sales_cleared_at = NOW(), sales_cleared_by = $1 
+       WHERE id = $2`,
+      [req.user.id, unit.id]
+    );
+
+    await deriveUnitStatus(unit.id, pool);
+
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
+      [req.user.id, unit.order_id, req.user.role, `Manually cleared serial ${unit.short_serial || unit.unit_id} from Sales`]
+    );
+
+    res.json({ success: true, message: `Panel ${unit.unit_id} cleared from Sales.` });
+  } catch (err) {
+    console.error('Error clearing panel from Sales:', err);
+    res.status(500).json({ error: 'Failed to clear panel from Sales: ' + (err.message || err) });
   }
 });
 

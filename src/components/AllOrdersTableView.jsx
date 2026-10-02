@@ -4064,7 +4064,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       return;
     }
     const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
-    if (!window.confirm(`Are you sure you want to remove the PO PDF document for serial ${serial}? The PO number will be kept as text.`)) {
+    if (!window.confirm(`Are you sure you want to remove the PO for serial ${serial}? This will return the panel to Sales.`)) {
       return;
     }
 
