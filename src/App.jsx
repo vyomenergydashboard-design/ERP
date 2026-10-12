@@ -505,7 +505,7 @@ function Dashboard() {
                   setUnitSteps={setUnitSteps}
                 />
               ) : (
-                <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>
+                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
                   Please select an order from the Header dropdown to view its Process Flow.
                 </div>
               )

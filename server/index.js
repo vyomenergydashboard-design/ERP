@@ -403,7 +403,7 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
      WHERE os.order_id = $1 AND os.dept = 'Sales'`,
     [orderId]
   );
-  
+
   const uploadPoOrderStep = salesOrderStepsRes.rows.find(s => s.name === 'Upload PO');
   const orderPoStepDone = uploadPoOrderStep ? (uploadPoOrderStep.status === 'done' && !isUnlinked) : false;
   const otherSalesOrderStepsPending = salesOrderStepsRes.rows.some(

@@ -1912,7 +1912,6 @@ export default function PlanningModule() {
                     onDragLeave={(e) => handleDragLeave(e, colId)}
                     onDrop={(e) => handleDrop(e, colId)}
                     onDragEnd={handleDragEnd}
-                    title="Drag to reorder column. Click pin to freeze."
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
                       <div 
@@ -2503,8 +2502,8 @@ export default function PlanningModule() {
           justify-content: space-between;
           align-items: center;
           gap: 16px;
-          background: var(--bg2, #14161a);
-          border: 1px solid var(--border, #2a2f3a);
+          background: var(--bg2, #1c202b);
+          border: 1px solid var(--border, #2e3547);
           border-radius: var(--radius-lg, 10px);
           padding: 12px 16px;
         }
@@ -2520,24 +2519,24 @@ export default function PlanningModule() {
         .search-icon {
           position: absolute;
           left: 12px;
-          color: var(--text3, #5a6070);
+          color: var(--text3, #78889e);
           pointer-events: none;
         }
 
         .search-box input {
           width: 100%;
-          background: var(--bg, #0e0f11);
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg, #151821);
+          border: 1px solid var(--border2, #3f475c);
           border-radius: var(--radius, 6px);
           padding: 8px 12px 8px 36px;
-          color: var(--text, #e8eaf0);
+          color: var(--text, #e6edf3);
           font-size: 13px;
           outline: none;
           transition: border-color 0.15s;
         }
 
         .search-box input:focus {
-          border-color: var(--accent, #f59e0b);
+          border-color: var(--accent, #f97316);
         }
 
         .filter-group {
@@ -2556,29 +2555,29 @@ export default function PlanningModule() {
           font-family: var(--font-mono, monospace);
           text-transform: uppercase;
           letter-spacing: 1px;
-          color: var(--text3, #5a6070);
+          color: var(--text3, #78889e);
         }
 
         .filter-select-wrapper select {
-          background: var(--bg, #0e0f11);
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg, #151821);
+          border: 1px solid var(--border2, #3f475c);
           border-radius: var(--radius, 6px);
           padding: 6px 12px;
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
           font-size: 12px;
           outline: none;
           cursor: pointer;
         }
 
         .filter-select-wrapper select:focus {
-          border-color: var(--accent, #f59e0b);
-          color: var(--text, #e8eaf0);
+          border-color: var(--accent, #f97316);
+          color: var(--text, #e6edf3);
         }
 
         /* ─── Table ─── */
         .table-responsive {
-          background: var(--bg2, #14161a);
-          border: 1px solid var(--border, #2a2f3a);
+          background: var(--bg2, #1c202b);
+          border: 1px solid var(--border, #2e3547);
           border-radius: var(--radius-lg, 10px);
           overflow-x: auto;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
@@ -2598,12 +2597,12 @@ export default function PlanningModule() {
         }
 
         .planning-table th {
-          background: var(--bg2, #14161a);
-          border-bottom: 1px solid var(--border, #2a2f3a);
+          background: var(--bg2, #1c202b);
+          border-bottom: 1px solid var(--border, #2e3547);
           padding: 12px 14px;
           font-family: var(--font-mono, monospace);
           font-size: 10px;
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
           text-transform: uppercase;
           letter-spacing: 1px;
           font-weight: 500;
@@ -2618,26 +2617,26 @@ export default function PlanningModule() {
           position: sticky !important;
           left: 0;
           z-index: 3 !important;
-          background: var(--bg2, #14161a) !important;
+          background: var(--bg2, #1c202b) !important;
           box-shadow: 2px 0 6px rgba(0,0,0,0.3);
         }
 
         .col-sticky-td {
-          background: var(--bg2, #14161a);
+          background: var(--bg2, #1c202b);
           box-shadow: 2px 0 6px rgba(0,0,0,0.3);
         }
 
         .planning-row:hover .col-sticky-td {
-          background: #1a1d23;
+          background: var(--row-hover-bg, #222735);
         }
 
         .planning-row {
-          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
           transition: background 0.15s;
         }
 
         .planning-row:hover {
-          background: #1a1d23;
+          background: var(--row-hover-bg, #222735);
         }
 
         .planning-row.row-hold {
@@ -2861,8 +2860,8 @@ export default function PlanningModule() {
           align-items: center;
           justify-content: space-between;
           gap: 16px;
-          background: var(--bg2, #14161a);
-          border: 1px solid var(--border, #2a2f3a);
+          background: var(--bg2, #1c202b);
+          border: 1px solid var(--border, #2e3547);
           border-radius: var(--radius-lg, 10px);
           padding: 10px 16px;
           flex-wrap: wrap;
@@ -2877,7 +2876,7 @@ export default function PlanningModule() {
         .row-count {
           font-family: var(--font-mono, monospace);
           font-size: 11px;
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
         }
 
         .page-size-control {
@@ -2885,15 +2884,15 @@ export default function PlanningModule() {
           align-items: center;
           gap: 8px;
           font-size: 11px;
-          color: var(--text3, #5a6070);
+          color: var(--text3, #78889e);
         }
 
         .page-size-control select {
-          background: var(--bg, #0e0f11);
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg, #151821);
+          border: 1px solid var(--border2, #3f475c);
           border-radius: 5px;
           padding: 4px 8px;
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
           font-size: 11px;
           outline: none;
           cursor: pointer;
@@ -2901,7 +2900,7 @@ export default function PlanningModule() {
         }
 
         .page-size-control select:focus {
-          border-color: var(--accent, #f59e0b);
+          border-color: var(--accent, #f97316);
         }
 
         .pagination-nav {
@@ -2917,10 +2916,10 @@ export default function PlanningModule() {
           min-width: 30px;
           height: 30px;
           padding: 0 6px;
-          background: var(--bg, #0e0f11);
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg, #151821);
+          border: 1px solid var(--border2, #3f475c);
           border-radius: 6px;
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
           font-size: 12px;
           font-family: var(--font-mono, monospace);
           cursor: pointer;
@@ -2929,9 +2928,9 @@ export default function PlanningModule() {
         }
 
         .pg-btn:hover:not(:disabled) {
-          border-color: var(--accent, #f59e0b);
-          color: var(--text, #e8eaf0);
-          background: rgba(245,158,11,0.06);
+          border-color: var(--accent, #f97316);
+          color: var(--text, #e6edf3);
+          background: rgba(249, 115, 22, 0.08);
         }
 
         .pg-btn:disabled {
@@ -2940,9 +2939,9 @@ export default function PlanningModule() {
         }
 
         .pg-btn.active {
-          background: var(--accent, #f59e0b);
-          border-color: var(--accent, #f59e0b);
-          color: #000;
+          background: var(--accent, #f97316);
+          border-color: var(--accent, #f97316);
+          color: #fff;
           font-weight: 700;
         }
 
@@ -2968,7 +2967,7 @@ export default function PlanningModule() {
           font-size: 10px;
           font-family: var(--font-mono, monospace);
           text-transform: uppercase;
-          color: var(--text3, #5a6070);
+          color: var(--text3, #78889e);
           letter-spacing: 0.5px;
         }
 
@@ -3000,8 +2999,8 @@ export default function PlanningModule() {
           position: sticky !important;
           left: 0;
           z-index: 3 !important;
-          background: var(--bg2, #14161a) !important;
-          border-right: 1px solid var(--border, #2a2f3a);
+          background: var(--bg2, #1c202b) !important;
+          border-right: 1px solid var(--border, #2e3547);
           width: 40px;
           min-width: 40px;
           text-align: center;
@@ -3010,7 +3009,7 @@ export default function PlanningModule() {
 
         .col-sticky-checkbox input[type="checkbox"] {
           cursor: pointer;
-          accent-color: var(--accent, #f59e0b);
+          accent-color: var(--accent, #f97316);
           width: 14px;
           height: 14px;
           vertical-align: middle;
@@ -3019,7 +3018,7 @@ export default function PlanningModule() {
         .col-sticky-first {
           position: sticky !important;
           z-index: 3 !important;
-          background: var(--bg2, #14161a) !important;
+          background: var(--bg2, #1c202b) !important;
           box-shadow: 2px 0 6px rgba(0, 0, 0, 0.3);
         }
 
@@ -3066,11 +3065,11 @@ export default function PlanningModule() {
 
         .inline-edit-input, .inline-edit-select {
           width: 100%;
-          background: var(--bg, #0e0f11);
-          border: 1px solid var(--accent, #f59e0b);
+          background: var(--bg, #151821);
+          border: 1px solid var(--accent, #f97316);
           border-radius: 4px;
           padding: 4px 6px;
-          color: var(--text, #e8eaf0);
+          color: var(--text, #e6edf3);
           font-size: 11px;
           outline: none;
           font-family: inherit;
@@ -3248,19 +3247,19 @@ export default function PlanningModule() {
 
         /* ── Grouping Styles ── */
         .group-header-row {
-          background: var(--bg2, #14161a) !important;
+          background: var(--bg2, #1c202b) !important;
           cursor: pointer;
           user-select: none;
           transition: background-color 0.15s;
         }
         .group-header-row:hover {
-          background: rgba(255, 255, 255, 0.02) !important;
+          background: rgba(255, 255, 255, 0.04) !important;
         }
         .group-header-row.primary {
-          border-bottom: 2px solid var(--border2, #363d4a);
+          border-bottom: 2px solid var(--border2, #3f475c);
         }
         .group-header-row.secondary {
-          border-bottom: 1px dashed var(--border, #2a2f3a);
+          border-bottom: 1px dashed var(--border, #2e3547);
         }
         .group-header-content {
           display: flex;

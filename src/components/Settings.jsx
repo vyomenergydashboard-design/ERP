@@ -444,8 +444,8 @@ export default function SettingsView() {
 
         .settings-content {
           flex: 1;
-          background: #14161a;
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg2, #1c202b);
+          border: 1px solid var(--border, #2e3547);
           border-radius: 12px;
           padding: 24px 30px;
           min-height: 400px;
@@ -454,15 +454,15 @@ export default function SettingsView() {
         .section-title {
           margin-top: 0;
           margin-bottom: 20px;
-          color: #fff;
+          color: var(--text, #e6edf3);
           font-size: 16px;
           font-weight: 600;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          border-bottom: 1px solid var(--border, #2e3547);
           padding-bottom: 10px;
         }
 
         .section-title.text-danger {
-          color: #f87171;
+          color: var(--red, #f87171);
         }
 
         .form-group {
@@ -482,17 +482,17 @@ export default function SettingsView() {
         }
 
         .form-group label {
-          color: var(--text2, #8a93a8);
+          color: var(--text2, #94a3b8);
           font-size: 12px;
           font-weight: 500;
         }
 
         .form-group input[type="text"],
         .form-group select {
-          background: #0e0f11;
-          border: 1px solid var(--border2, #363d4a);
+          background: var(--bg, #151821);
+          border: 1px solid var(--border2, #3f475c);
           border-radius: 6px;
-          color: var(--text, #e8eaf0);
+          color: var(--text, #e6edf3);
           padding: 10px 12px;
           font-size: 13px;
           outline: none;

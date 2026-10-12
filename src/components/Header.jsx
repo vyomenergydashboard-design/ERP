@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { LogOut, User, Search, Sun, Moon, Menu } from 'lucide-react';
+import { LogOut, User, Search, Sun, Moon, Menu, Clock } from 'lucide-react';
 
 export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
@@ -267,15 +267,15 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
                       </span>
                       {item.isHold && (
                         <span style={{
-                          background: 'rgba(245, 158, 11, 0.2)', color: '#f59e0b',
-                          border: '1px solid rgba(245, 158, 11, 0.4)', borderRadius: 3,
+                          background: 'var(--orange-dim)', color: 'var(--orange)',
+                          border: '1px solid rgba(249, 115, 22, 0.4)', borderRadius: 'var(--radius-sm, 4px)',
                           fontSize: 9, fontWeight: 800, padding: '1px 5px', letterSpacing: 0.5
                         }}>HOLD</span>
                       )}
                       {item.isCancelled && (
                         <span style={{
-                          background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: 3,
+                          background: 'var(--red-dim)', color: 'var(--red)',
+                          border: '1px solid rgba(248, 113, 113, 0.4)', borderRadius: 'var(--radius-sm, 4px)',
                           fontSize: 9, fontWeight: 800, padding: '1px 5px', letterSpacing: 0.5
                         }}>CANCELLED</span>
                       )}
@@ -296,7 +296,10 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           )}
         </div>
 
-        <div className="clock-wrapper">{time}</div>
+        <div className="clock-wrapper">
+          <Clock size={12} className="clock-icon" />
+          <span>{time}</span>
+        </div>
         <button
           onClick={toggleTheme}
           title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
@@ -315,7 +318,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         .sidebar-toggle-btn {
           background: transparent;
           border: 1px solid var(--border);
-          border-radius: 6px;
+          border-radius: var(--radius-sm, 4px);
           color: var(--text2);
           cursor: pointer;
           display: flex;
@@ -369,7 +372,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           border: none;
           color: var(--text3);
           cursor: pointer;
-          font-size: 15px;
+          font-size: 14px;
           line-height: 1;
           padding: 0;
         }
@@ -384,8 +387,8 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           overflow-y: auto;
           background: var(--bg2);
           border: 1px solid var(--border2);
-          border-radius: 10px;
-          box-shadow: 0 12px 36px rgba(0,0,0,0.3);
+          border-radius: var(--radius-lg, 14px);
+          box-shadow: 0 12px 36px rgba(0,0,0,0.45);
           z-index: 1000;
           padding: 5px;
         }
@@ -394,7 +397,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           cursor: pointer;
           font-size: 12px;
           color: var(--text2);
-          border-radius: 6px;
+          border-radius: var(--radius-sm, 4px);
           margin-bottom: 2px;
           transition: background 0.15s, color 0.15s;
         }
@@ -420,12 +423,23 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         .clock-wrapper {
           margin-right: 14px;
           font-family: var(--font-mono);
-          font-size: 11px;
-          color: var(--text3);
+          font-size: 11.5px;
+          font-weight: 600;
+          letter-spacing: 0.4px;
+          color: var(--text, #f1f5f9);
           background: var(--bg3);
-          padding: 5px 9px;
+          padding: 5px 10px;
           border-radius: 6px;
-          border: 1px solid var(--border);
+          border: 1px solid var(--border2);
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        }
+        .clock-icon {
+          color: var(--accent, #f97316);
+          opacity: 0.9;
+          flex-shrink: 0;
         }
         .theme-toggle-btn {
           background: var(--bg3);
@@ -461,8 +475,8 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           transition: all 0.15s;
         }
         .logout-btn:hover {
-          background: rgba(239, 68, 68, 0.12);
-          border-color: rgba(239, 68, 68, 0.35);
+          background: var(--red-dim);
+          border-color: rgba(248, 113, 113, 0.35);
           color: var(--red);
         }
 
