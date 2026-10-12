@@ -186,10 +186,10 @@
     "semantic_hash": ""
   },
   "src/components/Modal.jsx": {
-    "mtime": 1789985790.1573875,
-    "seen": 1790583506.619744,
-    "ast_hash": "d691b9af5a5457640dd3cee1a80833f2",
-    "semantic_hash": "d691b9af5a5457640dd3cee1a80833f2"
+    "mtime": 1791795108.4699183,
+    "seen": 1791795284.112332,
+    "ast_hash": "7f46fd1f06868279e84f34dd7abbc0df",
+    "semantic_hash": ""
   },
   "src/components/OrderCreationFlow.jsx": {
     "mtime": 1790060983.1256208,
@@ -1302,15 +1302,27 @@
     "semantic_hash": ""
   },
   "src/components/PurchaseNewOrderModal.jsx": {
-    "mtime": 1791789490.9356177,
-    "seen": 1791789551.0124555,
-    "ast_hash": "a5e9b1471c4d55af2314eaa1bd3a021a",
+    "mtime": 1791797731.7600627,
+    "seen": 1791797768.6710072,
+    "ast_hash": "5b1742ad5782d3302363f60704635697",
     "semantic_hash": ""
   },
   "src/components/PurchaseOrderReceivedModal.jsx": {
     "mtime": 1791631779.0744517,
     "seen": 1791631893.1247191,
     "ast_hash": "11a3b901a7e56f6f05e105d3a6db3744",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/2026-10-12T08-16-36Z__src-components-purchasenewordermodal-jsx.md": {
+    "mtime": 1791792996.683151,
+    "seen": 1791795284.1308122,
+    "ast_hash": "ad4f0b96529f882847de76e7bfe9abca",
+    "semantic_hash": ""
+  },
+  ".impeccable/critique/src-components-purchasenewordermodal-jsx.md": {
+    "mtime": 1791792988.9281502,
+    "seen": 1791795284.1308148,
+    "ast_hash": "949ceca8c5d4553d9dab74f9f25be58a",
     "semantic_hash": ""
   }
 }

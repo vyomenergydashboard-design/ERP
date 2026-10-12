@@ -1,17 +1,17 @@
 # Graph Report - ERP  (2026-10-12)
 
 ## Corpus Check
-- 148 files · ~2,430,436 words
+- 150 files · ~2,433,057 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 16 file(s) not represented in the graph (top: (none) 5, .pptx 5, .exe 1)
 
 ## Summary
-- 1782 nodes · 3681 edges · 105 communities (99 shown, 6 thin omitted)
+- 1803 nodes · 3701 edges · 111 communities (104 shown, 7 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 101 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c63a573d`
+- Built from commit: `fd3f9290`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -29,7 +29,7 @@
 - PlanningModule.jsx
 - test_design_confirmation.js
 - Startup Synchronization & Serials
-- showToast
+- findVariantsWrapper
 - Workflow Status & Email Alerts
 - System Architecture & Guidelines
 - Docker Container Orchestration
@@ -41,15 +41,15 @@
 - Confirmed Statement of Intent: Design Department Confirmation & Auto Release Documents
 - dependencies
 - modern-screenshot.umd.js
-- connectSSE
+- cleanup
 - live-browser.js
 - renderDesignVisual
-- handleKeyDown
-- resumeSession
+- setLiveState
+- connectSSE
 - live.md
 - Design System: Vyom ERP
 - adapt.md
-- SKILL.md
+- new-work.md
 - handleManualEditActivity
 - App.jsx
 - mountSvelteComponentVariant
@@ -57,11 +57,11 @@
 - onboard.md
 - Design Specification: Preserve Completed Panels in Previous Departments
 - documentRefForElement
-- bolder.md
+- SKILL.md
 - The Toolkit
-- setLiveState
-- refreshParamsPanel
-- restoreSessionWithoutWrapper
+- initGlobalBar
+- handleKeyDown
+- resolveLiveInjectionAnchor
 - createLiveBrowserSessionState
 - actOnAgentTarget
 - OrderDocumentsModal.jsx
@@ -69,7 +69,7 @@
 - createLiveBrowserDomHelpers
 - animate.md
 - Handle `generate`
-- steerFocusLog
+- initPageChat
 - Vyom ERP — Comprehensive Project Audit & Development Process Documentation
 - Generate Report
 - Responsive Design
@@ -79,7 +79,7 @@
 - Design Critique: Task Masters & Modal Interface (`src/components/Masters.jsx`)
 - Impeccable Asset Producer
 - Scan mode (approach C: auto-extract, then confirm descriptive language)
-- initPageChat
+- buildParamsPanel
 - critique.md
 - Simplify the Design
 - Hardening Dimensions
@@ -95,32 +95,38 @@
 - Extract Flow
 - Generate Combined Critique Report
 - Init flow
-- syncEditBadgeHitProxies
+- scheduleAcceptCleanup
 - Common Cognitive Load Violations
 - iOS platform
 - Operate mode depth (and Read notes)
 - Shape
-- showBar
-- adapt.native.md
+- handleGo
+- onAnnotDown
 - Android platform
 - colorize.md
 - Persona-Based Design Testing
 - doctor.md
 - Impeccable Documenter
+- ErrorBoundary
 - Generate Report
 - Cognitive Load Assessment
 - Impeccable Finish Reviewer
 - Impeccable Manual Edit Applier
 - live-browser-ignores.js
 - Diagnostic Scan
-- initGlobalBar
+- showToast
 - Visualize: Direction Comps & Asset Production
 - impeccable
 - Implementation Plan: Resilient & Dynamic Task Masters Lifecycle
 - Region map
+- Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`)
+- Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`)
 - Heuristics Scoring Guide
 - 2026-10-07T04-47-48Z__src-components-allorderstableview-jsx.md
-- Persuade and Experience
+- StatsRow.jsx
+- /impeccable hooks
+- Operate
+- Read
 
 ## God Nodes (most connected - your core abstractions)
 1. `react` - 37 edges
@@ -149,7 +155,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (105 total, 6 thin omitted)
+## Communities (111 total, 7 thin omitted)
 
 ### Community 0 - "package.json"
 Cohesion: 0.06
@@ -176,8 +182,8 @@ Cohesion: 0.08
 Nodes (18): allowedOrigins, app, BLOCKED_EXTENSIONS, DEFAULT_STEPS, defaultAllowedOrigins, __dirname, __filename, formatOrderNumber() (+10 more)
 
 ### Community 6 - "react"
-Cohesion: 0.20
-Nodes (15): lucide-react, react, AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData(), getTodayDateStr() (+7 more)
+Cohesion: 0.19
+Nodes (16): lucide-react, react, AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData(), getTodayDateStr() (+8 more)
 
 ### Community 7 - "server/package.json"
 Cohesion: 0.12
@@ -188,24 +194,24 @@ Cohesion: 0.12
 Nodes (16): 1. Document Separation & Storage Isolation, 2. Revision Calculation for Non-Standard Documents, 3. Role-Based Access Control (RBAC), Action Boundaries, Boundaries, Code Style & Implementation Standard, Commands, Data Contracts & Architecture (+8 more)
 
 ### Community 10 - "PlanningModule.jsx"
-Cohesion: 0.25
-Nodes (9): PlanningModule, DEFAULT_COLUMNS, formatFastDateTime(), getDocUrl(), isDateTimeType(), isDateType(), MONTH_NAMES, PAGE_SIZE_OPTIONS (+1 more)
+Cohesion: 0.29
+Nodes (8): DEFAULT_COLUMNS, formatFastDateTime(), getDocUrl(), isDateTimeType(), isDateType(), MONTH_NAMES, PAGE_SIZE_OPTIONS, PlanningModule()
 
 ### Community 11 - "test_design_confirmation.js"
 Cohesion: 0.10
 Nodes (20): ref_fs, ref_os, ref_path, content, filePath, headerCbIdx, startIdx, tableEndIdx (+12 more)
 
-### Community 13 - "showToast"
-Cohesion: 0.20
-Nodes (16): abandonForeignSession(), abandonSupersededGo(), applyEditing(), captureAndEmit(), discardOrphanedSession(), handleDiscard(), markSessionHandled(), maybePrefetchPage() (+8 more)
+### Community 13 - "findVariantsWrapper"
+Cohesion: 0.14
+Nodes (20): applyPlaceholderDimensions(), buildPlaceholderResizeHandles(), commitAcceptedVariantToDom(), cursorForPlaceholderEdge(), ensureInsertPlaceholder(), findVariantsWrapper(), isInsertGeneratingSession(), isVariantShown() (+12 more)
 
 ### Community 18 - "deriveUnitStatus"
-Cohesion: 0.12
-Nodes (19): Global Constraints, Per-Panel PO Advancement and Sales Flow Implementation Plan, Review Focus, Task 1: Database Migration for Panel Sales Clearance & PO Unlink Flag, Task 2: Per-Panel PO Advancement in `deriveUnitStatus`, Task 3: Safe Panel-Level PO Deletion & Re-derivation, Task 4: Manual Panel Sales Clear Endpoint (`POST /api/units/:id/sales-clear`), Task 5: Unit Update Re-derivation in `PUT /api/units/:id` & Document Upload (+11 more)
+Cohesion: 0.11
+Nodes (21): Global Constraints, Per-Panel PO Advancement and Sales Flow Implementation Plan, Review Focus, Task 1: Database Migration for Panel Sales Clearance & PO Unlink Flag, Task 2: Per-Panel PO Advancement in `deriveUnitStatus`, Task 3: Safe Panel-Level PO Deletion & Re-derivation, Task 4: Manual Panel Sales Clear Endpoint (`POST /api/units/:id/sales-clear`), Task 5: Unit Update Re-derivation in `PUT /api/units/:id` & Document Upload (+13 more)
 
 ### Community 19 - "captureElementToBlob"
-Cohesion: 0.08
-Nodes (37): averageRgb01(), beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), cancelEditingPin(), captureChromeNodes(), captureElementFromRenderedAncestor(), captureElementToBlob() (+29 more)
+Cohesion: 0.12
+Nodes (20): averageRgb01(), captureChromeNodes(), captureElementFromRenderedAncestor(), captureElementToBlob(), compileShader(), cssColorToRgb01(), dominantRgb01(), findBackdropAncestor() (+12 more)
 
 ### Community 20 - "verify_codebase.js"
 Cohesion: 0.14
@@ -227,25 +233,25 @@ Nodes (10): dependencies, bcryptjs, cors, dotenv, express, jsonwebtoken, multer,
 Cohesion: 0.09
 Nodes (55): ae(), be(), bt(), Ce(), s(), Ct(), de(), dt() (+47 more)
 
-### Community 25 - "connectSSE"
+### Community 25 - "cleanup"
 Cohesion: 0.21
-Nodes (24): abortSvelteComponentInjection(), completeParameterGenerationIfReady(), completeParameterPublication(), completeSourceInjection(), connectSSE(), ensureCyclingRenderable(), handleAccept(), handleServerLost() (+16 more)
+Nodes (17): abortSvelteComponentInjection(), cleanup(), cleanupAcceptedSession(), clearScrollY(), discardedWrappers(), discardStateStyleId(), recoverEmptyCycling(), releaseDiscardedStaticWrapper() (+9 more)
 
 ### Community 26 - "live-browser.js"
-Cohesion: 0.03
-Nodes (100): applyGlobalBarLabelState(), applyLiveBarPreference(), applyParamValue(), applyPlaceholderSizingStyles(), bufferToBase64(), buildInsertPlaceholderSnapshotFromDom(), buildLocatorForLeaf(), buildParamsPanel() (+92 more)
+Cohesion: 0.05
+Nodes (66): applyGlobalBarLabelState(), applyLiveBarPreference(), applyPlaceholderSizingStyles(), bindEditBadgeProxy(), bufferToBase64(), buildColorModels(), buildTypographyModels(), checkpointPayload() (+58 more)
 
 ### Community 27 - "renderDesignVisual"
-Cohesion: 0.07
-Nodes (40): buildCollapsible(), buildColorModels(), buildDesignHeader(), buildListHtml(), buildRadiiModels(), buildTypographyModels(), copyToClipboard(), cssSafe() (+32 more)
+Cohesion: 0.08
+Nodes (37): buildCollapsible(), buildDesignHeader(), buildListHtml(), buildRadiiModels(), copyToClipboard(), cssSafe(), designEmptyMessage(), designPanelCss() (+29 more)
 
-### Community 28 - "handleKeyDown"
-Cohesion: 0.20
-Nodes (29): cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), clearAnnotations(), clearInsertPicking(), enterEditingMode(), exitConfigureToPicking(), handleClick() (+21 more)
+### Community 28 - "setLiveState"
+Cohesion: 0.26
+Nodes (21): cancelEditingToPicking(), cancelInsertConfigure(), clearInsertPicking(), enterEditingMode(), exitConfigureToPicking(), handleServerLost(), hideAnnotOverlay(), hideBar() (+13 more)
 
-### Community 29 - "resumeSession"
-Cohesion: 0.18
-Nodes (24): applyPlaceholderDimensions(), disableInlineEdit(), ensureInsertPlaceholder(), finalizeInsertSession(), findAnyVariantsWrapper(), findInsertAnchorInDom(), findVariantsWrapper(), isInsertGeneratingSession() (+16 more)
+### Community 29 - "connectSSE"
+Cohesion: 0.15
+Nodes (42): applySavedSessionMeta(), buildDots(), clearSession(), completeParameterGenerationIfReady(), completeParameterPublication(), completeSourceInjection(), connectSSE(), disableInlineEdit() (+34 more)
 
 ### Community 30 - "live.md"
 Cohesion: 0.07
@@ -256,24 +262,24 @@ Cohesion: 0.07
 Nodes (26): Buttons, Cards & Metrics, Colors, Components, Design System: Vyom ERP, Do:, Do's and Don'ts, Don't: (+18 more)
 
 ### Community 32 - "adapt.md"
-Cohesion: 0.12
-Nodes (15): Assess Adaptation Challenge, Content Adaptation, Desktop Adaptation (Mobile → Desktop), Email Adaptation (Web → Email), Implement Adaptations, Layout Adaptation Techniques, Mobile Adaptation (Desktop → Mobile), Navigation Adaptation (+7 more)
-
-### Community 33 - "SKILL.md"
 Cohesion: 0.08
-Nodes (23): Recommended Actions, Craft (deprecated alias), Apply, Live-mode signature params, Set the spatial thesis, Two isolated assessments, Verify, Visitor mode (+15 more)
+Nodes (22): Assess Adaptation Challenge, Content Adaptation, Desktop Adaptation (Mobile → Desktop), Email Adaptation (Web → Email), Implement Adaptations, Layout Adaptation Techniques, Mobile Adaptation (Desktop → Mobile), Adaptation Strategies (+14 more)
+
+### Community 33 - "new-work.md"
+Cohesion: 0.10
+Nodes (17): Recommended Actions, Craft (deprecated alias), Apply, Live-mode signature params, Set the spatial thesis, Two isolated assessments, Verify, Visitor mode (+9 more)
 
 ### Community 34 - "handleManualEditActivity"
-Cohesion: 0.17
-Nodes (26): clearStoredManualApplyState(), handleManualEditActivity(), hidePendingApplyDock(), manualApplyLoadingText(), manualApplyStateKey(), manualEditEventForCurrentPage(), numberOrNull(), onPendingKeepFixingClick() (+18 more)
+Cohesion: 0.18
+Nodes (26): clearStoredManualApplyState(), fetchPendingCount(), handleManualEditActivity(), hidePendingApplyDock(), manualApplyLoadingText(), manualApplyStateKey(), manualEditEventForCurrentPage(), numberOrNull() (+18 more)
 
 ### Community 35 - "App.jsx"
-Cohesion: 0.09
-Nodes (19): react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, OrderCreationFlow, OrderImport, ProtectedRoute() (+11 more)
+Cohesion: 0.13
+Nodes (15): react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, OrderCreationFlow, OrderImport, PlanningModule (+7 more)
 
 ### Community 36 - "mountSvelteComponentVariant"
-Cohesion: 0.10
-Nodes (34): acceptedDomAlreadyClean(), applyOriginalAttrsToSvelteAnchor(), clearHandledWrapperReloadStamp(), commitAcceptedSvelteComponentToDom(), componentModuleCandidates(), deferredRecoverySuperseded(), describeMountFailure(), detectDevServerBase() (+26 more)
+Cohesion: 0.13
+Nodes (22): applyOriginalAttrsToSvelteAnchor(), commitAcceptedSvelteComponentToDom(), componentModuleCandidates(), cyclingCounterText(), cyclingShownVariant(), describeMountFailure(), detectDevServerBase(), findInsertAnchorInDom() (+14 more)
 
 ### Community 37 - "pg"
 Cohesion: 0.10
@@ -291,25 +297,25 @@ Nodes (22): 1. Executive Summary & Problem Statement, 2. Architecture & Data Mod
 Cohesion: 0.08
 Nodes (31): addManualContextText(), canRestoreManualEditElement(), collectManualContextPieces(), walk(), contextElementForManualEdit(), copyEditContainerContext(), copyEditLeafContext(), cssIdent() (+23 more)
 
-### Community 41 - "bolder.md"
-Cohesion: 0.18
-Nodes (8): Before you finish, Scope is sovereign, The amplification, The skeleton test, Why it reads flat, Command guidance, No-argument routing: the context-aware menu, Workflow questions
+### Community 41 - "SKILL.md"
+Cohesion: 0.10
+Nodes (15): Before you finish, Scope is sovereign, The amplification, The skeleton test, Why it reads flat, Craft floor, Refuse, Verify (+7 more)
 
 ### Community 42 - "The Toolkit"
 Cohesion: 0.10
 Nodes (20): Animate complex properties, Assess What "Extraordinary" Means Here, For data-heavy interfaces, For functional UI, For performance-critical UI, For visual/marketing surfaces, Implement with Discipline, Interact with the device (+12 more)
 
-### Community 43 - "setLiveState"
-Cohesion: 0.27
-Nodes (14): beginNewLiveConfiguration(), cleanup(), cleanupAcceptedSession(), clearHandled(), clearMountErrorCard(), clearScrollY(), clearSession(), removeVariantStateStylesheet() (+6 more)
+### Community 43 - "initGlobalBar"
+Cohesion: 0.09
+Nodes (38): agentHasWorkInFlight(), agentStatusText(), barPaletteForTheme(), brandMarkSvg(), buildSavingRow(), buildSteerQueueHint(), cursorForInsertAxis(), detectPageTheme() (+30 more)
 
-### Community 44 - "refreshParamsPanel"
+### Community 44 - "handleKeyDown"
+Cohesion: 0.14
+Nodes (24): applyConfigureBarChrome(), applyEditing(), beginNewLiveConfiguration(), buildCyclingRow(), buildLocatorForLeaf(), cancelEditing(), closeTunePopover(), cycleVariant() (+16 more)
+
+### Community 45 - "resolveLiveInjectionAnchor"
 Cohesion: 0.16
-Nodes (21): applyParamDefaults(), buildCyclingRow(), buildDots(), closedClipPath(), closeTunePopover(), cycleVariant(), cyclingCounterText(), cyclingShownVariant() (+13 more)
-
-### Community 45 - "restoreSessionWithoutWrapper"
-Cohesion: 0.26
-Nodes (13): applySavedSessionMeta(), enterRecoveryWaitingForAnchor(), findActiveSessionSummary(), findAdoptableServerSession(), isSessionHandled(), isTerminalSessionSummary(), loadSession(), pageMatchesCurrent() (+5 more)
+Nodes (19): buildSvelteExpressionTextMap(), buildSveltePropValuesFromLiveElement(), buildSveltePropValuesV2(), cloneWithoutElements(), collectTextNodes(), collectVisibleTexts(), cssEscapeIdent(), elementMatchesOriginalMarkup() (+11 more)
 
 ### Community 46 - "createLiveBrowserSessionState"
 Cohesion: 0.22
@@ -325,11 +331,11 @@ Nodes (10): ref_xlsx, BulkImportModal(), ExcelSheetViewer(), formatFileSize(), g
 
 ### Community 49 - "el"
 Cohesion: 0.09
-Nodes (43): actionLabel(), applyConfigureBarChrome(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow() (+35 more)
+Nodes (43): actionLabel(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+35 more)
 
 ### Community 50 - "createLiveBrowserDomHelpers"
 Cohesion: 0.12
-Nodes (16): collectEditableTextRows(), visit(), createLiveBrowserDomHelpers(), cssId(), liveUiRoot(), makeFrozenAnchor(), own(), pickable() (+8 more)
+Nodes (15): collectEditableTextRows(), visit(), createLiveBrowserDomHelpers(), cssId(), liveUiRoot(), makeFrozenAnchor(), own(), pickable() (+7 more)
 
 ### Community 51 - "animate.md"
 Cohesion: 0.12
@@ -339,13 +345,13 @@ Nodes (14): Accessibility and control, Choose material by meaning, Find the job,
 Cohesion: 0.12
 Nodes (16): 1. Read the screenshot (if present), 2. Wrap the element, 3. Load the action's reference, 4. Plan three variants: identity first, then mode, then axes, 5. Apply the freeform prompt (if present), 6. Deliver variants, 7. Parameters (composition-sized, 0-4 per variant), 8. Signal done (+8 more)
 
-### Community 53 - "steerFocusLog"
-Cohesion: 0.29
-Nodes (11): attachSteerFocusDebug(), attachSteerFocusGuard(), clearSteerFocusRecoverTimer(), focusConfigureInput(), notePagePointerDown(), pageHasHostTextSelection(), scheduleSteerFocusRecover(), shouldFocusSteerChat() (+3 more)
+### Community 53 - "initPageChat"
+Cohesion: 0.08
+Nodes (50): armPageChatForTyping(), attachSteerFocusDebug(), attachSteerFocusGuard(), buildSteerProcessingDots(), clearSteerAwaitTimer(), clearSteerFocusRecoverTimer(), collapsePageChat(), expandPageChat() (+42 more)
 
 ### Community 54 - "Vyom ERP — Comprehensive Project Audit & Development Process Documentation"
 Cohesion: 0.06
-Nodes (33): 10. Conclusion & Final Verdict, 1.1 Purpose & Scope, 1.2 System Vital Metrics, 1. Executive Summary, 2.1 Topology & Containerized Orchestration, 2.2 Technology Stack Analysis, 2. System Architecture & Technology Stack, 3.1 The 9-Stage Manufacturing Pipeline (+25 more)
+Nodes (31): 10. Conclusion & Final Verdict, 1.1 Purpose & Scope, 1.2 System Vital Metrics, 1. Executive Summary, 2.1 Topology & Containerized Orchestration, 2.2 Technology Stack Analysis, 2. System Architecture & Technology Stack, 4.1 Backend Engine (`server/index.js`) (+23 more)
 
 ### Community 55 - "Generate Report"
 Cohesion: 0.13
@@ -379,9 +385,9 @@ Nodes (11): Act on the receipt, Assemble and review, Plan and asset review, Plan
 Cohesion: 0.15
 Nodes (13): Component translation rules, Narrative mapping, Scan mode (approach C: auto-extract, then confirm descriptive language), Schema, Step 1: Find the design assets, Step 2: Auto-extract what can be auto-extracted, Step 2b: Stage the frontmatter, Step 3: Ask the user for qualitative language (+5 more)
 
-### Community 63 - "initPageChat"
-Cohesion: 0.11
-Nodes (38): armPageChatForTyping(), buildSteerProcessingDots(), buildSteerQueueHint(), clearSteerAwaitTimer(), collapsePageChat(), expandPageChat(), finishVoiceSession(), focusPageChatInput() (+30 more)
+### Community 63 - "buildParamsPanel"
+Cohesion: 0.14
+Nodes (17): applyParamDefaults(), applyParamValue(), buildParamsPanel(), closedClipPath(), formatRangeValue(), getVisibleVariantEl(), hideParamsPanel(), mountedParameterCount() (+9 more)
 
 ### Community 64 - "critique.md"
 Cohesion: 0.17
@@ -443,9 +449,9 @@ Nodes (10): Design Health Score, Design Specificity Verdict, Generate Combined C
 Cohesion: 0.20
 Nodes (10): Completion gate, Init flow, Step 1: Load current state, Step 2: Explore the project, Step 3: Interview for product truth, Step 4: Write PRODUCT.md, Step 5: Record workflow defaults, Step 6: Wrap up or resume (+2 more)
 
-### Community 79 - "syncEditBadgeHitProxies"
+### Community 79 - "scheduleAcceptCleanup"
 Cohesion: 0.31
-Nodes (9): bindEditBadgeProxy(), editBadgeProxyTargets(), initEditBadge(), initEditBadgeHitProxies(), proxyMouseEvent(), setImportantStyle(), styleEditBadgeProxy(), syncEditBadgeHitProxies() (+1 more)
+Nodes (11): acceptedDomAlreadyClean(), clearHandledWrapperReloadStamp(), deferredRecoverySuperseded(), ensureAcceptedDomClean(), findAcceptedRuntimeWrappers(), handledWrapperReloadKey(), reloadAfterMissingAcceptedDom(), restoreAcceptedDomFromSnapshot() (+3 more)
 
 ### Community 80 - "Common Cognitive Load Violations"
 Cohesion: 0.22
@@ -456,20 +462,20 @@ Cohesion: 0.22
 Nodes (9): Color & materials, Components & controls, iOS platform, Layout & structure, Motion, The iOS slop test, Touch targets, Typography (+1 more)
 
 ### Community 82 - "Operate mode depth (and Read notes)"
-Cohesion: 0.10
-Nodes (18): Craft floor, Refuse, Verify, Constraints, Failure modes, Flow, /impeccable hooks, Routing (+10 more)
+Cohesion: 0.22
+Nodes (9): Color, Components, Layout, Motion, Operate mode depth (and Read notes), Product constraints, Product permissions, The product slop test (+1 more)
 
 ### Community 83 - "Shape"
-Cohesion: 0.25
+Cohesion: 0.22
 Nodes (8): Cadence, Confirm and stop, Phase 1: Discovery interview, Phase 2: Resolve the design direction, Phase 3: Write the brief, Round 1: purpose, people, and outcome, Round 2: material, behavior, and boundaries, Shape
 
-### Community 84 - "showBar"
-Cohesion: 0.36
-Nodes (9): dismissToast(), extractContext(), handleGo(), handleInsertCreate(), resetSessionFileMeta(), resolveScrollLockAnchorTop(), showBar(), startScrollLock() (+1 more)
+### Community 84 - "handleGo"
+Cohesion: 0.19
+Nodes (16): buildInsertPlaceholderSnapshotFromDom(), buildPickedAnchorSnapshot(), captureAndEmit(), clearAnnotations(), clearMountErrorCard(), extractContext(), handleGo(), handleInsertCreate() (+8 more)
 
-### Community 85 - "adapt.native.md"
-Cohesion: 0.25
-Nodes (7): Adaptation Strategies, Assess Adaptation Challenge, Implement & Verify, Orientation & foldables, Phone → Tablet (iPad / large screens), Platform → platform (iOS ↔ Android), Web → native (porting a website or web app)
+### Community 85 - "onAnnotDown"
+Cohesion: 0.20
+Nodes (17): beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), cancelEditingPin(), clampPlaceholderSize(), finalizeEditingPin(), initAnnotOverlay(), localCoords() (+9 more)
 
 ### Community 86 - "Android platform"
 Cohesion: 0.25
@@ -515,9 +521,9 @@ Nodes (6): globToRegex(), matchesScope(), normalizeIgnoreRule(), normalizeIgnore
 Cohesion: 0.33
 Nodes (6): 1. Accessibility (VoiceOver / TalkBack), 2. Performance, 3. Appearance & Theming, 4. Platform Conformance (CRITICAL), 5. Adaptivity, Diagnostic Scan
 
-### Community 98 - "initGlobalBar"
-Cohesion: 0.10
-Nodes (31): agentHasWorkInFlight(), agentStatusText(), barPaletteForTheme(), brandMarkSvg(), buildSavingRow(), designPanelCss(), detectPageTheme(), ensureAgentPollTooltip() (+23 more)
+### Community 98 - "showToast"
+Cohesion: 0.22
+Nodes (13): abandonForeignSession(), abandonSupersededGo(), discardOrphanedSession(), dismissToast(), handleDiscard(), markSessionHandled(), maybeCompleteAcceptedSession(), maybePrefetchPage() (+5 more)
 
 ### Community 99 - "Visualize: Direction Comps & Asset Production"
 Cohesion: 0.33
@@ -535,6 +541,14 @@ Nodes (8): 1. Overview, 2. Architecture Decisions, 3. Task List, 4. Risks & Miti
 Cohesion: 0.40
 Nodes (4): Containment, Painted material, Region map, What varies independently
 
+### Community 103 - "Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`)"
+Cohesion: 0.20
+Nodes (9): 1. Design Health Score (Nielsen Heuristics), 2. Design Specificity & Domain Fit, 3. Cognitive Load & Information Architecture, 4. Priority Issues (P0–P2), 5. Architectural Redesign Blueprint, Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`), 🔴 P0 — Critical Functional Deficit, 🟡 P1 — Structural & Ergonomic Misalignments (+1 more)
+
+### Community 104 - "Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`)"
+Cohesion: 0.20
+Nodes (9): 1. Design Health Score (Nielsen Heuristics), 2. Design Specificity & Domain Fit, 3. Cognitive Load & Information Architecture, 4. Priority Issues (P0–P2), 5. Architectural Redesign Blueprint, Design Critique: New Purchase Order Modal (`PurchaseNewOrderModal.jsx`), 🔴 P0 — Critical Functional Deficit, 🟡 P1 — Structural & Ergonomic Misalignments (+1 more)
+
 ### Community 105 - "Heuristics Scoring Guide"
 Cohesion: 0.50
 Nodes (4): Heuristics Scoring Guide, Issue Severity (P0–P3), Reference Material, Score Summary
@@ -543,26 +557,38 @@ Nodes (4): Heuristics Scoring Guide, Issue Severity (P0–P3), Reference Materia
 Cohesion: 0.22
 Nodes (8): Design Health Score, Design Specificity Verdict, Minor Observations, Overall Impression, Persona Red Flags, Priority Issues, Questions to Consider, What's Working
 
-### Community 111 - "Persuade and Experience"
+### Community 107 - "StatsRow.jsx"
+Cohesion: 0.70
+Nodes (4): AggregateStats(), DaysChip(), OrderStats(), StatsRow()
+
+### Community 108 - "/impeccable hooks"
+Cohesion: 0.33
+Nodes (6): Constraints, Failure modes, Flow, /impeccable hooks, Routing, Triage findings
+
+### Community 109 - "Operate"
 Cohesion: 0.50
-Nodes (3): Comps, Directions, Persuade and Experience
+Nodes (3): Comps, Directions, Operate
+
+### Community 110 - "Read"
+Cohesion: 0.50
+Nodes (3): Comps, Directions, Read
 
 ## Knowledge Gaps
-- **646 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+641 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 722 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **660 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+655 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 738 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `init()` connect `initGlobalBar` to `setLiveState`, `Init flow`, `syncEditBadgeHitProxies`, `captureElementToBlob`, `steerFocusLog`, `connectSSE`, `doctor.md`, `live-browser.js`, `handleKeyDown`, `resumeSession`, `live.md`?**
-  _High betweenness centrality (0.216) - this node is a cross-community bridge._
-- **Why does `Commands` connect `initGlobalBar` to `SKILL.md`?**
-  _High betweenness centrality (0.082) - this node is a cross-community bridge._
+- **Why does `init()` connect `initGlobalBar` to `handleManualEditActivity`, `SKILL.md`, `handleKeyDown`, `Init flow`, `initPageChat`, `onAnnotDown`, `doctor.md`, `live-browser.js`, `renderDesignVisual`, `setLiveState`, `connectSSE`, `live.md`?**
+  _High betweenness centrality (0.214) - this node is a cross-community bridge._
+- **Why does `Commands` connect `SKILL.md` to `initGlobalBar`?**
+  _High betweenness centrality (0.083) - this node is a cross-community bridge._
 - **Why does `Reference Material` connect `Heuristics Scoring Guide` to `critique.md`, `Persona-Based Design Testing`, `Cognitive Load Assessment`?**
-  _High betweenness centrality (0.033) - this node is a cross-community bridge._
+  _High betweenness centrality (0.032) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
-  _646 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _660 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected._
 - **Should `planningData.js` be split into smaller, more focused modules?**
