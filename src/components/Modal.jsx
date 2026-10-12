@@ -15,6 +15,7 @@ export default function Modal({
   className = '',
   overlayClassName = '',
   showCloseButton = true,
+  headerActions = null,
 }) {
   if (!isOpen) return null;
 
@@ -26,22 +27,25 @@ export default function Modal({
       }}
     >
       <div className={`modal ${className}`} style={{ maxWidth, width }}>
-        {(title || showCloseButton) && (
+        {(title || showCloseButton || headerActions) && (
           <div className="modal-header">
             <div>
               {title && <div className="modal-title">{title}</div>}
               {subtitle && <div className="modal-sub">{subtitle}</div>}
             </div>
-            {showCloseButton && (
-              <button
-                type="button"
-                className="modal-close"
-                onClick={onClose}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: headerActions ? '12px' : 0 }}>
+              {headerActions}
+              {showCloseButton && (
+                <button
+                  type="button"
+                  className="modal-close"
+                  onClick={onClose}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           </div>
         )}
         <div className="modal-body">
