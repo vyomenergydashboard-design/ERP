@@ -84,9 +84,11 @@ export default function Sidenav({
               >
                 <span className="dept-dot" style={{ background: dept.color }} />
                 <span className="nav-label">{dept.label}</span>
-                <span className="dept-count nav-count">
-                  {total > 0 ? `${done}/${total}` : '—'}
-                </span>
+                {total > 0 && (
+                  <span className="dept-count nav-count">
+                    {`${done}/${total}`}
+                  </span>
+                )}
               </button>
             );
           })}

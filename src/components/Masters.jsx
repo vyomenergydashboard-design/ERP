@@ -735,6 +735,17 @@ export default function Masters() {
 
   const addTaskField = () => {
     if (!newField.label.trim()) { alert('Label is required.'); return; }
+    if (newField.datakeyPreset === '__custom__') {
+      const customKey = (newField.customDatakey || '').trim();
+      if (!customKey) {
+        alert('Please enter a custom database key (e.g. table.column_name).');
+        return;
+      }
+      if (!/^[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)?$/.test(customKey)) {
+        alert('Invalid custom key format. Use alphanumeric characters and underscores, optionally dot-separated (e.g. table.column_name).');
+        return;
+      }
+    }
     const effectiveDatakey = newField.datakeyPreset === '__custom__'
       ? (newField.customDatakey || '').trim()
       : (newField.datakeyPreset || '').trim();
@@ -889,10 +900,10 @@ export default function Masters() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <span style={{ fontSize: '12px', color: dept.color, fontWeight: 'bold', textTransform: 'uppercase' }}>{task.dept}</span>
                           <div style={{ display: 'flex', gap: '4px' }}>
-                            <span style={{ fontSize: '10px', background: task.level === 'order' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(59, 130, 246, 0.2)', color: task.level === 'order' ? '#c084fc' : '#60a5fa', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                            <span style={{ fontSize: '10px', background: task.level === 'order' ? 'var(--purple-dim)' : 'var(--blue-dim)', color: task.level === 'order' ? 'var(--purple)' : 'var(--blue)', padding: '2px 6px', borderRadius: 'var(--radius-sm, 4px)', fontWeight: 600 }}>
                               {task.level === 'order' ? 'ORDER LEVEL' : 'UNIT LEVEL'}
                             </span>
-                            <span style={{ fontSize: '10px', background: task.is_mandatory ? 'var(--blue-dim)' : 'var(--gray-dim)', color: task.is_mandatory ? 'var(--blue)' : 'var(--text3)', padding: '2px 6px', borderRadius: '4px' }}>
+                            <span style={{ fontSize: '10px', background: task.is_mandatory ? 'var(--blue-dim)' : 'var(--gray-dim)', color: task.is_mandatory ? 'var(--blue)' : 'var(--text3)', padding: '2px 6px', borderRadius: 'var(--radius-sm, 4px)' }}>
                               {task.is_mandatory ? 'MANDATORY' : 'OPTIONAL'}
                             </span>
                           </div>
@@ -902,17 +913,17 @@ export default function Masters() {
 
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
                           <div style={{ display: 'flex', gap: '8px' }}>
-                            {task.requires_upload && <span style={{ fontSize: '10px', background: '#f59e0b44', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px' }}>Requires: {task.default_doc_type || 'General'}</span>}
-                            {task.special && <span style={{ fontSize: '10px', background: '#10b98144', color: '#34d399', padding: '2px 6px', borderRadius: '4px' }}>Special: {task.special}</span>}
+                            {task.requires_upload && <span style={{ fontSize: '10px', background: 'var(--orange-dim)', color: 'var(--orange)', padding: '2px 6px', borderRadius: 'var(--radius-sm, 4px)' }}>Requires: {task.default_doc_type || 'General'}</span>}
+                            {task.special && <span style={{ fontSize: '10px', background: 'var(--green-dim)', color: 'var(--green)', padding: '2px 6px', borderRadius: 'var(--radius-sm, 4px)' }}>Special: {task.special}</span>}
                           </div>
                           {canEditMasters && (
                             <div style={{ display: 'flex', gap: '4px' }}>
                               <button
-                                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+                                style={{ background: 'transparent', border: '1px solid var(--border2)', color: 'var(--text2)', borderRadius: 'var(--radius-sm, 4px)', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
                                 onClick={() => handleEditTaskClick(task)}
                               >Edit</button>
                               <button
-                                style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
+                                style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 'var(--radius-sm, 4px)', cursor: 'pointer', padding: '2px 6px', fontSize: '10px' }}
                                 onClick={() => handleDeleteTaskClick(task.id)}
                               >Delete</button>
                             </div>
@@ -946,7 +957,7 @@ export default function Masters() {
                 }}>+ Add Custom Column</button>
                 <button
                   className="vbtn"
-                  style={{ background: 'var(--accent)', color: '#fff' }}
+                  style={{ background: 'var(--accent)', color: '#f1f5f9' }}
                   onClick={handleSaveVisibility}
                   disabled={savingVisibility}
                 >
@@ -1045,10 +1056,10 @@ export default function Masters() {
                     <td style={{ padding: '10px 12px', color: 'var(--text3)' }}>{col.field_type}</td>
                     <td style={{ padding: '10px 12px' }}>
                       <span style={{
-                        fontSize: '10px', padding: '2px 6px', borderRadius: '4px',
-                        background: col.is_system ? 'rgba(59,130,246,0.12)' : 'rgba(16,185,129,0.12)',
-                        color: col.is_system ? '#3b82f6' : '#10b981',
-                        border: `1px solid ${col.is_system ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)'}`
+                        fontSize: '10px', padding: '2px 6px', borderRadius: 'var(--radius-sm, 4px)',
+                        background: col.is_system ? 'var(--blue-dim)' : 'var(--green-dim)',
+                        color: col.is_system ? 'var(--blue)' : 'var(--green)',
+                        border: `1px solid ${col.is_system ? 'var(--blue)' : 'var(--green)'}`
                       }}>
                         {col.is_system ? 'SYSTEM' : 'CUSTOM'}
                       </span>
@@ -1057,7 +1068,7 @@ export default function Masters() {
                       {!col.is_system && canEditMasters && (
                         <button
                           onClick={() => handleDeleteColumn(col.id)}
-                          style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '3px 8px', fontSize: '11px' }}
+                          style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 'var(--radius-sm, 4px)', cursor: 'pointer', padding: '3px 8px', fontSize: '11px' }}
                         >
                           Delete
                         </button>
@@ -1582,13 +1593,13 @@ export default function Masters() {
                                 });
                                 setShowPanelSizeModal(true);
                               }}
-                              style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                              style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 'var(--radius-sm, 4px)', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleDeletePanelSize(ps.id)}
-                              style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '4px', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
+                              style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 'var(--radius-sm, 4px)', cursor: 'pointer', padding: '4px 8px', fontSize: '11px' }}
                             >
                               Delete
                             </button>
@@ -1613,13 +1624,13 @@ export default function Masters() {
       {/* Company Modal */}
       {showCompanyModal && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowCompanyModal(false); }}>
-          <div className="modal" style={{ maxWidth: '600px' }}>
+          <div className="modal" style={{ maxWidth: '600px', width: '95%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">{editingCompanyId ? 'Edit Client' : 'Register Client'}</div>
-              <button className="modal-close" onClick={() => setShowCompanyModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowCompanyModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleCompanySubmit}>
+            <form onSubmit={handleCompanySubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
                 <div className="modal-field">
                   <label>Client Name *</label>
                   <input
@@ -1642,14 +1653,14 @@ export default function Masters() {
                 </div>
                 <div style={{ marginTop: '24px', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '8px', color: 'var(--text)' }}>Locations</div>
                 {companyFormData.locations.map((loc, idx) => (
-                  <div key={idx} style={{ background: 'var(--bg3)', padding: '16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid var(--border)' }}>
+                  <div key={idx} style={{ background: 'var(--bg3)', padding: '16px', borderRadius: 'var(--radius)', marginBottom: '16px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>Location #{idx + 1}</span>
                       {companyFormData.locations.length > 1 && (
                         <button
                           type="button"
                           onClick={() => removeLocation(idx)}
-                          style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer' }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--red)', fontSize: '11px', cursor: 'pointer' }}
                         >
                           ✕ Remove Location
                         </button>
@@ -1666,13 +1677,13 @@ export default function Masters() {
                     </div>
                   </div>
                 ))}
-                <button type="button" onClick={addLocation} style={{ background: 'transparent', border: '1px dashed var(--border2)', color: 'var(--text3)', width: '100%', padding: '12px', borderRadius: '8px', cursor: 'pointer', marginBottom: '24px' }}>+ Add Another Location</button>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                  <button type="button" className="vbtn" style={{ background: 'var(--bg4)' }} onClick={() => setShowCompanyModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">{editingCompanyId ? 'Update Client' : 'Save Client'}</button>
-                </div>
-              </form>
-            </div>
+                <button type="button" onClick={addLocation} style={{ background: 'transparent', border: '1px dashed var(--border2)', color: 'var(--text3)', width: '100%', padding: '12px', borderRadius: 'var(--radius)', cursor: 'pointer', marginBottom: '12px' }}>+ Add Another Location</button>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowCompanyModal(false)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: 'var(--accent)', color: '#f1f5f9', border: 'none', fontWeight: 600 }}>{editingCompanyId ? 'Update Client' : 'Save Client'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1680,13 +1691,22 @@ export default function Masters() {
       {/* Task Modal */}
       {showTaskModal && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowTaskModal(false); }}>
-          <div className="modal" style={{ maxWidth: '520px', width: '95%' }}>
+          <div className="modal" style={{ maxWidth: '540px', width: '95%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">{editingTaskId ? 'Edit Task Master' : 'New Task Master'}</div>
-              <button className="modal-close" onClick={() => setShowTaskModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowTaskModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleTaskSubmit}>
+            <form
+              onSubmit={handleTaskSubmit}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                  e.preventDefault();
+                  handleTaskSubmit(e);
+                }
+              }}
+              style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}
+            >
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto', paddingRight: '6px' }}>
                 <div className="modal-field">
                   <label>Department</label>
                   <select className="form-select" value={taskFormData.dept} onChange={(e) => setTaskFormData({ ...taskFormData, dept: e.target.value })}>
@@ -1718,7 +1738,7 @@ export default function Masters() {
                 </div>
                 {taskFormData.requires_upload && (
                   <div className="modal-field" style={{ marginLeft: '24px', marginTop: '8px' }}>
-                    <label style={{ color: '#fff', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Default Document Type</label>
+                    <label style={{ color: 'var(--text)', fontSize: '12px', display: 'block', marginBottom: '4px' }}>Default Document Type</label>
                     <select
                       className="form-select"
                       value={taskFormData.default_doc_type || 'General'}
@@ -1738,8 +1758,8 @@ export default function Masters() {
                 )}
 
                 {/* Order Fields to Display */}
-                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #333' }}>
-                  <label style={{ color: '#fff', fontWeight: '600', display: 'block', marginBottom: '10px' }}>Order Fields to Show</label>
+                <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                  <label style={{ color: 'var(--text)', fontWeight: '600', display: 'block', marginBottom: '10px' }}>Order Fields to Show</label>
                   <div style={{ color: 'var(--text3)', fontSize: '11px', marginBottom: '10px' }}>These fields from the order will be shown as read-only reference inside the task modal.</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {ORDER_FIELDS.map(f => {
@@ -1748,8 +1768,8 @@ export default function Masters() {
                         <label key={f.key} style={{
                           display: 'flex', alignItems: 'center', gap: '6px',
                           background: checked ? 'var(--blue-dim)' : 'var(--bg3)',
-                          border: `1px solid ${checked ? 'rgba(59,130,246,0.4)' : 'var(--border)'}`,
-                          borderRadius: '6px', padding: '5px 10px', cursor: 'pointer',
+                          border: `1px solid ${checked ? 'var(--blue)' : 'var(--border)'}`,
+                          borderRadius: 'var(--radius)', padding: '5px 10px', cursor: 'pointer',
                           fontSize: '12px', color: checked ? 'var(--blue)' : 'var(--text3)'
                         }}>
                           <input
@@ -1774,25 +1794,25 @@ export default function Masters() {
                     <button
                       type="button"
                       onClick={() => setShowFieldBuilder(!showFieldBuilder)}
-                      style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)', padding: '4px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer' }}
+                      style={{ background: 'var(--blue-dim)', color: 'var(--blue)', border: '1px solid var(--blue)', padding: '4px 10px', borderRadius: 'var(--radius)', fontSize: '11px', cursor: 'pointer' }}
                     >
                       {showFieldBuilder ? 'Cancel' : '+ Add Field'}
                     </button>
                   </div>
 
                   {showFieldBuilder && (
-                    <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                    <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '12px', marginBottom: '12px' }}>
                       <div style={{ marginBottom: '8px' }}>
                         <label style={{ fontSize: '11px', color: 'var(--text3)', display: 'block', marginBottom: '4px' }}>Label *</label>
                         <input type="text" className="form-input" value={newField.label} onChange={e => setNewField(p => ({ ...p, label: e.target.value }))} placeholder="e.g. Test Voltage" />
                       </div>
                       {/* ── IF-STATEMENT BUILDER ── */}
-                      <div style={{ background: 'var(--bg4)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
-                        <div style={{ fontSize: '11px', color: '#a78bfa', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Auto-Done Trigger (optional)</div>
+                      <div style={{ background: 'var(--bg4)', border: '1px solid var(--purple-dim)', borderRadius: 'var(--radius)', padding: '12px', marginBottom: '12px' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--purple)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Auto-Done Trigger (optional)</div>
                         <div style={{ fontSize: '11px', color: 'var(--text3)', marginBottom: '10px' }}>If the selected DB field matches this condition, the task is automatically marked Done.</div>
                         {/* Row: IF [field] [operator] [value] */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '12px', fontWeight: '700', color: '#a78bfa', minWidth: '18px' }}>IF</span>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--purple)', minWidth: '18px' }}>IF</span>
                           {/* Data Key picker */}
                           <div style={{ flex: '1 1 160px' }}>
                             <select
@@ -1804,14 +1824,19 @@ export default function Masters() {
                               {DATAKEY_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
                             </select>
                             {newField.datakeyPreset === '__custom__' && (
-                              <input
-                                type="text"
-                                className="form-input"
-                                style={{ marginTop: '6px', fontFamily: 'monospace', fontSize: '12px' }}
-                                value={newField.customDatakey || ''}
-                                onChange={e => setNewField(p => ({ ...p, customDatakey: e.target.value }))}
-                                placeholder="table.column_name"
-                              />
+                              <div style={{ marginTop: '6px' }}>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  style={{ fontFamily: 'var(--font-mono)', fontSize: '12px' }}
+                                  value={newField.customDatakey || ''}
+                                  onChange={e => setNewField(p => ({ ...p, customDatakey: e.target.value }))}
+                                  placeholder="table.column_name"
+                                />
+                                <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '4px' }}>
+                                  Format: <code style={{ color: 'var(--blue)' }}>table.column_name</code>
+                                </div>
+                              </div>
                             )}
                           </div>
                           {/* Operator picker */}
@@ -1840,14 +1865,14 @@ export default function Masters() {
                         </div>
                         {/* Preview */}
                         {newField.datakeyPreset && newField.datakeyPreset !== '' && (
-                          <div style={{ marginTop: '8px', fontSize: '11px', color: '#9ca3af', fontFamily: 'monospace', background: 'var(--bg3)', padding: '6px 10px', borderRadius: '4px' }}>
+                          <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text2)', fontFamily: 'var(--font-mono)', background: 'var(--bg3)', padding: '6px 10px', borderRadius: 'var(--radius)' }}>
                             {buildCondition(newField.operator, newField.conditionValue)
                               ? `Auto-done: ${buildCondition(newField.operator, newField.conditionValue)}`
                               : 'Auto-done when field has any value'}
                           </div>
                         )}
                       </div>
-                      <button type="button" onClick={addTaskField} style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                      <button type="button" onClick={addTaskField} style={{ background: 'var(--green)', color: '#f1f5f9', border: 'none', padding: '6px 14px', borderRadius: 'var(--radius)', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
                         Add Field
                       </button>
                     </div>
@@ -1858,33 +1883,33 @@ export default function Masters() {
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       {taskCustomFields.map(f => (
-                        <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                        <div key={f.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg3)', padding: '8px 12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                             <div>
                               <span style={{ color: 'var(--text)', fontSize: '13px', fontWeight: '600' }}>{f.label}</span>
                               {f.options?.length > 0 && <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--text3)' }}>({f.options.join(', ')})</span>}
                             </div>
                             {(f.datakey || f.condition) && (
-                              <div style={{ fontSize: '11px', color: '#a78bfa', marginTop: '3px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <span style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.2)', borderRadius: '4px', padding: '1px 6px' }}>
+                              <div style={{ fontSize: '11px', color: 'var(--purple)', marginTop: '3px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                <span style={{ background: 'var(--purple-dim)', border: '1px solid var(--purple-dim)', borderRadius: 'var(--radius)', padding: '1px 6px' }}>
                                   IF {describeCondition(f.condition, f.datakey)}
                                 </span>
                               </div>
                             )}
                           </div>
-                          <button type="button" onClick={() => removeTaskField(f.id)} style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+                          <button type="button" onClick={() => removeTaskField(f.id)} style={{ background: 'transparent', border: 'none', color: 'var(--text3)', cursor: 'pointer', fontSize: '14px' }}>✕</button>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowTaskModal(false)}>Cancel</button>
-                  <button type="submit" className="vbtn">{editingTaskId ? 'Update Task' : 'Save Task'}</button>
-                </div>
-              </form>
-            </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowTaskModal(false)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: 'var(--accent)', color: '#f1f5f9', border: 'none', fontWeight: 600 }}>{editingTaskId ? 'Update Task' : 'Save Task'}</button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1892,13 +1917,13 @@ export default function Masters() {
       {/* Add Custom Column Modal */}
       {showColModal && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowColModal(false); }}>
-          <div className="modal" style={{ maxWidth: '480px' }}>
+          <div className="modal" style={{ maxWidth: '480px', width: '95%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">Add Custom Column Master</div>
-              <button className="modal-close" onClick={() => setShowColModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowColModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleCreateColumn}>
+            <form onSubmit={handleCreateColumn} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
                 <div className="modal-field">
                   <label>Column Display Label</label>
                   <input
@@ -1932,7 +1957,7 @@ export default function Masters() {
                     }}
                   />
                   {columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) && (
-                    <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>
+                    <div style={{ color: 'var(--red)', fontSize: '11px', marginTop: '4px' }}>
                       ⚠️ Column Key "{colFormData.col_key.trim().toLowerCase()}" already exists. Please enter a different key.
                     </div>
                   )}
@@ -1966,22 +1991,26 @@ export default function Masters() {
                     <option value="Yes/No">Yes/No</option>
                   </select>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-                  <button type="button" className="vbtn" style={{ background: '#333' }} onClick={() => setShowColModal(false)}>Cancel</button>
-                  <button
-                    type="submit"
-                    className="vbtn"
-                    disabled={columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()}
-                    style={{
-                      opacity: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 0.5 : 1,
-                      cursor: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 'not-allowed' : 'pointer'
-                    }}
-                  >
-                    Create Column
-                  </button>
-                </div>
-              </form>
-            </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowColModal(false)}>Cancel</button>
+                <button
+                  type="submit"
+                  className="vbtn"
+                  disabled={columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()}
+                  style={{
+                    background: 'var(--accent)',
+                    color: '#f1f5f9',
+                    border: 'none',
+                    fontWeight: 600,
+                    opacity: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 0.5 : 1,
+                    cursor: (columns.some(c => c.col_key === colFormData.col_key.trim().toLowerCase()) || !colFormData.col_key.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  Create Column
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -1989,13 +2018,13 @@ export default function Masters() {
       {/* Part Number Master Add / Edit Modal */}
       {showPartModal && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowPartModal(false); }}>
-          <div className="modal" style={{ width: '520px', maxWidth: '95vw' }}>
+          <div className="modal" style={{ width: '520px', maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPartId ? 'Edit Master Part Number' : 'Add Master Part Number'}</div>
-              <button className="modal-close" onClick={() => setShowPartModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowPartModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <div className="modal-body">
-              <form onSubmit={handleSavePartMaster}>
+            <form onSubmit={handleSavePartMaster} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
                 <div className="modal-field" style={{ marginBottom: '14px' }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Part No. *</label>
                   <input
@@ -2048,7 +2077,7 @@ export default function Masters() {
 
                 {!editingPartId && (
                   <>
-                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                       <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>Drawing PDF (Optional - will be R0)</label>
                       <input
                         type="file"
@@ -2071,7 +2100,7 @@ export default function Masters() {
                       />
                     </div>
 
-                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div className="modal-field" style={{ marginBottom: '14px', padding: '12px', background: 'var(--bg3)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                       <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>BOM (Excel / PDF) (Optional - will be R0)</label>
                       <input
                         type="file"
@@ -2097,28 +2126,28 @@ export default function Masters() {
                     </div>
                   </>
                 )}
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px' }}>
-                  {editingPartId ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleDeletePartMaster(editingPartId);
-                        setShowPartModal(false);
-                      }}
-                      style={{ background: 'transparent', border: '1px solid #ef444444', color: '#ef4444', borderRadius: '6px', cursor: 'pointer', padding: '6px 12px', fontSize: '12px' }}
-                    >
-                      Delete Part
-                    </button>
-                  ) : <div />}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                {editingPartId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleDeletePartMaster(editingPartId);
+                      setShowPartModal(false);
+                    }}
+                    style={{ background: 'transparent', border: '1px solid var(--red)', color: 'var(--red)', borderRadius: 'var(--radius)', cursor: 'pointer', padding: '6px 12px', fontSize: '12px' }}
+                  >
+                    Delete Part
+                  </button>
+                ) : <div />}
 
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }} onClick={() => setShowPartModal(false)}>Cancel</button>
-                    <button type="submit" className="vbtn">{editingPartId ? 'Update Part' : 'Save Part Number'}</button>
-                  </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowPartModal(false)}>Cancel</button>
+                  <button type="submit" className="vbtn" style={{ background: 'var(--accent)', color: '#f1f5f9', border: 'none', fontWeight: 600 }}>{editingPartId ? 'Update Part' : 'Save Part Number'}</button>
                 </div>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -2126,48 +2155,48 @@ export default function Masters() {
       {/* Upload / Update Document Modal */}
       {showDocUploadModal && activeUploadTarget && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowDocUploadModal(false); }}>
-          <div className="modal" style={{ width: '480px', maxWidth: '95vw' }}>
+          <div className="modal" style={{ width: '480px', maxWidth: '95vw', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">
                 {activeUploadTarget.currentDoc ? `Update ${activeUploadTarget.docType}` : `Upload ${activeUploadTarget.docType}`}
               </div>
-              <button className="modal-close" onClick={() => setShowDocUploadModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowDocUploadModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <div className="modal-body">
-              <div style={{ marginBottom: '16px', background: 'var(--bg3)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Part No:</span>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{activeUploadTarget.part.part_number}</span>
+            <form onSubmit={handleUploadDocumentSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
+                <div style={{ marginBottom: '16px', background: 'var(--bg3)', padding: '12px 14px', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Part No:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', fontFamily: 'var(--font-mono)' }}>{activeUploadTarget.part.part_number}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Document Type:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)' }}>{activeUploadTarget.docType}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Current Revision:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>
+                      {activeUploadTarget.currentDoc
+                        ? `${activeUploadTarget.currentDoc.revision_label || ('R' + activeUploadTarget.currentDoc.revision_number)} : ${formatDateDMY(activeUploadTarget.currentDoc.uploaded_at)}`
+                        : 'None (Initial upload)'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '12px', color: 'var(--text3)' }}>New Revision:</span>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--green)' }}>
+                      {activeUploadTarget.currentDoc
+                        ? `R${(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}`
+                        : 'R0'}
+                    </span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Document Type:</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text)' }}>{activeUploadTarget.docType}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>Current Revision:</span>
-                  <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--text2)' }}>
-                    {activeUploadTarget.currentDoc
-                      ? `${activeUploadTarget.currentDoc.revision_label || ('R' + activeUploadTarget.currentDoc.revision_number)} : ${formatDateDMY(activeUploadTarget.currentDoc.uploaded_at)}`
-                      : 'None (Initial upload)'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '12px', color: 'var(--text3)' }}>New Revision:</span>
-                  <span style={{ fontSize: '12px', fontWeight: '700', color: '#10b981' }}>
-                    {activeUploadTarget.currentDoc
-                      ? `R${(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}`
-                      : 'R0'}
-                  </span>
-                </div>
-              </div>
 
-              {activeUploadTarget.currentDoc && (
-                <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '6px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', color: 'var(--text2)', fontSize: '12px' }}>
-                  ⚠️ Uploading a new {activeUploadTarget.docType === 'BOM' ? 'file' : 'PDF'} will create revision <strong>R{(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}</strong>. The current revision will be preserved in Revision History.
-                </div>
-              )}
+                {activeUploadTarget.currentDoc && (
+                  <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: 'var(--radius)', background: 'var(--orange-dim)', border: '1px solid var(--orange)', color: 'var(--text2)', fontSize: '12px' }}>
+                    ⚠️ Uploading a new {activeUploadTarget.docType === 'BOM' ? 'file' : 'PDF'} will create revision <strong>R{(activeUploadTarget.currentDoc.revision_number ?? 0) + 1}</strong>. The current revision will be preserved in Revision History.
+                  </div>
+                )}
 
-              <form onSubmit={handleUploadDocumentSubmit}>
                 <div className="modal-field" style={{ marginBottom: '18px' }}>
                   <label style={{ display: 'block', marginBottom: '6px', fontSize: '12px', fontWeight: '600' }}>
                     Choose {activeUploadTarget.docType === 'BOM' ? 'BOM File (Excel or PDF)' : 'PDF File'} *
@@ -2202,7 +2231,7 @@ export default function Masters() {
                     style={{
                       width: '100%',
                       padding: '8px',
-                      borderRadius: '8px',
+                      borderRadius: 'var(--radius)',
                       border: '1px solid var(--border)',
                       background: 'var(--bg3)',
                       color: 'var(--text)',
@@ -2213,28 +2242,28 @@ export default function Masters() {
                     {activeUploadTarget.docType === 'BOM' ? 'Excel (.xlsx, .xls, .csv) or PDF files are allowed (Max 20MB)' : 'Only PDF files are allowed (Max 20MB)'}
                   </div>
                 </div>
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
-                  <button
-                    type="button"
-                    className="vbtn"
-                    style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }}
-                    onClick={() => setShowDocUploadModal(false)}
-                    disabled={uploadingDoc}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="vbtn"
-                    disabled={!docUploadFile || uploadingDoc}
-                    style={{ minWidth: '100px' }}
-                  >
-                    {uploadingDoc ? 'Uploading...' : (activeUploadTarget.currentDoc ? 'Upload' : 'Upload')}
-                  </button>
-                </div>
-              </form>
-            </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="vbtn"
+                  style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }}
+                  onClick={() => setShowDocUploadModal(false)}
+                  disabled={uploadingDoc}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="vbtn"
+                  disabled={!docUploadFile || uploadingDoc}
+                  style={{ minWidth: '100px', background: 'var(--accent)', color: '#f1f5f9', border: 'none', fontWeight: 600 }}
+                >
+                  {uploadingDoc ? 'Uploading...' : 'Upload'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -2252,7 +2281,7 @@ export default function Masters() {
                   Part No: <span style={{ color: 'var(--blue)', fontFamily: 'var(--font-mono)', fontWeight: '700' }}>{activeHistoryTarget.part.part_number}</span>
                 </div>
               </div>
-              <button className="modal-close" onClick={() => setShowDocHistoryModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowDocHistoryModal(false)} aria-label="Close modal">✕</button>
             </div>
             <div className="modal-body" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '10px 4px' }}>
               {activeHistoryList.length === 0 ? (
@@ -2267,7 +2296,7 @@ export default function Masters() {
                       style={{
                         background: 'var(--bg3)',
                         border: doc.is_current ? '1.5px solid var(--blue)' : '1px solid var(--border)',
-                        borderRadius: '8px',
+                        borderRadius: 'var(--radius)',
                         padding: '12px 16px',
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -2282,11 +2311,11 @@ export default function Masters() {
                             fontWeight: '700',
                             fontSize: '11px',
                             padding: '2px 8px',
-                            borderRadius: '4px',
+                            borderRadius: 'var(--radius-sm, 4px)',
                             flexShrink: 0,
-                            background: doc.is_current ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg2)',
+                            background: doc.is_current ? 'var(--blue-dim)' : 'var(--bg2)',
                             color: doc.is_current ? 'var(--blue)' : 'var(--text2)',
-                            border: doc.is_current ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid var(--border)'
+                            border: doc.is_current ? '1px solid var(--blue)' : '1px solid var(--border)'
                           }}>
                             {doc.revision_label || ('R' + (doc.revision_number ?? 0))}
                             {doc.is_current ? ' (Current)' : ''}
@@ -2318,7 +2347,7 @@ export default function Masters() {
                         <DocumentViewButton
                           doc={doc}
                           title={`${activeHistoryTarget.docType} (${doc.revision_label || 'R' + doc.revision_number}) - ${activeHistoryTarget.part.part_number}`}
-                          style={{ borderRadius: '6px', padding: '5px 12px', fontSize: '12px' }}
+                          style={{ borderRadius: 'var(--radius)', padding: '5px 12px', fontSize: '12px' }}
                           onSelect={setPdfViewerDoc}
                         />
                         <a
@@ -2329,7 +2358,7 @@ export default function Masters() {
                             border: '1px solid var(--border)',
                             color: 'var(--text2)',
                             padding: '5px 12px',
-                            borderRadius: '6px',
+                            borderRadius: 'var(--radius)',
                             fontSize: '12px',
                             textDecoration: 'none',
                             fontWeight: '500'
@@ -2343,8 +2372,8 @@ export default function Masters() {
                 </div>
               )}
             </div>
-            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
-              <button type="button" className="vbtn" onClick={() => setShowDocHistoryModal(false)}>Close</button>
+            <div style={{ padding: '14px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', flexShrink: 0 }}>
+              <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowDocHistoryModal(false)}>Close</button>
             </div>
           </div>
         </div>
@@ -2362,13 +2391,13 @@ export default function Masters() {
       {/* Panel Size Master Modal */}
       {showPanelSizeModal && (
         <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setShowPanelSizeModal(false); }}>
-          <div className="modal" style={{ maxWidth: '520px' }}>
+          <div className="modal" style={{ maxWidth: '520px', width: '95%', maxHeight: '88vh', display: 'flex', flexDirection: 'column' }}>
             <div className="modal-header">
               <div className="modal-title">{editingPanelSizeId ? 'Edit Panel Size Master' : 'New Panel Size Master'}</div>
-              <button className="modal-close" onClick={() => setShowPanelSizeModal(false)}>✕</button>
+              <button className="modal-close" onClick={() => setShowPanelSizeModal(false)} aria-label="Close modal">✕</button>
             </div>
-            <form onSubmit={handleSavePanelSize}>
-              <div className="modal-body">
+            <form onSubmit={handleSavePanelSize} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', color: 'var(--text3)', marginBottom: '4px' }}>Panel Code</label>
@@ -2413,9 +2442,9 @@ export default function Masters() {
                   />
                 </div>
               </div>
-              <div className="modal-actions">
-                <button type="button" className="vbtn" onClick={() => setShowPanelSizeModal(false)}>Cancel</button>
-                <button type="submit" className="vbtn" style={{ background: '#3b82f6' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+                <button type="button" className="vbtn" style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)' }} onClick={() => setShowPanelSizeModal(false)}>Cancel</button>
+                <button type="submit" className="vbtn" style={{ background: 'var(--accent)', color: '#f1f5f9', border: 'none', fontWeight: 600 }}>
                   {editingPanelSizeId ? 'Save Changes' : 'Create Panel Size'}
                 </button>
               </div>

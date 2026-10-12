@@ -3,32 +3,37 @@ import { createPortal } from 'react-dom';
 import TechnicalDocsModal from './TechnicalDocsModal';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import EditRefTagModal from './EditRefTagModal.jsx';
+import PurchaseNewOrderModal from './PurchaseNewOrderModal.jsx';
+import PurchaseOrderReceivedModal from './PurchaseOrderReceivedModal.jsx';
 import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
-  Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info
+  Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, AlertTriangle,
+  Edit2, Pause, PackageCheck
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
+import { ToastContainer, useToast } from './Toast';
+import { ConfirmModal } from './ConfirmModal';
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
 const PRIORITY_STYLES = {
-  Urgent: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
-  High: { bg: 'rgba(249,115,22,0.12)', color: '#f97316', border: 'rgba(249,115,22,0.35)' },
-  Medium: { bg: 'rgba(234,179,8,0.12)', color: '#eab308', border: 'rgba(234,179,8,0.35)' },
-  Low: { bg: 'rgba(99,102,241,0.12)', color: '#818cf8', border: 'rgba(99,102,241,0.35)' },
+  Urgent: { bg: 'var(--red-dim)', color: 'var(--red)', border: 'rgba(248, 113, 113, 0.35)' },
+  High: { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.35)' },
+  Medium: { bg: 'rgba(234, 179, 8, 0.12)', color: '#eab308', border: 'rgba(234, 179, 8, 0.35)' },
+  Low: { bg: 'rgba(99, 102, 241, 0.12)', color: '#818cf8', border: 'rgba(99, 102, 241, 0.35)' },
 };
 
 const STATUS_STYLES = {
-  Completed: { bg: 'rgba(16,185,129,0.12)', color: '#10b981', border: 'rgba(16,185,129,0.3)' },
-  Blocked: { bg: 'rgba(239,68,68,0.12)', color: '#ef4444', border: 'rgba(239,68,68,0.3)' },
-  'In Progress': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
-  'In Process': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6', border: 'rgba(59,130,246,0.3)' },
-  Pending: { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-  'Not Started': { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: 'rgba(245,158,11,0.3)' },
-  Hold: { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
-  'On Hold': { bg: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: 'rgba(245,158,11,0.35)' },
-  Cancelled: { bg: 'rgba(239,68,68,0.15)', color: '#ef4444', border: 'rgba(239,68,68,0.35)' },
+  Completed: { bg: 'var(--green-dim)', color: 'var(--green)', border: 'rgba(16, 185, 129, 0.3)' },
+  Blocked: { bg: 'var(--red-dim)', color: 'var(--red)', border: 'rgba(248, 113, 113, 0.3)' },
+  'In Progress': { bg: 'var(--blue-dim)', color: 'var(--blue)', border: 'rgba(56, 189, 248, 0.3)' },
+  'In Process': { bg: 'var(--blue-dim)', color: 'var(--blue)', border: 'rgba(56, 189, 248, 0.3)' },
+  Pending: { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.3)' },
+  'Not Started': { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.3)' },
+  Hold: { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.35)' },
+  'On Hold': { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.35)' },
+  Cancelled: { bg: 'var(--red-dim)', color: 'var(--red)', border: 'rgba(248, 113, 113, 0.35)' },
 };
 
 const BASE_COLUMNS = [
@@ -100,14 +105,14 @@ const formatCustomDate = formatFastDate;
 const DEFAULT_COL_WIDTHS = {
   order_number: 145,
   short_serial: 160,
-  company_name: 205,
-  project_name: 190,
-  po_number: 180,
-  reference_number: 180,
+  company_name: 215,
+  project_name: 215,
+  po_number: 195,
+  reference_number: 185,
   end_client_name: 165,
-  part_number: 175,
+  part_number: 195,
   panel_code: 145,
-  panel_type_size: 190,
+  panel_type_size: 195,
   panel_ip_rating: 130,
   panel_comments: 230,
   material_description: 260,
@@ -120,14 +125,14 @@ const DEFAULT_COL_WIDTHS = {
 const MIN_COL_WIDTHS = {
   order_number: 135,
   short_serial: 145,
-  company_name: 175,
-  project_name: 165,
-  po_number: 165,
-  reference_number: 160,
+  company_name: 180,
+  project_name: 180,
+  po_number: 175,
+  reference_number: 165,
   end_client_name: 145,
-  part_number: 160,
+  part_number: 175,
   panel_code: 130,
-  panel_type_size: 170,
+  panel_type_size: 175,
   panel_ip_rating: 120,
   panel_comments: 190,
   material_description: 220,
@@ -159,7 +164,7 @@ export const getDocUrl = (doc) => {
   return `${baseUrl}/uploads/${relPath}${tokenParam}`;
 };
 
-function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
+function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave, onDelete }) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -382,24 +387,24 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
           width: '100%',
           maxWidth: '100%',
           padding: '2px 7px',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm, 4px)',
           cursor: 'pointer',
-          background: isOpen ? 'var(--bg3)' : 'rgba(59,130,246,0.07)',
-          border: isOpen ? '1px solid var(--blue)' : '1px solid rgba(59,130,246,0.25)',
+          background: isOpen ? 'var(--bg3)' : 'var(--blue-dim)',
+          border: isOpen ? '1px solid var(--blue)' : '1px solid rgba(56, 189, 248, 0.25)',
           transition: 'all 0.15s',
           fontSize: 12,
           boxSizing: 'border-box'
         }}
         onMouseEnter={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.background = 'rgba(59,130,246,0.15)';
-            e.currentTarget.style.borderColor = 'rgba(59,130,246,0.5)';
+            e.currentTarget.style.background = 'rgba(56, 189, 248, 0.15)';
+            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.5)';
           }
         }}
         onMouseLeave={(e) => {
           if (!isOpen) {
-            e.currentTarget.style.background = 'rgba(59,130,246,0.07)';
-            e.currentTarget.style.borderColor = 'rgba(59,130,246,0.25)';
+            e.currentTarget.style.background = 'var(--blue-dim)';
+            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
           }
         }}
       >
@@ -410,11 +415,42 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
           color: currentValue ? 'var(--text)' : 'var(--text3)',
           fontFamily: 'var(--font-mono)',
           fontSize: 12,
-          fontWeight: 500
+          fontWeight: 500,
+          flex: 1,
+          minWidth: 0
         }}>
           {currentValue || 'Select Size...'}
         </span>
-        <ChevronDown size={12} style={{ color: '#60a5fa', flexShrink: 0, opacity: 0.9 }} />
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {canEdit && currentValue && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.(unit);
+              }}
+              title="Remove Panel Size, Code & IP Rating"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px',
+                color: 'var(--text3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-sm, 4px)',
+                opacity: 0.5,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'var(--red-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.background = 'none'; }}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+          <ChevronDown size={12} style={{ color: 'var(--blue)', flexShrink: 0, opacity: 0.9 }} />
+        </div>
       </div>
 
       {isOpen && createPortal(
@@ -484,6 +520,33 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
             )}
           </div>
 
+          {canEdit && currentValue && (
+            <div
+              onClick={() => {
+                setIsOpen(false);
+                onDelete?.(unit);
+              }}
+              style={{
+                padding: '7px 10px',
+                borderBottom: '1px solid var(--border)',
+                background: 'rgba(248, 113, 113, 0.08)',
+                color: 'var(--red)',
+                cursor: 'pointer',
+                fontSize: 11.5,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                transition: 'background 0.15s'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.16)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(248, 113, 113, 0.08)'; }}
+            >
+              <Trash2 size={12} />
+              <span>Clear / Unassign Panel Size</span>
+            </div>
+          )}
+
           {/* Catalog Options List */}
           <div style={{
             overflowY: 'auto',
@@ -517,10 +580,10 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                   onMouseEnter={() => setHighlightIndex(idx)}
                   style={{
                     padding: '6px 10px',
-                    borderRadius: 6,
+                    borderRadius: 'var(--radius-sm, 4px)',
                     cursor: 'pointer',
-                    background: isHighlighted ? 'rgba(59,130,246,0.18)' : (isSelected ? 'rgba(59,130,246,0.08)' : 'transparent'),
-                    border: isHighlighted ? '1px solid rgba(59,130,246,0.35)' : '1px solid transparent',
+                    background: isHighlighted ? 'rgba(56, 189, 248, 0.18)' : (isSelected ? 'var(--blue-dim)' : 'transparent'),
+                    border: isHighlighted ? '1px solid rgba(56, 189, 248, 0.35)' : '1px solid transparent',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: 3,
@@ -537,11 +600,11 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                               fontFamily: 'var(--font-mono)',
                               fontSize: 10.5,
                               fontWeight: 700,
-                              color: '#c084fc',
-                              background: 'rgba(168, 85, 247, 0.15)',
+                              color: 'var(--purple)',
+                              background: 'var(--purple-dim)',
                               border: '1px solid rgba(168, 85, 247, 0.3)',
                               padding: '1px 5px',
-                              borderRadius: 4,
+                              borderRadius: 'var(--radius-sm, 4px)',
                               flexShrink: 0
                             }}>
                               {renderHighlighted(opt.panel_code, cleanQ)}
@@ -586,7 +649,7 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                           fontFamily: 'var(--font-mono)',
                           fontSize: 12,
                           fontWeight: 600,
-                          color: isHighlighted ? '#60a5fa' : 'var(--text)'
+                          color: isHighlighted ? 'var(--blue)' : 'var(--text)'
                         }}>
                           {opt.isCustom ? `+ Use: "${opt.size_name}"` : renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
                         </span>
@@ -598,11 +661,11 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave }) {
                         fontFamily: 'var(--font-mono)',
                         fontSize: 12,
                         fontWeight: 600,
-                        color: isHighlighted ? '#60a5fa' : 'var(--text)'
+                        color: isHighlighted ? 'var(--blue)' : 'var(--text)'
                       }}>
                         {renderHighlighted(opt.panel_size || opt.size_name, cleanQ)}
                       </span>
-                      {isSelected && <Check size={13} style={{ color: '#10b981', flexShrink: 0 }} />}
+                      {isSelected && <Check size={13} style={{ color: 'var(--green)', flexShrink: 0 }} />}
                     </div>
                   )}
                 </div>
@@ -711,6 +774,16 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
     const hasStarted = stepsToCheck.some(s => isStatusDone(s.status) || isStatusInProgress(s.status));
     if (hasStarted) {
       return 'In Progress';
+    }
+
+    // In All Departments view, check overall factory step progress
+    if (currentFilter === 'all') {
+      const hasFactoryInprogress =
+        Number(unit.inprogress_step_count || 0) > 0 ||
+        Number(unit.order_inprogress_step_count || 0) > 0;
+      if (hasFactoryInprogress) {
+        return 'In Progress';
+      }
     }
 
     return 'Pending';
@@ -883,6 +956,7 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
       return [
         `Status: ${status}`,
         unit.current_dept ? `Department: ${unit.current_dept}` : null,
+        Number(unit.inprogress_step_count || 0) > 0 ? `${unit.inprogress_step_count} step(s) in progress` : null,
         `Order #: ${unit.order_number}`,
         unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
         unit.company_name ? `Client: ${unit.company_name}` : null
@@ -937,6 +1011,7 @@ function renderCellContent({
   canConfirmDesign,
   onConfirmDesignClassification,
   onUnconfirmDesignClassification,
+  onRequestUnconfirmDesign,
   panelSizeMasters,
   panelSizeMap,
   customColumnDefs,
@@ -949,7 +1024,8 @@ function renderCellContent({
   onPartNumberClick,
   setPoPdfViewer,
   onEditRefTag,
-  onOpenOrderDocs
+  onOpenOrderDocs,
+  onDeletePanelSize
 }) {
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
   const priority = unit.priority || 'Medium';
@@ -980,25 +1056,25 @@ function renderCellContent({
             }}
             title={`Order Documents (${unit.order_number}) - Click to open Quotation, Details & Docs`}
             style={{
-              background: 'rgba(59, 130, 246, 0.09)',
-              border: '1px solid rgba(59, 130, 246, 0.25)',
+              background: 'var(--blue-dim)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
               cursor: 'pointer',
               padding: '2px 4px',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--blue, #3b82f6)',
-              borderRadius: '4px',
+              color: 'var(--blue)',
+              borderRadius: 'var(--radius-sm, 4px)',
               transition: 'all 0.15s',
               lineHeight: 1
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.22)';
-              e.currentTarget.style.borderColor = 'var(--blue, #3b82f6)';
+              e.currentTarget.style.background = 'rgba(56, 189, 248, 0.22)';
+              e.currentTarget.style.borderColor = 'var(--blue)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.09)';
-              e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.25)';
+              e.currentTarget.style.background = 'var(--blue-dim)';
+              e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.25)';
             }}
           >
             <Paperclip size={11} />
@@ -1040,7 +1116,7 @@ function renderCellContent({
       const groupCls = `design-type-control-group ${isStd ? 'standard' : 'non-standard'}${isDesign && isConfirmed ? ' is-confirmed' : ''}${!isDesign ? ' plain' : ''}`;
 
       return (
-        <div 
+        <div
           className={groupCls}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1070,8 +1146,12 @@ function renderCellContent({
                 className={`btn-confirmed-indicator${canConfirmDesign ? ' can-reset' : ''}`}
                 title={unit.design_confirmed_at ? `Confirmed by ${unit.design_confirmed_by_name || 'Design'} on ${formatFastDateTime(unit.design_confirmed_at)}${canConfirmDesign ? ' (Click to reset sign-off)' : ''}` : `Confirmed by Design${canConfirmDesign ? ' (Click to reset sign-off)' : ''}`}
                 onClick={() => {
-                  if (canConfirmDesign && window.confirm(`Reset Design confirmation for Unit ${unit.short_serial || unit.unit_id} to re-evaluate?`)) {
-                    onUnconfirmDesignClassification?.(unit);
+                  if (canConfirmDesign) {
+                    if (onRequestUnconfirmDesign) {
+                      onRequestUnconfirmDesign(unit);
+                    } else {
+                      onUnconfirmDesignClassification?.(unit);
+                    }
                   }
                 }}
               >
@@ -1110,10 +1190,10 @@ function renderCellContent({
             onChange={(e) => onSaveInlineCell(unit, 'priority', e.target.value)}
             className={`erp-priority-select ${pLower}`}
           >
-            <option value="Urgent" style={{ background: 'var(--bg3)', color: '#ef4444' }}>Urgent</option>
-            <option value="High" style={{ background: 'var(--bg3)', color: '#f87171' }}>High</option>
-            <option value="Medium" style={{ background: 'var(--bg3)', color: '#fbbf24' }}>Medium</option>
-            <option value="Low" style={{ background: 'var(--bg3)', color: '#60a5fa' }}>Low</option>
+            <option value="Urgent" style={{ background: 'var(--bg3)', color: 'var(--red)' }}>Urgent</option>
+            <option value="High" style={{ background: 'var(--bg3)', color: 'var(--orange)' }}>High</option>
+            <option value="Medium" style={{ background: 'var(--bg3)', color: '#eab308' }}>Medium</option>
+            <option value="Low" style={{ background: 'var(--bg3)', color: 'var(--blue)' }}>Low</option>
           </select>
         );
       }
@@ -1130,7 +1210,7 @@ function renderCellContent({
         if (holdStep.trim().toLowerCase() === 'hold' || holdStep.trim().toLowerCase() === 'current step') holdStep = '';
         return (
           <span className="erp-status-pill hold">
-            <span>⏸</span> {holdStep ? `Hold @ ${holdStep}` : 'On Hold'}
+            <Pause size={10} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 2 }} /> {holdStep ? `Hold @ ${holdStep}` : 'On Hold'}
           </span>
         );
       }
@@ -1139,7 +1219,7 @@ function renderCellContent({
         if (cancelStep.trim().toLowerCase() === 'cancelled' || cancelStep.trim().toLowerCase() === 'cancel' || cancelStep.trim().toLowerCase() === 'current step') cancelStep = '';
         return (
           <span className="erp-status-pill cancelled">
-            <span>✕</span> {cancelStep ? `Cancelled @ ${cancelStep}` : 'Cancelled'}
+            <X size={10} style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: 2 }} /> {cancelStep ? `Cancelled @ ${cancelStep}` : 'Cancelled'}
           </span>
         );
       }
@@ -1192,14 +1272,14 @@ function renderCellContent({
             }
           }}
           style={{
-            color: isOverdue ? '#ef4444' : 'var(--text2)',
+            color: isOverdue ? 'var(--red)' : 'var(--text2)',
             fontWeight: isOverdue ? 600 : 400,
             fontSize: 12,
             cursor: canEdit ? 'pointer' : 'default'
           }}
         >
           {formatFastDate(unit.delivery_date)}
-          {isOverdue && <span style={{ fontSize: 9, color: '#ef4444', fontWeight: 700, marginLeft: 5, background: 'rgba(239,68,68,0.12)', borderRadius: 4, padding: '1px 5px' }}>OVERDUE</span>}
+          {isOverdue && <span style={{ fontSize: 9, color: 'var(--red)', fontWeight: 700, marginLeft: 5, background: 'var(--red-dim)', borderRadius: 'var(--radius-sm, 4px)', padding: '1px 5px' }}>OVERDUE</span>}
         </span>
       );
 
@@ -1216,7 +1296,7 @@ function renderCellContent({
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
             fontWeight: 600,
-            color: hasPart ? '#60a5fa' : 'var(--text3)',
+            color: hasPart ? 'var(--blue)' : 'var(--text3)',
             cursor: 'pointer',
             textDecoration: hasPart ? 'underline' : 'none'
           }}
@@ -1236,21 +1316,50 @@ function renderCellContent({
       const code = unit.panel_code || master?.panel_code;
 
       return code ? (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11.5,
-            fontWeight: 700,
-            color: '#c084fc',
-            background: 'rgba(168, 85, 247, 0.12)',
-            border: '1px solid rgba(168, 85, 247, 0.28)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}
-        >
-          {code}
-        </span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11.5,
+              fontWeight: 700,
+              color: 'var(--purple)',
+              background: 'var(--purple-dim)',
+              border: '1px solid rgba(168, 85, 247, 0.28)',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm, 4px)',
+              display: 'inline-block'
+            }}
+          >
+            {code}
+          </span>
+          {canEditPanelSize && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeletePanelSize?.(unit);
+              }}
+              title="Remove Panel Size, Code & IP Rating"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                color: 'var(--text3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-sm, 4px)',
+                opacity: 0.5,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'var(--red-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.background = 'none'; }}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
       ) : (
         <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
       );
@@ -1263,6 +1372,7 @@ function renderCellContent({
           panelSizeMasters={panelSizeMasters}
           canEdit={canEditPanelSize}
           onSave={(newSize) => onSaveInlineCell(unit, 'panel_type_size', newSize)}
+          onDelete={onDeletePanelSize}
         />
       );
 
@@ -1275,21 +1385,50 @@ function renderCellContent({
       );
       const ip = unit.panel_ip_rating || master?.ip_rating;
       return ip ? (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            fontWeight: 600,
-            color: '#10b981',
-            background: 'rgba(168, 85, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.28)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            display: 'inline-block'
-          }}
-        >
-          {ip}
-        </span>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              fontWeight: 600,
+              color: 'var(--green)',
+              background: 'var(--green-dim)',
+              border: '1px solid rgba(16, 185, 129, 0.28)',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm, 4px)',
+              display: 'inline-block'
+            }}
+          >
+            {ip}
+          </span>
+          {canEditPanelSize && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeletePanelSize?.(unit);
+              }}
+              title="Remove Panel Size, Code & IP Rating"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                color: 'var(--text3)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderRadius: 'var(--radius-sm, 4px)',
+                opacity: 0.5,
+                transition: 'all 0.15s ease'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'var(--red-dim)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.background = 'none'; }}
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+        </div>
       ) : (
         <span style={{ color: 'var(--text3)', opacity: 0.4 }}>—</span>
       );
@@ -1362,9 +1501,9 @@ function renderCellContent({
                 }}
                 title={poTooltip}
                 style={{
-                  background: 'rgba(59, 130, 246, 0.12)',
-                  border: '1px solid rgba(59, 130, 246, 0.35)',
-                  borderRadius: 5,
+                  background: 'var(--blue-dim)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  borderRadius: 'var(--radius-sm, 4px)',
                   padding: '2px 7px',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -1467,7 +1606,7 @@ function renderCellContent({
                     alignItems: 'center',
                     opacity: 0.7
                   }}
-                  onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.opacity = '1'; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--red)'; e.currentTarget.style.opacity = '1'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text3)'; e.currentTarget.style.opacity = '0.7'; }}
                 >
                   <Trash2 size={12} />
@@ -1517,15 +1656,15 @@ function renderCellContent({
               }}
               title={refTooltip}
               style={{
-                background: 'rgba(245, 158, 11, 0.12)',
-                border: '1px solid rgba(245, 158, 11, 0.35)',
-                borderRadius: 5,
+                background: 'var(--orange-dim)',
+                border: '1px solid rgba(249, 115, 22, 0.35)',
+                borderRadius: 'var(--radius-sm, 4px)',
                 padding: '2px 7px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 5,
                 cursor: 'pointer',
-                color: '#f59e0b',
+                color: 'var(--accent)',
                 fontSize: 12,
                 fontWeight: 600,
                 flex: '1 1 auto',
@@ -1547,11 +1686,11 @@ function renderCellContent({
                   onEditRefTag ? onEditRefTag(unit) : setEditingCell({ unitId: effectiveUnitId, colKey: 'reference_number', value: unit.reference_number || '' });
                 }}
                 title="Edit Reference & Tag (Serial numbers unchanged)"
-                style={{ fontSize: 11, color: 'var(--text3)', cursor: 'pointer', opacity: 0.7, flexShrink: 0, padding: '1px 3px', marginLeft: 'auto' }}
+                style={{ color: 'var(--text3)', cursor: 'pointer', opacity: 0.5, flexShrink: 0, padding: '2px', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center' }}
                 onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--blue)'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.color = 'var(--text3)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.color = 'var(--text3)'; }}
               >
-                ✏️
+                <Edit2 size={11} />
               </span>
             )}
           </div>
@@ -1568,7 +1707,7 @@ function renderCellContent({
           }}
           title={refTooltip}
           style={{
-            color: '#f59e0b',
+            color: 'var(--accent)',
             fontSize: 12,
             fontWeight: combinedVal ? 600 : 400,
             cursor: canEdit ? 'pointer' : 'default',
@@ -1584,7 +1723,14 @@ function renderCellContent({
         >
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{combinedVal || '—'}</span>
           {canEdit && (
-            <span style={{ fontSize: 10, opacity: 0.6, marginLeft: 'auto', flexShrink: 0 }} title="Edit Ref & Tag">✏️</span>
+            <span
+              style={{ color: 'var(--text3)', opacity: 0.5, marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', padding: '1px' }}
+              title="Edit Ref & Tag"
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--blue)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.color = 'var(--text3)'; }}
+            >
+              <Edit2 size={10} />
+            </span>
           )}
         </span>
       );
@@ -1736,11 +1882,11 @@ function renderCellContent({
                 cursor: canEdit ? 'pointer' : 'default',
                 display: 'inline-block',
                 padding: '2px 8px',
-                borderRadius: '4px',
-                fontSize: '11px',
+                borderRadius: 'var(--radius-sm, 4px)',
+                fontSize: 11,
                 fontWeight: 600,
-                background: isYes ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: isYes ? '#34d399' : '#f87171'
+                background: isYes ? 'var(--green-dim)' : 'var(--red-dim)',
+                color: isYes ? 'var(--green)' : 'var(--red)'
               }}
             >
               {currentVal}
@@ -1838,6 +1984,7 @@ const TableRow = memo(function TableRow({
   canConfirmDesign,
   onConfirmDesignClassification,
   onUnconfirmDesignClassification,
+  onRequestUnconfirmDesign,
   panelSizeMasters,
   panelSizeMap,
   customColumnDefs,
@@ -1852,7 +1999,8 @@ const TableRow = memo(function TableRow({
   onPartNumberClick,
   setPoPdfViewer,
   onEditRefTag,
-  onOpenOrderDocs
+  onOpenOrderDocs,
+  onDeletePanelSize
 }) {
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
@@ -1908,7 +2056,7 @@ const TableRow = memo(function TableRow({
             textAlign: 'center',
             verticalAlign: 'middle',
             borderRight: '1px solid var(--border)',
-            borderLeft: isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'),
+            borderLeft: isSelected ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'),
             userSelect: 'none',
             cursor: 'pointer'
           }}
@@ -1941,7 +2089,7 @@ const TableRow = memo(function TableRow({
         }
 
         const borderLeftStyle = (!showSelection && colIdx === 0)
-          ? (isSelected ? '5px solid #3b82f6' : (isCancelled ? '5px solid #ef4444' : isHold ? '5px solid #f59e0b' : '5px solid transparent'))
+          ? (isSelected ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'))
           : undefined;
 
         return (
@@ -1979,6 +2127,7 @@ const TableRow = memo(function TableRow({
               canConfirmDesign,
               onConfirmDesignClassification,
               onUnconfirmDesignClassification,
+              onRequestUnconfirmDesign,
               panelSizeMasters,
               panelSizeMap,
               customColumnDefs,
@@ -1991,7 +2140,8 @@ const TableRow = memo(function TableRow({
               onPartNumberClick,
               setPoPdfViewer,
               onEditRefTag,
-              onOpenOrderDocs
+              onOpenOrderDocs,
+              onDeletePanelSize
             })}
           </td>
         );
@@ -2009,6 +2159,8 @@ const TableRow = memo(function TableRow({
   if (prevProps.pinnedKeys !== nextProps.pinnedKeys) return false;
   if (prevProps.panelSizeMasters !== nextProps.panelSizeMasters) return false;
   if (prevProps.customColumnDefs !== nextProps.customColumnDefs) return false;
+  if (prevProps.canEdit !== nextProps.canEdit) return false;
+  if (prevProps.canEditPanelSize !== nextProps.canEditPanelSize) return false;
 
   const unitId = prevProps.unit.unit_id || prevProps.unit.id;
   const prevEditing = prevProps.editingCell && prevProps.editingCell.unitId === unitId;
@@ -2026,7 +2178,8 @@ const PoUploadModal = memo(function PoUploadModal({
   selectedUnitSerials = [],
   initialPoNumber = '',
   onUpload,
-  isUploading
+  isUploading,
+  addToast
 }) {
   const [poNumber, setPoNumber] = useState(initialPoNumber);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -2085,7 +2238,7 @@ const PoUploadModal = memo(function PoUploadModal({
 
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
     if (!isPdf) {
-      alert('Only PDF files are allowed for PO document upload.');
+      addToast?.('Only PDF files are allowed for PO document upload.', 'warning');
       return;
     }
 
@@ -2101,7 +2254,7 @@ const PoUploadModal = memo(function PoUploadModal({
     if (!file) return;
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
     if (!isPdf) {
-      alert('Only PDF files are allowed for PO document upload.');
+      addToast?.('Only PDF files are allowed for PO document upload.', 'warning');
       return;
     }
     setSelectedFile(file);
@@ -2115,11 +2268,11 @@ const PoUploadModal = memo(function PoUploadModal({
   const handleSubmit = (e) => {
     e?.preventDefault();
     if (!poNumber.trim()) {
-      alert('Please enter a PO Number.');
+      addToast?.('Please enter a PO Number.', 'warning');
       return;
     }
     if (!selectedFile) {
-      alert('Please select or drag & drop a PO PDF file.');
+      addToast?.('Please select or drag & drop a PO PDF file.', 'warning');
       return;
     }
     onUpload(poNumber.trim(), selectedFile);
@@ -2131,7 +2284,7 @@ const PoUploadModal = memo(function PoUploadModal({
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0, 0, 0, 0.72)',
+        background: 'var(--modal-overlay-bg, rgba(0, 0, 0, 0.75))',
         backdropFilter: 'blur(5px)',
         display: 'flex',
         alignItems: 'center',
@@ -2145,9 +2298,9 @@ const PoUploadModal = memo(function PoUploadModal({
     >
       <div
         style={{
-          background: 'var(--bg2, #181b26)',
-          border: '1px solid var(--border, #2d3748)',
-          borderRadius: 14,
+          background: 'var(--bg2)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg, 14px)',
           width: 520,
           maxWidth: '92vw',
           padding: '24px',
@@ -2155,7 +2308,7 @@ const PoUploadModal = memo(function PoUploadModal({
           display: 'flex',
           flexDirection: 'column',
           gap: 18,
-          color: 'var(--text, #f1f5f9)'
+          color: 'var(--text)'
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -2165,9 +2318,9 @@ const PoUploadModal = memo(function PoUploadModal({
             <div style={{
               width: 38,
               height: 38,
-              borderRadius: 10,
-              background: 'rgba(59, 130, 246, 0.15)',
-              color: 'var(--blue, #3b82f6)',
+              borderRadius: 'var(--radius, 8px)',
+              background: 'var(--blue-dim)',
+              color: 'var(--blue)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
@@ -2195,7 +2348,7 @@ const PoUploadModal = memo(function PoUploadModal({
               padding: 4,
               display: 'flex',
               alignItems: 'center',
-              borderRadius: 6
+              borderRadius: 'var(--radius-sm, 4px)'
             }}
           >
             <X size={18} />
@@ -2204,9 +2357,9 @@ const PoUploadModal = memo(function PoUploadModal({
 
         {/* Selected Panels Context */}
         <div style={{
-          background: 'rgba(59, 130, 246, 0.08)',
-          border: '1px solid rgba(59, 130, 246, 0.25)',
-          borderRadius: 8,
+          background: 'var(--blue-dim)',
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          borderRadius: 'var(--radius, 8px)',
           padding: '10px 14px',
           display: 'flex',
           flexDirection: 'column',
@@ -2215,8 +2368,8 @@ const PoUploadModal = memo(function PoUploadModal({
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
             <span style={{ color: 'var(--text2)', fontWeight: 600 }}>Target Serials:</span>
             <span style={{
-              background: 'var(--blue, #3b82f6)',
-              color: '#ffffff',
+              background: 'var(--blue)',
+              color: 'var(--bg, #151821)',
               fontWeight: 700,
               padding: '2px 8px',
               borderRadius: 12,
@@ -2262,7 +2415,7 @@ const PoUploadModal = memo(function PoUploadModal({
         {/* PO Number Input */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
-            PO Number <span style={{ color: '#ef4444' }}>*</span>
+            PO Number <span style={{ color: 'var(--red)' }}>*</span>
           </label>
           <input
             type="text"
@@ -2288,7 +2441,7 @@ const PoUploadModal = memo(function PoUploadModal({
         {/* Drag & Drop Zone */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text2)' }}>
-            PO Document (PDF) <span style={{ color: '#ef4444' }}>*</span>
+            PO Document (PDF) <span style={{ color: 'var(--red)' }}>*</span>
           </label>
 
           {!selectedFile ? (
@@ -2299,8 +2452,8 @@ const PoUploadModal = memo(function PoUploadModal({
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
               style={{
-                border: isDragging ? '2px dashed var(--blue, #3b82f6)' : '2px dashed var(--border2, #3b4256)',
-                background: isDragging ? 'rgba(59, 130, 246, 0.12)' : 'var(--bg3)',
+                border: isDragging ? '2px dashed var(--blue)' : '2px dashed var(--border2)',
+                background: isDragging ? 'var(--blue-dim)' : 'var(--bg3)',
                 borderRadius: 12,
                 padding: '32px 16px',
                 display: 'flex',
@@ -2317,13 +2470,13 @@ const PoUploadModal = memo(function PoUploadModal({
                 width: 52,
                 height: 52,
                 borderRadius: '50%',
-                background: isDragging ? 'rgba(59, 130, 246, 0.25)' : 'rgba(59, 130, 246, 0.1)',
+                background: isDragging ? 'rgba(56, 189, 248, 0.25)' : 'var(--blue-dim)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--blue, #3b82f6)'
+                color: 'var(--blue)'
               }}>
-                <UploadCloud size={26} className={isDragging ? 'animate-bounce' : ''} />
+                <UploadCloud size={26} style={{ transform: isDragging ? 'scale(1.12)' : 'scale(1)', transition: 'transform 0.15s ease' }} />
               </div>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
@@ -2338,7 +2491,7 @@ const PoUploadModal = memo(function PoUploadModal({
                 color: 'var(--text3)',
                 background: 'var(--bg2)',
                 padding: '2px 8px',
-                borderRadius: 4,
+                borderRadius: 'var(--radius-sm, 4px)',
                 border: '1px solid var(--border)'
               }}>
                 Only PDF files supported
@@ -2353,8 +2506,8 @@ const PoUploadModal = memo(function PoUploadModal({
             </div>
           ) : (
             <div style={{
-              border: '1px solid rgba(59, 130, 246, 0.35)',
-              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              background: 'var(--blue-dim)',
               borderRadius: 10,
               padding: '14px 16px',
               display: 'flex',
@@ -2367,8 +2520,8 @@ const PoUploadModal = memo(function PoUploadModal({
                   width: 38,
                   height: 38,
                   borderRadius: 8,
-                  background: 'rgba(239, 68, 68, 0.14)',
-                  color: '#ef4444',
+                  background: 'var(--red-dim)',
+                  color: 'var(--red)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -2452,8 +2605,8 @@ const PoUploadModal = memo(function PoUploadModal({
               fontWeight: 600,
               borderRadius: 8,
               border: 'none',
-              background: 'var(--blue, #3b82f6)',
-              color: '#ffffff',
+              background: 'var(--blue)',
+              color: 'var(--bg, #151821)',
               cursor: (isUploading || !selectedFile || !poNumber.trim()) ? 'not-allowed' : 'pointer',
               opacity: (isUploading || !selectedFile || !poNumber.trim()) ? 0.6 : 1,
               display: 'inline-flex',
@@ -2480,7 +2633,8 @@ const PoUploadBar = memo(function PoUploadBar({
   onClearSelection,
   onUploadPo,
   externalPoNumber,
-  setExternalPoNumber
+  setExternalPoNumber,
+  addToast
 }) {
   const [poNumber, setPoNumber] = useState(() => {
     return externalPoNumber || localStorage.getItem('erp_all_poNumber') || '';
@@ -2514,11 +2668,11 @@ const PoUploadBar = memo(function PoUploadBar({
 
   const handleUploadClick = () => {
     if (!canUploadPo) {
-      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
+      addToast?.("Only Sales, Admin, and Manager roles can upload PO documents.", 'warning');
       return;
     }
     if (selectedCount === 0) {
-      alert("Please select the serial numbers (on which you require to add the PO data) first.");
+      addToast?.("Please select the serial numbers to attach the PO data to first.", 'warning');
       return;
     }
     setIsModalOpen(true);
@@ -2535,32 +2689,27 @@ const PoUploadBar = memo(function PoUploadBar({
     const file = files[0];
 
     if (!canUploadPo) {
-      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
+      addToast?.("Only Sales, Admin, and Manager roles can upload PO documents.", 'warning');
       return;
     }
 
     if (selectedCount === 0) {
-      alert("Please select the serial numbers (on which you require to add the PO data) first.");
+      addToast?.("Please select the serial numbers to attach the PO data to first.", 'warning');
       return;
     }
 
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
     if (!isPdf) {
-      alert('Only PDF files are allowed for PO document upload.');
+      addToast?.('Only PDF files are allowed for PO document upload.', 'warning');
       return;
     }
 
     let currentPo = poNumber.trim();
     if (!currentPo) {
       const suggestedPo = file.name.replace(/\.[^/.]+$/, '').trim();
-      const entered = window.prompt("Enter PO No. for this document:", suggestedPo);
-      if (entered === null) return;
-      if (!entered.trim()) {
-        alert("PO Number is required to upload PO document.");
-        if (poInputRef.current) poInputRef.current.focus();
-        return;
-      }
-      currentPo = entered.trim();
+      setPoNumber(suggestedPo);
+      setIsModalOpen(true);
+      return;
     }
 
     setPoNumber('');
@@ -2632,14 +2781,14 @@ const PoUploadBar = memo(function PoUploadBar({
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'rgba(37, 99, 235, 0.94)',
+          background: 'rgba(56, 189, 248, 0.95)',
           backdropFilter: 'blur(3px)',
-          borderRadius: 7,
+          borderRadius: 'var(--radius, 8px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 8,
-          color: '#ffffff',
+          color: 'var(--bg, #151821)',
           fontSize: 12,
           fontWeight: 700,
           letterSpacing: '0.01em',
@@ -2647,21 +2796,21 @@ const PoUploadBar = memo(function PoUploadBar({
           pointerEvents: 'none',
           boxShadow: '0 4px 14px rgba(0, 0, 0, 0.3)'
         }}>
-          <UploadCloud size={16} className="animate-bounce" />
+          <UploadCloud size={16} style={{ transform: isDraggingOver ? 'scale(1.12)' : 'scale(1)', transition: 'transform 0.15s ease' }} />
           <span>Drop PO PDF to Upload</span>
         </div>
       )}
 
       {poSuccessMsg && (
-        <span style={{ fontSize: 12, fontWeight: 600, color: '#10b981', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 6, padding: '3px 8px' }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--green)', background: 'var(--green-dim)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: 'var(--radius-sm, 4px)', padding: '3px 8px' }}>
           {poSuccessMsg}
         </span>
       )}
 
       {selectedCount > 0 && (
         <span style={{
-          fontSize: 12, fontWeight: 600, color: 'var(--blue)', background: 'rgba(59, 130, 246, 0.12)',
-          border: '1px solid rgba(59, 130, 246, 0.3)', borderRadius: 6, padding: '3px 8px',
+          fontSize: 12, fontWeight: 600, color: 'var(--blue)', background: 'var(--blue-dim)',
+          border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: 'var(--radius-sm, 4px)', padding: '3px 8px',
           display: 'inline-flex', alignItems: 'center', gap: 5
         }}>
           <span>{selectedCount} serial{selectedCount > 1 ? 's' : ''} selected</span>
@@ -2695,7 +2844,7 @@ const PoUploadBar = memo(function PoUploadBar({
           background: 'var(--bg3)',
           color: 'var(--text)',
           border: '1px solid var(--border)',
-          borderRadius: 6,
+          borderRadius: 'var(--radius-sm, 4px)',
           outline: 'none',
           width: 140
         }}
@@ -2706,26 +2855,28 @@ const PoUploadBar = memo(function PoUploadBar({
         type="button"
         onClick={handleUploadClick}
         disabled={isUploadingPo}
-        title="Click to open Drag & Drop PO uploader"
+        title={selectedCount > 0 ? `Click to attach PO to ${selectedCount} selected serial(s)` : "Select serials then click to upload PO"}
         style={{
           height: 30,
           padding: '0 12px',
           fontSize: 12,
           fontWeight: 600,
-          background: 'var(--blue)',
-          color: '#ffffff',
-          border: 'none',
-          borderRadius: 6,
+          background: selectedCount > 0 ? 'var(--blue)' : 'var(--bg3)',
+          color: selectedCount > 0 ? 'var(--bg, #151821)' : 'var(--text2)',
+          border: selectedCount > 0 ? 'none' : '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm, 4px)',
           cursor: isUploadingPo ? 'wait' : 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
           gap: 6,
           opacity: isUploadingPo ? 0.7 : 1,
-          whiteSpace: 'nowrap'
+          whiteSpace: 'nowrap',
+          boxShadow: selectedCount > 0 ? '0 0 10px rgba(56, 189, 248, 0.35)' : 'none',
+          transition: 'all 0.15s ease'
         }}
       >
         {isUploadingPo ? <Loader2 size={13} className="animate-spin" /> : <UploadCloud size={13} />}
-        <span>Upload PO</span>
+        <span>{selectedCount > 0 ? `Upload PO (${selectedCount})` : 'Upload PO'}</span>
       </button>
 
       {/* Modal with Drag & Drop Option */}
@@ -2742,6 +2893,7 @@ const PoUploadBar = memo(function PoUploadBar({
           onUploadPo(submittedPo, file);
         }}
         isUploading={isUploadingPo}
+        addToast={addToast}
       />
     </div>
   );
@@ -2751,6 +2903,16 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
   const searchInputRef = useRef(null);
+
+  const { toasts, addToast, dismissToast } = useToast();
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    variant: 'warning',
+    confirmText: 'Confirm',
+    onConfirm: null
+  });
 
   // Prevent browser from navigating away if a user drops a file outside the dropzone
   useEffect(() => {
@@ -2999,8 +3161,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV5 = localStorage.getItem('erp_all_colWidths_v5');
-      const saved = savedV5 || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
+      const savedV6 = localStorage.getItem('erp_all_colWidths_v6');
+      const saved = savedV6 || localStorage.getItem('erp_all_colWidths_v5') || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = { ...DEFAULT_COL_WIDTHS };
@@ -3008,9 +3170,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           if (parsed[k] !== undefined) {
             const minSafe = MIN_COL_WIDTHS[k] || 120;
             const savedVal = Number(parsed[k]);
-            if (!savedV5) {
-              // Upgrading from older version: if saved value was squashed (< minSafe), upgrade to DEFAULT_COL_WIDTHS[k]
-              merged[k] = (savedVal && savedVal >= minSafe) ? savedVal : DEFAULT_COL_WIDTHS[k];
+            if (!savedV6) {
+              // Upgrading to v6: ensure widened defaults for project_name, part_number, etc.
+              merged[k] = (savedVal && savedVal >= DEFAULT_COL_WIDTHS[k]) ? savedVal : DEFAULT_COL_WIDTHS[k];
             } else {
               merged[k] = Math.max(savedVal || minSafe, minSafe);
             }
@@ -3032,7 +3194,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v6', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3116,6 +3278,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v3');
     localStorage.removeItem('erp_all_colWidths_v4');
     localStorage.removeItem('erp_all_colWidths_v5');
+    localStorage.removeItem('erp_all_colWidths_v6');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3161,7 +3324,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v6', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -3261,7 +3424,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       const updated = { ...prev, [colKey]: finalWidth };
       try {
         localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(updated));
-      } catch (err) {}
+      } catch (err) { }
       return updated;
     });
   };
@@ -3281,6 +3444,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canUploadPo = ['ADMIN', 'MANAGER', 'SALES'].includes(roleUpper);
   const canConfirmDesign = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
+  const isPurchaseView = (currentFilter || '').toLowerCase() === 'purchase' || (roleUpper === 'PURCHASE' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'purchase'));
+
   const currentUser = (() => {
     try {
       return JSON.parse(localStorage.getItem('user') || '{}');
@@ -3297,6 +3462,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [selectedPartForDocs, setSelectedPartForDocs] = useState(null);
   const [editingRefTagUnit, setEditingRefTagUnit] = useState(null);
   const [orderDocsModalData, setOrderDocsModalData] = useState(null);
+  const [isPurchaseNewOrderOpen, setIsPurchaseNewOrderOpen] = useState(false);
+  const [isPurchaseOrderReceivedOpen, setIsPurchaseOrderReceivedOpen] = useState(false);
 
   const fetchPartMasters = async () => {
     try {
@@ -3557,6 +3724,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }
   };
 
+  const handleRequestUnconfirmDesign = useCallback((unit) => {
+    const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Reset Design Sign-Off',
+      message: `Reset Design confirmation for Unit ${serial} to re-evaluate? This will return the panel classification to unconfirmed status.`,
+      variant: 'warning',
+      confirmText: 'Reset Sign-Off',
+      onConfirm: () => handleUnconfirmDesignClassification(unit)
+    });
+  }, [handleUnconfirmDesignClassification]);
+
   const handleSaveInlineCell = async (unit, colKey, newValue) => {
     const targetUnitId = unit.unit_id || unit.id;
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
@@ -3810,9 +3989,26 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         const p = (u.priority || 'Medium').toLowerCase();
         if (p !== 'urgent' && p !== 'high') return false;
       } else if (statCardFilter === 'inprogress') {
-        if (status !== 'In Progress' && status !== 'In Process') return false;
+        const isUnitInProgress =
+          status === 'In Progress' ||
+          status === 'In Process' ||
+          Number(u.inprogress_step_count || 0) > 0 ||
+          Number(u.order_inprogress_step_count || 0) > 0 ||
+          u.dept_steps?.some(s => isStatusInProgress(s.status)) ||
+          u.design_steps?.some(s => isStatusInProgress(s.status)) ||
+          u.steps?.some(s => isStatusInProgress(s.status)) ||
+          isStatusInProgress(u.unit_status) ||
+          isStatusInProgress(u.status) ||
+          isStatusInProgress(u.order_status);
+        if (!isUnitInProgress) return false;
       } else if (statCardFilter === 'blocked') {
-        if (status !== 'Blocked') return false;
+        const isUnitBlocked =
+          status === 'Blocked' ||
+          String(u.unit_status || '').toLowerCase() === 'blocked' ||
+          String(u.status || '').toLowerCase() === 'blocked' ||
+          u.dept_steps?.some(s => String(s.status || '').toLowerCase() === 'blocked') ||
+          u.steps?.some(s => String(s.status || '').toLowerCase() === 'blocked');
+        if (!isUnitBlocked) return false;
       } else if (statCardFilter === 'due') {
         if (!u.delivery_date) return false;
         const today = new Date();
@@ -3829,8 +4025,29 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         if ((statusFilter === 'incomplete' || statusFilter === 'active') && (status === 'Completed' || status === 'Cancelled')) return false;
         if (statusFilter === 'completed' && status !== 'Completed') return false;
         if ((statusFilter === 'pending' || statusFilter === 'not_started') && status !== 'Pending' && status !== 'Not Started') return false;
-        if ((statusFilter === 'inprogress' || statusFilter === 'in_process') && status !== 'In Progress' && status !== 'In Process') return false;
-        if (statusFilter === 'blocked' && status !== 'Blocked') return false;
+        if (statusFilter === 'inprogress' || statusFilter === 'in_process') {
+          const isUnitInProgress =
+            status === 'In Progress' ||
+            status === 'In Process' ||
+            Number(u.inprogress_step_count || 0) > 0 ||
+            Number(u.order_inprogress_step_count || 0) > 0 ||
+            u.dept_steps?.some(s => isStatusInProgress(s.status)) ||
+            u.design_steps?.some(s => isStatusInProgress(s.status)) ||
+            u.steps?.some(s => isStatusInProgress(s.status)) ||
+            isStatusInProgress(u.unit_status) ||
+            isStatusInProgress(u.status) ||
+            isStatusInProgress(u.order_status);
+          if (!isUnitInProgress) return false;
+        }
+        if (statusFilter === 'blocked') {
+          const isUnitBlocked =
+            status === 'Blocked' ||
+            String(u.unit_status || '').toLowerCase() === 'blocked' ||
+            String(u.status || '').toLowerCase() === 'blocked' ||
+            u.dept_steps?.some(s => String(s.status || '').toLowerCase() === 'blocked') ||
+            u.steps?.some(s => String(s.status || '').toLowerCase() === 'blocked');
+          if (!isUnitBlocked) return false;
+        }
         if (statusFilter === 'hold' && status !== 'Hold' && status !== 'On Hold') return false;
         if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
       }
@@ -4009,7 +4226,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const handleBatchPoUpload = useCallback(async (poNumber, file) => {
     const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf';
     if (!isPdf) {
-      alert('Only PDF files are allowed for PO document upload.');
+      addToast('Only PDF files are allowed for PO document upload.', 'warning');
       return;
     }
 
@@ -4032,6 +4249,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
 
       setPoSuccessMsg(`✓ PO #${data.po_number} attached to ${selectedUnitIds.size} serial numbers!`);
+      addToast(`PO #${data.po_number} attached to ${selectedUnitIds.size} serial numbers!`, 'success');
       setTimeout(() => setPoSuccessMsg(''), 4500);
 
       setExternalPoNumber('');
@@ -4039,54 +4257,115 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       try {
         localStorage.removeItem('erp_all_selectedUnitIds');
         localStorage.removeItem('erp_all_poNumber');
-      } catch (e) {}
+      } catch (e) { }
       await fetchUnits(true);
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Failed to upload PO.');
+      addToast(err.message || 'Failed to upload PO.', 'error');
     } finally {
       setIsUploadingPo(false);
     }
-  }, [selectedUnitIds, token]);
+  }, [selectedUnitIds, token, addToast, fetchUnits]);
 
   const handleSingleUnitPoClick = useCallback((unit) => {
     if (!canUploadPo) {
-      alert("Only Sales, Admin, and Manager roles can upload PO documents.");
+      addToast("Only Sales, Admin, and Manager roles can upload PO documents.", 'warning');
       return;
     }
     setSelectedUnitIds(new Set([unit.unit_id]));
     setExternalPoNumber(unit.po_number || '');
-  }, [canUploadPo]);
+  }, [canUploadPo, addToast]);
 
-  const handleDeleteUnitPoDoc = useCallback(async (unit) => {
+  const handleDeleteUnitPoDoc = useCallback((unit) => {
     if (!canUploadPo) {
-      alert("Only Sales, Admin, and Manager roles can remove PO documents.");
+      addToast("Only Sales, Admin, and Manager roles can remove PO documents.", 'warning');
       return;
     }
     const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
-    if (!window.confirm(`Are you sure you want to remove the PO for serial ${serial}? This will return the panel to Sales.`)) {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove PO Document',
+      message: `Are you sure you want to remove the attached PO PDF for serial ${serial}? This will return the panel to Sales.`,
+      variant: 'danger',
+      confirmText: 'Remove Document',
+      onConfirm: async () => {
+        const uId = unit.id || unit.unit_id;
+        try {
+          const res = await fetch(`${window.API_BASE}/api/units/${uId}/po-document`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || 'Failed to remove PO document');
+          }
+
+          setPoSuccessMsg(`✓ PO PDF removed for serial ${serial}`);
+          addToast(`PO PDF removed for serial ${serial}`, 'success');
+          setTimeout(() => setPoSuccessMsg(''), 4000);
+          await fetchUnits(true);
+        } catch (err) {
+          console.error('Error removing PO PDF:', err);
+          addToast(err.message || 'Failed to remove PO PDF document.', 'error');
+        }
+      }
+    });
+  }, [canUploadPo, token, fetchUnits, addToast]);
+
+  const handleDeletePanelSize = useCallback((unit) => {
+    if (!canEditPanelSize) {
+      addToast("Only Design, Admin, and Manager roles can modify panel sizes.", 'warning');
       return;
     }
+    const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
+    const currentSize = unit.panel_type_size || 'assigned size';
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Panel Size',
+      message: `Are you sure you want to remove the panel size ("${currentSize}"), code, and IP rating for serial ${serial}?`,
+      variant: 'danger',
+      confirmText: 'Remove Panel Size',
+      onConfirm: async () => {
+        const uId = unit.id || unit.unit_id;
+        try {
+          // Optimistic local update so UI reflects immediately
+          setUnits(prev => prev.map(u => {
+            const currentId = u.unit_id || u.id;
+            if (currentId === uId) {
+              return {
+                ...u,
+                panel_type_size: null,
+                panel_code: '',
+                panel_ip_rating: '',
+                panel_comments: ''
+              };
+            }
+            return u;
+          }));
 
-    const uId = unit.id || unit.unit_id;
-    try {
-      const res = await fetch(`${window.API_BASE}/api/units/${uId}/po-document`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to remove PO document');
+          const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ panel_type_size: null })
+          });
+
+          if (!res.ok) {
+            throw new Error('Failed to remove panel size on server');
+          }
+
+          addToast(`Panel size cleared for serial ${serial}`, 'success');
+          await fetchUnits(true);
+        } catch (err) {
+          console.error('Error removing panel size:', err);
+          addToast(err.message || 'Failed to remove panel size.', 'error');
+          await fetchUnits(true);
+        }
       }
-
-      setPoSuccessMsg(`✓ PO PDF removed for serial ${serial}`);
-      setTimeout(() => setPoSuccessMsg(''), 4000);
-      await fetchUnits(true);
-    } catch (err) {
-      console.error('Error removing PO PDF:', err);
-      alert(err.message || 'Failed to remove PO PDF document.');
-    }
-  }, [canUploadPo, token, fetchUnits]);
+    });
+  }, [canEditPanelSize, token, fetchUnits, addToast]);
 
   const SortIcon = ({ col }) => {
     if (sortKey !== col) return <ArrowUpDown size={11} className="sort-icon-idle" />;
@@ -4190,7 +4469,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             color: activeTab === 'all' ? 'var(--text)' : 'var(--text3)',
             padding: '11px 16px',
             cursor: 'pointer',
-            fontSize: '13px',
+            fontSize: 13,
             fontWeight: activeTab === 'all' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -4201,8 +4480,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         >
           <span>All Orders</span>
           <span style={{
-            background: activeTab === 'all' ? 'rgba(59, 130, 246, 0.15)' : 'var(--bg3)',
-            color: activeTab === 'all' ? '#3b82f6' : 'var(--text3)',
+            background: activeTab === 'all' ? 'var(--blue-dim)' : 'var(--bg3)',
+            color: activeTab === 'all' ? 'var(--blue)' : 'var(--text3)',
             borderRadius: 10,
             padding: '1px 7px',
             fontSize: 11,
@@ -4219,11 +4498,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           style={{
             background: 'transparent',
             border: 'none',
-            borderBottom: activeTab === 'hold' ? '2px solid #f59e0b' : '2px solid transparent',
-            color: activeTab === 'hold' ? '#f59e0b' : 'var(--text3)',
+            borderBottom: activeTab === 'hold' ? '2px solid var(--orange)' : '2px solid transparent',
+            color: activeTab === 'hold' ? 'var(--orange)' : 'var(--text3)',
             padding: '11px 16px',
             cursor: 'pointer',
-            fontSize: '13px',
+            fontSize: 13,
             fontWeight: activeTab === 'hold' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -4234,12 +4513,12 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         >
           <span style={{
             width: 7, height: 7, borderRadius: '50%',
-            background: '#f59e0b', display: 'inline-block'
+            background: 'var(--orange)', display: 'inline-block'
           }} />
           <span>Hold</span>
           <span style={{
-            background: activeTab === 'hold' ? 'rgba(245, 158, 11, 0.2)' : 'var(--bg3)',
-            color: activeTab === 'hold' ? '#f59e0b' : 'var(--text3)',
+            background: activeTab === 'hold' ? 'var(--orange-dim)' : 'var(--bg3)',
+            color: activeTab === 'hold' ? 'var(--orange)' : 'var(--text3)',
             borderRadius: 10,
             padding: '1px 7px',
             fontSize: 11,
@@ -4256,11 +4535,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           style={{
             background: 'transparent',
             border: 'none',
-            borderBottom: activeTab === 'cancelled' ? '2px solid #ef4444' : '2px solid transparent',
-            color: activeTab === 'cancelled' ? '#ef4444' : 'var(--text3)',
+            borderBottom: activeTab === 'cancelled' ? '2px solid var(--red)' : '2px solid transparent',
+            color: activeTab === 'cancelled' ? 'var(--red)' : 'var(--text3)',
             padding: '11px 16px',
             cursor: 'pointer',
-            fontSize: '13px',
+            fontSize: 13,
             fontWeight: activeTab === 'cancelled' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -4271,12 +4550,12 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         >
           <span style={{
             width: 7, height: 7, borderRadius: '50%',
-            background: '#ef4444', display: 'inline-block'
+            background: 'var(--red)', display: 'inline-block'
           }} />
           <span>Cancelled</span>
           <span style={{
-            background: activeTab === 'cancelled' ? 'rgba(239, 68, 68, 0.2)' : 'var(--bg3)',
-            color: activeTab === 'cancelled' ? '#ef4444' : 'var(--text3)',
+            background: activeTab === 'cancelled' ? 'var(--red-dim)' : 'var(--bg3)',
+            color: activeTab === 'cancelled' ? 'var(--red)' : 'var(--text3)',
             borderRadius: 10,
             padding: '1px 7px',
             fontSize: 11,
@@ -4285,6 +4564,93 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             {cancelledCount}
           </span>
         </button>
+
+        {/* ── Right side: Purchase Department Action Buttons ── */}
+        {isPurchaseView && (
+          <div style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '4px 0'
+          }}>
+            {/* Order Recieved Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsPurchaseOrderReceivedOpen(true);
+              }}
+              title="Purchase: Order Recieved"
+              style={{
+                height: 34,
+                padding: '0 15px',
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.01em',
+                borderRadius: 7,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: 'var(--green, #10b981)',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.18)';
+                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.6)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <PackageCheck size={15} style={{ flexShrink: 0 }} />
+              <span>Order Recieved</span>
+            </button>
+
+            {/* New Order Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsPurchaseNewOrderOpen(true);
+              }}
+              title="Purchase: New Order"
+              style={{
+                height: 34,
+                padding: '0 15px',
+                fontSize: 13,
+                fontWeight: 600,
+                letterSpacing: '0.01em',
+                borderRadius: 7,
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                background: 'rgba(56, 189, 248, 0.12)',
+                color: 'var(--blue, #38bdf8)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.22)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.65)';
+                e.currentTarget.style.boxShadow = '0 0 10px rgba(56, 189, 248, 0.25)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(56, 189, 248, 0.12)';
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.35)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+            >
+              <Plus size={15} style={{ flexShrink: 0 }} />
+              <span>New Order</span>
+            </button>
+          </div>
+        )}
 
         {/* ── Right side: PO Controls (Enter PO No. + Upload PO button) — Sales Only ── */}
         {isSalesView && (
@@ -4298,6 +4664,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             onUploadPo={handleBatchPoUpload}
             externalPoNumber={externalPoNumber}
             setExternalPoNumber={setExternalPoNumber}
+            addToast={addToast}
           />
         )}
       </div>
@@ -4387,18 +4754,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         {statCardFilter && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            background: statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.12)' :
-              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
-                statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
-                  statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-            color: statCardFilter === 'priority' ? '#f97316' :
-              statCardFilter === 'inprogress' ? '#3b82f6' :
-                statCardFilter === 'blocked' ? '#ef4444' :
-                  statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
+            background: statCardFilter === 'priority' ? 'var(--orange-dim)' :
+              statCardFilter === 'inprogress' ? 'var(--blue-dim)' :
+                statCardFilter === 'blocked' ? 'var(--red-dim)' :
+                  statCardFilter === 'due' ? 'var(--purple-dim)' : 'var(--orange-dim)',
+            color: statCardFilter === 'priority' ? 'var(--orange)' :
+              statCardFilter === 'inprogress' ? 'var(--blue)' :
+                statCardFilter === 'blocked' ? 'var(--red)' :
+                  statCardFilter === 'due' ? 'var(--purple)' : 'var(--orange)',
             border: `1px solid ${statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
-                statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
-                  statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
-                    statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
+              statCardFilter === 'inprogress' ? 'rgba(56, 189, 248, 0.35)' :
+                statCardFilter === 'blocked' ? 'rgba(248, 113, 113, 0.35)' :
+                  statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(249, 115, 22, 0.35)'
               }`,
             borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600,
             whiteSpace: 'nowrap'
@@ -4498,7 +4865,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                     onDragLeave={(e) => handleHeaderDragLeave(e, colKey)}
                     onDragEnd={handleHeaderDragEnd}
                     onDrop={(e) => handleHeaderDrop(e, colKey)}
-                    title="Drag to reorder column. Click pin to freeze."
                     style={{
                       ...baseStyle,
                       cursor: 'grab',
@@ -4561,6 +4927,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 canConfirmDesign={canConfirmDesign}
                 onConfirmDesignClassification={handleConfirmDesignClassification}
                 onUnconfirmDesignClassification={handleUnconfirmDesignClassification}
+                onRequestUnconfirmDesign={handleRequestUnconfirmDesign}
                 panelSizeMasters={panelSizeMasters}
                 panelSizeMap={panelSizeMap}
                 customColumnDefs={customColumnDefs}
@@ -4576,6 +4943,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 setPoPdfViewer={setPoPdfViewer}
                 onEditRefTag={setEditingRefTagUnit}
                 onOpenOrderDocs={setOrderDocsModalData}
+                onDeletePanelSize={handleDeletePanelSize}
               />
             ))}
 
@@ -4626,9 +4994,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 alignItems: 'center',
                 gap: 4,
                 padding: '2px 8px',
-                borderRadius: 4,
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                background: 'var(--blue-dim)',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
                 fontSize: 12
               }}
               title="Click to deselect all"
@@ -4730,18 +5098,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  fontSize: '12px',
+                  fontSize: 12,
                   padding: '6px 12px',
-                  color: '#ef4444',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  borderRadius: '6px',
+                  color: 'var(--red)',
+                  background: 'var(--red-dim)',
+                  border: '1px solid rgba(248, 113, 113, 0.35)',
+                  borderRadius: 'var(--radius-sm, 4px)',
                   cursor: 'pointer',
                   fontWeight: 600
                 }}
                 title="Delete attached PO document"
               >
-                <Trash2 size={13} color="#ef4444" />
+                <Trash2 size={13} color="var(--red)" />
                 <span>Delete File</span>
               </button>
             ) : null
@@ -4819,6 +5187,31 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           }}
         />
       )}
+
+      {/* ── Purchase New Order Modal (Buying from Vendors) ── */}
+      <PurchaseNewOrderModal
+        isOpen={isPurchaseNewOrderOpen}
+        onClose={() => setIsPurchaseNewOrderOpen(false)}
+      />
+
+      {/* ── Purchase Order Received Modal (Goods Receipt / Incoming from Vendors) ── */}
+      <PurchaseOrderReceivedModal
+        isOpen={isPurchaseOrderReceivedOpen}
+        onClose={() => setIsPurchaseOrderReceivedOpen(false)}
+      />
+
+      {/* ── Toast Notifications & Confirmation Dialog ── */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+      <ConfirmModal
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        variant={confirmDialog.variant}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        onConfirm={confirmDialog.onConfirm}
+        onClose={() => setConfirmDialog(d => ({ ...d, isOpen: false }))}
+      />
     </div>
   );
 }
