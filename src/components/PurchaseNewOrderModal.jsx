@@ -616,8 +616,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
   const currentCategory = CATEGORIES.find(c => c.id === category) || CATEGORIES[0];
   const CategoryIcon = currentCategory.icon;
   const allEnteredPos = poEntries.map(p => p.poNumber.trim()).filter(Boolean);
-  const poSummaryDisplay = allEnteredPos.length > 0 ? allEnteredPos.join(', ') : 'PO (Pending)';
-  const primaryPoDisplay = poSummaryDisplay;
+  const poCount = allEnteredPos.length;
 
   return (
     <Modal
@@ -627,43 +626,6 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
       subtitle="Procurement & Buying · Create vendor order and assign panel serial numbers"
       maxWidth="1200px"
       width="96%"
-      headerActions={
-        <button
-          type="button"
-          onClick={handleSave}
-          title="Save Purchase Order (Ctrl+S)"
-          style={{
-            height: '34px',
-            padding: '0 16px',
-            fontSize: '12.5px',
-            fontWeight: 600,
-            borderRadius: '7px',
-            border: 'none',
-            background: 'var(--green, #10b981)',
-            color: '#ffffff',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 8px rgba(16, 185, 129, 0.28)',
-            boxSizing: 'border-box',
-            transition: 'opacity 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.opacity = '0.94';
-            e.currentTarget.style.transform = 'translateY(-1px)';
-            e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.38)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.opacity = '1';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.28)';
-          }}
-        >
-          <Save size={14} />
-          <span>Save Order</span>
-        </button>
-      }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {/* ── 1. Top Control Bar: Category Dropdown & PO Entries Cluster ── */}
@@ -1288,7 +1250,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                     <th
                       style={{
                         padding: '11px 16px',
-                        width: '160px',
+                        width: '180px',
                         color: 'var(--text)',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -1352,11 +1314,11 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                             padding: '12px 16px',
                             verticalAlign: 'middle',
                             borderRight: '1px solid var(--border)',
-                            width: '160px',
+                            width: '180px',
                             whiteSpace: 'nowrap'
                           }}
                         >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <span
                               style={{
                                 fontFamily: 'var(--font-mono, monospace)',
@@ -1373,24 +1335,41 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                               <button
                                 type="button"
                                 onClick={() => toggleGroupExpand(grp.id)}
+                                aria-expanded={isExpanded}
+                                aria-controls={`range-tray-${grp.id}`}
+                                aria-label={`Range of ${grp.count} panels from ${grp.displayLabel}. Click to ${isExpanded ? 'collapse' : 'expand'} individual panels.`}
+                                title={isExpanded ? 'Click to collapse individual panels' : `Click to expand ${grp.count} individual panels`}
                                 style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '3px',
-                                  padding: '2px 7px',
+                                  gap: '4px',
+                                  height: '22px',
+                                  padding: '0 8px',
                                   borderRadius: '12px',
-                                  background: isExpanded ? 'var(--blue, #38bdf8)' : 'var(--blue-dim, rgba(56, 189, 248, 0.14))',
-                                  color: isExpanded ? '#ffffff' : 'var(--blue, #38bdf8)',
-                                  border: '1px solid rgba(56, 189, 248, 0.35)',
-                                  fontSize: '10.5px',
+                                  background: isExpanded ? 'var(--blue, #38bdf8)' : 'rgba(56, 189, 248, 0.16)',
+                                  color: isExpanded ? '#0f172a' : 'var(--blue, #38bdf8)',
+                                  border: isExpanded ? '1px solid var(--blue, #38bdf8)' : '1px solid rgba(56, 189, 248, 0.45)',
+                                  fontSize: '11px',
                                   fontWeight: 700,
                                   cursor: 'pointer',
-                                  transition: 'all 0.15s ease'
+                                  transition: 'all 0.15s ease',
+                                  userSelect: 'none'
                                 }}
-                                title={isExpanded ? 'Collapse range' : 'Expand individual serials'}
+                                onMouseEnter={(e) => {
+                                  if (!isExpanded) {
+                                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.26)';
+                                    e.currentTarget.style.borderColor = 'var(--blue, #38bdf8)';
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!isExpanded) {
+                                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.16)';
+                                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.45)';
+                                  }
+                                }}
                               >
-                                <span>{grp.count}</span>
-                                {isExpanded ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+                                <span>{grp.count} {grp.count === 1 ? 'Panel' : 'Panels'}</span>
+                                {isExpanded ? <ChevronUp size={11} style={{ strokeWidth: 2.5 }} /> : <ChevronDown size={11} style={{ strokeWidth: 2.5 }} />}
                               </button>
                             )}
                           </div>
@@ -1501,6 +1480,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                               {/* If Expanded, show horizontal chips for individual serials */}
                               {grp.isRange && isExpanded && (
                                 <div
+                                  id={`range-tray-${grp.id}`}
                                   style={{
                                     display: 'flex',
                                     flexWrap: 'wrap',
@@ -1631,7 +1611,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
           }}
         >
           <div style={{ fontSize: '12px', color: 'var(--text3)' }}>
-            Order Summary: <strong style={{ color: 'var(--text)' }}>{category}</strong> · {allEnteredPos.length > 1 ? 'POs' : 'PO'}: <strong style={{ color: 'var(--text)' }}>{poSummaryDisplay}</strong> · <strong style={{ color: 'var(--blue, #38bdf8)' }}>{serials.length}</strong> serials recorded
+            Order Summary: <strong style={{ color: 'var(--text)' }}>{category} - {serials.length}</strong> · <strong style={{ color: 'var(--text)' }} title={allEnteredPos.length > 0 ? allEnteredPos.join(', ') : undefined}>POs - {poCount}</strong>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
