@@ -5192,6 +5192,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       <PurchaseNewOrderModal
         isOpen={isPurchaseNewOrderOpen}
         onClose={() => setIsPurchaseNewOrderOpen(false)}
+        existingUnits={units}
       />
 
       {/* ── Purchase Order Received Modal (Goods Receipt / Incoming from Vendors) ── */}
