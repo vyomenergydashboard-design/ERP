@@ -375,6 +375,34 @@ export async function runDeploymentMigrations(clientParam) {
         console.log(`[Deployment Migration] Realignment complete: ${misalignedUnits.rows.length} units with pending POs restored to Sales.`);
       }
 
+      // Ensure vendor_purchase_orders and vendor_purchase_order_units exist
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS vendor_purchase_orders (
+          id SERIAL PRIMARY KEY,
+          order_uid TEXT UNIQUE NOT NULL,
+          category TEXT NOT NULL,
+          pos JSONB NOT NULL DEFAULT '[]'::jsonb,
+          status TEXT DEFAULT 'Pending',
+          received_at TIMESTAMPTZ,
+          created_by TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
+        ALTER TABLE vendor_purchase_orders ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending';
+        ALTER TABLE vendor_purchase_orders ADD COLUMN IF NOT EXISTS received_at TIMESTAMPTZ;
+
+        CREATE TABLE IF NOT EXISTS vendor_purchase_order_units (
+          id SERIAL PRIMARY KEY,
+          vendor_purchase_order_id INT REFERENCES vendor_purchase_orders(id) ON DELETE CASCADE,
+          unit_serial TEXT NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_vpo_units_serial ON vendor_purchase_order_units(unit_serial);
+        CREATE INDEX IF NOT EXISTS idx_vpo_order_uid ON vendor_purchase_orders(order_uid);
+        CREATE INDEX IF NOT EXISTS idx_vpo_status ON vendor_purchase_orders(status);
+      `);
+
     } catch (cleanupErr) {
       console.error('[Deployment Migration] Resilient task cleanup warning:', cleanupErr);
     }
