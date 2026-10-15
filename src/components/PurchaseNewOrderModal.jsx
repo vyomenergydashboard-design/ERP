@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Modal from './Modal.jsx';
+import { toast } from './Toast.jsx';
 import {
   Layers,
   Cpu,
@@ -9,7 +10,6 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
-  Plus,
   X,
   Trash2,
   Hash,
@@ -102,13 +102,101 @@ const getCategoryPos = (item, catId, currentPoEntries = []) => {
 };
 
 /**
- * Groups consecutive sequential serial numbers (e.g. 222 to 256) into a consolidated range.
- * E.g., serials [222..256, 345] ->
- * Group 1: '222 – 256' (35 Panels)
- * Group 2: '345'
+ * Merges two lists of POs by poNumber (case-insensitive), preserving existing dates & status.
  */
-const groupSerialsIntoRanges = (serialsList) => {
+const mergePosLists = (existingPos = [], newPos = []) => {
+  const result = [];
+  const seen = new Set();
+
+  const add = (p) => {
+    if (!p) return;
+    const num = (p.poNumber || '').trim();
+    if (!num) return;
+    const key = num.toLowerCase();
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push({
+        id: p.id || result.length + 1,
+        poNumber: num,
+        date: p.date || getTodayDateStr(),
+        dateReceived: p.dateReceived || null
+      });
+    }
+  };
+
+  (existingPos || []).forEach(add);
+  (newPos || []).forEach(add);
+
+  return result;
+};
+
+/**
+ * Reads historical purchase orders from localStorage and extracts all POs
+ * previously logged for a specific serial number under a given category.
+ */
+const getHistoricalPosForSerial = (serialNumber, catId) => {
+  try {
+    const existingRaw = localStorage.getItem('vyom_purchase_orders');
+    if (!existingRaw) return [];
+    const orders = JSON.parse(existingRaw);
+    if (!Array.isArray(orders)) return [];
+
+    const targetSn = String(serialNumber).toLowerCase().trim();
+    const matchedPos = [];
+    const seenPoNumbers = new Set();
+
+    const addPo = (p) => {
+      if (!p) return;
+      const num = (p.poNumber || '').trim();
+      if (!num) return;
+      const key = num.toLowerCase();
+      if (!seenPoNumbers.has(key)) {
+        seenPoNumbers.add(key);
+        matchedPos.push({
+          id: p.id || matchedPos.length + 1,
+          poNumber: num,
+          date: p.date || getTodayDateStr(),
+          dateReceived: p.dateReceived || null
+        });
+      }
+    };
+
+    for (const order of orders) {
+      if (!order || !Array.isArray(order.serials)) continue;
+      for (const s of order.serials) {
+        if (!s) continue;
+        const sn = String(s.serialNumber || s.id || '').toLowerCase().trim();
+        if (sn === targetSn) {
+          const catData = getCategoryData(s, catId);
+          if (catData && Array.isArray(catData.pos) && catData.pos.length > 0) {
+            catData.pos.forEach(addPo);
+          } else if (catData && catData.poNumber) {
+            addPo(catData);
+          } else if (order.category === catId && Array.isArray(order.pos)) {
+            order.pos.forEach(addPo);
+          }
+        }
+      }
+    }
+
+    return matchedPos;
+  } catch (err) {
+    console.error('Failed to get historical POs for serial:', err);
+    return [];
+  }
+};
+
+/**
+ * Groups consecutive sequential serial numbers (e.g. 222 to 256) into a consolidated range
+ * only if they have the exact same list of POs under the active category.
+ */
+const groupSerialsIntoRanges = (serialsList, activeCategory) => {
   if (!Array.isArray(serialsList) || serialsList.length === 0) return [];
+
+  const getPoFingerprint = (item) => {
+    const pos = getCategoryPos(item, activeCategory);
+    return pos.map(p => (p.poNumber || '').trim().toLowerCase()).sort().join('|');
+  };
 
   // Sort by sequence number
   const sorted = [...serialsList].sort((a, b) => {
@@ -124,6 +212,7 @@ const groupSerialsIntoRanges = (serialsList) => {
   for (const item of sorted) {
     const seqNum = parseInt(String(item.serialNumber).slice(-4), 10);
     const completeSerial = String(item.serialNumber);
+    const itemFingerprint = getPoFingerprint(item);
 
     if (!currentGroup) {
       currentGroup = {
@@ -133,13 +222,18 @@ const groupSerialsIntoRanges = (serialsList) => {
         endSeq: isNaN(seqNum) ? null : seqNum,
         startSerial: completeSerial,
         endSerial: completeSerial,
-        sampleItem: item
+        sampleItem: item,
+        fingerprint: itemFingerprint
       };
       continue;
     }
 
-    // Check if contiguous to previous item
-    const isContiguous = !isNaN(seqNum) && currentGroup.endSeq !== null && seqNum === currentGroup.endSeq + 1;
+    // Check if contiguous to previous item AND has matching PO fingerprint
+    const isContiguous =
+      !isNaN(seqNum) &&
+      currentGroup.endSeq !== null &&
+      seqNum === currentGroup.endSeq + 1 &&
+      currentGroup.fingerprint === itemFingerprint;
 
     if (isContiguous) {
       currentGroup.items.push(item);
@@ -154,7 +248,8 @@ const groupSerialsIntoRanges = (serialsList) => {
         endSeq: isNaN(seqNum) ? null : seqNum,
         startSerial: completeSerial,
         endSerial: completeSerial,
-        sampleItem: item
+        sampleItem: item,
+        fingerprint: itemFingerprint
       };
     }
   }
@@ -184,7 +279,7 @@ const getTodayDateStr = () => {
   return `${year}-${month}-${day}`;
 };
 
-export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits = [] }) {
+export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits = [], addToast, onOrderSaved }) {
   const [category, setCategory] = useState('Panel');
   const [poEntries, setPoEntries] = useState([
     { id: 1, poNumber: '', date: getTodayDateStr() }
@@ -194,11 +289,35 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
   const [serialError, setSerialError] = useState('');
   const [lastAddedNotice, setLastAddedNotice] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [focusedPoId, setFocusedPoId] = useState(null);
   const [existingUnitsMap, setExistingUnitsMap] = useState(new Map());
   const [isLoadingUnits, setIsLoadingUnits] = useState(false);
   const [expandedGroupIds, setExpandedGroupIds] = useState(new Set());
   const serialInputRef = useRef(null);
+
+  // Sync historical purchase orders from PostgreSQL database on modal open
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchDbOrders = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            localStorage.setItem('vyom_purchase_orders', JSON.stringify(data));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not sync purchase orders from database:', err);
+      }
+    };
+    fetchDbOrders();
+  }, [isOpen]);
+
 
   const toggleGroupExpand = (grpId) => {
     setExpandedGroupIds(prev => {
@@ -214,7 +333,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
     setSerials(prev => prev.filter(s => !idsToRemove.has(s.id)));
   };
 
-  const groups = useMemo(() => groupSerialsIntoRanges(serials), [serials]);
+  const groups = useMemo(() => groupSerialsIntoRanges(serials, category), [serials, category]);
   const hasRanges = groups.some(g => g.isRange);
   const allExpanded = hasRanges && groups.filter(g => g.isRange).every(g => expandedGroupIds.has(g.id));
 
@@ -236,20 +355,23 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
       }))
       .filter(p => p.poNumber);
 
-    if (activePos.length === 0) return;
-
     setSerials(prev => prev.map(item => {
       const catData = item.categories?.[activeCategory];
       if (!catData) return item;
+
+      // Preserve historical POs from past orders and merge with current active editor POs
+      const histPos = getHistoricalPosForSerial(item.serialNumber, activeCategory);
+      const combined = mergePosLists(histPos, activePos);
+
       return {
         ...item,
         categories: {
           ...item.categories,
           [activeCategory]: {
             ...catData,
-            poNumber: activePos[0].poNumber,
-            date: activePos[0].date,
-            pos: activePos
+            poNumber: combined[0]?.poNumber || (activePos[0]?.poNumber || ''),
+            date: combined[0]?.date || (activePos[0]?.date || getTodayDateStr()),
+            pos: combined
           }
         }
       };
@@ -262,18 +384,6 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
       syncSerialsWithPoEntries(next, category);
       return next;
     });
-  };
-
-  const handleAddPoEntry = () => {
-    const newId = Date.now();
-    setPoEntries(prev => {
-      const next = [
-        ...prev,
-        { id: newId, poNumber: '', date: getTodayDateStr() }
-      ];
-      return next;
-    });
-    setFocusedPoId(newId);
   };
 
   const handleRemovePoEntry = (id) => {
@@ -466,24 +576,26 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
       }
     }
 
+    // Check mandatory PO numbers
+    const emptyPoIndex = poEntries.findIndex(p => !(p.poNumber || '').trim());
+    if (emptyPoIndex !== -1) {
+      const fieldLabel = emptyPoIndex === 0 ? 'PO No.' : `PO No. ${emptyPoIndex + 1}`;
+      setSerialError(`Please enter a valid ${fieldLabel}. PO Number is mandatory.`);
+      const poEl = document.getElementById(`po-input-${poEntries[emptyPoIndex].id}`);
+      poEl?.focus();
+      return;
+    }
+
     const activePos = poEntries
       .map((p, idx) => ({
         id: p.id || idx + 1,
-        poNumber: (p.poNumber || '').trim(),
+        poNumber: p.poNumber.trim(),
         date: p.date || getTodayDateStr(),
         dateReceived: null
       }))
       .filter(p => p.poNumber);
 
-    const posToAssign = activePos.length > 0
-      ? activePos
-      : [{
-          id: 1,
-          poNumber: `PO-${new Date().getFullYear()}-1`,
-          date: getTodayDateStr(),
-          dateReceived: null
-        }];
-
+    const posToAssign = activePos;
     const primaryPoNum = posToAssign[0].poNumber;
     const currentDate = posToAssign[0].date;
 
@@ -515,14 +627,25 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
 
         currentEntry.displaySerial = displaySn;
 
-        // Attach all active POs to the current category column
+        // Retrieve existing historical POs recorded for this serial in past orders
+        const historicalPos = getHistoricalPosForSerial(cleanSn, category);
+
+        // Retrieve any POs already attached to this entry in the current staging table
+        const currentCatData = getCategoryData(currentEntry, category);
+        const existingStagingPos = currentCatData?.pos || (currentCatData?.poNumber ? [{ poNumber: currentCatData.poNumber, date: currentCatData.date }] : []);
+
+        // Merge historical POs + existing staging POs + newly entered POs
+        const priorPos = mergePosLists(historicalPos, existingStagingPos);
+        const mergedPos = mergePosLists(priorPos, posToAssign);
+
+        // Attach all merged POs to the current category column
         currentEntry.categories = {
           ...currentEntry.categories,
           [category]: {
-            poNumber: primaryPoNum,
-            date: currentDate,
+            poNumber: mergedPos[0]?.poNumber || primaryPoNum,
+            date: mergedPos[0]?.date || currentDate,
             dateReceived: null,
-            pos: posToAssign
+            pos: mergedPos
           }
         };
 
@@ -552,10 +675,25 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
     setSerialError('');
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    // Check mandatory PO numbers
+    const emptyPoIndex = poEntries.findIndex(p => !(p.poNumber || '').trim());
+    if (emptyPoIndex !== -1) {
+      const fieldLabel = emptyPoIndex === 0 ? 'PO No.' : `PO No. ${emptyPoIndex + 1}`;
+      setSerialError(`Please enter a valid ${fieldLabel}. PO Number is mandatory.`);
+      const poEl = document.getElementById(`po-input-${poEntries[emptyPoIndex].id}`);
+      poEl?.focus();
+      return;
+    }
+
+    if (serials.length === 0) {
+      setSerialError('Please add at least one serial number before saving.');
+      return;
+    }
+
     const populatedPoList = poEntries.map((p, idx) => ({
       id: p.id,
-      poNumber: p.poNumber.trim() || `PO-${new Date().getFullYear()}-${idx + 1}`,
+      poNumber: p.poNumber.trim(),
       date: p.date,
       isPrimary: idx === 0
     }));
@@ -583,19 +721,59 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
       createdAt: new Date().toISOString()
     };
 
-    try {
-      const existingRaw = localStorage.getItem('vyom_purchase_orders');
-      const existingList = existingRaw ? JSON.parse(existingRaw) : [];
-      const updatedList = [orderRecord, ...(Array.isArray(existingList) ? existingList : [])];
-      localStorage.setItem('vyom_purchase_orders', JSON.stringify(updatedList));
-    } catch (err) {
-      console.error('Failed to save purchase order to localStorage:', err);
-    }
+    setIsSaving(true);
+    setSerialError('');
 
-    window.dispatchEvent(new CustomEvent('purchaseOrderSaved', { detail: orderRecord }));
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 4500);
-    // Explicitly does NOT close modal so user can view/verify the table output!
+    try {
+      // 1. Post to PostgreSQL database backend
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          category,
+          pos: populatedPoList,
+          serials: serials.map(s => ({ serialNumber: s.serialNumber }))
+        })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to save to database');
+      }
+
+      // 2. Cache in localStorage as local backup
+      try {
+        const existingRaw = localStorage.getItem('vyom_purchase_orders');
+        const existingList = existingRaw ? JSON.parse(existingRaw) : [];
+        const updatedList = [orderRecord, ...(Array.isArray(existingList) ? existingList : [])];
+        localStorage.setItem('vyom_purchase_orders', JSON.stringify(updatedList));
+      } catch (cacheErr) {
+        console.warn('LocalStorage cache warning:', cacheErr);
+      }
+
+      // 3. Dispatch events & notify user with simple toast abstraction
+      window.dispatchEvent(new CustomEvent('purchaseOrderSaved', { detail: orderRecord }));
+      window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { type: 'purchase' } }));
+
+      toast.success('Order saved successfully');
+
+      onOrderSaved?.();
+      setSerials([]);
+      setPoEntries([{ id: 1, poNumber: '', date: getTodayDateStr() }]);
+
+      // Cleanly close modal so user receives instant feedback
+      onClose();
+    } catch (err) {
+      console.error('Failed to save purchase order:', err);
+      toast.error(err.message || 'Failed to save order');
+      setSerialError(err.message || 'Failed to save order');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Support Ctrl+S / Cmd+S keyboard shortcut to save
@@ -766,7 +944,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                         }}
                       >
                         <span>{isFirstPo ? 'PO No.' : `PO No. ${index + 1}`}</span>
-                        {isFirstPo && <span style={{ color: 'var(--accent, #f97316)', fontSize: '12px' }}>*</span>}
+                        <span style={{ color: 'var(--accent, #f97316)', fontSize: '12px' }}>*</span>
                       </label>
 
                       {!isFirstPo && (
@@ -863,78 +1041,6 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                 );
               })}
 
-              {/* Add PO Button */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ height: '16px' }} />
-                <button
-                  type="button"
-                  onClick={handleAddPoEntry}
-                  style={{
-                    height: '32px',
-                    padding: '0 12px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    background: 'var(--blue-dim, rgba(56, 189, 248, 0.14))',
-                    color: 'var(--blue, #38bdf8)',
-                    border: '1.5px solid rgba(56, 189, 248, 0.45)',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = 'rgba(56, 189, 248, 0.25)';
-                    e.currentTarget.style.borderColor = 'var(--blue, #38bdf8)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = 'var(--blue-dim, rgba(56, 189, 248, 0.14))';
-                    e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.45)';
-                  }}
-                >
-                  <Plus size={13} style={{ strokeWidth: 2.4 }} />
-                  <span>Add PO</span>
-                </button>
-              </div>
-
-              {/* Primary PO Save Button */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginLeft: 'auto' }}>
-                <div style={{ height: '16px' }} />
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  style={{
-                    height: '32px',
-                    padding: '0 14px',
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '5px',
-                    background: 'var(--green, #10b981)',
-                    color: '#ffffff',
-                    border: 'none',
-                    boxShadow: '0 2px 6px rgba(16, 185, 129, 0.25)',
-                    boxSizing: 'border-box',
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.opacity = '0.92';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.opacity = '1';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <Save size={13} />
-                  <span>Save</span>
-                </button>
-              </div>
             </div>
           </div>
 
@@ -1257,7 +1363,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                         borderRight: '1px solid var(--border)'
                       }}
                     >
-                      Sr.
+                      Sr No.
                     </th>
                     <th
                       style={{
@@ -1446,7 +1552,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                                       )}
                                     </div>
 
-                                    {/* Line 2: Given Date – Date Received (Wrap safely, no overflow or clipping) */}
+                                    {/* Line 2: Given Date */}
                                     <div
                                       style={{
                                         display: 'flex',
@@ -1459,18 +1565,6 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                                     >
                                       <span style={{ whiteSpace: 'nowrap' }}>
                                         <strong style={{ color: 'var(--text2)', fontWeight: 600 }}>Given Date –</strong> {po.date || '—'}
-                                      </span>
-                                      <span style={{ color: 'var(--border2)' }}>·</span>
-                                      <span style={{ whiteSpace: 'nowrap' }}>
-                                        <strong style={{ color: 'var(--text2)', fontWeight: 600 }}>Date Received –</strong>{' '}
-                                        <span
-                                          style={{
-                                            color: po.dateReceived ? 'var(--green, #10b981)' : 'var(--orange, #f97316)',
-                                            fontWeight: 600
-                                          }}
-                                        >
-                                          {po.dateReceived || 'Pending'}
-                                        </span>
                                       </span>
                                     </div>
                                   </div>
@@ -1645,6 +1739,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
             <button
               type="button"
               onClick={handleSave}
+              disabled={isSaving}
               style={{
                 height: '36px',
                 padding: '0 20px',
@@ -1652,26 +1747,31 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                 fontWeight: 600,
                 borderRadius: '8px',
                 border: 'none',
-                background: 'var(--green, #10b981)',
+                background: isSaving ? 'var(--text3)' : 'var(--green, #10b981)',
                 color: '#ffffff',
-                cursor: 'pointer',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
                 boxShadow: '0 2px 8px rgba(16, 185, 129, 0.28)',
-                transition: 'all 0.15s ease'
+                transition: 'all 0.15s ease',
+                opacity: isSaving ? 0.7 : 1
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.94';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                if (!isSaving) {
+                  e.currentTarget.style.opacity = '0.94';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.transform = 'translateY(0)';
+                if (!isSaving) {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
               }}
             >
               <Save size={14} />
-              <span>Save Order</span>
+              <span>{isSaving ? 'Saving...' : 'Save Order'}</span>
             </button>
           </div>
         </div>

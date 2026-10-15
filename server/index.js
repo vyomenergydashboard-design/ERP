@@ -10,6 +10,8 @@ import multer from 'multer';
 import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
+import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1092,6 +1094,9 @@ const authorize = (roles = []) => {
     });
   };
 };
+
+// Vendor Purchase Orders API
+app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize));
 
 // Auth Routes
 app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {

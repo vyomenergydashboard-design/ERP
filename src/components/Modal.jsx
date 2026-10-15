@@ -12,6 +12,7 @@ export default function Modal({
   children,
   maxWidth = '520px',
   width = '95%',
+  style = {},
   className = '',
   overlayClassName = '',
   showCloseButton = true,
@@ -26,7 +27,7 @@ export default function Modal({
         if (e.target === e.currentTarget) onClose?.();
       }}
     >
-      <div className={`modal ${className}`} style={{ maxWidth, width }}>
+      <div className={`modal ${className}`} style={{ maxWidth, width, ...style }}>
         {(title || showCloseButton || headerActions) && (
           <div className="modal-header">
             <div>

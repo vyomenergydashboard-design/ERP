@@ -1,4 +1,4 @@
-import { useState, useCallback, useImperativeHandle, forwardRef, memo } from 'react';
+import { useState, useCallback, useImperativeHandle, forwardRef, memo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
@@ -90,7 +90,41 @@ export function useToast() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  // Listen for global toast abstraction calls across any component
+  useEffect(() => {
+    const handleGlobalToast = (e) => {
+      if (e.detail?.message) {
+        addToast(e.detail.message, e.detail.type || 'info', e.detail.title || '', e.detail.duration || 4000);
+      }
+    };
+    window.addEventListener('vyom-toast', handleGlobalToast);
+    return () => window.removeEventListener('vyom-toast', handleGlobalToast);
+  }, [addToast]);
+
   return { toasts, addToast, dismissToast };
 }
 
+/**
+ * Simple global toast abstraction helper.
+ * Usage:
+ *   import { toast } from './Toast';
+ *   toast.success('Order saved successfully');
+ *   toast.error('Failed to save order');
+ */
+export const toast = {
+  success: (message, title = '', duration = 4000) => {
+    window.dispatchEvent(new CustomEvent('vyom-toast', { detail: { message, type: 'success', title, duration } }));
+  },
+  error: (message, title = '', duration = 4000) => {
+    window.dispatchEvent(new CustomEvent('vyom-toast', { detail: { message, type: 'error', title, duration } }));
+  },
+  warning: (message, title = '', duration = 4000) => {
+    window.dispatchEvent(new CustomEvent('vyom-toast', { detail: { message, type: 'warning', title, duration } }));
+  },
+  info: (message, title = '', duration = 4000) => {
+    window.dispatchEvent(new CustomEvent('vyom-toast', { detail: { message, type: 'info', title, duration } }));
+  }
+};
+
 export default ToastContainer;
+

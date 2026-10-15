@@ -5193,12 +5193,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         isOpen={isPurchaseNewOrderOpen}
         onClose={() => setIsPurchaseNewOrderOpen(false)}
         existingUnits={units}
+        addToast={addToast}
+        onOrderSaved={() => fetchUnits(true)}
       />
 
       {/* ── Purchase Order Received Modal (Goods Receipt / Incoming from Vendors) ── */}
       <PurchaseOrderReceivedModal
         isOpen={isPurchaseOrderReceivedOpen}
         onClose={() => setIsPurchaseOrderReceivedOpen(false)}
+        onStatusUpdated={() => fetchUnits(true)}
       />
 
       {/* ── Toast Notifications & Confirmation Dialog ── */}
