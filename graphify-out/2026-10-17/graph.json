@@ -9,8 +9,8 @@
       "_callable": true,
       "_callable_class": true,
       "_origin": "ast",
-      "community": 114,
-      "community_name": "ErrorBoundary",
+      "community": 35,
+      "community_name": "App.jsx",
       "file_type": "code",
       "norm_label": "errorboundary",
       "source_file": "src/components/ErrorBoundary.jsx",
@@ -617,18 +617,6 @@
       "source_location": "L10963"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_steervoicecontext",
-      "label": "steerVoiceContext()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "startVoice",
-      "file_type": "code",
-      "norm_label": "steervoicecontext()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11137"
-    },
-    {
       "id": "agent_skills_impeccable_scripts_live_browser_steervoiceerrormessage",
       "label": "steerVoiceErrorMessage()",
       "_callable": true,
@@ -665,18 +653,6 @@
       "source_location": "L11042"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_syncconfigureinputchrome",
-      "label": "syncConfigureInputChrome()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "startVoice",
-      "file_type": "code",
-      "norm_label": "syncconfigureinputchrome()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L1281"
-    },
-    {
       "id": "agent_skills_impeccable_scripts_live_browser_syncvoiceui",
       "label": "syncVoiceUi()",
       "_callable": true,
@@ -689,24 +665,12 @@
       "source_location": "L11002"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_togglesteervoice",
-      "label": "toggleSteerVoice()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 109,
-      "community_name": "startVoice",
-      "file_type": "code",
-      "norm_label": "togglesteervoice()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11160"
-    },
-    {
       "id": "scratch_test_batch_po_runtest",
       "label": "runTest()",
       "_callable": true,
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "runtest()",
       "source_file": "scratch/test_batch_po.mjs",
@@ -717,7 +681,7 @@
       "label": "assert()",
       "_callable": true,
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "assert()",
@@ -729,192 +693,12 @@
       "label": "runTestSuite()",
       "_callable": true,
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "runtestsuite()",
       "source_file": "server/test_design_confirmation.js",
       "source_location": "L30"
-    },
-    {
-      "id": "server_test_po_system_assert",
-      "label": "assert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "assert()",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L20"
-    },
-    {
-      "id": "server_test_po_system_runtestsuite",
-      "label": "runTestSuite()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "runtestsuite()",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L30"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_agenthasworkinflight",
-      "label": "agentHasWorkInFlight()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "agenthasworkinflight()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11456"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_buildsteerqueuehint",
-      "label": "buildSteerQueueHint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "buildsteerqueuehint()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10493"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_clearsteerawaittimer",
-      "label": "clearSteerAwaitTimer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "clearsteerawaittimer()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10844"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_pagechatcollapsedwidthpx",
-      "label": "pageChatCollapsedWidthPx()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "pagechatcollapsedwidthpx()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10409"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_pagechatexpandedwidth",
-      "label": "pageChatExpandedWidth()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "pagechatexpandedwidth()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10414"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_schedulesteerawaittimeout",
-      "label": "scheduleSteerAwaitTimeout()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "schedulesteerawaittimeout()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10851"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_sendsteercheckpoint",
-      "label": "sendSteerCheckpoint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "sendsteercheckpoint()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L7878"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_steerqueuedbehindgeneration",
-      "label": "steerQueuedBehindGeneration()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "steerqueuedbehindgeneration()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10489"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_steertimeoutmessage",
-      "label": "steerTimeoutMessage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "steertimeoutmessage()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10867"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_submitsteermessage",
-      "label": "submitSteerMessage()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "submitsteermessage()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11178"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_syncpagechatexpandedwidth",
-      "label": "syncPageChatExpandedWidth()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "syncpagechatexpandedwidth()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10424"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_syncsteerqueuehint",
-      "label": "syncSteerQueueHint()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "syncsteerqueuehint()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10508"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_unlocksteerchat",
-      "label": "unlockSteerChat()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 110,
-      "community_name": "unlockSteerChat",
-      "file_type": "code",
-      "norm_label": "unlocksteerchat()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10906"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_abortsveltecomponentinjection",
@@ -1169,76 +953,28 @@
       "source_location": "L9841"
     },
     {
-      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
-      "label": ".componentDidCatch()",
+      "id": "server_test_po_system_assert",
+      "label": "assert()",
       "_callable": true,
       "_origin": "ast",
       "community": 114,
-      "community_name": "ErrorBoundary",
+      "community_name": "test_po_system.js",
       "file_type": "code",
-      "norm_label": ".componentdidcatch()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L19"
+      "norm_label": "assert()",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L20"
     },
     {
-      "id": "src_components_errorboundary_errorboundary_constructor",
-      "label": ".constructor()",
+      "id": "server_test_po_system_runtestsuite",
+      "label": "runTestSuite()",
       "_callable": true,
       "_origin": "ast",
       "community": 114,
-      "community_name": "ErrorBoundary",
+      "community_name": "test_po_system.js",
       "file_type": "code",
-      "norm_label": ".constructor()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L5"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
-      "label": ".getDerivedStateFromError()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 114,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".getderivedstatefromerror()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L15"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereload",
-      "label": ".handleReload()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 114,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".handlereload()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L31"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_handlereset",
-      "label": ".handleReset()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 114,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".handlereset()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L24"
-    },
-    {
-      "id": "src_components_errorboundary_errorboundary_render",
-      "label": ".render()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 114,
-      "community_name": "ErrorBoundary",
-      "file_type": "code",
-      "norm_label": ".render()",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L35"
+      "norm_label": "runtestsuite()",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L30"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_findmatchingcssbrace",
@@ -1313,6 +1049,18 @@
       "source_location": "L5454"
     },
     {
+      "id": "server_test_task_masters_lifecycle_runtests",
+      "label": "runTests()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "runtests()",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L15"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_collecteditabletextrows",
       "label": "collectEditableTextRows()",
       "_callable": true,
@@ -1371,6 +1119,66 @@
       "norm_label": "wrapmixedcontenttextnodes()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L3423"
+    },
+    {
+      "id": "server_test_purchase_order_received_assert",
+      "label": "assert()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "test_purchase_order_received.js",
+      "file_type": "code",
+      "norm_label": "assert()",
+      "source_file": "server/test_purchase_order_received.js",
+      "source_location": "L15"
+    },
+    {
+      "id": "server_test_purchase_order_received_runtestsuite",
+      "label": "runTestSuite()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "test_purchase_order_received.js",
+      "file_type": "code",
+      "norm_label": "runtestsuite()",
+      "source_file": "server/test_purchase_order_received.js",
+      "source_location": "L25"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_formatordernumber",
+      "label": "formatOrderNumber()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 121,
+      "community_name": "realign_unit_serials_to_orders.js",
+      "file_type": "code",
+      "norm_label": "formatordernumber()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L3"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_parseordercounter",
+      "label": "parseOrderCounter()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 121,
+      "community_name": "realign_unit_serials_to_orders.js",
+      "file_type": "code",
+      "norm_label": "parseordercounter()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L10"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders_realignunitserials",
+      "label": "realignUnitSerials()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 121,
+      "community_name": "realign_unit_serials_to_orders.js",
+      "file_type": "code",
+      "norm_label": "realignunitserials()",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L18"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_begineditpin",
@@ -1862,7 +1670,7 @@
       "file_type": "code",
       "norm_label": "allorderstableview()",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3183"
+      "source_location": "L3116"
     },
     {
       "id": "src_components_allorderstableview_calculateunitstatus",
@@ -2753,6 +2561,18 @@
       "source_location": "L1869"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_buffertobase64",
+      "label": "bufferToBase64()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 26,
+      "community_name": "live-browser.js",
+      "file_type": "code",
+      "norm_label": "buffertobase64()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L8424"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_buildinsertplaceholdersnapshotfromdom",
       "label": "buildInsertPlaceholderSnapshotFromDom()",
       "_callable": true,
@@ -2811,6 +2631,18 @@
       "norm_label": "clampvariantindex()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L9522"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_collectfontcsstext",
+      "label": "collectFontCssText()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 26,
+      "community_name": "live-browser.js",
+      "file_type": "code",
+      "norm_label": "collectfontcsstext()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L8456"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_commitacceptedvarianttodom",
@@ -3003,6 +2835,18 @@
       "norm_label": "horizontaloverlap()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L1761"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_inlinefonturls",
+      "label": "inlineFontUrls()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 26,
+      "community_name": "live-browser.js",
+      "file_type": "code",
+      "norm_label": "inlinefonturls()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L8433"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_insertlinecoords",
@@ -3833,6 +3677,18 @@
       "source_location": "L13016"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_savedesignprefs",
+      "label": "saveDesignPrefs()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 27,
+      "community_name": "renderDesignVisual",
+      "file_type": "code",
+      "norm_label": "savedesignprefs()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L12339"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_splitfontfamily",
       "label": "splitFontFamily()",
       "_callable": true,
@@ -4577,42 +4433,6 @@
       "source_location": "L4"
     },
     {
-      "id": "server_realign_unit_serials_to_orders_formatordernumber",
-      "label": "formatOrderNumber()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "db.js",
-      "file_type": "code",
-      "norm_label": "formatordernumber()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L3"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders_parseordercounter",
-      "label": "parseOrderCounter()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "db.js",
-      "file_type": "code",
-      "norm_label": "parseordercounter()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L10"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders_realignunitserials",
-      "label": "realignUnitSerials()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "db.js",
-      "file_type": "code",
-      "norm_label": "realignunitserials()",
-      "source_file": "server/realign_unit_serials_to_orders.js",
-      "source_location": "L18"
-    },
-    {
       "id": "agent_skills_impeccable_scripts_live_browser_actonagenttarget",
       "label": "actOnAgentTarget()",
       "_callable": true,
@@ -5213,6 +5033,78 @@
       "source_location": "L8"
     },
     {
+      "id": "src_components_errorboundary_errorboundary_componentdidcatch",
+      "label": ".componentDidCatch()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".componentdidcatch()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L19"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_constructor",
+      "label": ".constructor()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".constructor()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_getderivedstatefromerror",
+      "label": ".getDerivedStateFromError()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".getderivedstatefromerror()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_handlereload",
+      "label": ".handleReload()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".handlereload()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L31"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_handlereset",
+      "label": ".handleReset()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".handlereset()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L24"
+    },
+    {
+      "id": "src_components_errorboundary_errorboundary_render",
+      "label": ".render()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": ".render()",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L35"
+    },
+    {
       "id": "src_components_header_header",
       "label": "Header()",
       "_callable": true,
@@ -5333,6 +5225,30 @@
       "source_location": "L14"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_agentstatustext",
+      "label": "agentStatusText()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "agentstatustext()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11466"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_barpalettefortheme",
+      "label": "barPaletteForTheme()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "barpalettefortheme()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10350"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_brandmarksvg",
       "label": "brandMarkSvg()",
       "_callable": true,
@@ -5345,6 +5261,18 @@
       "source_location": "L11445"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_buildparamspanel",
+      "label": "buildParamsPanel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "buildparamspanel()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L3246"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_buildsavingrow",
       "label": "buildSavingRow()",
       "_callable": true,
@@ -5355,6 +5283,54 @@
       "norm_label": "buildsavingrow()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L2824"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_clearsteerfocusrecovertimer",
+      "label": "clearSteerFocusRecoverTimer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "clearsteerfocusrecovertimer()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10571"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_detectpagetheme",
+      "label": "detectPageTheme()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "detectpagetheme()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10312"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_detectpagetheme_readopaque",
+      "label": "readOpaque()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "readopaque()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10325"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_ensureagentpolltooltip",
+      "label": "ensureAgentPollTooltip()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "ensureagentpolltooltip()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11495"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_ensurespinkeyframes",
@@ -5381,6 +5357,30 @@
       "source_location": "L11570"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_fetchpendingcount",
+      "label": "fetchPendingCount()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "fetchpendingcount()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L4122"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_formatrangevalue",
+      "label": "formatRangeValue()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "formatrangevalue()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L3239"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_hideagentpolltooltip",
       "label": "hideAgentPollTooltip()",
       "_callable": true,
@@ -5391,6 +5391,42 @@
       "norm_label": "hideagentpolltooltip()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L11542"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_init",
+      "label": "init()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "init()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L13457"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_initactionpicker",
+      "label": "initActionPicker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "initactionpicker()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L2941"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_initbar",
+      "label": "initBar()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "initbar()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L1114"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_initglobalbar",
@@ -5415,6 +5451,30 @@
       "norm_label": "makeiconbtn()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L11687"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_inithighlight",
+      "label": "initHighlight()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "inithighlight()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L342"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_initparamspanel",
+      "label": "initParamsPanel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "initparamspanel()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L3111"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_loaddetectscript",
@@ -5463,6 +5523,18 @@
       "norm_label": "requestdetectscan()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L12088"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_showagentpolltooltip",
+      "label": "showAgentPollTooltip()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "showagentpolltooltip()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11524"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_startagentstatuspoll",
@@ -5525,6 +5597,18 @@
       "source_location": "L12230"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_toggleactionpicker",
+      "label": "toggleActionPicker()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "code",
+      "norm_label": "toggleactionpicker()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L3015"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_toggledetect",
       "label": "toggleDetect()",
       "_callable": true,
@@ -5573,18 +5657,6 @@
       "source_location": "L3"
     },
     {
-      "id": "scratch_check_indexes_check",
-      "label": "check()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "check()",
-      "source_file": "scratch/check_indexes.mjs",
-      "source_location": "L4"
-    },
-    {
       "id": "server_test_dept_completed_visibility_run",
       "label": "run()",
       "_callable": true,
@@ -5609,42 +5681,6 @@
       "source_location": "L11"
     },
     {
-      "id": "server_test_purchase_order_received_assert",
-      "label": "assert()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "assert()",
-      "source_file": "server/test_purchase_order_received.js",
-      "source_location": "L15"
-    },
-    {
-      "id": "server_test_purchase_order_received_runtestsuite",
-      "label": "runTestSuite()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "runtestsuite()",
-      "source_file": "server/test_purchase_order_received.js",
-      "source_location": "L25"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_run",
-      "label": "run()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "run()",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L14"
-    },
-    {
       "id": "server_test_security_hardening_runsecuritytests",
       "label": "runSecurityTests()",
       "_callable": true,
@@ -5655,18 +5691,6 @@
       "norm_label": "runsecuritytests()",
       "source_file": "server/test_security_hardening.js",
       "source_location": "L6"
-    },
-    {
-      "id": "server_test_task_masters_lifecycle_runtests",
-      "label": "runTests()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "runtests()",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L15"
     },
     {
       "id": "src_components_documentpreviewmodal_documentpreviewmodal",
@@ -6375,18 +6399,6 @@
       "norm_label": "attachsteerfocusguard()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L10609"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_clearsteerfocusrecovertimer",
-      "label": "clearSteerFocusRecoverTimer()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 44,
-      "community_name": "focusSteerChat",
-      "file_type": "code",
-      "norm_label": "clearsteerfocusrecovertimer()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10571"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_focusconfigureinput",
@@ -7229,6 +7241,30 @@
       "source_location": "L1221"
     },
     {
+      "id": "src_components_bulkimportmodal_bulkimportmodal",
+      "label": "BulkImportModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "bulkimportmodal()",
+      "source_file": "src/components/BulkImportModal.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_documentmanager_documentmanager",
+      "label": "DocumentManager()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "documentmanager()",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L9"
+    },
+    {
       "id": "src_components_excelsheetviewer_excelsheetviewer",
       "label": "ExcelSheetViewer()",
       "_callable": true,
@@ -7299,6 +7335,54 @@
       "norm_label": "orderdocumentsmodal()",
       "source_file": "src/components/OrderDocumentsModal.jsx",
       "source_location": "L56"
+    },
+    {
+      "id": "src_components_orderimport_orderimport",
+      "label": "OrderImport()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderimport()",
+      "source_file": "src/components/OrderImport.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_orderlist_orderlist",
+      "label": "OrderList()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderlist()",
+      "source_file": "src/components/OrderList.jsx",
+      "source_location": "L7"
+    },
+    {
+      "id": "src_components_stepmodal_stepmodal",
+      "label": "StepModal()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_components_stepmodal_todateinput",
+      "label": "toDateInput()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "todateinput()",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L7"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_actionlabel",
@@ -7757,6 +7841,18 @@
       "source_location": "L2342"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_syncconfigureinputchrome",
+      "label": "syncConfigureInputChrome()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 49,
+      "community_name": "el",
+      "file_type": "code",
+      "norm_label": "syncconfigureinputchrome()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L1281"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_syncinsertcreatebutton",
       "label": "syncInsertCreateButton()",
       "_callable": true,
@@ -8021,18 +8117,6 @@
       "source_location": "L8917"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_buffertobase64",
-      "label": "bufferToBase64()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 53,
-      "community_name": "captureElementToBlob",
-      "file_type": "code",
-      "norm_label": "buffertobase64()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L8424"
-    },
-    {
       "id": "agent_skills_impeccable_scripts_live_browser_capturechromenodes",
       "label": "captureChromeNodes()",
       "_callable": true,
@@ -8067,18 +8151,6 @@
       "norm_label": "captureelementtoblob()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L8628"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_collectfontcsstext",
-      "label": "collectFontCssText()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 53,
-      "community_name": "captureElementToBlob",
-      "file_type": "code",
-      "norm_label": "collectfontcsstext()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L8456"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_compileshader",
@@ -8151,18 +8223,6 @@
       "norm_label": "hidecapturechromeforshaderproxy()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L8545"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_inlinefonturls",
-      "label": "inlineFontUrls()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 53,
-      "community_name": "captureElementToBlob",
-      "file_type": "code",
-      "norm_label": "inlinefonturls()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L8433"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_istransparentcolor",
@@ -8321,30 +8381,6 @@
       "source_location": "L5"
     },
     {
-      "id": "src_components_bulkimportmodal_bulkimportmodal",
-      "label": "BulkImportModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "bulkimportmodal()",
-      "source_file": "src/components/BulkImportModal.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_documentmanager_documentmanager",
-      "label": "DocumentManager()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "documentmanager()",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L9"
-    },
-    {
       "id": "src_components_flowview_statusbadge",
       "label": "StatusBadge()",
       "_callable": true,
@@ -8354,30 +8390,6 @@
       "file_type": "code",
       "norm_label": "statusbadge()",
       "source_file": "src/components/FlowView.jsx",
-      "source_location": "L7"
-    },
-    {
-      "id": "src_components_orderimport_orderimport",
-      "label": "OrderImport()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "orderimport()",
-      "source_file": "src/components/OrderImport.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_orderlist_orderlist",
-      "label": "OrderList()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "orderlist()",
-      "source_file": "src/components/OrderList.jsx",
       "source_location": "L7"
     },
     {
@@ -8403,30 +8415,6 @@
       "norm_label": "sidenav()",
       "source_file": "src/components/Sidenav.jsx",
       "source_location": "L36"
-    },
-    {
-      "id": "src_components_stepmodal_stepmodal",
-      "label": "StepModal()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "stepmodal()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L17"
-    },
-    {
-      "id": "src_components_stepmodal_todateinput",
-      "label": "toDateInput()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "todateinput()",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L7"
     },
     {
       "id": "src_components_tableview_statusbadge",
@@ -9005,184 +8993,40 @@
       "source_location": "L3"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_agentstatustext",
-      "label": "agentStatusText()",
+      "id": "scratch_check_indexes_check",
+      "label": "check()",
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "init",
+      "community_name": "pg",
       "file_type": "code",
-      "norm_label": "agentstatustext()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11466"
+      "norm_label": "check()",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L4"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_barpalettefortheme",
-      "label": "barPaletteForTheme()",
+      "id": "server_test_sales_to_design_gate_run",
+      "label": "run()",
       "_callable": true,
       "_origin": "ast",
       "community": 82,
-      "community_name": "init",
+      "community_name": "pg",
       "file_type": "code",
-      "norm_label": "barpalettefortheme()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10350"
+      "norm_label": "run()",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L14"
     },
     {
-      "id": "agent_skills_impeccable_scripts_live_browser_buildparamspanel",
-      "label": "buildParamsPanel()",
+      "id": "agent_skills_impeccable_scripts_live_browser_agenthasworkinflight",
+      "label": "agentHasWorkInFlight()",
       "_callable": true,
       "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
+      "community": 84,
+      "community_name": "initPageChat",
       "file_type": "code",
-      "norm_label": "buildparamspanel()",
+      "norm_label": "agenthasworkinflight()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L3246"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_detectpagetheme",
-      "label": "detectPageTheme()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "detectpagetheme()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10312"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_detectpagetheme_readopaque",
-      "label": "readOpaque()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "readopaque()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L10325"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_ensureagentpolltooltip",
-      "label": "ensureAgentPollTooltip()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "ensureagentpolltooltip()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11495"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_fetchpendingcount",
-      "label": "fetchPendingCount()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "fetchpendingcount()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L4122"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_formatrangevalue",
-      "label": "formatRangeValue()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "formatrangevalue()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L3239"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_init",
-      "label": "init()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "init()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L13457"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_initactionpicker",
-      "label": "initActionPicker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "initactionpicker()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L2941"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_initbar",
-      "label": "initBar()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "initbar()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L1114"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_inithighlight",
-      "label": "initHighlight()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "inithighlight()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L342"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_initparamspanel",
-      "label": "initParamsPanel()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "initparamspanel()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L3111"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_showagentpolltooltip",
-      "label": "showAgentPollTooltip()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "showagentpolltooltip()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L11524"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_toggleactionpicker",
-      "label": "toggleActionPicker()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 82,
-      "community_name": "init",
-      "file_type": "code",
-      "norm_label": "toggleactionpicker()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L3015"
+      "source_location": "L11456"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_armpagechatfortyping",
@@ -9207,6 +9051,30 @@
       "norm_label": "buildsteerprocessingdots()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L10776"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_buildsteerqueuehint",
+      "label": "buildSteerQueueHint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "buildsteerqueuehint()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10493"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_clearsteerawaittimer",
+      "label": "clearSteerAwaitTimer()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "clearsteerawaittimer()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10844"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_collapsepagechat",
@@ -9281,6 +9149,30 @@
       "source_location": "L10878"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_pagechatcollapsedwidthpx",
+      "label": "pageChatCollapsedWidthPx()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "pagechatcollapsedwidthpx()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10409"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_pagechatexpandedwidth",
+      "label": "pageChatExpandedWidth()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "pagechatexpandedwidth()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10414"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_pagechatpalette",
       "label": "pageChatPalette()",
       "_callable": true,
@@ -9305,6 +9197,78 @@
       "source_location": "L10802"
     },
     {
+      "id": "agent_skills_impeccable_scripts_live_browser_schedulesteerawaittimeout",
+      "label": "scheduleSteerAwaitTimeout()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "schedulesteerawaittimeout()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10851"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_sendsteercheckpoint",
+      "label": "sendSteerCheckpoint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "sendsteercheckpoint()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L7878"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_steerqueuedbehindgeneration",
+      "label": "steerQueuedBehindGeneration()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "steerqueuedbehindgeneration()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10489"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_steertimeoutmessage",
+      "label": "steerTimeoutMessage()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "steertimeoutmessage()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10867"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_steervoicecontext",
+      "label": "steerVoiceContext()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "steervoicecontext()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11137"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_submitsteermessage",
+      "label": "submitSteerMessage()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "submitsteermessage()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11178"
+    },
+    {
       "id": "agent_skills_impeccable_scripts_live_browser_syncpagechatchrome",
       "label": "syncPageChatChrome()",
       "_callable": true,
@@ -9315,6 +9279,18 @@
       "norm_label": "syncpagechatchrome()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L10429"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_syncpagechatexpandedwidth",
+      "label": "syncPageChatExpandedWidth()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "syncpagechatexpandedwidth()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10424"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_syncpagechatfocusring",
@@ -9351,6 +9327,42 @@
       "norm_label": "syncpagechatvisual()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L10451"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_syncsteerqueuehint",
+      "label": "syncSteerQueueHint()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "syncsteerqueuehint()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10508"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_togglesteervoice",
+      "label": "toggleSteerVoice()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "togglesteervoice()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L11160"
+    },
+    {
+      "id": "agent_skills_impeccable_scripts_live_browser_unlocksteerchat",
+      "label": "unlockSteerChat()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 84,
+      "community_name": "initPageChat",
+      "file_type": "code",
+      "norm_label": "unlocksteerchat()",
+      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
+      "source_location": "L10906"
     },
     {
       "id": "server_routes_purchaseorders_createpurchaseordersrouter",
@@ -9483,18 +9495,6 @@
       "norm_label": "renderdesignchrome()",
       "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
       "source_location": "L12673"
-    },
-    {
-      "id": "agent_skills_impeccable_scripts_live_browser_savedesignprefs",
-      "label": "saveDesignPrefs()",
-      "_callable": true,
-      "_origin": "ast",
-      "community": 90,
-      "community_name": "initDesignPanel",
-      "file_type": "code",
-      "norm_label": "savedesignprefs()",
-      "source_file": ".agent/skills/impeccable/scripts/live-browser.js",
-      "source_location": "L12339"
     },
     {
       "id": "agent_skills_impeccable_scripts_live_browser_toggledesignpanel",
@@ -10988,7 +10988,7 @@
       "label": "optimize_table_view.mjs",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "optimize_table_view.mjs",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -10999,7 +10999,7 @@
       "label": "content",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "content",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -11010,7 +11010,7 @@
       "label": "filePath",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "filepath",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -11021,7 +11021,7 @@
       "label": "headerCbIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "headercbidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -11032,7 +11032,7 @@
       "label": "startIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "startidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -11043,7 +11043,7 @@
       "label": "tableEndIdx",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "tableendidx",
       "source_file": "scratch/optimize_table_view.mjs",
@@ -11054,7 +11054,7 @@
       "label": "test_batch_po.mjs",
       "_origin": "ast",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "file_type": "code",
       "norm_label": "test_batch_po.mjs",
       "source_file": "scratch/test_batch_po.mjs",
@@ -11064,7 +11064,7 @@
       "id": "server_test_design_confirmation",
       "label": "test_design_confirmation.js",
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "test_design_confirmation.js",
@@ -11075,7 +11075,7 @@
       "id": "server_test_design_confirmation_admintoken",
       "label": "adminToken",
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "admintoken",
@@ -11086,7 +11086,7 @@
       "id": "server_test_design_confirmation_designtoken",
       "label": "designToken",
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "designtoken",
@@ -11097,7 +11097,7 @@
       "id": "server_test_design_confirmation_pool",
       "label": "pool",
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "pool",
@@ -11108,66 +11108,11 @@
       "id": "server_test_design_confirmation_salestoken",
       "label": "salesToken",
       "_origin": "ast",
-      "community": 11,
+      "community": 110,
       "community_name": "test_design_confirmation.js",
       "file_type": "code",
       "norm_label": "salestoken",
       "source_file": "server/test_design_confirmation.js",
-      "source_location": "L14"
-    },
-    {
-      "id": "server_test_po_system",
-      "label": "test_po_system.js",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "test_po_system.js",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_test_po_system_admintoken",
-      "label": "adminToken",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "admintoken",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L13"
-    },
-    {
-      "id": "server_test_po_system_designtoken",
-      "label": "designToken",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "designtoken",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L15"
-    },
-    {
-      "id": "server_test_po_system_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/test_po_system.js",
-      "source_location": "L9"
-    },
-    {
-      "id": "server_test_po_system_salestoken",
-      "label": "salesToken",
-      "_origin": "ast",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "file_type": "code",
-      "norm_label": "salestoken",
-      "source_file": "server/test_po_system.js",
       "source_location": "L14"
     },
     {
@@ -11239,18 +11184,6 @@
       "norm_label": "2026-10-08t11-51-14z__src-index-css.md",
       "source_file": ".impeccable/critique/2026-10-08T11-51-14Z__src-index-css.md",
       "source_location": "L1"
-    },
-    {
-      "id": "impeccable_critique_2026_10_08t11_51_14z_src_index_css_design_health_score",
-      "label": "Design Health Score",
-      "_origin": "ast",
-      "community": 112,
-      "community_name": "2026-10-08T11-51-14Z__src-index-css.md",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "design health score",
-      "source_file": ".impeccable/critique/2026-10-08T11-51-14Z__src-index-css.md",
-      "source_location": "L12"
     },
     {
       "id": "impeccable_critique_2026_10_08t11_51_14z_src_index_css_design_specificity_verdict",
@@ -11383,6 +11316,61 @@
       "norm_label": "what's working",
       "source_file": ".impeccable/critique/2026-10-08T11-51-14Z__src-index-css.md",
       "source_location": "L58"
+    },
+    {
+      "id": "server_test_po_system",
+      "label": "test_po_system.js",
+      "_origin": "ast",
+      "community": 114,
+      "community_name": "test_po_system.js",
+      "file_type": "code",
+      "norm_label": "test_po_system.js",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_po_system_admintoken",
+      "label": "adminToken",
+      "_origin": "ast",
+      "community": 114,
+      "community_name": "test_po_system.js",
+      "file_type": "code",
+      "norm_label": "admintoken",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L13"
+    },
+    {
+      "id": "server_test_po_system_designtoken",
+      "label": "designToken",
+      "_origin": "ast",
+      "community": 114,
+      "community_name": "test_po_system.js",
+      "file_type": "code",
+      "norm_label": "designtoken",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L15"
+    },
+    {
+      "id": "server_test_po_system_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 114,
+      "community_name": "test_po_system.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L9"
+    },
+    {
+      "id": "server_test_po_system_salestoken",
+      "label": "salesToken",
+      "_origin": "ast",
+      "community": 114,
+      "community_name": "test_po_system.js",
+      "file_type": "code",
+      "norm_label": "salestoken",
+      "source_file": "server/test_po_system.js",
+      "source_location": "L14"
     },
     {
       "id": "agent_skills_impeccable_reference_bolder",
@@ -11553,6 +11541,61 @@
       "source_location": "L1"
     },
     {
+      "id": "server_test_task_masters_lifecycle",
+      "label": "test_task_masters_lifecycle.js",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "test_task_masters_lifecycle.js",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_admintoken",
+      "label": "adminToken",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "admintoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L11"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_designtoken",
+      "label": "designToken",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "designtoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L13"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "server_test_task_masters_lifecycle_salestoken",
+      "label": "salesToken",
+      "_origin": "ast",
+      "community": 118,
+      "community_name": "test_task_masters_lifecycle.js",
+      "file_type": "code",
+      "norm_label": "salestoken",
+      "source_file": "server/test_task_masters_lifecycle.js",
+      "source_location": "L12"
+    },
+    {
       "id": "agents_rules_graphify",
       "label": "rules/graphify.md",
       "_origin": "ast",
@@ -11579,6 +11622,50 @@
       "norm_label": "graphify",
       "source_file": ".agents/rules/graphify.md",
       "source_location": "L6"
+    },
+    {
+      "id": "server_test_purchase_order_received",
+      "label": "test_purchase_order_received.js",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "test_purchase_order_received.js",
+      "file_type": "code",
+      "norm_label": "test_purchase_order_received.js",
+      "source_file": "server/test_purchase_order_received.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_purchase_order_received_admintoken",
+      "label": "adminToken",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "test_purchase_order_received.js",
+      "file_type": "code",
+      "norm_label": "admintoken",
+      "source_file": "server/test_purchase_order_received.js",
+      "source_location": "L10"
+    },
+    {
+      "id": "server_test_purchase_order_received_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 120,
+      "community_name": "test_purchase_order_received.js",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_purchase_order_received.js",
+      "source_location": "L6"
+    },
+    {
+      "id": "server_realign_unit_serials_to_orders",
+      "label": "realign_unit_serials_to_orders.js",
+      "_origin": "ast",
+      "community": 121,
+      "community_name": "realign_unit_serials_to_orders.js",
+      "file_type": "code",
+      "norm_label": "realign_unit_serials_to_orders.js",
+      "source_file": "server/realign_unit_serials_to_orders.js",
+      "source_location": "L1"
     },
     {
       "id": "agents_workflows_graphify",
@@ -11729,18 +11816,6 @@
       "source_location": "L119"
     },
     {
-      "id": "project_audit_3_1_the_9_stage_manufacturing_pipeline",
-      "label": "3.1 The 9-Stage Manufacturing Pipeline",
-      "_origin": "ast",
-      "community": 18,
-      "community_name": "deriveUnitStatus",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "3.1 the 9-stage manufacturing pipeline",
-      "source_file": "PROJECT_AUDIT.md",
-      "source_location": "L99"
-    },
-    {
       "id": "project_audit_3_2_invariant_enforcement_the_engineering_safety_gates",
       "label": "3.2 Invariant Enforcement (The Engineering Safety Gates)",
       "_origin": "ast",
@@ -11751,18 +11826,6 @@
       "norm_label": "3.2 invariant enforcement (the engineering safety gates)",
       "source_file": "PROJECT_AUDIT.md",
       "source_location": "L112"
-    },
-    {
-      "id": "project_audit_3_core_manufacturing_domain_workflow_engine",
-      "label": "3. Core Manufacturing Domain & Workflow Engine",
-      "_origin": "ast",
-      "community": 18,
-      "community_name": "deriveUnitStatus",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "3. core manufacturing domain & workflow engine",
-      "source_file": "PROJECT_AUDIT.md",
-      "source_location": "L97"
     },
     {
       "id": "project_audit_gate_1_sales_to_design_handover_customer_po_gating",
@@ -11899,7 +11962,7 @@
       "file_type": "code",
       "norm_label": "pouploadbar",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2826"
+      "source_location": "L2841"
     },
     {
       "id": "src_components_allorderstableview_pouploadmodal",
@@ -11910,7 +11973,7 @@
       "file_type": "code",
       "norm_label": "pouploadmodal",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2373"
+      "source_location": "L2388"
     },
     {
       "id": "src_components_allorderstableview_priority_order",
@@ -11935,17 +11998,6 @@
       "source_location": "L20"
     },
     {
-      "id": "src_components_allorderstableview_purchaseselectionbar",
-      "label": "PurchaseSelectionBar",
-      "_origin": "ast",
-      "community": 2,
-      "community_name": "AllOrdersTableView.jsx",
-      "file_type": "code",
-      "norm_label": "purchaseselectionbar",
-      "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3101"
-    },
-    {
       "id": "src_components_allorderstableview_status_styles",
       "label": "STATUS_STYLES",
       "_origin": "ast",
@@ -11965,7 +12017,18 @@
       "file_type": "code",
       "norm_label": "tablerow",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2161"
+      "source_location": "L2176"
+    },
+    {
+      "id": "src_components_confirmmodal",
+      "label": "ConfirmModal.jsx",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "code",
+      "norm_label": "confirmmodal.jsx",
+      "source_file": "src/components/ConfirmModal.jsx",
+      "source_location": "L1"
     },
     {
       "id": "src_components_confirmmodal_confirmmodal",
@@ -11979,6 +12042,28 @@
       "source_location": "L5"
     },
     {
+      "id": "src_components_toast",
+      "label": "Toast.jsx",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "code",
+      "norm_label": "toast.jsx",
+      "source_file": "src/components/Toast.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_toast_toast_icons",
+      "label": "TOAST_ICONS",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "code",
+      "norm_label": "toast_icons",
+      "source_file": "src/components/Toast.jsx",
+      "source_location": "L5"
+    },
+    {
       "id": "src_components_toast_toastcontainer",
       "label": "ToastContainer",
       "_origin": "ast",
@@ -11988,6 +12073,17 @@
       "norm_label": "toastcontainer",
       "source_file": "src/components/Toast.jsx",
       "source_location": "L12"
+    },
+    {
+      "id": "ref_react_dom",
+      "label": "react-dom",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "AllOrdersTableView.jsx",
+      "file_type": "concept",
+      "norm_label": "react-dom",
+      "source_file": "package.json",
+      "source_location": "L16"
     },
     {
       "id": "scripts_verify_codebase",
@@ -12606,6 +12702,18 @@
       "source_location": "L1"
     },
     {
+      "id": "spec_non_standard_panel_docs_success_criteria",
+      "label": "Success Criteria",
+      "_origin": "ast",
+      "community": 25,
+      "community_name": "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "success criteria",
+      "source_file": "SPEC-non-standard-panel-docs.md",
+      "source_location": "L150"
+    },
+    {
       "id": "spec_non_standard_panel_docs_tech_stack_commands",
       "label": "Tech Stack & Commands",
       "_origin": "ast",
@@ -12815,17 +12923,6 @@
       "file_type": "code",
       "norm_label": "migrate_unit_serials.js",
       "source_file": "server/migrate_unit_serials.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_realign_unit_serials_to_orders",
-      "label": "realign_unit_serials_to_orders.js",
-      "_origin": "ast",
-      "community": 3,
-      "community_name": "db.js",
-      "file_type": "code",
-      "norm_label": "realign_unit_serials_to_orders.js",
-      "source_file": "server/realign_unit_serials_to_orders.js",
       "source_location": "L1"
     },
     {
@@ -14233,6 +14330,28 @@
       "source_location": "L4"
     },
     {
+      "id": "src_components_errorboundary",
+      "label": "ErrorBoundary.jsx",
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "errorboundary.jsx",
+      "source_file": "src/components/ErrorBoundary.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_header",
+      "label": "Header.jsx",
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "code",
+      "norm_label": "header.jsx",
+      "source_file": "src/components/Header.jsx",
+      "source_location": "L1"
+    },
+    {
       "id": "src_components_login",
       "label": "Login.jsx",
       "_origin": "ast",
@@ -14321,6 +14440,42 @@
       "source_location": "L17"
     },
     {
+      "id": "impeccable_critique_2026_10_07t05_46_44z_src_components_allorderstableview_jsx_what_s_working",
+      "label": "What's Working",
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "what's working",
+      "source_file": ".impeccable/critique/2026-10-07T05-46-44Z__src-components-allorderstableview-jsx.md",
+      "source_location": "L35"
+    },
+    {
+      "id": "impeccable_critique_2026_10_08t11_51_14z_src_index_css_design_health_score",
+      "label": "Design Health Score",
+      "_origin": "ast",
+      "community": 35,
+      "community_name": "App.jsx",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "design health score",
+      "source_file": ".impeccable/critique/2026-10-08T11-51-14Z__src-index-css.md",
+      "source_location": "L12"
+    },
+    {
+      "id": "agent_skills_impeccable_skill_commands",
+      "label": "Commands",
+      "_origin": "ast",
+      "community": 36,
+      "community_name": "initGlobalBar",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "commands",
+      "source_file": ".agent/skills/impeccable/SKILL.md",
+      "source_location": "L43"
+    },
+    {
       "id": "scratch_benchmark_endpoints",
       "label": "benchmark_endpoints.mjs",
       "_origin": "ast",
@@ -14330,28 +14485,6 @@
       "norm_label": "benchmark_endpoints.mjs",
       "source_file": "scratch/benchmark_endpoints.mjs",
       "source_location": "L1"
-    },
-    {
-      "id": "scratch_check_indexes",
-      "label": "check_indexes.mjs",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "check_indexes.mjs",
-      "source_file": "scratch/check_indexes.mjs",
-      "source_location": "L1"
-    },
-    {
-      "id": "scratch_check_indexes_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "scratch/check_indexes.mjs",
-      "source_location": "L2"
     },
     {
       "id": "server_test_dept_completed_visibility",
@@ -14398,83 +14531,6 @@
       "source_location": "L7"
     },
     {
-      "id": "server_test_purchase_order_received",
-      "label": "test_purchase_order_received.js",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "test_purchase_order_received.js",
-      "source_file": "server/test_purchase_order_received.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_test_purchase_order_received_admintoken",
-      "label": "adminToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "admintoken",
-      "source_file": "server/test_purchase_order_received.js",
-      "source_location": "L10"
-    },
-    {
-      "id": "server_test_purchase_order_received_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/test_purchase_order_received.js",
-      "source_location": "L6"
-    },
-    {
-      "id": "server_test_sales_to_design_gate",
-      "label": "test_sales_to_design_gate.js",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "test_sales_to_design_gate.js",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_designtoken",
-      "label": "designToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "designtoken",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L11"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L7"
-    },
-    {
-      "id": "server_test_sales_to_design_gate_salestoken",
-      "label": "salesToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "salestoken",
-      "source_file": "server/test_sales_to_design_gate.js",
-      "source_location": "L12"
-    },
-    {
       "id": "server_test_security_hardening",
       "label": "test_security_hardening.js",
       "_origin": "ast",
@@ -14486,61 +14542,6 @@
       "source_location": "L1"
     },
     {
-      "id": "server_test_task_masters_lifecycle",
-      "label": "test_task_masters_lifecycle.js",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "test_task_masters_lifecycle.js",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L1"
-    },
-    {
-      "id": "server_test_task_masters_lifecycle_admintoken",
-      "label": "adminToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "admintoken",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L11"
-    },
-    {
-      "id": "server_test_task_masters_lifecycle_designtoken",
-      "label": "designToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "designtoken",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L13"
-    },
-    {
-      "id": "server_test_task_masters_lifecycle_pool",
-      "label": "pool",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "pool",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L7"
-    },
-    {
-      "id": "server_test_task_masters_lifecycle_salestoken",
-      "label": "salesToken",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "code",
-      "norm_label": "salestoken",
-      "source_file": "server/test_task_masters_lifecycle.js",
-      "source_location": "L12"
-    },
-    {
       "id": "ref_jsonwebtoken",
       "label": "jsonwebtoken",
       "_origin": "ast",
@@ -14550,17 +14551,6 @@
       "norm_label": "jsonwebtoken",
       "source_file": "server/package.json",
       "source_location": "L13"
-    },
-    {
-      "id": "ref_pg",
-      "label": "pg",
-      "_origin": "ast",
-      "community": 37,
-      "community_name": "jsonwebtoken",
-      "file_type": "concept",
-      "norm_label": "pg",
-      "source_file": "server/package.json",
-      "source_location": "L11"
     },
     {
       "id": "agent_skills_impeccable_reference_onboard",
@@ -15740,6 +15730,50 @@
       "source_location": "L1"
     },
     {
+      "id": "src_components_bulkimportmodal",
+      "label": "BulkImportModal.jsx",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "bulkimportmodal.jsx",
+      "source_file": "src/components/BulkImportModal.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentmanager",
+      "label": "DocumentManager.jsx",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "documentmanager.jsx",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_documentmanager_doc_types",
+      "label": "DOC_TYPES",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "doc_types",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_components_documentmanager_po_authorized_roles",
+      "label": "PO_AUTHORIZED_ROLES",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "po_authorized_roles",
+      "source_file": "src/components/DocumentManager.jsx",
+      "source_location": "L7"
+    },
+    {
       "id": "src_components_excelsheetviewer",
       "label": "ExcelSheetViewer.jsx",
       "_origin": "ast",
@@ -15762,16 +15796,37 @@
       "source_location": "L1"
     },
     {
-      "id": "spec_non_standard_panel_docs_success_criteria",
-      "label": "Success Criteria",
+      "id": "src_components_orderimport",
+      "label": "OrderImport.jsx",
       "_origin": "ast",
       "community": 48,
       "community_name": "OrderDocumentsModal.jsx",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "success criteria",
-      "source_file": "SPEC-non-standard-panel-docs.md",
-      "source_location": "L150"
+      "file_type": "code",
+      "norm_label": "orderimport.jsx",
+      "source_file": "src/components/OrderImport.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_orderlist",
+      "label": "OrderList.jsx",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "orderlist.jsx",
+      "source_file": "src/components/OrderList.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_components_stepmodal",
+      "label": "StepModal.jsx",
+      "_origin": "ast",
+      "community": 48,
+      "community_name": "OrderDocumentsModal.jsx",
+      "file_type": "code",
+      "norm_label": "stepmodal.jsx",
+      "source_file": "src/components/StepModal.jsx",
+      "source_location": "L1"
     },
     {
       "id": "server_index",
@@ -16506,6 +16561,30 @@
       "source_location": "L53"
     },
     {
+      "id": "project_audit_3_1_the_9_stage_manufacturing_pipeline",
+      "label": "3.1 The 9-Stage Manufacturing Pipeline",
+      "_origin": "ast",
+      "community": 54,
+      "community_name": "Vyom ERP \u2014 Comprehensive Project Audit & Development Process Documentation",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "3.1 the 9-stage manufacturing pipeline",
+      "source_file": "PROJECT_AUDIT.md",
+      "source_location": "L99"
+    },
+    {
+      "id": "project_audit_3_core_manufacturing_domain_workflow_engine",
+      "label": "3. Core Manufacturing Domain & Workflow Engine",
+      "_origin": "ast",
+      "community": 54,
+      "community_name": "Vyom ERP \u2014 Comprehensive Project Audit & Development Process Documentation",
+      "file_type": "document",
+      "node_kind": "heading",
+      "norm_label": "3. core manufacturing domain & workflow engine",
+      "source_file": "PROJECT_AUDIT.md",
+      "source_location": "L97"
+    },
+    {
       "id": "project_audit_4_1_backend_engine_server_index_js",
       "label": "4.1 Backend Engine (`server/index.js`)",
       "_origin": "ast",
@@ -16985,50 +17064,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_bulkimportmodal",
-      "label": "BulkImportModal.jsx",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "bulkimportmodal.jsx",
-      "source_file": "src/components/BulkImportModal.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_documentmanager",
-      "label": "DocumentManager.jsx",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "documentmanager.jsx",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_documentmanager_doc_types",
-      "label": "DOC_TYPES",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "doc_types",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L3"
-    },
-    {
-      "id": "src_components_documentmanager_po_authorized_roles",
-      "label": "PO_AUTHORIZED_ROLES",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "po_authorized_roles",
-      "source_file": "src/components/DocumentManager.jsx",
-      "source_location": "L7"
-    },
-    {
       "id": "src_components_flowview",
       "label": "FlowView.jsx",
       "_origin": "ast",
@@ -17037,28 +17072,6 @@
       "file_type": "code",
       "norm_label": "flowview.jsx",
       "source_file": "src/components/FlowView.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_orderimport",
-      "label": "OrderImport.jsx",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "orderimport.jsx",
-      "source_file": "src/components/OrderImport.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_orderlist",
-      "label": "OrderList.jsx",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "orderlist.jsx",
-      "source_file": "src/components/OrderList.jsx",
       "source_location": "L1"
     },
     {
@@ -17093,17 +17106,6 @@
       "norm_label": "primary_nav",
       "source_file": "src/components/Sidenav.jsx",
       "source_location": "L4"
-    },
-    {
-      "id": "src_components_stepmodal",
-      "label": "StepModal.jsx",
-      "_origin": "ast",
-      "community": 56,
-      "community_name": "planningData.js",
-      "file_type": "code",
-      "norm_label": "stepmodal.jsx",
-      "source_file": "src/components/StepModal.jsx",
-      "source_location": "L1"
     },
     {
       "id": "src_components_tableview",
@@ -17671,17 +17673,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_confirmmodal",
-      "label": "ConfirmModal.jsx",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "code",
-      "norm_label": "confirmmodal.jsx",
-      "source_file": "src/components/ConfirmModal.jsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_editreftagmodal",
       "label": "EditRefTagModal.jsx",
       "_origin": "ast",
@@ -17690,28 +17681,6 @@
       "file_type": "code",
       "norm_label": "editreftagmodal.jsx",
       "source_file": "src/components/EditRefTagModal.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_errorboundary",
-      "label": "ErrorBoundary.jsx",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "code",
-      "norm_label": "errorboundary.jsx",
-      "source_file": "src/components/ErrorBoundary.jsx",
-      "source_location": "L1"
-    },
-    {
-      "id": "src_components_header",
-      "label": "Header.jsx",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "code",
-      "norm_label": "header.jsx",
-      "source_file": "src/components/Header.jsx",
       "source_location": "L1"
     },
     {
@@ -17803,17 +17772,6 @@
       "source_location": "L1"
     },
     {
-      "id": "src_components_toast",
-      "label": "Toast.jsx",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "code",
-      "norm_label": "toast.jsx",
-      "source_file": "src/components/Toast.jsx",
-      "source_location": "L1"
-    },
-    {
       "id": "src_components_toast_toast",
       "label": "toast",
       "_origin": "ast",
@@ -17823,17 +17781,6 @@
       "norm_label": "toast",
       "source_file": "src/components/Toast.jsx",
       "source_location": "L114"
-    },
-    {
-      "id": "src_components_toast_toast_icons",
-      "label": "TOAST_ICONS",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "code",
-      "norm_label": "toast_icons",
-      "source_file": "src/components/Toast.jsx",
-      "source_location": "L5"
     },
     {
       "id": "ref_lucide_react",
@@ -17856,17 +17803,6 @@
       "norm_label": "react",
       "source_file": "package.json",
       "source_location": "L15"
-    },
-    {
-      "id": "ref_react_dom",
-      "label": "react-dom",
-      "_origin": "ast",
-      "community": 6,
-      "community_name": "react",
-      "file_type": "concept",
-      "norm_label": "react-dom",
-      "source_file": "package.json",
-      "source_location": "L16"
     },
     {
       "id": "impeccable_critique_2026_10_02t16_42_23z_src_components_masters_jsx",
@@ -18890,18 +18826,6 @@
       "norm_label": "questions to consider",
       "source_file": ".impeccable/critique/2026-10-07T05-46-44Z__src-components-allorderstableview-jsx.md",
       "source_location": "L71"
-    },
-    {
-      "id": "impeccable_critique_2026_10_07t05_46_44z_src_components_allorderstableview_jsx_what_s_working",
-      "label": "What's Working",
-      "_origin": "ast",
-      "community": 67,
-      "community_name": "2026-10-07T05-46-44Z__src-components-allorderstableview-jsx.md",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "what's working",
-      "source_file": ".impeccable/critique/2026-10-07T05-46-44Z__src-components-allorderstableview-jsx.md",
-      "source_location": "L35"
     },
     {
       "id": "impeccable_critique_2026_10_07t06_10_21z_darkmode",
@@ -20680,16 +20604,81 @@
       "source_location": "L47"
     },
     {
-      "id": "agent_skills_impeccable_skill_commands",
-      "label": "Commands",
+      "id": "scratch_check_indexes",
+      "label": "check_indexes.mjs",
       "_origin": "ast",
       "community": 82,
-      "community_name": "init",
-      "file_type": "document",
-      "node_kind": "heading",
-      "norm_label": "commands",
-      "source_file": ".agent/skills/impeccable/SKILL.md",
-      "source_location": "L43"
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "check_indexes.mjs",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L1"
+    },
+    {
+      "id": "scratch_check_indexes_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "scratch/check_indexes.mjs",
+      "source_location": "L2"
+    },
+    {
+      "id": "server_test_sales_to_design_gate",
+      "label": "test_sales_to_design_gate.js",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "test_sales_to_design_gate.js",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_designtoken",
+      "label": "designToken",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "designtoken",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L11"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_pool",
+      "label": "pool",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "pool",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L7"
+    },
+    {
+      "id": "server_test_sales_to_design_gate_salestoken",
+      "label": "salesToken",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "code",
+      "norm_label": "salestoken",
+      "source_file": "server/test_sales_to_design_gate.js",
+      "source_location": "L12"
+    },
+    {
+      "id": "ref_pg",
+      "label": "pg",
+      "_origin": "ast",
+      "community": 82,
+      "community_name": "pg",
+      "file_type": "concept",
+      "norm_label": "pg",
+      "source_file": "server/package.json",
+      "source_location": "L11"
     },
     {
       "id": "agent_skills_impeccable_reference_shape_cadence",
@@ -21829,22 +21818,10 @@
       "label": "ref_fs",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_fs",
-      "source_file": "",
-      "type": "external"
-    },
-    {
-      "id": "ref_os",
-      "label": "ref_os",
-      "_origin": "semantic",
-      "community": 11,
-      "community_name": "test_design_confirmation.js",
-      "external": true,
-      "file_type": "concept",
-      "norm_label": "ref_os",
       "source_file": "",
       "type": "external"
     },
@@ -21853,10 +21830,22 @@
       "label": "ref_path",
       "_origin": "semantic",
       "community": 11,
-      "community_name": "test_design_confirmation.js",
+      "community_name": "optimize_table_view.mjs",
       "external": true,
       "file_type": "concept",
       "norm_label": "ref_path",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "ref_os",
+      "label": "ref_os",
+      "_origin": "semantic",
+      "community": 110,
+      "community_name": "test_design_confirmation.js",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "ref_os",
       "source_file": "",
       "type": "external"
     },
@@ -40687,7 +40676,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3188",
+      "source_location": "L3121",
       "weight": 1.0
     },
     {
@@ -40699,7 +40688,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4348",
+      "source_location": "L4286",
       "weight": 1.0
     },
     {
@@ -40711,7 +40700,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4348",
+      "source_location": "L4286",
       "weight": 1.0
     },
     {
@@ -40723,7 +40712,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4426",
+      "source_location": "L4364",
       "weight": 1.0
     },
     {
@@ -40735,7 +40724,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L4466",
+      "source_location": "L4404",
       "weight": 1.0
     },
     {
@@ -40747,19 +40736,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5127",
-      "weight": 1.0
-    },
-    {
-      "source": "src_components_allorderstableview_allorderstableview",
-      "target": "src_components_allorderstableview_purchaseselectionbar",
-      "relation": "calls",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "context": "call",
-      "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5142",
+      "source_location": "L5070",
       "weight": 1.0
     },
     {
@@ -40771,7 +40748,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5418",
+      "source_location": "L5414",
       "weight": 1.0
     },
     {
@@ -40783,7 +40760,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5592",
+      "source_location": "L5588",
       "weight": 1.0
     },
     {
@@ -40795,7 +40772,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5631",
+      "source_location": "L5627",
       "weight": 1.0
     },
     {
@@ -40807,7 +40784,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5646",
+      "source_location": "L5642",
       "weight": 1.0
     },
     {
@@ -40819,7 +40796,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5687",
+      "source_location": "L5683",
       "weight": 1.0
     },
     {
@@ -40831,7 +40808,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5701",
+      "source_location": "L5697",
       "weight": 1.0
     },
     {
@@ -40843,7 +40820,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5713",
+      "source_location": "L5709",
       "weight": 1.0
     },
     {
@@ -40855,7 +40832,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5723",
+      "source_location": "L5719",
       "weight": 1.0
     },
     {
@@ -40867,7 +40844,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5724",
+      "source_location": "L5720",
       "weight": 1.0
     },
     {
@@ -40951,7 +40928,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3082",
+      "source_location": "L3097",
       "weight": 1.0
     },
     {
@@ -41011,7 +40988,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1954",
+      "source_location": "L1969",
       "weight": 1.0
     },
     {
@@ -41023,7 +41000,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1973",
+      "source_location": "L1988",
       "weight": 1.0
     },
     {
@@ -41035,7 +41012,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2271",
+      "source_location": "L2286",
       "weight": 1.0
     },
     {
@@ -41047,7 +41024,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2294",
+      "source_location": "L2309",
       "weight": 1.0
     },
     {
@@ -41059,7 +41036,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2313",
+      "source_location": "L2328",
       "weight": 1.0
     },
     {
@@ -61874,7 +61851,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2161",
+      "source_location": "L2176",
       "weight": 1.0
     },
     {
@@ -61885,7 +61862,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2373",
+      "source_location": "L2388",
       "weight": 1.0
     },
     {
@@ -61907,18 +61884,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2826",
-      "weight": 1.0
-    },
-    {
-      "source": "src_components_allorderstableview",
-      "target": "src_components_allorderstableview_purchaseselectionbar",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3101",
+      "source_location": "L2841",
       "weight": 1.0
     },
     {
@@ -61929,7 +61895,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3183",
+      "source_location": "L3116",
       "weight": 1.0
     },
     {
@@ -65665,5 +65631,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "c4af1ef6e6e3e104921a6086431656a55b0a06c1"
+  "built_at_commit": "b49353bfe3785aec86dc5dfd50cda490191249ed"
 }

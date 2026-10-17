@@ -124,10 +124,10 @@ const DEFAULT_COL_WIDTHS = {
   priority: 140,
   delivery_date: 155,
   unit_status: 235,
-  purchase_cat_panel: 170,
-  purchase_cat_automation: 175,
-  purchase_cat_low_voltage: 175,
-  purchase_cat_wires: 185,
+  purchase_cat_panel: 180,
+  purchase_cat_automation: 195,
+  purchase_cat_low_voltage: 200,
+  purchase_cat_wires: 205,
 };
 
 const MIN_COL_WIDTHS = {
@@ -149,9 +149,9 @@ const MIN_COL_WIDTHS = {
   delivery_date: 140,
   unit_status: 195,
   purchase_cat_panel: 140,
-  purchase_cat_automation: 140,
-  purchase_cat_low_voltage: 140,
-  purchase_cat_wires: 150,
+  purchase_cat_automation: 150,
+  purchase_cat_low_voltage: 155,
+  purchase_cat_wires: 160,
 };
 
 export const getDocUrl = (doc) => {
@@ -3375,8 +3375,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
+      const savedV7 = localStorage.getItem('erp_all_colWidths_v7');
       const savedV6 = localStorage.getItem('erp_all_colWidths_v6');
-      const saved = savedV6 || localStorage.getItem('erp_all_colWidths_v5') || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
+      const saved = savedV7 || savedV6 || localStorage.getItem('erp_all_colWidths_v5') || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
         const merged = { ...DEFAULT_COL_WIDTHS };
@@ -3384,8 +3385,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           if (parsed[k] !== undefined) {
             const minSafe = MIN_COL_WIDTHS[k] || 120;
             const savedVal = Number(parsed[k]);
-            if (!savedV6) {
-              // Upgrading to v6: ensure widened defaults for project_name, part_number, etc.
+            if (!savedV7) {
+              // Upgrading to v7: ensure widened defaults for purchase categories & others
               merged[k] = (savedVal && savedVal >= DEFAULT_COL_WIDTHS[k]) ? savedVal : DEFAULT_COL_WIDTHS[k];
             } else {
               merged[k] = Math.max(savedVal || minSafe, minSafe);
@@ -3408,7 +3409,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v6', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v7', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3493,6 +3494,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v4');
     localStorage.removeItem('erp_all_colWidths_v5');
     localStorage.removeItem('erp_all_colWidths_v6');
+    localStorage.removeItem('erp_all_colWidths_v7');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3538,7 +3540,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v6', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v7', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -4042,7 +4044,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       targetUnits = [unit];
     }
 
-    if (targetUnits.length === 0) return;
+    if (targetUnits.length === 0) {
+      if (addToast) addToast(`Please select serial numbers on the left first to mark ${catLabel} as N/A.`, 'warning');
+      return;
+    }
 
     // 2. If multiple units: if ANY unit is not NA, set all to 'NA'. If all are already 'NA', revert them.
     // If single unit: toggle current state.
@@ -4843,6 +4848,11 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       .filter(Boolean);
   }, [units, selectedUnitIds, isIdSelected]);
 
+  const selectedUnitsList = useMemo(() => {
+    if (selectedUnitIds.size === 0) return [];
+    return units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+  }, [units, selectedUnitIds, isIdSelected]);
+
   if (isLoading) return (
     <div style={{ padding: 60, textAlign: 'center', color: 'var(--text3)' }}>
       <div style={{ fontSize: 13 }}>Loading units...</div>
@@ -5278,24 +5288,109 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                   >
                     <div className="erp-th-content" style={{ justifyContent: align === 'center' ? 'center' : 'space-between' }}>
                       <div
-                        onClick={() => handleSort(colKey)}
+                        onClick={(e) => {
+                          if (selectedUnitIds.size > 0 && colKey.startsWith('purchase_cat_')) {
+                            e.stopPropagation();
+                            handleTogglePurchaseCatNA(null, colKey);
+                          } else {
+                            handleSort(colKey);
+                          }
+                        }}
                         className="erp-th-label-zone"
+                        style={{
+                          cursor: 'pointer'
+                        }}
+                        title={
+                          (selectedUnitIds.size > 0 && colKey.startsWith('purchase_cat_'))
+                            ? `Click to toggle N/A for all ${selectedUnitIds.size} selected serial numbers`
+                            : label
+                        }
                       >
                         <GripVertical size={12} className="erp-th-drag-handle" />
                         <span className="erp-th-title" title={label}>{label}</span>
-                        <div className="erp-th-sort-icon">
+
+                        <div
+                          className="erp-th-sort-icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSort(colKey);
+                          }}
+                        >
                           <SortIcon col={colKey} />
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={(e) => togglePin(colKey, e)}
-                        title={isPinned ? "Unfreeze Column" : "Freeze Column to left"}
-                        className={`erp-th-pin-btn${isPinned ? ' is-pinned' : ''}`}
-                      >
-                        <Pin size={11} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
-                      </button>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                        {colKey.startsWith('purchase_cat_') && selectedUnitsList.length > 0 && (() => {
+                          const isCatAllNA = selectedUnitsList.every(u => u.custom_fields?.[colKey] === 'NA');
+                          const isCatSomeNA = !isCatAllNA && selectedUnitsList.some(u => u.custom_fields?.[colKey] === 'NA');
+
+                          return (
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={isCatAllNA}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePurchaseCatNA(null, colKey);
+                              }}
+                              title={
+                                isCatAllNA
+                                  ? `All ${selectedUnitsList.length} selected marked N/A for ${label}. Click to revert.`
+                                  : `Click to mark ${label} as N/A for ${selectedUnitsList.length} selected serial${selectedUnitsList.length > 1 ? 's' : ''}`
+                              }
+                              style={{
+                                position: 'relative',
+                                width: 26,
+                                height: 14,
+                                borderRadius: 7,
+                                background: isCatAllNA
+                                  ? 'var(--blue, #3b82f6)'
+                                  : (isCatSomeNA ? 'rgba(59, 130, 246, 0.25)' : 'rgba(148, 163, 184, 0.2)'),
+                                border: isCatAllNA
+                                  ? '1px solid var(--blue, #3b82f6)'
+                                  : (isCatSomeNA ? '1px solid rgba(59, 130, 246, 0.5)' : '1px solid rgba(148, 163, 184, 0.35)'),
+                                cursor: 'pointer',
+                                padding: 0,
+                                outline: 'none',
+                                flexShrink: 0,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                                boxShadow: isCatAllNA ? '0 0 6px rgba(59, 130, 246, 0.5)' : 'none'
+                              }}
+                            >
+                              <span
+                                style={{
+                                  position: 'absolute',
+                                  top: 1,
+                                  left: 1,
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: '50%',
+                                  background: isCatAllNA
+                                    ? '#ffffff'
+                                    : (isCatSomeNA ? 'var(--blue, #3b82f6)' : '#94a3b8'),
+                                  transform: isCatAllNA
+                                    ? 'translateX(12px)'
+                                    : (isCatSomeNA ? 'translateX(6px)' : 'translateX(0px)'),
+                                  transition: 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease',
+                                  boxShadow: '0 1px 2px rgba(0,0,0,0.35)'
+                                }}
+                              />
+                            </button>
+                          );
+                        })()}
+
+                        <button
+                          type="button"
+                          onClick={(e) => togglePin(colKey, e)}
+                          title={isPinned ? "Unfreeze Column" : "Freeze Column to left"}
+                          className={`erp-th-pin-btn${isPinned ? ' is-pinned' : ''}`}
+                        >
+                          <Pin size={11} style={{ transform: isPinned ? 'rotate(-45deg)' : 'none', transition: 'transform 0.15s' }} />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Column Resize Handle */}

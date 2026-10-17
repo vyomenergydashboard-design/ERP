@@ -1,17 +1,17 @@
 # Graph Report - ERP  (2026-10-17)
 
 ## Corpus Check
-- 158 files · ~2,448,430 words
+- 158 files · ~2,448,401 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 16 file(s) not represented in the graph (top: (none) 5, .pptx 5, .exe 1)
 
 ## Summary
-- 1845 nodes · 3780 edges · 119 communities (112 shown, 7 thin omitted)
+- 1844 nodes · 3778 edges · 122 communities (116 shown, 6 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 106 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `c4af1ef6`
+- Built from commit: `b49353bf`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -27,7 +27,7 @@
 - Database Connection & Migrations
 - adapt.native.md
 - PlanningModule.jsx
-- test_design_confirmation.js
+- optimize_table_view.mjs
 - Startup Synchronization & Serials
 - onAnnotDown
 - Workflow Status & Email Alerts
@@ -98,7 +98,7 @@
 - scheduleAcceptCleanup
 - Common Cognitive Load Violations
 - iOS platform
-- init
+- pg
 - Shape
 - initPageChat
 - evaluatePurchaseAutoCompletion
@@ -126,15 +126,18 @@
 - startVariantObserver
 - Impeccable Documenter
 - startVoice
-- unlockSteerChat
+- test_design_confirmation.js
 - Rule: No Unsolicited Codebase Modifications
 - 2026-10-08T11-51-14Z__src-index-css.md
 - connectSSE
-- ErrorBoundary
+- test_po_system.js
 - bolder.md
 - Persuade and Experience
 - scopeCssBlock
+- test_task_masters_lifecycle.js
 - enableInlineEdit
+- test_purchase_order_received.js
+- realign_unit_serials_to_orders.js
 
 ## God Nodes (most connected - your core abstractions)
 1. `react` - 37 edges
@@ -163,7 +166,7 @@
 ## Import Cycles
 - None detected.
 
-## Communities (119 total, 7 thin omitted)
+## Communities (122 total, 6 thin omitted)
 
 ### Community 0 - "package.json"
 Cohesion: 0.06
@@ -174,12 +177,12 @@ Cohesion: 0.27
 Nodes (9): Global Constraints, Process Flow Performance Optimization Implementation Plan, Review Focus, Task 1: Parallelize Network Fetching & Fix Unit Wipeout in `App.jsx`, Task 2: Update `FlowView.jsx` to Consume Lifted Task Masters & Prevent Render Thrashing, Task 3: Fix Order & Unit Dropdown Identification in `Header.jsx`, Task 4: Backend Step Endpoints Fast-Path for Custom Fields, Task 5: Verification & Regression Testing (+1 more)
 
 ### Community 2 - "AllOrdersTableView.jsx"
-Cohesion: 0.14
-Nodes (27): AllOrdersTableView(), BASE_COLUMNS, calculateUnitStatus(), DEFAULT_COL_WIDTHS, DEFAULT_COLUMN_KEYS, formatFastDate(), formatFastDateTime(), getCellTooltip() (+19 more)
+Cohesion: 0.13
+Nodes (28): react-dom, AllOrdersTableView(), BASE_COLUMNS, calculateUnitStatus(), DEFAULT_COL_WIDTHS, DEFAULT_COLUMN_KEYS, formatFastDate(), formatFastDateTime() (+20 more)
 
 ### Community 3 - "db.js"
-Cohesion: 0.13
-Nodes (8): pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials(), formatOrderNumber(), parseOrderCounter(), realignUnitSerials()
+Cohesion: 0.15
+Nodes (5): pool, extractYearFromOrder(), formatOrderNumber(), migrate(), migrateUnitSerials()
 
 ### Community 4 - "Masters.jsx"
 Cohesion: 0.16
@@ -190,8 +193,8 @@ Cohesion: 0.08
 Nodes (18): allowedOrigins, app, BLOCKED_EXTENSIONS, DEFAULT_STEPS, defaultAllowedOrigins, __dirname, __filename, formatOrderNumber() (+10 more)
 
 ### Community 6 - "react"
-Cohesion: 0.14
-Nodes (20): lucide-react, react, react-dom, AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData() (+12 more)
+Cohesion: 0.17
+Nodes (18): lucide-react, react, AddPartMasterModal(), EditRefTagModal(), Modal(), getDefaultFormData(), getInitialFormData(), getTodayDateStr() (+10 more)
 
 ### Community 7 - "server/package.json"
 Cohesion: 0.12
@@ -205,17 +208,17 @@ Nodes (7): Adaptation Strategies, Assess Adaptation Challenge, Implement & Verif
 Cohesion: 0.25
 Nodes (9): PlanningModule, DEFAULT_COLUMNS, formatFastDateTime(), getDocUrl(), isDateTimeType(), isDateType(), MONTH_NAMES, PAGE_SIZE_OPTIONS (+1 more)
 
-### Community 11 - "test_design_confirmation.js"
-Cohesion: 0.10
-Nodes (20): ref_fs, ref_os, ref_path, content, filePath, headerCbIdx, startIdx, tableEndIdx (+12 more)
+### Community 11 - "optimize_table_view.mjs"
+Cohesion: 0.22
+Nodes (7): ref_fs, ref_path, content, filePath, headerCbIdx, startIdx, tableEndIdx
 
 ### Community 13 - "onAnnotDown"
 Cohesion: 0.20
 Nodes (17): beginEditPin(), buildAnnotationsForCapture(), buildPinElement(), cancelEditingPin(), clampPlaceholderSize(), finalizeEditingPin(), initAnnotOverlay(), localCoords() (+9 more)
 
 ### Community 18 - "deriveUnitStatus"
-Cohesion: 0.11
-Nodes (21): Global Constraints, Per-Panel PO Advancement and Sales Flow Implementation Plan, Review Focus, Task 1: Database Migration for Panel Sales Clearance & PO Unlink Flag, Task 2: Per-Panel PO Advancement in `deriveUnitStatus`, Task 3: Safe Panel-Level PO Deletion & Re-derivation, Task 4: Manual Panel Sales Clear Endpoint (`POST /api/units/:id/sales-clear`), Task 5: Unit Update Re-derivation in `PUT /api/units/:id` & Document Upload (+13 more)
+Cohesion: 0.12
+Nodes (19): Global Constraints, Per-Panel PO Advancement and Sales Flow Implementation Plan, Review Focus, Task 1: Database Migration for Panel Sales Clearance & PO Unlink Flag, Task 2: Per-Panel PO Advancement in `deriveUnitStatus`, Task 3: Safe Panel-Level PO Deletion & Re-derivation, Task 4: Manual Panel Sales Clear Endpoint (`POST /api/units/:id/sales-clear`), Task 5: Unit Update Re-derivation in `PUT /api/units/:id` & Document Upload (+11 more)
 
 ### Community 19 - "mountSvelteComponentVariant"
 Cohesion: 0.16
@@ -243,15 +246,15 @@ Nodes (55): ae(), be(), bt(), Ce(), s(), Ct(), de(), dt() (+47 more)
 
 ### Community 25 - "Spec: Non-Standard Panel Drawings & Bill of Materials (BOM)"
 Cohesion: 0.12
-Nodes (15): 1. Document Separation & Storage Isolation, 2. Revision Calculation for Non-Standard Documents, 3. Role-Based Access Control (RBAC), Action Boundaries, Boundaries, Code Style & Implementation Standard, Commands, Data Contracts & Architecture (+7 more)
+Nodes (16): 1. Document Separation & Storage Isolation, 2. Revision Calculation for Non-Standard Documents, 3. Role-Based Access Control (RBAC), Action Boundaries, Boundaries, Code Style & Implementation Standard, Commands, Data Contracts & Architecture (+8 more)
 
 ### Community 26 - "live-browser.js"
 Cohesion: 0.04
-Nodes (67): applyGlobalBarLabelState(), applyLiveBarPreference(), applyParamValue(), applyPlaceholderSizingStyles(), buildInsertPlaceholderSnapshotFromDom(), buildLocatorForLeaf(), buildPickedAnchorSnapshot(), checkpointPayload() (+59 more)
+Nodes (70): applyGlobalBarLabelState(), applyLiveBarPreference(), applyParamValue(), applyPlaceholderSizingStyles(), bufferToBase64(), buildInsertPlaceholderSnapshotFromDom(), buildLocatorForLeaf(), buildPickedAnchorSnapshot() (+62 more)
 
 ### Community 27 - "renderDesignVisual"
 Cohesion: 0.08
-Nodes (35): buildCollapsible(), buildColorModels(), buildListHtml(), buildRadiiModels(), buildTypographyModels(), copyToClipboard(), cssSafe(), designEmptyMessage() (+27 more)
+Nodes (36): buildCollapsible(), buildColorModels(), buildListHtml(), buildRadiiModels(), buildTypographyModels(), copyToClipboard(), cssSafe(), designEmptyMessage() (+28 more)
 
 ### Community 28 - "documentRefForElement"
 Cohesion: 0.08
@@ -282,16 +285,16 @@ Cohesion: 0.10
 Nodes (46): actOnAgentTarget(), agentTargetBusyReason(), agentTargetOverlayGone(), agentTargetTaken(), claimAgentTarget(), claimAndActOnAgentTarget(), clearStoredManualApplyState(), declineAgentTargetBusy() (+38 more)
 
 ### Community 35 - "App.jsx"
-Cohesion: 0.11
-Nodes (19): react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, OrderCreationFlow, OrderImport, ProtectedRoute() (+11 more)
+Cohesion: 0.08
+Nodes (22): What's Working, Design Health Score, react-router-dom, App(), Dashboard(), DocumentDirectory, LogsView, OrderCreationFlow (+14 more)
 
 ### Community 36 - "initGlobalBar"
-Cohesion: 0.16
-Nodes (18): brandMarkSvg(), buildSavingRow(), ensureSpinKeyframes(), fetchAgentPollingStatus(), hideAgentPollTooltip(), initGlobalBar(), makeIconBtn(), loadDetectScript() (+10 more)
+Cohesion: 0.10
+Nodes (34): agentStatusText(), barPaletteForTheme(), brandMarkSvg(), buildParamsPanel(), buildSavingRow(), clearSteerFocusRecoverTimer(), detectPageTheme(), ensureAgentPollTooltip() (+26 more)
 
 ### Community 37 - "jsonwebtoken"
-Cohesion: 0.08
-Nodes (17): ref_assert, jsonwebtoken, pg, pool, pool, pool, adminToken, assert() (+9 more)
+Cohesion: 0.18
+Nodes (4): ref_assert, jsonwebtoken, pool, pool
 
 ### Community 38 - "onboard.md"
 Cohesion: 0.09
@@ -318,8 +321,8 @@ Cohesion: 0.18
 Nodes (36): applyEditing(), beginNewLiveConfiguration(), cancelEditing(), cancelEditingToPicking(), cancelInsertConfigure(), clearAnnotations(), clearInsertPicking(), closeTunePopover() (+28 more)
 
 ### Community 44 - "focusSteerChat"
-Cohesion: 0.20
-Nodes (16): attachSteerFocusDebug(), attachSteerFocusGuard(), clearSteerFocusRecoverTimer(), focusConfigureInput(), focusSteerChat(), isInlineEditActive(), isPageEditableActive(), isPageEditableElement() (+8 more)
+Cohesion: 0.22
+Nodes (15): attachSteerFocusDebug(), attachSteerFocusGuard(), focusConfigureInput(), focusSteerChat(), isInlineEditActive(), isPageEditableActive(), isPageEditableElement(), notePagePointerDown() (+7 more)
 
 ### Community 45 - "resolveLiveInjectionAnchor"
 Cohesion: 0.16
@@ -334,12 +337,12 @@ Cohesion: 0.17
 Nodes (20): abandonForeignSession(), abandonSupersededGo(), applyConfigureBarChrome(), buildCyclingRow(), buildDots(), captureAndEmit(), cycleVariant(), ensureCyclingRenderable() (+12 more)
 
 ### Community 48 - "OrderDocumentsModal.jsx"
-Cohesion: 0.36
-Nodes (8): ref_xlsx, Success Criteria, ExcelSheetViewer(), formatFileSize(), getDocCategoryLabel(), getDocumentUrl(), getFileType(), OrderDocumentsModal()
+Cohesion: 0.17
+Nodes (15): ref_xlsx, BulkImportModal(), DOC_TYPES, DocumentManager(), PO_AUTHORIZED_ROLES, ExcelSheetViewer(), formatFileSize(), getDocCategoryLabel() (+7 more)
 
 ### Community 49 - "el"
 Cohesion: 0.09
-Nodes (41): actionLabel(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+33 more)
+Nodes (42): actionLabel(), bindConfigureCountPillTooltip(), bindConfigureInlineControlHover(), bindConfigureModifierPillHover(), buildConfigureActionControl(), buildConfigureCountControl(), buildConfigureRow(), buildConfigureSubmitButton() (+34 more)
 
 ### Community 50 - "Responsive Design"
 Cohesion: 0.20
@@ -354,20 +357,20 @@ Cohesion: 0.12
 Nodes (16): 1. Read the screenshot (if present), 2. Wrap the element, 3. Load the action's reference, 4. Plan three variants: identity first, then mode, then axes, 5. Apply the freeform prompt (if present), 6. Deliver variants, 7. Parameters (composition-sized, 0-4 per variant), 8. Signal done (+8 more)
 
 ### Community 53 - "captureElementToBlob"
-Cohesion: 0.11
-Nodes (23): averageRgb01(), bufferToBase64(), captureChromeNodes(), captureElementFromRenderedAncestor(), captureElementToBlob(), collectFontCssText(), compileShader(), cssColorToRgb01() (+15 more)
+Cohesion: 0.12
+Nodes (20): averageRgb01(), captureChromeNodes(), captureElementFromRenderedAncestor(), captureElementToBlob(), compileShader(), cssColorToRgb01(), dominantRgb01(), findBackdropAncestor() (+12 more)
 
 ### Community 54 - "Vyom ERP — Comprehensive Project Audit & Development Process Documentation"
 Cohesion: 0.06
-Nodes (31): 10. Conclusion & Final Verdict, 1.1 Purpose & Scope, 1.2 System Vital Metrics, 1. Executive Summary, 2.1 Topology & Containerized Orchestration, 2.2 Technology Stack Analysis, 2. System Architecture & Technology Stack, 4.1 Backend Engine (`server/index.js`) (+23 more)
+Nodes (33): 10. Conclusion & Final Verdict, 1.1 Purpose & Scope, 1.2 System Vital Metrics, 1. Executive Summary, 2.1 Topology & Containerized Orchestration, 2.2 Technology Stack Analysis, 2. System Architecture & Technology Stack, 3.1 The 9-Stage Manufacturing Pipeline (+25 more)
 
 ### Community 55 - "Generate Report"
 Cohesion: 0.13
 Nodes (14): 1. Accessibility (A11y), 2. Performance, 3. Theming, 4. Responsive Design, 5. Implementation Integrity (CRITICAL), Audit Health Score, Detailed Findings by Severity, Diagnostic Scan (+6 more)
 
 ### Community 56 - "planningData.js"
-Cohesion: 0.11
-Nodes (22): BoardView(), StatusBadge(), BulkImportModal(), DOC_TYPES, DocumentManager(), PO_AUTHORIZED_ROLES, StatusBadge(), OrderImport() (+14 more)
+Cohesion: 0.16
+Nodes (14): BoardView(), StatusBadge(), StatusBadge(), ADMIN_NAV, NavItem(), PRIMARY_NAV, Sidenav(), StatusBadge() (+6 more)
 
 ### Community 57 - "DeptWorklist.jsx"
 Cohesion: 0.14
@@ -410,8 +413,8 @@ Cohesion: 0.17
 Nodes (11): Accessibility Resilience, Assess Hardening Needs, Edge Cases & Boundary Conditions, Error Handling, Hardening Dimensions, Input Validation & Sanitization, Internationalization (i18n), Performance Resilience (+3 more)
 
 ### Community 67 - "2026-10-07T05-46-44Z__src-components-allorderstableview-jsx.md"
-Cohesion: 0.22
-Nodes (8): Design Health Score, Design Specificity Verdict, Minor Observations, Overall Impression, Persona Red Flags, Priority Issues, Questions to Consider, What's Working
+Cohesion: 0.25
+Nodes (7): Design Health Score, Design Specificity Verdict, Minor Observations, Overall Impression, Persona Red Flags, Priority Issues, Questions to Consider
 
 ### Community 68 - "2026-10-07T06-10-21Z__darkmode.md"
 Cohesion: 0.22
@@ -469,17 +472,17 @@ Nodes (9): 1. The Wall of Options, 2. The Memory Bridge, 3. The Hidden Navigatio
 Cohesion: 0.22
 Nodes (9): Color & materials, Components & controls, iOS platform, Layout & structure, Motion, The iOS slop test, Touch targets, Typography (+1 more)
 
-### Community 82 - "init"
-Cohesion: 0.19
-Nodes (15): agentStatusText(), barPaletteForTheme(), buildParamsPanel(), detectPageTheme(), ensureAgentPollTooltip(), fetchPendingCount(), formatRangeValue(), init() (+7 more)
+### Community 82 - "pg"
+Cohesion: 0.22
+Nodes (5): pg, pool, designToken, pool, salesToken
 
 ### Community 83 - "Shape"
 Cohesion: 0.25
 Nodes (8): Cadence, Confirm and stop, Phase 1: Discovery interview, Phase 2: Resolve the design direction, Phase 3: Write the brief, Round 1: purpose, people, and outcome, Round 2: material, behavior, and boundaries, Shape
 
 ### Community 84 - "initPageChat"
-Cohesion: 0.34
-Nodes (14): armPageChatForTyping(), buildSteerProcessingDots(), collapsePageChat(), expandPageChat(), focusPageChatInput(), initPageChat(), keepSteerPointerInside(), lockSteerChat() (+6 more)
+Cohesion: 0.15
+Nodes (29): agentHasWorkInFlight(), armPageChatForTyping(), buildSteerProcessingDots(), buildSteerQueueHint(), clearSteerAwaitTimer(), collapsePageChat(), expandPageChat(), focusPageChatInput() (+21 more)
 
 ### Community 85 - "evaluatePurchaseAutoCompletion"
 Cohesion: 0.42
@@ -502,8 +505,8 @@ Cohesion: 0.25
 Nodes (7): Monorepo notes, Opting out of the boot check, Step 1: Run the pass, Step 2: Act by severity, Step 3: Deprecated fields are binding, Step 4: Do not overclaim on truth drift, What this owns, and what it does not
 
 ### Community 90 - "initDesignPanel"
-Cohesion: 0.39
-Nodes (8): buildDesignHeader(), designPanelCss(), fetchDesignSystem(), initDesignPanel(), loadDesignPrefs(), renderDesignChrome(), saveDesignPrefs(), toggleDesignPanel()
+Cohesion: 0.48
+Nodes (7): buildDesignHeader(), designPanelCss(), fetchDesignSystem(), initDesignPanel(), loadDesignPrefs(), renderDesignChrome(), toggleDesignPanel()
 
 ### Community 91 - "PurchaseNewOrderModal.jsx"
 Cohesion: 0.56
@@ -578,24 +581,28 @@ Cohesion: 0.40
 Nodes (4): Impeccable Documenter, Input Contract, Output Contract, Workflow
 
 ### Community 109 - "startVoice"
-Cohesion: 0.27
-Nodes (12): finishVoiceSession(), isEmbeddedPreviewBrowser(), releaseVoiceEngine(), startVoice(), steerSpeechRecognitionCtor(), steerVoiceContext(), steerVoiceErrorMessage(), steerVoiceUnavailableMessage() (+4 more)
+Cohesion: 0.36
+Nodes (9): finishVoiceSession(), isEmbeddedPreviewBrowser(), releaseVoiceEngine(), startVoice(), steerSpeechRecognitionCtor(), steerVoiceErrorMessage(), steerVoiceUnavailableMessage(), stopVoice() (+1 more)
 
-### Community 110 - "unlockSteerChat"
-Cohesion: 0.21
-Nodes (13): agentHasWorkInFlight(), buildSteerQueueHint(), clearSteerAwaitTimer(), pageChatCollapsedWidthPx(), pageChatExpandedWidth(), scheduleSteerAwaitTimeout(), sendSteerCheckpoint(), steerQueuedBehindGeneration() (+5 more)
+### Community 110 - "test_design_confirmation.js"
+Cohesion: 0.29
+Nodes (7): ref_os, adminToken, assert(), designToken, pool, runTestSuite(), salesToken
 
 ### Community 111 - "Rule: No Unsolicited Codebase Modifications"
 Cohesion: 0.50
 Nodes (3): Rule: No Unsolicited Codebase Modifications, Specific Guidelines, Strict Principle
 
 ### Community 112 - "2026-10-08T11-51-14Z__src-index-css.md"
-Cohesion: 0.15
-Nodes (12): Design Health Score, Design Specificity Verdict, Minor Observations, Overall Impression, [P1] Chromostereopsis & Glare from Neon Accents on Pure Black, [P1] Crushed Tonal Stepping & Weak Alternating Row Visibility in Data Tables, [P1] Pitch-Black Obsidian Canvas Causes Eye Fatigue and Text Halation, [P2] Ad-Hoc Color Proliferation and Hardcoded Dark Hexes (1,078 Detector Findings) (+4 more)
+Cohesion: 0.17
+Nodes (11): Design Specificity Verdict, Minor Observations, Overall Impression, [P1] Chromostereopsis & Glare from Neon Accents on Pure Black, [P1] Crushed Tonal Stepping & Weak Alternating Row Visibility in Data Tables, [P1] Pitch-Black Obsidian Canvas Causes Eye Fatigue and Text Halation, [P2] Ad-Hoc Color Proliferation and Hardcoded Dark Hexes (1,078 Detector Findings), Persona Red Flags (+3 more)
 
 ### Community 113 - "connectSSE"
 Cohesion: 0.22
 Nodes (21): abortSvelteComponentInjection(), completeParameterGenerationIfReady(), completeSourceInjection(), connectSSE(), discardOrphanedSession(), dismissToast(), hideShaderOverlay(), injectSvelteComponentsFromManifest() (+13 more)
+
+### Community 114 - "test_po_system.js"
+Cohesion: 0.33
+Nodes (6): adminToken, assert(), designToken, pool, runTestSuite(), salesToken
 
 ### Community 115 - "bolder.md"
 Cohesion: 0.18
@@ -609,22 +616,34 @@ Nodes (3): Comps, Directions, Persuade and Experience
 Cohesion: 0.33
 Nodes (6): findMatchingCssBrace(), prefixCssSelectors(), scopeCssBlock(), shouldScopeNestedCssAtRule(), splitCssSelectorList(), unwrapSvelteGlobalSelector()
 
+### Community 118 - "test_task_masters_lifecycle.js"
+Cohesion: 0.33
+Nodes (4): adminToken, designToken, pool, salesToken
+
 ### Community 119 - "enableInlineEdit"
 Cohesion: 0.40
 Nodes (5): collectEditableTextRows(), visit(), enableInlineEdit(), onInlineInput(), wrapMixedContentTextNodes()
 
+### Community 120 - "test_purchase_order_received.js"
+Cohesion: 0.50
+Nodes (4): adminToken, assert(), pool, runTestSuite()
+
+### Community 121 - "realign_unit_serials_to_orders.js"
+Cohesion: 0.83
+Nodes (3): formatOrderNumber(), parseOrderCounter(), realignUnitSerials()
+
 ## Knowledge Gaps
 - **671 isolated node(s):** `name`, `private`, `version`, `type`, `dev` (+666 more)
   These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 754 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **6 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `init()` connect `init` to `initGlobalBar`, `initDesignPanel`, `syncEditBadgeHitProxies`, `setLiveState`, `focusSteerChat`, `onAnnotDown`, `Init flow`, `connectSSE`, `doctor.md`, `live-browser.js`, `live.md`, `resumeSession`?**
-  _High betweenness centrality (0.206) - this node is a cross-community bridge._
-- **Why does `Commands` connect `init` to `SKILL.md`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
+- **Why does `init()` connect `initGlobalBar` to `initDesignPanel`, `syncEditBadgeHitProxies`, `setLiveState`, `focusSteerChat`, `onAnnotDown`, `Init flow`, `connectSSE`, `doctor.md`, `live-browser.js`, `live.md`, `resumeSession`?**
+  _High betweenness centrality (0.203) - this node is a cross-community bridge._
+- **Why does `Commands` connect `initGlobalBar` to `SKILL.md`?**
+  _High betweenness centrality (0.079) - this node is a cross-community bridge._
 - **Why does `Reference Material` connect `Heuristics Scoring Guide` to `critique.md`, `Persona-Based Design Testing`, `Cognitive Load Assessment`?**
   _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **What connects `name`, `private`, `version` to the rest of the system?**
@@ -632,6 +651,6 @@ _Questions this graph is uniquely positioned to answer:_
 - **Should `package.json` be split into smaller, more focused modules?**
   _Cohesion score 0.06451612903225806 - nodes in this community are weakly interconnected._
 - **Should `AllOrdersTableView.jsx` be split into smaller, more focused modules?**
-  _Cohesion score 0.1402116402116402 - nodes in this community are weakly interconnected._
-- **Should `db.js` be split into smaller, more focused modules?**
-  _Cohesion score 0.12923076923076923 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.12903225806451613 - nodes in this community are weakly interconnected._
+- **Should `index.js` be split into smaller, more focused modules?**
+  _Cohesion score 0.07816091954022988 - nodes in this community are weakly interconnected._
