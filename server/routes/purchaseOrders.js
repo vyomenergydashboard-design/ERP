@@ -1,10 +1,11 @@
 import express from 'express';
+import { evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
 
 /**
  * Router for Vendor Purchase Orders (Buying materials/components from vendors).
  * Handles persistent database storage in PostgreSQL.
  */
-export default function createPurchaseOrdersRouter(pool, authorize) {
+export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitStatus = null) {
   const router = express.Router();
 
   // GET /api/purchase-orders
@@ -114,6 +115,16 @@ export default function createPurchaseOrdersRouter(pool, authorize) {
         }
       }
 
+      // Check purchase step auto-completion for newly linked serials
+      try {
+        const serialList = serials.map(s => String(s.serialNumber || s.id || s).trim()).filter(Boolean);
+        if (serialList.length > 0) {
+          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus);
+        }
+      } catch (autoErr) {
+        console.warn('Purchase auto-completion warning on save:', autoErr);
+      }
+
       await client.query('COMMIT');
 
       res.status(201).json({
@@ -188,6 +199,20 @@ export default function createPurchaseOrdersRouter(pool, authorize) {
         JSON.stringify(updatedPos),
         order.id
       ]);
+
+      // Check auto-completion for all units linked to this vendor PO
+      try {
+        const linkedUnitsRes = await client.query(
+          'SELECT unit_serial FROM vendor_purchase_order_units WHERE vendor_purchase_order_id = $1',
+          [order.id]
+        );
+        const serialList = linkedUnitsRes.rows.map(r => r.unit_serial).filter(Boolean);
+        if (serialList.length > 0) {
+          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus);
+        }
+      } catch (autoErr) {
+        console.warn('Purchase auto-completion warning on status update:', autoErr);
+      }
 
       await client.query('COMMIT');
 

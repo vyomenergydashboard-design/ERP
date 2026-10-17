@@ -4026,8 +4026,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       });
       if (!res.ok) {
         console.warn('Failed to update custom_fields on server:', res.statusText);
-        fetchUnits(true);
       }
+      fetchUnits(true);
     } catch (err) {
       console.error('Error saving purchase category N/A status:', err);
       fetchUnits(true);
