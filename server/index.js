@@ -11,6 +11,7 @@ import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
 import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
+import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1096,7 +1097,7 @@ const authorize = (roles = []) => {
 };
 
 // Vendor Purchase Orders API
-app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize));
+app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize, deriveUnitStatus));
 
 // Auth Routes
 app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
@@ -3926,6 +3927,12 @@ app.put('/api/orders/:id/planning', authorize(['Admin', 'Manager', 'Planning']),
 
 app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
   try {
+    try {
+      await evaluatePurchaseAutoCompletion([req.params.unitId], pool, deriveUnitStatus);
+    } catch (evalErr) {
+      console.warn('evaluatePurchaseAutoCompletion warn in get unit steps:', evalErr);
+    }
+
     const result = await pool.query(
       `SELECT s.*, tm.custom_fields as tm_custom_fields, tm.order_fields as tm_order_fields
        FROM unit_steps s
@@ -4462,6 +4469,14 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updatedUnit = refreshedUnit.rows[0];
     }
 
+    if (custom_fields !== undefined) {
+      try {
+        await evaluatePurchaseAutoCompletion([realId], pool, deriveUnitStatus);
+      } catch (pcErr) {
+        console.warn('evaluatePurchaseAutoCompletion warn in update unit:', pcErr);
+      }
+    }
+
     if (classification !== undefined) {
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
       await pool.query(
@@ -4672,6 +4687,17 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Ad
 app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
   const dept = req.params.dept;
   try {
+    if (dept === 'Purchase' || dept === 'all') {
+      try {
+        const pUnits = await pool.query("SELECT id FROM order_units WHERE current_dept = 'Purchase'");
+        if (pUnits.rows.length > 0) {
+          await evaluatePurchaseAutoCompletion(pUnits.rows.map(r => r.id), pool, deriveUnitStatus);
+        }
+      } catch (evalErr) {
+        console.warn('evaluatePurchaseAutoCompletion warn in dept-worklist:', evalErr);
+      }
+    }
+
     // Get all units currently in this department (or all units if Sales)
     const result = await pool.query(`
       SELECT
