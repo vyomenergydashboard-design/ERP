@@ -87,6 +87,7 @@ function Dashboard() {
   }, [selectedUnitId]);
 
   const [unitSteps, setUnitSteps] = useState([]);
+  const [taskMasters, setTaskMasters] = useState([]);
   const lastInitializedOrderIdRef = useRef(null);
   const requestedUnitIdRef = useRef(null);
   const navigate = useNavigate();
@@ -112,26 +113,38 @@ function Dashboard() {
     return res;
   };
 
+  const fetchTaskMasters = async () => {
+    if (!token) return;
+    try {
+      const res = await authFetch(`${window.API_BASE}/api/task_masters`);
+      if (res?.ok) {
+        setTaskMasters(await res.json());
+      }
+    } catch (err) {
+      console.error('Failed to fetch task masters', err);
+    }
+  };
+
   useEffect(() => {
     syncProfile();
     fetchLogs();
+    fetchTaskMasters();
 
     const handleSetViewEvent = (e) => {
       if (typeof e.detail === 'string') {
         setCurrentView(e.detail);
       } else if (e.detail && e.detail.view) {
         setCurrentView(e.detail.view);
-        if (e.detail.orderId) {
-          setSelectedOrderId(e.detail.orderId);
-          selectedOrderIdRef.current = e.detail.orderId;
-        } else if (e.detail.orderId === null) {
-          setSelectedOrderId(null);
-          selectedOrderIdRef.current = null;
+        if (e.detail.orderId !== undefined) {
+          const newOid = e.detail.orderId ? parseInt(e.detail.orderId, 10) : null;
+          setSelectedOrderId(newOid);
+          selectedOrderIdRef.current = newOid;
         }
-        if (e.detail.unitId) {
-          requestedUnitIdRef.current = e.detail.unitId;
-          setSelectedUnitId(String(e.detail.unitId));
-        } else {
+        if (e.detail.unitId !== undefined) {
+          const newUid = e.detail.unitId ? String(e.detail.unitId) : '';
+          requestedUnitIdRef.current = newUid || null;
+          setSelectedUnitId(newUid);
+        } else if (e.detail.orderId === null) {
           requestedUnitIdRef.current = null;
           setSelectedUnitId('');
         }
@@ -156,7 +169,9 @@ function Dashboard() {
   // Auto-select unit when order changes
   useEffect(() => {
     if (!selectedOrder) {
-      setSelectedUnitId('');
+      if (!requestedUnitIdRef.current) {
+        setSelectedUnitId('');
+      }
       lastInitializedOrderIdRef.current = null;
       return;
     }
@@ -187,7 +202,7 @@ function Dashboard() {
     }
   }, [selectedOrder, selectedUnitId]);
 
-  // Fetch unit steps when selectedUnitId or selectedOrder changes
+  // Fetch unit steps concurrently when selectedUnitId changes
   useEffect(() => {
     const targetUnitId = selectedUnitId;
     if (targetUnitId && token) {
@@ -201,7 +216,7 @@ function Dashboard() {
     } else {
       setUnitSteps([]);
     }
-  }, [selectedUnitId, selectedOrder, token]);
+  }, [selectedUnitId, token]);
 
   // Reactively fetch steps and order details when any step is updated
   useEffect(() => {
@@ -209,6 +224,7 @@ function Dashboard() {
       if (selectedOrderId) {
         fetchOrderSteps(selectedOrderId);
         fetchOrderDetails(selectedOrderId);
+        fetchTaskMasters();
         
         const targetUnitId = selectedUnitId;
         if (targetUnitId && token) {
@@ -224,7 +240,7 @@ function Dashboard() {
     };
     window.addEventListener('orderUpdated', handleOrderUpdate);
     return () => window.removeEventListener('orderUpdated', handleOrderUpdate);
-  }, [selectedOrderId, selectedUnitId, selectedOrder, token]);
+  }, [selectedOrderId, selectedUnitId, token]);
 
   const fetchOrderDetails = async (orderId) => {
     if (!token) return;
@@ -429,6 +445,8 @@ function Dashboard() {
               steps={combinedSteps} 
               currentFilter={currentFilter} 
               selectedOrder={selectedOrder}
+              selectedOrderId={selectedOrderId}
+              currentView={currentView}
               activeStatFilter={statCardFilter}
               onSelectStatFilter={(key) => {
                 setStatCardFilter(prev => prev === key ? null : key);
@@ -503,6 +521,7 @@ function Dashboard() {
                   setSelectedUnitId={setSelectedUnitId}
                   unitSteps={unitSteps}
                   setUnitSteps={setUnitSteps}
+                  taskMasters={taskMasters}
                 />
               ) : (
                 <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>

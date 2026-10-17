@@ -2683,23 +2683,41 @@ app.get('/api/board', authorize(), async (req, res) => {
        ORDER BY s.step_order ASC, s.id ASC`
     );
 
-    const orders = ordersResult.rows.map(o => {
-      const oSteps = orderStepsRes.rows.filter(s => s.order_id === o.id).map(s => ({
+    const orderStepsByOrderId = new Map();
+    for (const s of orderStepsRes.rows) {
+      let list = orderStepsByOrderId.get(s.order_id);
+      if (!list) {
+        list = [];
+        orderStepsByOrderId.set(s.order_id, list);
+      }
+      list.push({
         id: `o_${s.id}`,
         dept: s.dept,
         name: s.name,
         status: s.status,
         notes: s.notes
-      }));
+      });
+    }
 
-      const uSteps = unitStepsRes.rows.filter(s => s.order_id === o.id).map(s => ({
+    const unitStepsByOrderId = new Map();
+    for (const s of unitStepsRes.rows) {
+      let list = unitStepsByOrderId.get(s.order_id);
+      if (!list) {
+        list = [];
+        unitStepsByOrderId.set(s.order_id, list);
+      }
+      list.push({
         id: `u_${s.id}`,
         dept: s.dept,
         name: s.name,
         status: s.status,
         notes: s.notes
-      }));
+      });
+    }
 
+    const orders = ordersResult.rows.map(o => {
+      const oSteps = orderStepsByOrderId.get(o.id) || [];
+      const uSteps = unitStepsByOrderId.get(o.id) || [];
       const allSteps = [...oSteps, ...uSteps];
 
       let status = 'incomplete';
@@ -2760,13 +2778,13 @@ app.get('/api/orders/:id', authorize(), async (req, res) => {
   }
 });
 
-const resolveCustomFieldValues = async (customFields, orderId, unitId = null) => {
+const resolveCustomFieldValues = async (customFields, orderId, unitId = null, preloadedRow = null) => {
   if (!customFields || !Array.isArray(customFields) || customFields.length === 0) {
     return customFields;
   }
 
-  let dbRow = null;
-  if (unitId) {
+  let dbRow = preloadedRow;
+  if (!dbRow && unitId) {
     const res = await pool.query(
       `SELECT 
         o.order_number, o.po_number, o.delivery_date, o.order_date,
@@ -3004,6 +3022,28 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
 
     const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
+    // Check if any step has custom fields requiring datakey resolution
+    let preloadedOrderRow = null;
+    const hasAnyCustomFields = result.rows.some(s => s.custom_fields || s.tm_custom_fields);
+    if (hasAnyCustomFields) {
+      const ordRes = await pool.query(
+        `SELECT 
+          o.order_number, o.po_number, o.delivery_date, o.order_date,
+          o.notes as order_notes, o.priority, o.packaging_type,
+          o.end_client_name, o.gst_number, o.reference_number, o.classification,
+          o.hold_status, o.status as order_status, o.qc_status, o.qc_date,
+          o.planned_dispatch_date, o.wiring_assigned_date, o.wiring_expected_date, o.expected_qc_date,
+          c.name as company_name,
+          cl.city as company_city, cl.person_in_charge, cl.contact_number, cl.email as company_email
+        FROM orders o
+        LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+        LEFT JOIN companies c ON cl.company_id = c.id
+        WHERE o.id = $1`,
+        [req.params.id]
+      );
+      if (ordRes.rows.length > 0) preloadedOrderRow = ordRes.rows[0];
+    }
+
     // For each step, if its own custom_fields is empty, seed from task master definitions
     const steps = [];
     for (const step of result.rows) {
@@ -3027,8 +3067,10 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
         } catch { cf = []; }
       }
 
-      // Resolve datakeys dynamically
-      cf = await resolveCustomFieldValues(cf, req.params.id, null);
+      // Resolve datakeys dynamically with preloadedOrderRow
+      if (cf.length > 0) {
+        cf = await resolveCustomFieldValues(cf, req.params.id, null, preloadedOrderRow);
+      }
 
       let autoDone = false;
       if (step.status !== 'done') {
@@ -3893,6 +3935,34 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
       [req.params.unitId]
     );
 
+    // Check if any step has custom fields requiring datakey resolution
+    let preloadedUnitRow = null;
+    const hasAnyCustomFields = result.rows.some(s => s.custom_fields || s.tm_custom_fields);
+    if (hasAnyCustomFields) {
+      const uRes = await pool.query(
+        `SELECT 
+          o.order_number, o.po_number, o.delivery_date, o.order_date,
+          o.notes as order_notes, o.priority, o.packaging_type,
+          o.end_client_name, o.gst_number, o.reference_number, o.classification,
+          o.hold_status, o.status as order_status, o.qc_status, o.qc_date,
+          o.planned_dispatch_date, o.wiring_assigned_date, o.wiring_expected_date, o.expected_qc_date,
+          c.name as company_name,
+          cl.city as company_city, cl.person_in_charge, cl.contact_number, cl.email as company_email,
+          li.material_description, li.part_number, COALESCE(u.panel_type_size, li.panel_type_size) as panel_type_size,
+          li.delivery_date as line_item_delivery_date, li.quantity, li.unit,
+          li.unit_price, li.total_price, li.notes as line_item_notes,
+          u.unit_id as unit_serial, u.short_serial, u.current_dept, u.status as unit_status
+        FROM order_units u
+        JOIN orders o ON u.order_id = o.id
+        LEFT JOIN company_locations cl ON o.company_location_id = cl.id
+        LEFT JOIN companies c ON cl.company_id = c.id
+        LEFT JOIN order_line_items li ON u.line_item_id = li.id
+        WHERE u.id = $1`,
+        [req.params.unitId]
+      );
+      if (uRes.rows.length > 0) preloadedUnitRow = uRes.rows[0];
+    }
+
     const steps = [];
     for (const step of result.rows) {
       let cf = [];
@@ -3905,8 +3975,10 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
         } catch { cf = []; }
       }
 
-      // Resolve datakeys dynamically
-      cf = await resolveCustomFieldValues(cf, null, req.params.unitId);
+      // Resolve datakeys dynamically with preloadedUnitRow
+      if (cf.length > 0) {
+        cf = await resolveCustomFieldValues(cf, null, req.params.unitId, preloadedUnitRow);
+      }
 
       let autoDone = false;
       if (step.status !== 'done') {
@@ -4296,7 +4368,7 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning']), async (req, res) => {
+app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores']), async (req, res) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });

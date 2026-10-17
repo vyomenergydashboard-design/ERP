@@ -206,8 +206,21 @@ function AggregateStats({ activeStatFilter, onSelectStatFilter }) {
 }
 
 // ── Root export ────────────────────────────────────────────────────────────
-export default function StatsRow({ steps, currentFilter, selectedOrder, activeStatFilter, onSelectStatFilter }) {
-  if (selectedOrder) {
+export default function StatsRow({ steps, currentFilter, selectedOrder, selectedOrderId, currentView, activeStatFilter, onSelectStatFilter }) {
+  if (selectedOrder || selectedOrderId || currentView === 'flow') {
+    if (!selectedOrder) {
+      return (
+        <div className="stats-row">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="stat-card" style={{ opacity: 0.4 }}>
+              <div className="stat-label">Order Status</div>
+              <div className="stat-value" style={{ fontSize: 13 }}>Loading…</div>
+              <div className="stat-sub">please wait</div>
+            </div>
+          ))}
+        </div>
+      );
+    }
     return <OrderStats steps={steps} currentFilter={currentFilter} selectedOrder={selectedOrder} />;
   }
   return <AggregateStats activeStatFilter={activeStatFilter} onSelectStatFilter={onSelectStatFilter} />;
