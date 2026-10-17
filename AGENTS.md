@@ -273,3 +273,8 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
    - **Non-Advancing Deletion:** Deleting a task template removes that step from active orders but must NEVER trigger a global `deriveUnitStatus` re-evaluation that advances orders into subsequent departments.
    - **Selective Addition:** Creating a task template in a department only adds it to active orders/units currently in that department or upstream (`PIPELINE.slice(0, deptIdx + 1)`). It must NEVER be added retroactively to orders that have already passed that department or completed/cancelled.
    - **No Auto-Truncation:** On server startup, `task_masters` is NEVER truncated. Defaults are seeded only if the table is completely empty.
+
+10. **Strict Codebase Modification Guardrail (Do Not Modify Codebase Unless Asked):**
+    - When not explicitly asked to make changes in the codebase, NEVER modify codebase files.
+    - If the user's prompt is an inquiry, testing request, debugging check, edge-case test, or question (e.g. "test it with dummy data to see if it works for edge cases"), execute tests using non-destructive queries or isolated test scripts.
+    - NEVER proactively implement new endpoints, edit components, or alter existing codebase source files unless the user explicitly requests code modifications or fixes.

@@ -66,7 +66,12 @@ export default function Sidenav({
           <p className="sidenav-label">Departments</p>
           <button
             className={`dept-btn${currentFilter === 'all' ? ' active' : ''}`}
-            onClick={() => { onFilterDept('all'); onSetView('table'); }}
+            onClick={() => {
+              onFilterDept('all');
+              if (!['table', 'board', 'flow'].includes(currentView)) {
+                onSetView('table');
+              }
+            }}
             title="All Departments"
           >
             <span className="dept-dot" style={{ background: 'var(--accent)' }} />
@@ -79,7 +84,12 @@ export default function Sidenav({
               <button
                 key={dept.id}
                 className={`dept-btn${currentFilter === dept.id ? ' active' : ''}`}
-                onClick={() => { onFilterDept(dept.id); onSetView('table'); }}
+                onClick={() => {
+                  onFilterDept(dept.id);
+                  if (!['table', 'board', 'flow'].includes(currentView)) {
+                    onSetView('table');
+                  }
+                }}
                 title={dept.label}
               >
                 <span className="dept-dot" style={{ background: dept.color }} />

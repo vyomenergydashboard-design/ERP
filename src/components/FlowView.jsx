@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
 import DocumentManager from './DocumentManager';
 import { FileText, ExternalLink, Download, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
@@ -21,9 +21,11 @@ export default function FlowView({
   selectedUnitId,
   setSelectedUnitId,
   unitSteps,
-  setUnitSteps
+  setUnitSteps,
+  taskMasters: propTaskMasters
 }) {
-  const [taskMasters, setTaskMasters] = useState([]);
+  const [internalTaskMasters, setInternalTaskMasters] = useState([]);
+  const taskMasters = (propTaskMasters && propTaskMasters.length > 0) ? propTaskMasters : internalTaskMasters;
   const [draggedStep, setDraggedStep] = useState(null);
   const token = localStorage.getItem('token');
 
@@ -223,8 +225,8 @@ export default function FlowView({
     }
   };
 
-  const orderLevelSteps = steps.filter(s => !s.order_unit_id);
-  const activeSteps = [...unitSteps, ...orderLevelSteps];
+  const orderLevelSteps = useMemo(() => (steps || []).filter(s => !s.order_unit_id), [steps]);
+  const activeSteps = useMemo(() => [...(unitSteps || []), ...orderLevelSteps], [unitSteps, orderLevelSteps]);
 
   const handleUpdateClassification = async (newClassification) => {
     if (!selectedOrder?.id) return;
@@ -383,17 +385,18 @@ export default function FlowView({
   };
 
   useEffect(() => {
+    if (propTaskMasters && propTaskMasters.length > 0) return;
     fetch(window.API_BASE + "/api/task_masters", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     .then(async res => {
       if (res.ok) {
         const data = await res.json();
-        setTaskMasters(data);
+        setInternalTaskMasters(data);
       }
     })
     .catch(console.error);
-  }, [token]);
+  }, [token, propTaskMasters]);
 
   const handleAddTask = async (taskId) => {
     if (!taskId || !selectedOrderId) return;
@@ -467,13 +470,15 @@ export default function FlowView({
     }
   };
 
-  const sortedDepts = [...DEPTS].sort((a, b) => {
-    if (['Admin', 'Manager'].includes(userRole)) return 0;
-    if (a.id === userRole) return -1;
-    if (b.id === userRole) return 1;
-    return 0;
-  });
-  const depts = currentFilter === 'all' ? sortedDepts : sortedDepts.filter((d) => d.id === currentFilter);
+  const depts = useMemo(() => {
+    const sorted = [...DEPTS].sort((a, b) => {
+      if (['Admin', 'Manager'].includes(userRole)) return 0;
+      if (a.id === userRole) return -1;
+      if (b.id === userRole) return 1;
+      return 0;
+    });
+    return currentFilter === 'all' ? sorted : sorted.filter((d) => d.id === currentFilter);
+  }, [userRole, currentFilter]);
 
   const selectedUnit = selectedOrder?.units?.find(u => String(u.id) === String(selectedUnitId));
   const currentSerial = selectedUnit

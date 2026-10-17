@@ -30,9 +30,9 @@
     "semantic_hash": "9af0c146b2cebbffdd093ae04114b8d7"
   },
   "server/index.js": {
-    "mtime": 1791973643.7664502,
-    "seen": 1791973915.226024,
-    "ast_hash": "1bf9582ae689aae553d0c162032bf8e9",
+    "mtime": 1792217921.188833,
+    "seen": 1792218099.0683763,
+    "ast_hash": "8d15446c7f4fe6cff2f5638260d91bef",
     "semantic_hash": ""
   },
   "server/init.sql": {
@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "src/App.jsx": {
-    "mtime": 1791353747.5447474,
-    "seen": 1791353839.8536842,
-    "ast_hash": "cb9b40364f3faf6482869e1d9e923d4c",
+    "mtime": 1792217980.8757887,
+    "seen": 1792218099.0713263,
+    "ast_hash": "6afd85e70bd3acf5c33d3d4a0b92f460",
     "semantic_hash": ""
   },
   "src/components/AddPartMasterModal.jsx": {
@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1792069083.5997274,
-    "seen": 1792069249.8231726,
-    "ast_hash": "005fc35b597d37a61d5284d2aafb2013",
+    "mtime": 1792155148.2181013,
+    "seen": 1792216559.942144,
+    "ast_hash": "55949d72e82c712f852e4c64fa1c5768",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -156,15 +156,15 @@
     "semantic_hash": ""
   },
   "src/components/FlowView.jsx": {
-    "mtime": 1790954320.8073058,
-    "seen": 1790960200.887167,
-    "ast_hash": "62a7bbce7a11cca8b301007d5c89fe4d",
+    "mtime": 1792216286.4070432,
+    "seen": 1792216559.9447887,
+    "ast_hash": "65e85307051d6163e02ae3b52667c7e7",
     "semantic_hash": ""
   },
   "src/components/Header.jsx": {
-    "mtime": 1791464271.2304642,
-    "seen": 1791464422.9652033,
-    "ast_hash": "547edac6501a6b498931a538e13dd55f",
+    "mtime": 1792218010.987105,
+    "seen": 1792218099.0739083,
+    "ast_hash": "7997577f6bf8bcff6b38dad91a5c7985",
     "semantic_hash": ""
   },
   "src/components/Login.jsx": {
@@ -186,9 +186,9 @@
     "semantic_hash": ""
   },
   "src/components/Modal.jsx": {
-    "mtime": 1791795108.4699183,
-    "seen": 1791795284.112332,
-    "ast_hash": "7f46fd1f06868279e84f34dd7abbc0df",
+    "mtime": 1792069648.953766,
+    "seen": 1792216559.9453707,
+    "ast_hash": "ddca3a2ce82c346774b96face55c44ab",
     "semantic_hash": ""
   },
   "src/components/OrderCreationFlow.jsx": {
@@ -246,15 +246,15 @@
     "semantic_hash": ""
   },
   "src/components/Sidenav.jsx": {
-    "mtime": 1791354521.675715,
-    "seen": 1791354916.6204116,
-    "ast_hash": "db8f720ea324a130a82e728f1e3cca86",
+    "mtime": 1792217959.78008,
+    "seen": 1792218099.076576,
+    "ast_hash": "2032dd54b4989fcbc29748fd211966f6",
     "semantic_hash": ""
   },
   "src/components/StatsRow.jsx": {
-    "mtime": 1790832251.4357765,
-    "seen": 1790832415.0548115,
-    "ast_hash": "dd0256b6b4b845cfba76de13e2263cd5",
+    "mtime": 1792217968.7204864,
+    "seen": 1792218099.07658,
+    "ast_hash": "a8c4c3ebb2a45fd4d473884856ce7eae",
     "semantic_hash": ""
   },
   "src/components/StepModal.jsx": {
@@ -300,9 +300,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1790839595.3437667,
-    "seen": 1790843420.6739113,
-    "ast_hash": "dd436fed106a38873d0fd730ca445e5b",
+    "mtime": 1792149252.719825,
+    "seen": 1792216559.963456,
+    "ast_hash": "207d624f9b42059310b3a28d816f61d2",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -1308,9 +1308,9 @@
     "semantic_hash": ""
   },
   "src/components/PurchaseOrderReceivedModal.jsx": {
-    "mtime": 1792068986.2721984,
-    "seen": 1792069249.8292081,
-    "ast_hash": "8cbe33a3bd27d8ee574a8c539870fe5d",
+    "mtime": 1792148929.1471994,
+    "seen": 1792216559.9472558,
+    "ast_hash": "df29e28bbfdc13f956b1f4b7c44add7a",
     "semantic_hash": ""
   },
   ".impeccable/critique/2026-10-12T08-16-36Z__src-components-purchasenewordermodal-jsx.md": {
@@ -1326,15 +1326,39 @@
     "semantic_hash": ""
   },
   "server/routes/purchaseOrders.js": {
-    "mtime": 1792068901.2335129,
-    "seen": 1792069249.8212295,
-    "ast_hash": "360ab5b44eec200d0f4364912b2bffe3",
+    "mtime": 1792149070.962909,
+    "seen": 1792216559.9399602,
+    "ast_hash": "f49a72918cd44374a5b0fa62fe09481d",
     "semantic_hash": ""
   },
   "server/test_purchase_order_received.js": {
     "mtime": 1792069100.80199,
     "seen": 1792069249.8220775,
     "ast_hash": "135d560c456c8d683a7545950b7f15e0",
+    "semantic_hash": ""
+  },
+  ".agents/rules/no-unsolicited-code-modifications.md": {
+    "mtime": 1792149260.487459,
+    "seen": 1792216559.961805,
+    "ast_hash": "38839f89dfc0684c43f8ec41ec99e0e8",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-10-17-process-flow-performance.md": {
+    "mtime": 1792215922.8878846,
+    "seen": 1792216559.965245,
+    "ast_hash": "236bf9adcc9b0b77b4fa0df473ebeefe",
+    "semantic_hash": ""
+  },
+  "scratch/benchmark_endpoints.mjs": {
+    "mtime": 1792217463.4931085,
+    "seen": 1792218099.066361,
+    "ast_hash": "ffc5c2ea20f3a3e6fe684b42e5344eec",
+    "semantic_hash": ""
+  },
+  "scratch/check_unit.mjs": {
+    "mtime": 1792217122.4906335,
+    "seen": 1792218099.0665522,
+    "ast_hash": "0305d8d2eed5b8f5d24505eb6ede01f5",
     "semantic_hash": ""
   }
 }

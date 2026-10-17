@@ -54,6 +54,10 @@ const BASE_COLUMNS = [
   { key: 'priority', label: 'Priority', align: 'center' },
   { key: 'delivery_date', label: 'Delivery', align: 'left' },
   { key: 'unit_status', label: 'Status', align: 'center' },
+  { key: 'purchase_cat_panel', label: 'Panel (PO)', align: 'left', catKey: 'Panel' },
+  { key: 'purchase_cat_automation', label: 'Automation (PO)', align: 'left', catKey: 'Automation' },
+  { key: 'purchase_cat_low_voltage', label: 'Low Voltage (PO)', align: 'left', catKey: 'Low voltage' },
+  { key: 'purchase_cat_wires', label: 'Wires & Acc. (PO)', align: 'left', catKey: 'Wires & Accessories' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -120,6 +124,10 @@ const DEFAULT_COL_WIDTHS = {
   priority: 140,
   delivery_date: 155,
   unit_status: 235,
+  purchase_cat_panel: 170,
+  purchase_cat_automation: 175,
+  purchase_cat_low_voltage: 175,
+  purchase_cat_wires: 185,
 };
 
 const MIN_COL_WIDTHS = {
@@ -140,6 +148,10 @@ const MIN_COL_WIDTHS = {
   priority: 130,
   delivery_date: 140,
   unit_status: 195,
+  purchase_cat_panel: 140,
+  purchase_cat_automation: 140,
+  purchase_cat_low_voltage: 140,
+  purchase_cat_wires: 150,
 };
 
 export const getDocUrl = (doc) => {
@@ -1025,7 +1037,10 @@ function renderCellContent({
   setPoPdfViewer,
   onEditRefTag,
   onOpenOrderDocs,
-  onDeletePanelSize
+  onDeletePanelSize,
+  purchaseOrdersBySerialAndCat,
+  canEditPurchaseNA,
+  onTogglePurchaseCatNA
 }) {
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
   const priority = unit.priority || 'Medium';
@@ -1736,6 +1751,166 @@ function renderCellContent({
       );
     }
 
+    case 'purchase_cat_panel':
+    case 'purchase_cat_automation':
+    case 'purchase_cat_low_voltage':
+    case 'purchase_cat_wires': {
+      const catKeyMap = {
+        purchase_cat_panel: 'Panel',
+        purchase_cat_automation: 'Automation',
+        purchase_cat_low_voltage: 'Low voltage',
+        purchase_cat_wires: 'Wires & Accessories'
+      };
+      const catKey = catKeyMap[colKey] || 'Panel';
+      const sn = String(unit.unit_serial || unit.short_serial || unit.unit_id || '').trim();
+      const lookupKey = `${sn}__${catKey}`.toLowerCase();
+      const shortLookupKey = `${sn.slice(-4)}__${catKey}`.toLowerCase();
+      const matched = (purchaseOrdersBySerialAndCat?.get(lookupKey) || purchaseOrdersBySerialAndCat?.get(shortLookupKey) || []);
+
+      if (!matched || matched.length === 0) {
+        const isNA = unit.custom_fields?.[colKey] === 'NA';
+        const userCanToggle = Boolean(canEditPurchaseNA || canEdit);
+
+        if (isNA) {
+          return (
+            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (userCanToggle && onTogglePurchaseCatNA) {
+                    e.stopPropagation();
+                    onTogglePurchaseCatNA(unit, colKey);
+                  }
+                }}
+                disabled={!userCanToggle}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '2px 8px',
+                  borderRadius: '10px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-mono, monospace)',
+                  background: 'rgba(148, 163, 184, 0.12)',
+                  color: 'var(--text3)',
+                  border: '1px solid rgba(148, 163, 184, 0.3)',
+                  cursor: userCanToggle ? 'pointer' : 'default',
+                  userSelect: 'none'
+                }}
+                title={userCanToggle ? `Marked Not Applicable · Click to revert to Pending (—)` : 'Not Applicable for this unit'}
+              >
+                N/A
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ color: 'var(--text3)', fontSize: '12px' }}>—</span>
+            {userCanToggle && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onTogglePurchaseCatNA) {
+                    onTogglePurchaseCatNA(unit, colKey);
+                  }
+                }}
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 600,
+                  padding: '1px 6px',
+                  borderRadius: '4px',
+                  background: 'var(--bg3)',
+                  color: 'var(--text3)',
+                  border: '1px dashed var(--border)',
+                  cursor: 'pointer',
+                  opacity: 0.7,
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.color = 'var(--text)';
+                  e.currentTarget.style.borderColor = 'var(--blue)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.opacity = '0.7';
+                  e.currentTarget.style.color = 'var(--text3)';
+                  e.currentTarget.style.borderColor = 'var(--border)';
+                }}
+                title={`Mark ${catKey} as Not Applicable (N/A)`}
+              >
+                + N/A
+              </button>
+            )}
+          </div>
+        );
+      }
+
+      // 1. Earliest PO Creation Date
+      const createdDates = matched
+        .map(p => p.createdDate || p.createdAt || p.date)
+        .filter(Boolean)
+        .map(d => new Date(d))
+        .filter(d => !isNaN(d.getTime()));
+
+      const firstCreatedDate = createdDates.length > 0
+        ? new Date(Math.min(...createdDates.map(d => d.getTime())))
+        : null;
+
+      // 2. Received Date: when ALL POs are closed, the latest closed date
+      const isClosedStatus = (status) => {
+        const s = String(status || '').trim().toLowerCase();
+        return s === 'po closed' || s === 'closed';
+      };
+      const allClosed = matched.length > 0 && matched.every(p => isClosedStatus(p.status));
+
+      let lastReceivedDate = null;
+      if (allClosed) {
+        const receivedDates = matched
+          .map(p => p.receivedDate || p.dateReceived || p.receivedAt || p.createdDate || p.date)
+          .filter(Boolean)
+          .map(d => new Date(d))
+          .filter(d => !isNaN(d.getTime()));
+
+        if (receivedDates.length > 0) {
+          lastReceivedDate = new Date(Math.max(...receivedDates.map(d => d.getTime())));
+        }
+      }
+
+      const firstDateStr = firstCreatedDate ? formatFastDate(firstCreatedDate) : '—';
+      const secondDateStr = allClosed && lastReceivedDate ? formatFastDate(lastReceivedDate) : '—';
+
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2,
+            padding: '2px 0',
+            lineHeight: 1.25,
+            fontSize: '11px',
+            whiteSpace: 'nowrap'
+          }}
+          title={`PO Created: ${firstDateStr}\nReceived: ${secondDateStr} (${allClosed ? 'All POs Closed' : 'Pending / Open POs'})\nLinked POs: ${matched.length}`}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '10px', color: 'var(--text3)', fontWeight: 600, minWidth: 26 }}>PO:</span>
+            <span style={{ color: 'var(--text)', fontWeight: 500, fontFamily: 'var(--font-mono, monospace)' }}>
+              {firstDateStr}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: '10px', color: allClosed ? 'var(--green)' : 'var(--text3)', fontWeight: 600, minWidth: 26 }}>Rec:</span>
+            <span style={{ color: allClosed ? 'var(--green)' : 'var(--text3)', fontWeight: allClosed ? 600 : 400, fontFamily: 'var(--font-mono, monospace)' }}>
+              {secondDateStr}
+            </span>
+          </div>
+        </div>
+      );
+    }
+
     default:
       const customCol = customColumnDefs?.find(c => c.col_key === colKey);
       if (customCol) {
@@ -2000,7 +2175,10 @@ const TableRow = memo(function TableRow({
   setPoPdfViewer,
   onEditRefTag,
   onOpenOrderDocs,
-  onDeletePanelSize
+  onDeletePanelSize,
+  purchaseOrdersBySerialAndCat,
+  canEditPurchaseNA,
+  onTogglePurchaseCatNA
 }) {
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
@@ -2141,7 +2319,10 @@ const TableRow = memo(function TableRow({
               setPoPdfViewer,
               onEditRefTag,
               onOpenOrderDocs,
-              onDeletePanelSize
+              onDeletePanelSize,
+              purchaseOrdersBySerialAndCat,
+              canEditPurchaseNA,
+              onTogglePurchaseCatNA
             })}
           </td>
         );
@@ -2160,7 +2341,9 @@ const TableRow = memo(function TableRow({
   if (prevProps.panelSizeMasters !== nextProps.panelSizeMasters) return false;
   if (prevProps.customColumnDefs !== nextProps.customColumnDefs) return false;
   if (prevProps.canEdit !== nextProps.canEdit) return false;
+  if (prevProps.canEditPurchaseNA !== nextProps.canEditPurchaseNA) return false;
   if (prevProps.canEditPanelSize !== nextProps.canEditPanelSize) return false;
+  if (prevProps.purchaseOrdersBySerialAndCat !== nextProps.purchaseOrdersBySerialAndCat) return false;
 
   const unitId = prevProps.unit.unit_id || prevProps.unit.id;
   const prevEditing = prevProps.editingCell && prevProps.editingCell.unitId === unitId;
@@ -3408,6 +3591,12 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         case 'panel_ip_rating':
           cellStr = String(unit.panel_ip_rating || '');
           break;
+        case 'purchase_cat_panel':
+        case 'purchase_cat_automation':
+        case 'purchase_cat_low_voltage':
+        case 'purchase_cat_wires':
+          cellStr = 'PO-2026-9999 Partial received +9';
+          break;
         default:
           cellStr = String(unit[colKey] || unit.custom_fields?.[colKey] || '');
           break;
@@ -3440,6 +3629,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
   const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION'].includes(roleUpper);
+  const canEditPurchaseNA = ['ADMIN', 'MANAGER', 'PURCHASE', 'STORES', 'DESIGN', 'SALES'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canUploadPo = ['ADMIN', 'MANAGER', 'SALES'].includes(roleUpper);
@@ -3464,6 +3654,71 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [orderDocsModalData, setOrderDocsModalData] = useState(null);
   const [isPurchaseNewOrderOpen, setIsPurchaseNewOrderOpen] = useState(false);
   const [isPurchaseOrderReceivedOpen, setIsPurchaseOrderReceivedOpen] = useState(false);
+  const [vendorPurchaseOrders, setVendorPurchaseOrders] = useState([]);
+
+  const fetchVendorPurchaseOrders = async () => {
+    try {
+      const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setVendorPurchaseOrders(data);
+          try {
+            localStorage.setItem('vyom_purchase_orders', JSON.stringify(data));
+          } catch (e) {}
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch vendor purchase orders:', err);
+    }
+    try {
+      const cached = localStorage.getItem('vyom_purchase_orders');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed)) setVendorPurchaseOrders(parsed);
+      }
+    } catch (e) {}
+  };
+
+  const purchaseOrdersBySerialAndCat = useMemo(() => {
+    const map = new Map();
+    (vendorPurchaseOrders || []).forEach(order => {
+      const cat = String(order.category || '').trim();
+      const posList = Array.isArray(order.pos) && order.pos.length > 0
+        ? order.pos
+        : [{ poNumber: order.poNumber || order.order_uid || 'PO', status: order.status || 'Pending' }];
+      const serials = Array.isArray(order.serials) ? order.serials : [];
+
+      serials.forEach(s => {
+        const sn = String(s?.serialNumber || s?.unit_serial || s?.serial_number || s?.serial || s || '').trim();
+        if (!sn) return;
+
+        posList.forEach(p => {
+          const entry = {
+            poNumber: p.poNumber || order.poNumber || order.order_uid || 'PO',
+            status: p.status || order.status || 'Pending',
+            category: cat,
+            orderId: order.id,
+            createdDate: p.date || (order.created_at ? String(order.created_at).slice(0, 10) : null),
+            receivedDate: p.dateReceived || (order.received_at ? String(order.received_at).slice(0, 10) : null)
+          };
+
+          const key = `${sn}__${cat}`.toLowerCase();
+          const shortKey = `${sn.slice(-4)}__${cat}`.toLowerCase();
+
+          if (!map.has(key)) map.set(key, []);
+          map.get(key).push(entry);
+
+          if (!map.has(shortKey)) map.set(shortKey, []);
+          map.get(shortKey).push(entry);
+        });
+      });
+    });
+    return map;
+  }, [vendorPurchaseOrders]);
 
   const fetchPartMasters = async () => {
     try {
@@ -3736,6 +3991,49 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     });
   }, [handleUnconfirmDesignClassification]);
 
+  const handleTogglePurchaseCatNA = async (unit, colKey) => {
+    const targetUnitId = unit.unit_id || unit.id;
+    if (!targetUnitId) return;
+
+    const currentCF = unit.custom_fields || {};
+    const currentlyNA = currentCF[colKey] === 'NA';
+    const updatedCF = { ...currentCF };
+
+    if (currentlyNA) {
+      delete updatedCF[colKey];
+    } else {
+      updatedCF[colKey] = 'NA';
+    }
+
+    // 1. Optimistic UI update (0ms response)
+    setUnits(prevUnits => prevUnits.map(u => {
+      const uId = u.unit_id || u.id;
+      if (uId === targetUnitId) {
+        return { ...u, custom_fields: updatedCF };
+      }
+      return u;
+    }));
+
+    // 2. Persist to backend
+    try {
+      const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ custom_fields: updatedCF })
+      });
+      if (!res.ok) {
+        console.warn('Failed to update custom_fields on server:', res.statusText);
+        fetchUnits(true);
+      }
+    } catch (err) {
+      console.error('Error saving purchase category N/A status:', err);
+      fetchUnits(true);
+    }
+  };
+
   const handleSaveInlineCell = async (unit, colKey, newValue) => {
     const targetUnitId = unit.unit_id || unit.id;
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
@@ -3860,18 +4158,24 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     fetchUnits();
     fetchPartMasters();
     fetchPanelSizeMasters();
+    fetchVendorPurchaseOrders();
 
     const handleUpdate = () => {
       fetchUnits(true);
       fetchColumnVisibility();
       fetchPartMasters();
       fetchPanelSizeMasters();
+      fetchVendorPurchaseOrders();
     };
     window.addEventListener('orderUpdated', handleUpdate);
     window.addEventListener('columnMastersUpdated', handleUpdate);
+    window.addEventListener('purchaseOrderStatusChanged', handleUpdate);
+    window.addEventListener('purchaseOrderSaved', handleUpdate);
     return () => {
       window.removeEventListener('orderUpdated', handleUpdate);
       window.removeEventListener('columnMastersUpdated', handleUpdate);
+      window.removeEventListener('purchaseOrderStatusChanged', handleUpdate);
+      window.removeEventListener('purchaseOrderSaved', handleUpdate);
     };
   }, [currentFilter]);
 
@@ -3907,6 +4211,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   };
 
   const isColVisible = (colKey) => {
+    const isPurchaseCatCol = colKey.startsWith('purchase_cat_');
+    if (isPurchaseCatCol) {
+      if (currentFilter === 'Purchase') {
+        const deptMap = colVisibility['Purchase'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
     if (currentFilter === 'all') return true;
     const deptMap = colVisibility[currentFilter];
     if (!deptMap) return true;
@@ -4944,6 +5262,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 onEditRefTag={setEditingRefTagUnit}
                 onOpenOrderDocs={setOrderDocsModalData}
                 onDeletePanelSize={handleDeletePanelSize}
+                purchaseOrdersBySerialAndCat={purchaseOrdersBySerialAndCat}
+                canEditPurchaseNA={canEditPurchaseNA}
+                onTogglePurchaseCatNA={handleTogglePurchaseCatNA}
               />
             ))}
 
@@ -5194,14 +5515,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         onClose={() => setIsPurchaseNewOrderOpen(false)}
         existingUnits={units}
         addToast={addToast}
-        onOrderSaved={() => fetchUnits(true)}
+        onOrderSaved={() => {
+          fetchUnits(true);
+          fetchVendorPurchaseOrders();
+        }}
       />
 
       {/* ── Purchase Order Received Modal (Goods Receipt / Incoming from Vendors) ── */}
       <PurchaseOrderReceivedModal
         isOpen={isPurchaseOrderReceivedOpen}
         onClose={() => setIsPurchaseOrderReceivedOpen(false)}
-        onStatusUpdated={() => fetchUnits(true)}
+        onStatusUpdated={() => {
+          fetchUnits(true);
+          fetchVendorPurchaseOrders();
+        }}
       />
 
       {/* ── Toast Notifications & Confirmation Dialog ── */}

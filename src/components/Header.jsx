@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { LogOut, User, Search, Sun, Moon, Menu, Clock } from 'lucide-react';
 
 export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
@@ -152,54 +152,73 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     }
   };
 
-  const allUnitItems = [];
-  orders.forEach(order => {
-    const isOrderHold = order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
-    const isOrderCancelled = String(order.status || '').toLowerCase().startsWith('cancel');
+  const allUnitItems = useMemo(() => {
+    const items = [];
+    orders.forEach(order => {
+      const isOrderHold = order.hold_status === 'Approved' || String(order.status || '').toLowerCase().startsWith('hold');
+      const isOrderCancelled = String(order.status || '').toLowerCase().startsWith('cancel');
 
-    const units = Array.isArray(order.units) && order.units.length > 0 
-      ? order.units 
-      : [{ id: order.id, unit_serial: order.order_number, material_description: '', part_number: '', hold_status: order.hold_status, status: order.status }];
-    
-    units.forEach(u => {
-      const isUnitHold = isOrderHold || u.hold_status === 'Hold' || String(u.status || '').toLowerCase().startsWith('hold');
-      const isUnitCancelled = isOrderCancelled || u.hold_status === 'Cancelled' || String(u.status || '').toLowerCase().startsWith('cancel');
+      const hasRealUnits = Array.isArray(order.units) && order.units.length > 0;
+      if (hasRealUnits) {
+        order.units.forEach(u => {
+          const isUnitHold = isOrderHold || u.hold_status === 'Hold' || String(u.status || '').toLowerCase().startsWith('hold');
+          const isUnitCancelled = isOrderCancelled || u.hold_status === 'Cancelled' || String(u.status || '').toLowerCase().startsWith('cancel');
 
-      allUnitItems.push({
-        unitId: u.id,
-        unitSerial: u.unit_serial || u.short_serial || order.order_number,
-        orderId: order.id,
-        orderNumber: order.order_number,
-        companyName: order.company_name,
-        poNumber: order.po_number,
-        materialDescription: u.material_description || '',
-        partNumber: u.part_number || '',
-        isHold: isUnitHold,
-        isCancelled: isUnitCancelled,
-      });
+          items.push({
+            unitId: u.id,
+            unitSerial: u.unit_serial || u.short_serial || order.order_number,
+            orderId: order.id,
+            orderNumber: order.order_number,
+            companyName: order.company_name,
+            poNumber: order.po_number,
+            materialDescription: u.material_description || '',
+            partNumber: u.part_number || '',
+            isHold: isUnitHold,
+            isCancelled: isUnitCancelled,
+            isOrderLevel: false
+          });
+        });
+      } else {
+        items.push({
+          unitId: null,
+          unitSerial: order.order_number,
+          orderId: order.id,
+          orderNumber: order.order_number,
+          companyName: order.company_name,
+          poNumber: order.po_number,
+          materialDescription: '',
+          partNumber: '',
+          isHold: isOrderHold,
+          isCancelled: isOrderCancelled,
+          isOrderLevel: true
+        });
+      }
     });
-  });
+    return items;
+  }, [orders]);
 
   const isQueryingSelected = selectedOrderId && searchQuery.trim();
-  const filteredUnits = allUnitItems.filter(item => {
-    const q = isQueryingSelected && searchQuery.trim() === item.unitSerial ? '' : searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    const tokens = q.split(/\s+/);
-    const serial = (item.unitSerial || '').toLowerCase();
-    const orderNum = (item.orderNumber || '').toLowerCase();
-    const compName = (item.companyName || '').toLowerCase();
-    const poNum = (item.poNumber || '').toLowerCase();
-    const desc = (item.materialDescription || '').toLowerCase();
-    const part = (item.partNumber || '').toLowerCase();
-    return tokens.every(token => 
-      serial.includes(token) || 
-      orderNum.includes(token) || 
-      compName.includes(token) || 
-      poNum.includes(token) ||
-      desc.includes(token) ||
-      part.includes(token)
-    );
-  });
+  const filteredUnits = useMemo(() => {
+    return allUnitItems.filter(item => {
+      const q = isQueryingSelected && searchQuery.trim() === item.unitSerial ? '' : searchQuery.trim().toLowerCase();
+      if (!q) return true;
+      const tokens = q.split(/\s+/);
+      const serial = (item.unitSerial || '').toLowerCase();
+      const orderNum = (item.orderNumber || '').toLowerCase();
+      const compName = (item.companyName || '').toLowerCase();
+      const poNum = (item.poNumber || '').toLowerCase();
+      const desc = (item.materialDescription || '').toLowerCase();
+      const part = (item.partNumber || '').toLowerCase();
+      return tokens.every(token => 
+        serial.includes(token) || 
+        orderNum.includes(token) || 
+        compName.includes(token) || 
+        poNum.includes(token) ||
+        desc.includes(token) ||
+        part.includes(token)
+      );
+    });
+  }, [allUnitItems, searchQuery, selectedOrderId, isQueryingSelected]);
 
   return (
     <div className="header">
@@ -255,9 +274,15 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
               </div>
               {filteredUnits.length > 0 ? filteredUnits.map(item => (
                 <div 
-                  key={`${item.orderId}-${item.unitId}`} 
+                  key={`${item.orderId}-${item.unitId || 'order'}`} 
                   className={`search-dropdown-item ${selectedOrderId == item.orderId ? 'active' : ''}`}
-                  onClick={() => handleSelectUnit(item.unitId, item.unitSerial, item.orderId, item.orderNumber)}
+                  onClick={() => {
+                    if (item.isOrderLevel) {
+                      handleSelectOrder(item.orderId, item.orderNumber);
+                    } else {
+                      handleSelectUnit(item.unitId, item.unitSerial, item.orderId, item.orderNumber);
+                    }
+                  }}
                   style={{ padding: '8px 12px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
