@@ -5333,6 +5333,61 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
   }
 });
 
+app.post('/api/units/batch-purchase-na', authorize(['Purchase', 'Stores', 'Sales', 'Design', 'Admin', 'Manager']), async (req, res) => {
+  const { unit_ids, colKey, value } = req.body;
+  const VALID_COLS = ['purchase_cat_panel', 'purchase_cat_automation', 'purchase_cat_low_voltage', 'purchase_cat_wires'];
+  
+  if (!VALID_COLS.includes(colKey)) {
+    return res.status(400).json({ error: 'Invalid purchase category column' });
+  }
+
+  if (!Array.isArray(unit_ids) || unit_ids.length === 0) {
+    return res.status(400).json({ error: 'At least one serial number must be selected.' });
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const intIds = unit_ids.map(Number).filter(n => !isNaN(n));
+    const strIds = unit_ids.map(String).filter(Boolean);
+
+    const unitsRes = await client.query(
+      `SELECT id, unit_id, custom_fields, order_id FROM order_units 
+       WHERE id = ANY($1) OR unit_id = ANY($2)`,
+      [intIds, strIds]
+    );
+
+    const updatedIds = [];
+    for (const u of unitsRes.rows) {
+      const cf = u.custom_fields && typeof u.custom_fields === 'object' ? { ...u.custom_fields } : {};
+      if (value === 'NA') {
+        cf[colKey] = 'NA';
+      } else {
+        delete cf[colKey];
+      }
+      await client.query(
+        'UPDATE order_units SET custom_fields = $1 WHERE id = $2',
+        [JSON.stringify(cf), u.id]
+      );
+      updatedIds.push(u.id);
+    }
+
+    if (updatedIds.length > 0) {
+      await evaluatePurchaseAutoCompletion(updatedIds, client, deriveUnitStatus);
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, count: updatedIds.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Error in batch-purchase-na:', err);
+    res.status(500).json({ error: 'Failed to batch update purchase categories' });
+  } finally {
+    client.release();
+  }
+});
+
 app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']), async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).json({ error: 'Unit ID is required' });

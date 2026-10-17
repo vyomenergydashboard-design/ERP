@@ -1773,7 +1773,22 @@ function renderCellContent({
 
         if (isNA) {
           return (
-            <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+            <div
+              onClick={(e) => {
+                if (userCanToggle && onTogglePurchaseCatNA) {
+                  e.stopPropagation();
+                  onTogglePurchaseCatNA(unit, colKey);
+                }
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                cursor: userCanToggle ? 'pointer' : 'default',
+                width: '100%',
+                userSelect: 'none'
+              }}
+              title={userCanToggle ? `Marked Not Applicable · Click to revert to Pending (—)` : 'Not Applicable for this unit'}
+            >
               <button
                 type="button"
                 onClick={(e) => {
@@ -1806,7 +1821,23 @@ function renderCellContent({
         }
 
         return (
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <div
+            onClick={(e) => {
+              if (userCanToggle && onTogglePurchaseCatNA) {
+                e.stopPropagation();
+                onTogglePurchaseCatNA(unit, colKey);
+              }
+            }}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              cursor: userCanToggle ? 'pointer' : 'default',
+              userSelect: 'none',
+              width: '100%'
+            }}
+            title={userCanToggle ? `Click to mark ${catKey} as Not Applicable (N/A)` : undefined}
+          >
             <span style={{ color: 'var(--text3)', fontSize: '12px' }}>—</span>
             {userCanToggle && (
               <button
@@ -3992,44 +4023,97 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   }, [handleUnconfirmDesignClassification]);
 
   const handleTogglePurchaseCatNA = async (unit, colKey) => {
-    const targetUnitId = unit.unit_id || unit.id;
-    if (!targetUnitId) return;
+    const catLabels = {
+      purchase_cat_panel: 'Panel',
+      purchase_cat_automation: 'Automation',
+      purchase_cat_low_voltage: 'Low Voltage',
+      purchase_cat_wires: 'Wires & Accessories'
+    };
+    const catLabel = catLabels[colKey] || 'Purchase Category';
 
-    const currentCF = unit.custom_fields || {};
-    const currentlyNA = currentCF[colKey] === 'NA';
-    const updatedCF = { ...currentCF };
-
-    if (currentlyNA) {
-      delete updatedCF[colKey];
-    } else {
-      updatedCF[colKey] = 'NA';
+    // 1. Determine target units (all selected units if any selected, otherwise clicked unit)
+    const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+    let targetUnits = [];
+    if (selectedList.length > 0) {
+      const clickedId = unit ? (unit.unit_id || unit.id) : null;
+      const hasClicked = clickedId && selectedList.some(u => (u.unit_id || u.id) === clickedId);
+      targetUnits = hasClicked || !unit ? selectedList : [...selectedList, unit];
+    } else if (unit) {
+      targetUnits = [unit];
     }
 
-    // 1. Optimistic UI update (0ms response)
+    if (targetUnits.length === 0) return;
+
+    // 2. If multiple units: if ANY unit is not NA, set all to 'NA'. If all are already 'NA', revert them.
+    // If single unit: toggle current state.
+    const shouldSetNA = targetUnits.length > 1
+      ? targetUnits.some(u => u.custom_fields?.[colKey] !== 'NA')
+      : targetUnits[0].custom_fields?.[colKey] !== 'NA';
+
+    const nextVal = shouldSetNA ? 'NA' : null;
+    const targetIdsSet = new Set(targetUnits.map(u => String(u.unit_id || u.id)));
+
+    // 3. Optimistic UI update across all target units instantly (0ms)
     setUnits(prevUnits => prevUnits.map(u => {
-      const uId = u.unit_id || u.id;
-      if (uId === targetUnitId) {
-        return { ...u, custom_fields: updatedCF };
+      const uId = String(u.unit_id || u.id);
+      if (targetIdsSet.has(uId)) {
+        const cf = { ...(u.custom_fields || {}) };
+        if (nextVal === 'NA') {
+          cf[colKey] = 'NA';
+        } else {
+          delete cf[colKey];
+        }
+        return { ...u, custom_fields: cf };
       }
       return u;
     }));
 
-    // 2. Persist to backend
+    // 4. Persist to backend via batch endpoint
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
-        method: 'PUT',
+      const targetIdsList = targetUnits.map(u => u.unit_id || u.id);
+      const res = await fetch(`${window.API_BASE}/api/units/batch-purchase-na`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ custom_fields: updatedCF })
+        body: JSON.stringify({
+          unit_ids: targetIdsList,
+          colKey,
+          value: nextVal
+        })
       });
+
       if (!res.ok) {
-        console.warn('Failed to update custom_fields on server:', res.statusText);
+        console.warn('Batch endpoint failed, falling back to individual updates:', res.statusText);
+        await Promise.all(targetUnits.map(async (tu) => {
+          const tuId = tu.unit_id || tu.id;
+          const cf = { ...(tu.custom_fields || {}) };
+          if (nextVal === 'NA') cf[colKey] = 'NA';
+          else delete cf[colKey];
+          return fetch(`${window.API_BASE}/api/units/${tuId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ custom_fields: cf })
+          });
+        }));
+      }
+
+      if (addToast) {
+        addToast(
+          `${shouldSetNA ? 'Marked' : 'Reverted'} ${targetUnits.length} serial${targetUnits.length > 1 ? 's' : ''} ${shouldSetNA ? 'as N/A' : 'to Pending'} for ${catLabel}`,
+          'success'
+        );
       }
       fetchUnits(true);
     } catch (err) {
       console.error('Error saving purchase category N/A status:', err);
+      if (addToast) {
+        addToast(err.message || 'Failed to update category status', 'error');
+      }
       fetchUnits(true);
     }
   };
@@ -4707,7 +4791,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales view)
   const isSalesView = (currentFilter || '').toLowerCase() === 'sales';
-  const SELECTION_COL_WIDTH = isSalesView ? 38 : 0;
+  const showRowSelection = isSalesView || isPurchaseView;
+  const SELECTION_COL_WIDTH = showRowSelection ? 38 : 0;
   const stickyLeftMap = useMemo(() => {
     const map = {};
     let currentLeft = SELECTION_COL_WIDTH;
@@ -4985,6 +5070,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             addToast={addToast}
           />
         )}
+
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
@@ -5120,8 +5206,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         <table className="erp-master-table">
           <thead>
             <tr>
-              {/* Selection Checkbox Header — Sales Only */}
-              {isSalesView && (
+              {/* Selection Checkbox Header — Sales & Purchase */}
+              {showRowSelection && (
                 <th
                   className="erp-th"
                   style={{
@@ -5232,7 +5318,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 unit={unit}
                 idx={idx}
                 currentFilter={currentFilter}
-                showSelection={isSalesView}
+                showSelection={showRowSelection}
                 isSelected={isIdSelected(unit.unit_id)}
                 status={getUnitStatus(unit)}
                 visibleCols={visibleCols}
@@ -5270,7 +5356,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={(visibleCols.length || 12) + (isSalesView ? 1 : 0)} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
+                <td colSpan={(visibleCols.length || 12) + (showRowSelection ? 1 : 0)} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
                   <Search size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
                   <div style={{ fontSize: 14 }}>
                     {activeTab === 'hold'

@@ -1,4 +1,5 @@
 import pool from './db.js';
+import jwt from 'jsonwebtoken';
 import { checkUnitPurchaseCategoriesStatus, evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 
 async function runTests() {
@@ -169,6 +170,71 @@ async function runTests() {
     throw err;
   } finally {
     client.release();
+  }
+
+  // --- INTEGRATION TEST 3: POST /api/units/batch-purchase-na endpoint ---
+  console.log('\n[TEST 3] Testing POST /api/units/batch-purchase-na endpoint...');
+  const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+  const token = jwt.sign({ id: 1, username: 'admin', role: 'Admin' }, JWT_SECRET, { expiresIn: '1h' });
+
+  await pool.query("DELETE FROM orders WHERE order_number = '99990003' OR po_number = 'TEST-BATCH-NA-PO'");
+
+  const tOrder = await pool.query(`
+    INSERT INTO orders (order_number, po_number, order_date, priority, status)
+    VALUES ('99990003', 'TEST-BATCH-NA-PO', NOW(), 'Medium', 'active')
+    RETURNING id
+  `);
+  const tOrderId = tOrder.rows[0].id;
+
+  const tu1 = await pool.query(`
+    INSERT INTO order_units (order_id, unit_id, short_serial, current_dept, status, custom_fields)
+    VALUES ($1, '99990031', '0031', 'Purchase', 'pending', '{"purchase_cat_panel":"NA","purchase_cat_automation":"NA","purchase_cat_low_voltage":"NA"}'::jsonb)
+    RETURNING id
+  `, [tOrderId]);
+  const tuId1 = tu1.rows[0].id;
+
+  const tu2 = await pool.query(`
+    INSERT INTO order_units (order_id, unit_id, short_serial, current_dept, status, custom_fields)
+    VALUES ($1, '99990032', '0032', 'Purchase', 'pending', '{"purchase_cat_panel":"NA","purchase_cat_automation":"NA","purchase_cat_low_voltage":"NA"}'::jsonb)
+    RETURNING id
+  `, [tOrderId]);
+  const tuId2 = tu2.rows[0].id;
+
+  await pool.query(`
+    INSERT INTO unit_steps (order_unit_id, dept, name, status, step_order)
+    VALUES ($1, 'Purchase', 'Procure Materials', 'pending', 1),
+           ($2, 'Purchase', 'Procure Materials', 'pending', 1)
+  `, [tuId1, tuId2]);
+
+  try {
+    const batchRes = await fetch('http://localhost:5000/api/units/batch-purchase-na', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        unit_ids: [tuId1, tuId2],
+        colKey: 'purchase_cat_wires',
+        value: 'NA'
+      })
+    });
+
+    const batchData = await batchRes.json();
+    assert(batchRes.status === 200, `Batch API returned HTTP 200 (got ${batchRes.status})`);
+    assert(batchData.success === true, 'Batch API returned success: true');
+    assert(batchData.count === 2, `Batch API updated 2 units (got ${batchData.count})`);
+
+    const checkUnits = await pool.query('SELECT custom_fields FROM order_units WHERE id = ANY($1)', [[tuId1, tuId2]]);
+    assert(checkUnits.rows.every(r => r.custom_fields.purchase_cat_wires === 'NA'), 'Both units have purchase_cat_wires set to NA');
+
+    const checkSteps = await pool.query('SELECT status FROM unit_steps WHERE order_unit_id = ANY($1) AND dept = \'Purchase\'', [[tuId1, tuId2]]);
+    assert(checkSteps.rows.every(r => r.status === 'done'), 'Procure Materials is automatically marked done for both units!');
+  } finally {
+    await pool.query('DELETE FROM unit_steps WHERE order_unit_id = ANY($1)', [[tuId1, tuId2]]);
+    await pool.query('DELETE FROM order_units WHERE order_id = $1', [tOrderId]);
+    await pool.query('DELETE FROM orders WHERE id = $1', [tOrderId]);
+    console.log('  ✓ Test entities cleaned up cleanly');
   }
 
   console.log('\n====================================================');

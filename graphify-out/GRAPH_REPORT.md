@@ -1,17 +1,17 @@
 # Graph Report - ERP  (2026-10-17)
 
 ## Corpus Check
-- 158 files · ~2,447,198 words
+- 158 files · ~2,448,058 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 16 file(s) not represented in the graph (top: (none) 5, .pptx 5, .exe 1)
 
 ## Summary
-- 1844 nodes · 3777 edges · 122 communities (116 shown, 6 thin omitted)
+- 1844 nodes · 3778 edges · 122 communities (116 shown, 6 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 106 edges (avg confidence: 0.88)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `48117dca`
+- Built from commit: `c4af1ef6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
