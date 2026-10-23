@@ -58,6 +58,9 @@ const BASE_COLUMNS = [
   { key: 'purchase_cat_automation', label: 'Automation (PO)', align: 'left', catKey: 'Automation' },
   { key: 'purchase_cat_low_voltage', label: 'Low Voltage (PO)', align: 'left', catKey: 'Low voltage' },
   { key: 'purchase_cat_wires', label: 'Wires & Acc. (PO)', align: 'left', catKey: 'Wires & Accessories' },
+  { key: 'tray_status', label: 'Tray Status', align: 'center', dept: 'Stores' },
+  { key: 'tray_start_date', label: 'Tray Start Date', align: 'center', dept: 'Stores' },
+  { key: 'issued_date', label: 'Issued Date', align: 'center', dept: 'Stores' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -1256,6 +1259,118 @@ function renderCellContent({
       return (
         <span className={`erp-status-pill ${statusClass}`}>
           <span>{icon}</span> {status}
+        </span>
+      );
+    }
+
+    case 'tray_status': {
+      const currentVal = unit.tray_status || unit.custom_fields?.tray_status || 'Pending';
+      const stLower = String(currentVal).toLowerCase().replace(/\s+/g, '');
+
+      let bg = 'rgba(245, 158, 11, 0.12)';
+      let color = 'var(--amber, #f59e0b)';
+      let border = 'rgba(245, 158, 11, 0.3)';
+
+      if (stLower === 'ready' || stLower === 'completed' || stLower === 'done') {
+        bg = 'rgba(16, 185, 129, 0.12)';
+        color = 'var(--green, #10b981)';
+        border = 'rgba(16, 185, 129, 0.3)';
+      } else if (stLower === 'issued') {
+        bg = 'rgba(168, 85, 247, 0.12)';
+        color = 'var(--purple, #a855f7)';
+        border = 'rgba(168, 85, 247, 0.3)';
+      } else if (stLower === 'inprogress' || stLower === 'inprocess') {
+        bg = 'rgba(56, 189, 248, 0.12)';
+        color = 'var(--blue, #38bdf8)';
+        border = 'rgba(56, 189, 248, 0.3)';
+      }
+
+      if (canEdit) {
+        return (
+          <select
+            value={currentVal}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSaveInlineCell(unit, 'tray_status', e.target.value)}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 'var(--radius-sm, 4px)',
+              background: bg,
+              color: color,
+              border: `1px solid ${border}`,
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="Pending" style={{ background: 'var(--bg3)', color: 'var(--amber, #f59e0b)' }}>Pending</option>
+            <option value="In Progress" style={{ background: 'var(--bg3)', color: 'var(--blue, #38bdf8)' }}>In Progress</option>
+            <option value="Ready" style={{ background: 'var(--bg3)', color: 'var(--green, #10b981)' }}>Ready</option>
+            <option value="Issued" style={{ background: 'var(--bg3)', color: 'var(--purple, #a855f7)' }}>Issued</option>
+          </select>
+        );
+      }
+
+      return (
+        <span
+          style={{
+            padding: '2px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            borderRadius: 'var(--radius-sm, 4px)',
+            background: bg,
+            color: color,
+            border: `1px solid ${border}`,
+            display: 'inline-block'
+          }}
+        >
+          {currentVal}
+        </span>
+      );
+    }
+
+    case 'tray_start_date':
+    case 'issued_date': {
+      const isEditingThisDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
+      const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
+
+      if (isEditingThisDate) {
+        return (
+          <input
+            type="date"
+            autoFocus
+            value={currentVal ? String(currentVal).split('T')[0] : ''}
+            onChange={(e) => onSaveInlineCell(unit, colKey, e.target.value)}
+            onBlur={() => setEditingCell(null)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveInlineCell(unit, colKey, e.target.value);
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4
+            }}
+          />
+        );
+      }
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+            }
+          }}
+          style={{
+            color: currentVal ? 'var(--text2)' : 'var(--text3)',
+            fontSize: 12,
+            fontFamily: currentVal ? 'var(--font-mono)' : 'inherit',
+            cursor: canEdit ? 'pointer' : 'default'
+          }}
+          title={canEdit ? 'Click to edit date' : undefined}
+        >
+          {formatFastDate(currentVal)}
         </span>
       );
     }
@@ -3031,7 +3146,7 @@ const PoUploadBar = memo(function PoUploadBar({
           <button
             type="button"
             onClick={onClearSelection}
-            title="Deselect all"
+            title="Deselect all (or double-press Esc)"
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex', alignItems: 'center' }}
           >
             <X size={12} />
@@ -3268,6 +3383,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const isDraggingSelectRef = useRef(false);
   const dragStartIdxRef = useRef(null);
   const dragSelectTargetStateRef = useRef(true);
+  const lastEscPressRef = useRef(0);
 
   // PO upload state
   const [externalPoNumber, setExternalPoNumber] = useState('');
@@ -3661,7 +3777,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return localStorage.getItem('userRole') || 'Sales';
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
-  const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION'].includes(roleUpper);
+  const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION', 'STORES', 'PURCHASE'].includes(roleUpper);
   const canEditPurchaseNA = ['ADMIN', 'MANAGER', 'PURCHASE', 'STORES', 'DESIGN', 'SALES'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
@@ -4127,6 +4243,39 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const targetUnitId = unit.unit_id || unit.id;
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
 
+    // Handle dedicated Stores columns
+    if (['tray_status', 'tray_start_date', 'issued_date'].includes(colKey)) {
+      const currentCF = unit.custom_fields || {};
+      const updatedCF = { ...currentCF, [colKey]: newValue };
+
+      setUnits(prevUnits => prevUnits.map(u => {
+        const currentId = u.unit_id || u.id;
+        if (currentId === targetUnitId) {
+          return { ...u, [colKey]: newValue, custom_fields: updatedCF };
+        }
+        return u;
+      }));
+      setEditingCell(null);
+
+      try {
+        if (targetUnitId) {
+          await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ [colKey]: newValue, custom_fields: updatedCF })
+          });
+        }
+        fetchUnits(true);
+      } catch (err) {
+        console.error(`Failed to save ${colKey}:`, err);
+        fetchUnits(true);
+      }
+      return;
+    }
+
     // If this is a custom field from column-masters, save into custom_fields jsonb
     if (customDef) {
       const currentCF = unit.custom_fields || {};
@@ -4268,6 +4417,50 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     };
   }, [currentFilter]);
 
+  // Double-press Escape key to uncheck all selected rows
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+
+      // If any modal overlay is active, let the modal's Escape handler take precedence
+      const hasOpenModal = Boolean(
+        document.querySelector('.modal-overlay.open, .bim-overlay, [data-modal="open"], [data-modal-overlay], dialog[open]')
+      );
+      if (hasOpenModal) return;
+
+      // If currently editing an inline table cell, let Escape cancel the cell edit
+      if (editingCell) return;
+
+      // If a dropdown or search picker is open, let Escape close the dropdown and reset timer
+      const hasOpenDropdown = Boolean(
+        document.querySelector('.picker-dropdown, .search-select-dropdown, .dropdown-menu.show')
+      );
+      if (hasOpenDropdown) {
+        lastEscPressRef.current = 0;
+        return;
+      }
+
+      const now = Date.now();
+      const timeDiff = now - lastEscPressRef.current;
+
+      // Double-press threshold: 500ms
+      if (timeDiff <= 500 && timeDiff > 0) {
+        lastEscPressRef.current = 0;
+        if (selectedUnitIds.size > 0) {
+          setSelectedUnitIds(new Set());
+          lastSelectedIndexRef.current = null;
+          isDraggingSelectRef.current = false;
+          dragStartIdxRef.current = null;
+        }
+      } else {
+        lastEscPressRef.current = now;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedUnitIds, editingCell]);
+
   const fetchColumnVisibility = async () => {
     try {
       const res = await fetch(`${window.API_BASE}/api/column-masters`, {
@@ -4304,6 +4497,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (isPurchaseCatCol) {
       if (currentFilter === 'Purchase') {
         const deptMap = colVisibility['Purchase'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
+    const isStoresCol = ['tray_status', 'tray_start_date', 'issued_date'].includes(colKey);
+    if (isStoresCol) {
+      if (currentFilter === 'Stores') {
+        const deptMap = colVisibility['Stores'];
         return deptMap ? deptMap[colKey] !== false : true;
       }
       if (currentFilter === 'all') {
@@ -5501,7 +5708,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 border: '1px solid rgba(56, 189, 248, 0.25)',
                 fontSize: 12
               }}
-              title="Click to deselect all"
+              title="Click or double-press Esc to deselect all"
             >
               <span>{selectedUnitIds.size} selected</span>
               <span style={{ fontSize: 10, opacity: 0.7, marginLeft: 2 }}>✕</span>

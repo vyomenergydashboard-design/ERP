@@ -198,6 +198,41 @@ export async function runDeploymentMigrations(clientParam) {
       FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
       CROSS JOIN (SELECT col_key FROM column_masters WHERE col_key IN ('panel_code', 'panel_ip_rating', 'panel_comments')) c
       ON CONFLICT (dept, col_key) DO NOTHING;
+
+      -- Stores Department Columns: Tray Status, Tray Start Date, Issued Date
+      ALTER TABLE order_units 
+      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Pending',
+      ADD COLUMN IF NOT EXISTS tray_start_date DATE,
+      ADD COLUMN IF NOT EXISTS issued_date DATE;
+
+      ALTER TABLE order_line_items
+      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Pending',
+      ADD COLUMN IF NOT EXISTS tray_start_date DATE,
+      ADD COLUMN IF NOT EXISTS issued_date DATE;
+
+      INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+        ('tray_status',     'Tray Status',     'Stores', 'Dropdown', true, 25),
+        ('tray_start_date', 'Tray Start Date', 'Stores', 'Date',     true, 26),
+        ('issued_date',     'Issued Date',     'Stores', 'Date',     true, 27)
+      ON CONFLICT (col_key) DO UPDATE SET 
+        label = EXCLUDED.label, 
+        category = EXCLUDED.category, 
+        field_type = EXCLUDED.field_type;
+
+      INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
+        ('Stores',     'tray_status',     true),
+        ('Stores',     'tray_start_date', true),
+        ('Stores',     'issued_date',     true),
+        ('all',        'tray_status',     true),
+        ('all',        'tray_start_date', true),
+        ('all',        'issued_date',     true)
+      ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+
+      INSERT INTO department_column_visibility (dept, col_key, is_visible)
+      SELECT d.dept, c.col_key, false
+      FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+      CROSS JOIN (VALUES ('tray_status'), ('tray_start_date'), ('issued_date')) AS c(col_key)
+      ON CONFLICT (dept, col_key) DO NOTHING;
     `);
 
     // 2. Check if old ORD- order numbers exist
