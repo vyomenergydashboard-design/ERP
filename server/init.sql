@@ -262,7 +262,10 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('expected_qc_date',       'Expected QC',           'Planning', 'Date',     true, 21),
   ('qc_status',              'QC Status',             'Planning', 'Dropdown', true, 22),
   ('qc_date',                'QC Date',               'Planning', 'Date',     true, 23),
-  ('classification',         'Classification',        'Order',    'Dropdown', true, 24)
+  ('classification',         'Classification',        'Order',    'Dropdown', true, 24),
+  ('tray_status',            'Tray Status',           'Stores',   'Dropdown', true, 25),
+  ('tray_start_date',        'Tray Start Date',       'Stores',   'Date',     true, 26),
+  ('issued_date',            'Issued Date',           'Stores',   'Date',     true, 27)
 ON CONFLICT (col_key) DO NOTHING;
 
 -- Seed default visibility (all visible for all departments)
