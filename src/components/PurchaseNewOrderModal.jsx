@@ -10,6 +10,7 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
+  Plus,
   X,
   Trash2,
   Hash,
@@ -386,6 +387,14 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
     });
   };
 
+  const handlePoDateChange = (id, newDate) => {
+    setPoEntries(prev => {
+      const next = prev.map(entry => entry.id === id ? { ...entry, date: newDate || getTodayDateStr() } : entry);
+      syncSerialsWithPoEntries(next, category);
+      return next;
+    });
+  };
+
   const handleRemovePoEntry = (id) => {
     setPoEntries(prev => {
       const next = prev.length > 1 ? prev.filter(entry => entry.id !== id) : prev;
@@ -543,7 +552,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
 
     if (invalidFormatTokens.length > 0) {
       return {
-        error: `Invalid serial number: '${invalidFormatTokens.slice(0, 3).join(', ')}'. Please enter numbers (e.g. 222-256, 345, or 456, 458).`
+        error: `Invalid serial number: '${invalidFormatTokens.slice(0, 3).join(', ')}'.`
       };
     }
 
@@ -819,9 +828,9 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
             boxShadow: 'var(--card-shadow, 0 1px 4px rgba(0, 0, 0, 0.08))'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '18px', flexWrap: 'wrap' }}>
-            {/* Category Dropdown (Left Column) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: 'fit-content', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap' }}>
+            {/* 1. Category Column */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', flex: '0 0 auto' }}>
               <label
                 htmlFor="purchase-order-category-select"
                 style={{
@@ -841,15 +850,13 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                 <span style={{ color: 'var(--accent, #f97316)', fontSize: '13px' }}>*</span>
               </label>
 
-              <div style={{ position: 'relative', width: 'fit-content' }}>
+              <div style={{ position: 'relative', width: '100%' }}>
                 <select
                   id="purchase-order-category-select"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                   style={{
-                    width: 'auto',
-                    minWidth: '160px',
-                    maxWidth: '220px',
+                    width: '100%',
                     height: '32px',
                     padding: '0 32px 0 10px',
                     fontSize: '12.5px',
@@ -857,7 +864,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                     color: 'var(--text)',
                     background: 'var(--bg3)',
                     border: '1.5px solid var(--border2)',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     outline: 'none',
                     cursor: 'pointer',
                     appearance: 'none',
@@ -901,24 +908,15 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
               </div>
             </div>
 
-            {/* PO Entries Cluster */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                flexWrap: 'wrap',
-                gap: '12px',
-                flex: 1,
-                minWidth: '240px'
-              }}
-            >
-              {poEntries.map((entry, index) => {
-                const isFirstPo = index === 0;
-                const isFocused = focusedPoId === entry.id;
-                const inputWidth = Math.max(120, Math.min(220, ((entry.poNumber || '').length || 6) * 8.5 + 24));
+            {/* PO Entries: PO Number & PO Date Columns */}
+            {poEntries.map((entry, index) => {
+              const isFirstPo = index === 0;
+              const isFocused = focusedPoId === entry.id;
 
-                return (
-                  <div key={entry.id} style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: 'fit-content' }}>
+              return (
+                <div key={entry.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '20px', flexWrap: 'wrap', flex: 1 }}>
+                  {/* 2. PO Number Column */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '180px', flex: 1 }}>
                     <div
                       style={{
                         height: '16px',
@@ -954,17 +952,17 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                           title={`Remove PO ${index + 1}`}
                           aria-label={`Remove PO ${index + 1}`}
                           style={{
-                            height: '14px',
+                            height: '16px',
                             background: 'rgba(239, 68, 68, 0.08)',
                             border: '1px solid rgba(239, 68, 68, 0.25)',
                             color: 'var(--red, #ef4444)',
                             cursor: 'pointer',
-                            padding: '0 4px',
+                            padding: '0 5px',
                             display: 'inline-flex',
                             alignItems: 'center',
                             gap: '2px',
-                            borderRadius: '3px',
-                            fontSize: '9px',
+                            borderRadius: '4px',
+                            fontSize: '10px',
                             fontWeight: 600,
                             lineHeight: 1,
                             transition: 'all 0.15s ease'
@@ -980,7 +978,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                             e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
                           }}
                         >
-                          <X size={8.5} style={{ strokeWidth: 2.2 }} />
+                          <X size={9} style={{ strokeWidth: 2.2 }} />
                           <span>Remove</span>
                         </button>
                       )}
@@ -996,7 +994,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                       placeholder="e.g. PO-2026-001"
                       aria-label={isFirstPo ? 'Primary Purchase Order Number' : `Purchase Order Number ${index + 1}`}
                       style={{
-                        width: `${inputWidth}px`,
+                        width: '100%',
                         height: '32px',
                         padding: '0 10px',
                         fontSize: '12.5px',
@@ -1005,43 +1003,93 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                         color: 'var(--text)',
                         background: 'var(--bg3)',
                         border: isFocused ? '1.5px solid var(--blue, #38bdf8)' : '1.5px solid var(--border2)',
-                        borderRadius: '6px',
-                        boxShadow: isFocused ? '0 0 0 2px var(--blue-dim, rgba(56, 189, 248, 0.25))' : '0 1px 2px rgba(0,0,0,0.05)',
+                        borderRadius: '8px',
+                        boxShadow: isFocused ? '0 0 0 2px var(--blue-dim, rgba(56, 189, 248, 0.25))' : 'none',
                         outline: 'none',
                         boxSizing: 'border-box',
-                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease, width 0.12s ease'
+                        transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
                       }}
                     />
+                  </div>
 
-                    {/* Auto-date badge */}
+                  {/* 3. PO Date Column */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', minWidth: '160px', flex: 1 }}>
                     <div
                       style={{
-                        display: 'inline-flex',
+                        height: '16px',
+                        display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        width: 'fit-content',
-                        padding: '2px 7px',
-                        fontSize: '11px',
-                        fontFamily: 'var(--font-mono, monospace)',
-                        fontWeight: 600,
-                        color: 'var(--text2)',
-                        background: 'var(--bg4)',
-                        border: '1px solid var(--border2)',
-                        borderRadius: '4px',
-                        userSelect: 'none',
-                        letterSpacing: '0.02em',
-                        lineHeight: '14px'
+                        userSelect: 'none'
                       }}
-                      title="Auto-recorded creation date"
                     >
-                      <Calendar size={10} style={{ opacity: 0.7 }} />
-                      <span>{entry.date}</span>
+                      <label
+                        htmlFor={`po-date-${entry.id}`}
+                        onClick={() => {
+                          try {
+                            document.getElementById(`po-date-${entry.id}`)?.showPicker?.();
+                          } catch (err) {}
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          color: 'var(--text)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <span>PO Date</span>
+                        <span style={{ color: 'var(--accent, #f97316)', fontSize: '12px' }}>*</span>
+                      </label>
+                    </div>
+
+                    <div style={{ position: 'relative', width: '100%' }}>
+                      <input
+                        id={`po-date-${entry.id}`}
+                        type="date"
+                        min="2020-01-01"
+                        max="2099-12-31"
+                        value={entry.date || getTodayDateStr()}
+                        onChange={(e) => handlePoDateChange(entry.id, e.target.value)}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.();
+                          } catch (err) {}
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '32px',
+                          padding: '0 10px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          fontFamily: 'inherit',
+                          color: 'var(--text)',
+                          background: 'var(--bg3)',
+                          border: '1.5px solid var(--border2)',
+                          borderRadius: '8px',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          boxSizing: 'border-box',
+                          transition: 'border-color 0.15s ease, box-shadow 0.15s ease'
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--blue, #38bdf8)';
+                          e.currentTarget.style.boxShadow = '0 0 0 2px var(--blue-dim, rgba(56, 189, 248, 0.25))';
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--border2)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      />
                     </div>
                   </div>
-                );
-              })}
-
-            </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Success Notification Alert */}
@@ -1124,39 +1172,42 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
               }}
             />
 
-            {/* Green Save Button */}
+
+
+            {/* Staging Button */}
             <button
               type="button"
               onClick={handleAddSerials}
-              title="Save serials to list"
+              title="Add serials to list"
               style={{
                 height: '34px',
                 padding: '0 16px',
                 fontSize: '12.5px',
                 fontWeight: 600,
-                borderRadius: '6px',
-                border: 'none',
-                background: 'var(--green, #10b981)',
-                color: '#ffffff',
+                borderRadius: '8px',
+                border: '1px solid var(--border2)',
+                background: 'var(--bg3)',
+                color: 'var(--text)',
                 cursor: 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.28)',
                 boxSizing: 'border-box',
-                transition: 'opacity 0.15s ease, transform 0.1s ease'
+                transition: 'all 0.15s ease'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.opacity = '0.92';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.background = 'var(--bg4)';
+                e.currentTarget.style.borderColor = 'var(--accent, #f97316)';
+                e.currentTarget.style.color = 'var(--accent, #f97316)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.opacity = '1';
-                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.background = 'var(--bg3)';
+                e.currentTarget.style.borderColor = 'var(--border2)';
+                e.currentTarget.style.color = 'var(--text)';
               }}
             >
-              <Save size={13.5} />
-              <span>Save</span>
+              <Plus size={14} style={{ strokeWidth: 2.2 }} />
+              <span>+ Add Serials</span>
             </button>
 
             {lastAddedNotice && (
@@ -1167,6 +1218,8 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
             )}
 
           </div>
+
+
 
           {/* Validation Error Banner */}
           {serialError && (
@@ -1747,25 +1800,25 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
                 fontWeight: 600,
                 borderRadius: '8px',
                 border: 'none',
-                background: isSaving ? 'var(--text3)' : 'var(--green, #10b981)',
+                background: isSaving ? 'var(--text3)' : 'var(--accent, #f97316)',
                 color: '#ffffff',
                 cursor: isSaving ? 'not-allowed' : 'pointer',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                boxShadow: '0 2px 8px rgba(16, 185, 129, 0.28)',
+                boxShadow: '0 2px 8px rgba(249, 115, 22, 0.28)',
                 transition: 'all 0.15s ease',
                 opacity: isSaving ? 0.7 : 1
               }}
               onMouseEnter={(e) => {
                 if (!isSaving) {
-                  e.currentTarget.style.opacity = '0.94';
+                  e.currentTarget.style.background = 'var(--accent2, #ea580c)';
                   e.currentTarget.style.transform = 'translateY(-1px)';
                 }
               }}
               onMouseLeave={(e) => {
                 if (!isSaving) {
-                  e.currentTarget.style.opacity = '1';
+                  e.currentTarget.style.background = 'var(--accent, #f97316)';
                   e.currentTarget.style.transform = 'translateY(0)';
                 }
               }}

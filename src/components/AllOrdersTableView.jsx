@@ -31,6 +31,10 @@ const STATUS_STYLES = {
   'In Process': { bg: 'var(--blue-dim)', color: 'var(--blue)', border: 'rgba(56, 189, 248, 0.3)' },
   Pending: { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.3)' },
   'Not Started': { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.3)' },
+  'Partial Ready': { bg: 'rgba(20, 184, 166, 0.12)', color: 'var(--teal, #14b8a6)', border: 'rgba(20, 184, 166, 0.3)' },
+  'Full Ready': { bg: 'var(--green-dim)', color: 'var(--green)', border: 'rgba(16, 185, 129, 0.3)' },
+  'Partial Issued': { bg: 'rgba(168, 85, 247, 0.12)', color: 'var(--purple, #a855f7)', border: 'rgba(168, 85, 247, 0.3)' },
+  'All Issued': { bg: 'rgba(139, 92, 246, 0.18)', color: '#c084fc', border: 'rgba(139, 92, 246, 0.35)' },
   Hold: { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.35)' },
   'On Hold': { bg: 'var(--orange-dim)', color: 'var(--orange)', border: 'rgba(249, 115, 22, 0.35)' },
   Cancelled: { bg: 'var(--red-dim)', color: 'var(--red)', border: 'rgba(248, 113, 113, 0.35)' },
@@ -1264,25 +1268,33 @@ function renderCellContent({
     }
 
     case 'tray_status': {
-      const currentVal = unit.tray_status || unit.custom_fields?.tray_status || 'Pending';
+      const currentVal = unit.tray_status || unit.custom_fields?.tray_status || 'Not Started';
       const stLower = String(currentVal).toLowerCase().replace(/\s+/g, '');
 
-      let bg = 'rgba(245, 158, 11, 0.12)';
+      let bg = 'rgba(249, 115, 22, 0.12)';
       let color = 'var(--amber, #f59e0b)';
-      let border = 'rgba(245, 158, 11, 0.3)';
+      let border = 'rgba(249, 115, 22, 0.3)';
 
-      if (stLower === 'ready' || stLower === 'completed' || stLower === 'done') {
-        bg = 'rgba(16, 185, 129, 0.12)';
-        color = 'var(--green, #10b981)';
-        border = 'rgba(16, 185, 129, 0.3)';
-      } else if (stLower === 'issued') {
-        bg = 'rgba(168, 85, 247, 0.12)';
-        color = 'var(--purple, #a855f7)';
-        border = 'rgba(168, 85, 247, 0.3)';
-      } else if (stLower === 'inprogress' || stLower === 'inprocess') {
+      if (stLower === 'inprocess' || stLower === 'inprogress') {
         bg = 'rgba(56, 189, 248, 0.12)';
         color = 'var(--blue, #38bdf8)';
         border = 'rgba(56, 189, 248, 0.3)';
+      } else if (stLower === 'partialready') {
+        bg = 'rgba(20, 184, 166, 0.12)';
+        color = 'var(--teal, #14b8a6)';
+        border = 'rgba(20, 184, 166, 0.3)';
+      } else if (stLower === 'fullready' || stLower === 'ready' || stLower === 'completed' || stLower === 'done') {
+        bg = 'rgba(16, 185, 129, 0.12)';
+        color = 'var(--green, #10b981)';
+        border = 'rgba(16, 185, 129, 0.3)';
+      } else if (stLower === 'partialissued' || stLower === 'issued') {
+        bg = 'rgba(168, 85, 247, 0.12)';
+        color = 'var(--purple, #a855f7)';
+        border = 'rgba(168, 85, 247, 0.3)';
+      } else if (stLower === 'allissued') {
+        bg = 'rgba(139, 92, 246, 0.18)';
+        color = '#c084fc';
+        border = 'rgba(139, 92, 246, 0.35)';
       }
 
       if (canEdit) {
@@ -1303,10 +1315,12 @@ function renderCellContent({
               cursor: 'pointer'
             }}
           >
-            <option value="Pending" style={{ background: 'var(--bg3)', color: 'var(--amber, #f59e0b)' }}>Pending</option>
-            <option value="In Progress" style={{ background: 'var(--bg3)', color: 'var(--blue, #38bdf8)' }}>In Progress</option>
-            <option value="Ready" style={{ background: 'var(--bg3)', color: 'var(--green, #10b981)' }}>Ready</option>
-            <option value="Issued" style={{ background: 'var(--bg3)', color: 'var(--purple, #a855f7)' }}>Issued</option>
+            <option value="Not Started" style={{ background: 'var(--bg3)', color: 'var(--amber, #f59e0b)' }}>Not Started</option>
+            <option value="In Process" style={{ background: 'var(--bg3)', color: 'var(--blue, #38bdf8)' }}>In Process</option>
+            <option value="Partial Ready" style={{ background: 'var(--bg3)', color: 'var(--teal, #14b8a6)' }}>Partial Ready</option>
+            <option value="Full Ready" style={{ background: 'var(--bg3)', color: 'var(--green, #10b981)' }}>Full Ready</option>
+            <option value="Partial Issued" style={{ background: 'var(--bg3)', color: 'var(--purple, #a855f7)' }}>Partial Issued</option>
+            <option value="All Issued" style={{ background: 'var(--bg3)', color: '#c084fc' }}>All Issued</option>
           </select>
         );
       }
