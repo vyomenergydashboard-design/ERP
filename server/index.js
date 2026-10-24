@@ -4391,7 +4391,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
     const checkUnit = await pool.query(
-      'SELECT id, order_id, line_item_id, unit_id FROM order_units WHERE id = $1 OR unit_id = $2',
+      'SELECT id, order_id, line_item_id, unit_id, tray_status, tray_start_date, issued_date FROM order_units WHERE id = $1 OR unit_id = $2',
       [numId, String(id)]
     );
     if (checkUnit.rows.length === 0) {
@@ -4451,8 +4451,81 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     }
 
     if (tray_status !== undefined) {
+      const newTrayStatus = tray_status || 'Not Started';
+      const oldStatus = unit.tray_status || 'Not Started';
+      const startedStatuses = ['In Process', 'Partial Ready', 'Full Ready'];
+      const issuedStatuses = ['Partial Issued', 'All Issued'];
+      const hasStartDate = !!(unit.tray_start_date || (tray_start_date !== undefined && tray_start_date));
+      const wasStarted = ['In Process', 'Partial Ready', 'Full Ready', 'Partial Issued', 'All Issued'].includes(oldStatus);
+
+      // Constraint: Cannot issue tray unless it was started first
+      if (issuedStatuses.includes(newTrayStatus)) {
+        if (!hasStartDate && !wasStarted) {
+          return res.status(400).json({ error: 'Tray must be started (In Process / Ready) before an issue date can be assigned.' });
+        }
+      }
+
       updates.push(`tray_status = $${idx++}`);
-      values.push(tray_status || 'Not Started');
+      values.push(newTrayStatus);
+
+      // Start date recorded on 1st time departure from Not Started
+      if ((oldStatus === 'Not Started' || !unit.tray_start_date) && startedStatuses.includes(newTrayStatus)) {
+        if (tray_start_date === undefined) {
+          updates.push(`tray_start_date = CURRENT_DATE`);
+        }
+      }
+
+      // Issued date recorded when status becomes Partial Issued or All Issued
+      if (issuedStatuses.includes(newTrayStatus)) {
+        if (issued_date === undefined) {
+          updates.push(`issued_date = CURRENT_DATE`);
+        }
+      }
+    }
+
+    const normalizeDateStr = (val) => {
+      if (!val) return '';
+      if (val instanceof Date) {
+        const y = val.getFullYear();
+        const m = String(val.getMonth() + 1).padStart(2, '0');
+        const d = String(val.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      const str = String(val).trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(str)) {
+        return str.substring(0, 10);
+      }
+      const parsed = new Date(val);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        const d = String(parsed.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+      return str;
+    };
+
+    if (issued_date !== undefined && issued_date !== null && issued_date !== '') {
+      const effectiveStartDate = tray_start_date !== undefined ? tray_start_date : unit.tray_start_date;
+      if (!effectiveStartDate) {
+        return res.status(400).json({ error: 'Tray Start Date must be set before an Issued Date can be set.' });
+      }
+      const sDateStr = normalizeDateStr(effectiveStartDate);
+      const iDateStr = normalizeDateStr(issued_date);
+      if (iDateStr < sDateStr) {
+        return res.status(400).json({ error: `Issued Date (${iDateStr}) cannot be earlier than Tray Start Date (${sDateStr}).` });
+      }
+    }
+
+    if (tray_start_date !== undefined && tray_start_date !== null && tray_start_date !== '') {
+      const effectiveIssuedDate = issued_date !== undefined ? issued_date : unit.issued_date;
+      if (effectiveIssuedDate) {
+        const sDateStr = normalizeDateStr(tray_start_date);
+        const iDateStr = normalizeDateStr(effectiveIssuedDate);
+        if (sDateStr > iDateStr) {
+          return res.status(400).json({ error: `Tray Start Date (${sDateStr}) cannot be after Issued Date (${iDateStr}).` });
+        }
+      }
     }
 
     if (tray_start_date !== undefined) {

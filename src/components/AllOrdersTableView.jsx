@@ -1353,6 +1353,16 @@ function renderCellContent({
           <input
             type="date"
             autoFocus
+            ref={(el) => {
+              if (el && typeof el.showPicker === 'function') {
+                try { el.showPicker(); } catch (_) {}
+              }
+            }}
+            onClick={(e) => {
+              if (e.target.showPicker) {
+                try { e.target.showPicker(); } catch (_) {}
+              }
+            }}
             value={currentVal ? String(currentVal).split('T')[0] : ''}
             onChange={(e) => onSaveInlineCell(unit, colKey, e.target.value)}
             onBlur={() => setEditingCell(null)}
@@ -1362,7 +1372,8 @@ function renderCellContent({
             }}
             style={{
               padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
-              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4,
+              cursor: 'pointer'
             }}
           />
         );
@@ -1373,6 +1384,10 @@ function renderCellContent({
           onClick={(e) => {
             if (canEdit) {
               e.stopPropagation();
+              if (colKey === 'issued_date' && !unit.tray_start_date && !unit.custom_fields?.tray_start_date) {
+                onSaveInlineCell(unit, 'issued_date', '');
+                return;
+              }
               setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
             }
           }}
@@ -3242,6 +3257,94 @@ const PoUploadBar = memo(function PoUploadBar({
   );
 });
 
+const StoresBatchTrayStatusBar = memo(function StoresBatchTrayStatusBar({
+  selectedCount,
+  onClearSelection,
+  onBatchTrayStatus,
+  isUpdating
+}) {
+  const [selectedStatus, setSelectedStatus] = useState('');
+
+  const handleChange = (e) => {
+    const status = e.target.value;
+    if (!status) return;
+    setSelectedStatus('');
+    onBatchTrayStatus(status);
+  };
+
+  return (
+    <div
+      style={{
+        marginLeft: 'auto',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '3px 8px',
+        borderRadius: 8,
+        border: '1px solid rgba(245, 158, 11, 0.35)',
+        backgroundColor: 'rgba(245, 158, 11, 0.08)',
+        boxShadow: '0 0 12px rgba(245, 158, 11, 0.15)',
+        transition: 'all 0.18s ease'
+      }}
+      title="Batch update Tray Status for selected serial numbers"
+    >
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: 600,
+          color: 'var(--amber, #f59e0b)',
+          background: 'rgba(245, 158, 11, 0.15)',
+          border: '1px solid rgba(245, 158, 11, 0.3)',
+          borderRadius: 'var(--radius-sm, 4px)',
+          padding: '3px 8px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5
+        }}
+      >
+        <PackageCheck size={13} style={{ flexShrink: 0 }} />
+        <span>{selectedCount} serial{selectedCount > 1 ? 's' : ''} selected</span>
+        <button
+          type="button"
+          onClick={onClearSelection}
+          title="Deselect all (or double-press Esc)"
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, display: 'flex', alignItems: 'center' }}
+        >
+          <X size={12} />
+        </button>
+      </span>
+
+      <select
+        value={selectedStatus}
+        onChange={handleChange}
+        disabled={isUpdating}
+        style={{
+          height: 30,
+          padding: '0 8px',
+          fontSize: 12,
+          fontWeight: 600,
+          background: 'var(--bg3)',
+          color: 'var(--text)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm, 4px)',
+          outline: 'none',
+          cursor: isUpdating ? 'wait' : 'pointer'
+        }}
+        title="Choose a status to apply to all selected serials"
+      >
+        <option value="">Set Tray Status for all...</option>
+        <option value="Not Started">Not Started</option>
+        <option value="In Process">In Process</option>
+        <option value="Partial Ready">Partial Ready</option>
+        <option value="Full Ready">Full Ready</option>
+        <option value="Partial Issued">Partial Issued</option>
+        <option value="All Issued">All Issued</option>
+      </select>
+    </div>
+  );
+});
+
+
 export default function AllOrdersTableView({ currentFilter, userRole: propUserRole, onSetView, statCardFilter, onClearStatFilter }) {
   const [units, setUnits] = useState([]);
   const tableContainerRef = useRef(null);
@@ -3798,6 +3901,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const canUploadPo = ['ADMIN', 'MANAGER', 'SALES'].includes(roleUpper);
   const canConfirmDesign = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const isPurchaseView = (currentFilter || '').toLowerCase() === 'purchase' || (roleUpper === 'PURCHASE' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'purchase'));
+  const isStoresView = (currentFilter || '').toLowerCase() === 'stores' || (roleUpper === 'STORES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'stores'));
 
   const currentUser = (() => {
     try {
@@ -4261,11 +4365,107 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (['tray_status', 'tray_start_date', 'issued_date'].includes(colKey)) {
       const currentCF = unit.custom_fields || {};
       const updatedCF = { ...currentCF, [colKey]: newValue };
+      const extraUpdates = {};
+
+      if (colKey === 'tray_status') {
+        const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+        const clickedId = unit ? (unit.unit_id || unit.id) : null;
+        const isClickedSelected = clickedId && selectedList.some(u => (u.unit_id || u.id) === clickedId);
+
+        if (selectedList.length > 1 && isClickedSelected) {
+          await handleBatchTrayStatus(newValue, selectedList);
+          return;
+        }
+
+        const prevStatus = unit.tray_status || unit.custom_fields?.tray_status || 'Not Started';
+        const startedStatuses = ['In Process', 'Partial Ready', 'Full Ready'];
+        const issuedStatuses = ['Partial Issued', 'All Issued'];
+        const hasStartDate = !!(unit.tray_start_date || unit.custom_fields?.tray_start_date);
+        const wasStarted = ['In Process', 'Partial Ready', 'Full Ready', 'Partial Issued', 'All Issued'].includes(prevStatus);
+
+        // Constraint: Cannot issue tray unless it was started first
+        if (issuedStatuses.includes(newValue)) {
+          if (!hasStartDate && !wasStarted) {
+            if (addToast) {
+              addToast('Tray must be started (In Process / Ready) before an issue date can be assigned.', 'warning');
+            }
+            return;
+          }
+        }
+
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        const todayDateStr = `${year}-${month}-${day}`;
+
+        // 1st time status change date (only if transitioning from Not Started or no start date yet)
+        if ((prevStatus === 'Not Started' || !unit.tray_start_date) && startedStatuses.includes(newValue)) {
+          extraUpdates.tray_start_date = todayDateStr;
+          updatedCF.tray_start_date = todayDateStr;
+        }
+
+        // Issued date when status changes to Partial Issued or All Issued
+        if (issuedStatuses.includes(newValue)) {
+          extraUpdates.issued_date = todayDateStr;
+          updatedCF.issued_date = todayDateStr;
+        }
+      }
+
+      const normalizeDateStr = (val) => {
+        if (!val) return '';
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+          return val.substring(0, 10);
+        }
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return String(val).trim();
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      if (colKey === 'issued_date') {
+        const startDate = unit.tray_start_date || unit.custom_fields?.tray_start_date;
+        if (!startDate) {
+          if (addToast) {
+            addToast('Tray Start Date must be set before an Issued Date can be set.', 'warning');
+          }
+          setEditingCell(null);
+          return;
+        }
+        if (newValue) {
+          const sDateStr = normalizeDateStr(startDate);
+          const iDateStr = normalizeDateStr(newValue);
+          if (iDateStr < sDateStr) {
+            if (addToast) {
+              addToast(`Issued Date (${iDateStr}) cannot be earlier than Tray Start Date (${sDateStr}).`, 'warning');
+            }
+            setEditingCell(null);
+            return;
+          }
+        }
+      }
+
+      if (colKey === 'tray_start_date' && newValue) {
+        const issuedDate = unit.issued_date || unit.custom_fields?.issued_date;
+        if (issuedDate) {
+          const sDateStr = normalizeDateStr(newValue);
+          const iDateStr = normalizeDateStr(issuedDate);
+          if (sDateStr > iDateStr) {
+            if (addToast) {
+              addToast(`Tray Start Date (${sDateStr}) cannot be after Issued Date (${iDateStr}).`, 'warning');
+            }
+            setEditingCell(null);
+            return;
+          }
+        }
+      }
 
       setUnits(prevUnits => prevUnits.map(u => {
         const currentId = u.unit_id || u.id;
         if (currentId === targetUnitId) {
-          return { ...u, [colKey]: newValue, custom_fields: updatedCF };
+          return { ...u, [colKey]: newValue, ...extraUpdates, custom_fields: updatedCF };
         }
         return u;
       }));
@@ -4273,18 +4473,25 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       try {
         if (targetUnitId) {
-          await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+          const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ [colKey]: newValue, custom_fields: updatedCF })
+            body: JSON.stringify({ [colKey]: newValue, ...extraUpdates, custom_fields: updatedCF })
           });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `Failed to update ${colKey}`);
+          }
         }
         fetchUnits(true);
       } catch (err) {
         console.error(`Failed to save ${colKey}:`, err);
+        if (addToast) {
+          addToast(err.message || `Failed to save ${colKey}`, 'error');
+        }
         fetchUnits(true);
       }
       return;
@@ -4940,6 +5147,101 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     });
   }, [canUploadPo, token, fetchUnits, addToast]);
 
+  const handleBatchTrayStatus = useCallback(async (newStatus, explicitUnits = null) => {
+    const targetUnits = explicitUnits || units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+    if (targetUnits.length === 0) {
+      if (addToast) addToast('Please select serial numbers to update Tray Status.', 'warning');
+      return;
+    }
+
+    const startedStatuses = ['In Process', 'Partial Ready', 'Full Ready'];
+    const issuedStatuses = ['Partial Issued', 'All Issued'];
+
+    // Constraint check: cannot issue tray unless started
+    let validUnits = targetUnits;
+    if (issuedStatuses.includes(newStatus)) {
+      const unstarted = targetUnits.filter(u => {
+        const prevStatus = u.tray_status || u.custom_fields?.tray_status || 'Not Started';
+        const hasStartDate = !!(u.tray_start_date || u.custom_fields?.tray_start_date);
+        const wasStarted = ['In Process', 'Partial Ready', 'Full Ready', 'Partial Issued', 'All Issued'].includes(prevStatus);
+        return !hasStartDate && !wasStarted;
+      });
+
+      if (unstarted.length === targetUnits.length) {
+        if (addToast) addToast('Tray must be started (In Process / Ready) before an issue date can be assigned.', 'warning');
+        return;
+      }
+
+      if (unstarted.length > 0) {
+        if (addToast) addToast(`Skipping ${unstarted.length} panel(s) because tray must be started before being issued.`, 'warning');
+        const unstartedIds = new Set(unstarted.map(u => String(u.unit_id || u.id)));
+        validUnits = targetUnits.filter(u => !unstartedIds.has(String(u.unit_id || u.id)));
+      }
+    }
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const todayDateStr = `${y}-${m}-${d}`;
+
+    const updatesByUnitId = {};
+
+    validUnits.forEach(u => {
+      const uId = String(u.unit_id || u.id);
+      const prevStatus = u.tray_status || u.custom_fields?.tray_status || 'Not Started';
+      const cf = { ...(u.custom_fields || {}), tray_status: newStatus };
+      const extra = {};
+
+      if ((prevStatus === 'Not Started' || !u.tray_start_date) && startedStatuses.includes(newStatus)) {
+        extra.tray_start_date = todayDateStr;
+        cf.tray_start_date = todayDateStr;
+      }
+      if (issuedStatuses.includes(newStatus)) {
+        extra.issued_date = todayDateStr;
+        cf.issued_date = todayDateStr;
+      }
+
+      updatesByUnitId[uId] = {
+        tray_status: newStatus,
+        ...extra,
+        custom_fields: cf
+      };
+    });
+
+    // 1. Optimistic UI update immediately (0ms)
+    setUnits(prevUnits => prevUnits.map(u => {
+      const uId = String(u.unit_id || u.id);
+      if (updatesByUnitId[uId]) {
+        return { ...u, ...updatesByUnitId[uId] };
+      }
+      return u;
+    }));
+
+    // 2. Persist each unit to backend in parallel
+    try {
+      const promises = validUnits.map(u => {
+        const targetId = u.unit_id || u.id;
+        const uId = String(targetId);
+        const payload = updatesByUnitId[uId];
+        return fetch(`${window.API_BASE}/api/units/${targetId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify(payload)
+        });
+      });
+
+      await Promise.allSettled(promises);
+      if (addToast) addToast(`Updated Tray Status to "${newStatus}" for ${validUnits.length} panel(s).`, 'success');
+    } catch (err) {
+      console.error('Failed to batch update tray status:', err);
+      if (addToast) addToast('Error saving some tray status updates.', 'error');
+    }
+  }, [units, isIdSelected, token, addToast]);
+
   const handleDeletePanelSize = useCallback((unit) => {
     if (!canEditPanelSize) {
       addToast("Only Design, Admin, and Manager roles can modify panel sizes.", 'warning');
@@ -5015,9 +5317,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
   const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales view)
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores views)
   const isSalesView = (currentFilter || '').toLowerCase() === 'sales';
-  const showRowSelection = isSalesView || isPurchaseView;
+  const showRowSelection = isSalesView || isPurchaseView || isStoresView;
   const SELECTION_COL_WIDTH = showRowSelection ? 38 : 0;
   const stickyLeftMap = useMemo(() => {
     const map = {};
@@ -5299,6 +5601,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             externalPoNumber={externalPoNumber}
             setExternalPoNumber={setExternalPoNumber}
             addToast={addToast}
+          />
+        )}
+
+        {/* ── Right side: Stores Department Batch Tray Status Bar ── */}
+        {isStoresView && selectedUnitIds.size > 0 && (
+          <StoresBatchTrayStatusBar
+            selectedCount={selectedUnitIds.size}
+            onClearSelection={() => setSelectedUnitIds(new Set())}
+            onBatchTrayStatus={handleBatchTrayStatus}
           />
         )}
 
