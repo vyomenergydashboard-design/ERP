@@ -201,12 +201,12 @@ export async function runDeploymentMigrations(clientParam) {
 
       -- Stores Department Columns: Tray Status, Tray Start Date, Issued Date
       ALTER TABLE order_units 
-      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Pending',
+      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Not Started',
       ADD COLUMN IF NOT EXISTS tray_start_date DATE,
       ADD COLUMN IF NOT EXISTS issued_date DATE;
 
       ALTER TABLE order_line_items
-      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Pending',
+      ADD COLUMN IF NOT EXISTS tray_status TEXT DEFAULT 'Not Started',
       ADD COLUMN IF NOT EXISTS tray_start_date DATE,
       ADD COLUMN IF NOT EXISTS issued_date DATE;
 
@@ -436,6 +436,13 @@ export async function runDeploymentMigrations(clientParam) {
         CREATE INDEX IF NOT EXISTS idx_vpo_units_serial ON vendor_purchase_order_units(unit_serial);
         CREATE INDEX IF NOT EXISTS idx_vpo_order_uid ON vendor_purchase_orders(order_uid);
         CREATE INDEX IF NOT EXISTS idx_vpo_status ON vendor_purchase_orders(status);
+
+        -- Ensure tray_status default is 'Not Started' and migrate legacy 'Pending' / NULL values
+        ALTER TABLE order_units ALTER COLUMN tray_status SET DEFAULT 'Not Started';
+        ALTER TABLE order_line_items ALTER COLUMN tray_status SET DEFAULT 'Not Started';
+
+        UPDATE order_units SET tray_status = 'Not Started' WHERE tray_status IS NULL OR tray_status = 'Pending';
+        UPDATE order_line_items SET tray_status = 'Not Started' WHERE tray_status IS NULL OR tray_status = 'Pending';
       `);
 
     } catch (cleanupErr) {

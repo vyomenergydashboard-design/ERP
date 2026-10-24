@@ -3402,7 +3402,7 @@ app.get('/api/planning', authorize(), async (req, res) => {
                 'mounting_start_date', COALESCE(ou.mounting_start_date, oli.mounting_start_date),
                 'mounting_complete_date', COALESCE(ou.mounting_complete_date, oli.mounting_complete_date),
                 'custom_fields', COALESCE(ou.custom_fields, oli.custom_fields, '{}'::jsonb),
-                'tray_status', COALESCE(ou.tray_status, oli.tray_status, 'Pending'),
+                'tray_status', COALESCE(ou.tray_status, oli.tray_status, 'Not Started'),
                 'tray_start_date', COALESCE(ou.tray_start_date, oli.tray_start_date),
                 'issued_date', COALESCE(ou.issued_date, oli.issued_date)
               ) ORDER BY ou.id ASC)
@@ -4452,7 +4452,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
 
     if (tray_status !== undefined) {
       updates.push(`tray_status = $${idx++}`);
-      values.push(tray_status || 'Pending');
+      values.push(tray_status || 'Not Started');
     }
 
     if (tray_start_date !== undefined) {
@@ -4772,7 +4772,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         psm.ip_rating  AS panel_ip_rating,
         COALESCE(psm.comments, psm.description) AS panel_comments,
         COALESCE(ou.custom_fields, '{}'::jsonb) AS custom_fields,
-        COALESCE(ou.tray_status, 'Pending') AS tray_status,
+        COALESCE(ou.tray_status, 'Not Started') AS tray_status,
         ou.tray_start_date,
         ou.issued_date,
         ou.design_confirmed,
