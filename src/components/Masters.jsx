@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DEPTS } from '../data/planningData';
 import DocumentPreviewModal, { getDocumentType } from './DocumentPreviewModal';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect';
+import WiremanMasters from './WiremanMasters';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -789,6 +790,7 @@ export default function Masters() {
         <button className={`vbtn ${activeTab === 'panel_sizes' ? 'active' : ''}`} onClick={() => setActiveTab('panel_sizes')}>Panel Size Masters</button>
         <button className={`vbtn ${activeTab === 'tasks' ? 'active' : ''}`} onClick={() => setActiveTab('tasks')}>Task Masters</button>
         <button className={`vbtn ${activeTab === 'columns' ? 'active' : ''}`} onClick={() => setActiveTab('columns')}>Column Masters & Visibility</button>
+        <button className={`vbtn ${activeTab === 'wiremen' ? 'active' : ''}`} onClick={() => setActiveTab('wiremen')}>Wiremen</button>
       </div>
 
       {activeTab === 'companies' && (
@@ -1619,6 +1621,10 @@ export default function Masters() {
             </table>
           </div>
         </>
+      )}
+
+      {activeTab === 'wiremen' && (
+        <WiremanMasters token={token} user={user} />
       )}
 
       {/* Company Modal */}

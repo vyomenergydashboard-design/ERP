@@ -8,7 +8,7 @@ const PRIMARY_NAV = [
   { id: 'orders',    icon: ClipboardList,   label: 'Orders',      roles: null },
   { id: 'documents', icon: FileText,        label: 'Documents',   roles: null },
   { id: 'new-order', icon: PlusCircle,      label: 'New Order',   roles: ['Admin', 'Manager', 'Sales'] },
-  { id: 'masters',   icon: Database,        label: 'Masters',     roles: ['Admin', 'Manager', 'Sales'] },
+  { id: 'masters',   icon: Database,        label: 'Masters',     roles: ['Admin', 'Manager', 'Sales', 'Production', 'Planning'] },
   { id: 'import',    icon: Upload,          label: 'Import',      roles: ['Admin', 'Manager', 'Sales'] },
   { id: 'worklist',  icon: ListTodo,        label: 'My Worklist', roles: ['Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Sales'] },
 ];

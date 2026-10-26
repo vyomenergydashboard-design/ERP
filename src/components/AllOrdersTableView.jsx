@@ -787,6 +787,13 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
     const isReleaseDocDone = releaseDocStep && isStatusDone(releaseDocStep.status);
 
     if (allDone || (isDesignWorkflow && isReleaseDocDone)) {
+      if (currentFilter === 'Stores') {
+        const hasStart = Boolean(unit.tray_start_date || unit.custom_fields?.tray_start_date);
+        const hasIssued = Boolean(unit.issued_date || unit.custom_fields?.issued_date);
+        if (!hasStart || !hasIssued) {
+          return 'In Progress';
+        }
+      }
       return 'Completed';
     }
 
