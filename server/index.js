@@ -4475,10 +4475,21 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
         }
       }
 
-      // Issued date recorded when status becomes Partial Issued or All Issued
+      // Issued date recorded when status becomes Partial Issued or All Issued;
+      // if status changes away from issued, reset issued_date to NULL
       if (issuedStatuses.includes(newTrayStatus)) {
         if (issued_date === undefined) {
           updates.push(`issued_date = CURRENT_DATE`);
+          if (custom_fields === undefined) {
+            updates.push(`custom_fields = jsonb_set(COALESCE(custom_fields, '{}'::jsonb), '{issued_date}', to_jsonb(CURRENT_DATE::text))`);
+          }
+        }
+      } else {
+        if (issued_date === undefined) {
+          updates.push(`issued_date = NULL`);
+          if (custom_fields === undefined) {
+            updates.push(`custom_fields = CASE WHEN custom_fields ? 'issued_date' THEN custom_fields - 'issued_date' ELSE custom_fields END`);
+          }
         }
       }
     }
@@ -4539,8 +4550,19 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     }
 
     if (custom_fields !== undefined) {
+      let cfObj = custom_fields;
+      if (typeof cfObj === 'string') {
+        try { cfObj = JSON.parse(cfObj); } catch (_) { cfObj = {}; }
+      }
+      if (cfObj && typeof cfObj === 'object') {
+        if (tray_status !== undefined && !['Partial Issued', 'All Issued'].includes(tray_status)) {
+          delete cfObj.issued_date;
+        } else if (issued_date !== undefined && !issued_date) {
+          delete cfObj.issued_date;
+        }
+      }
       updates.push(`custom_fields = $${idx++}`);
-      values.push(typeof custom_fields === 'string' ? custom_fields : JSON.stringify(custom_fields));
+      values.push(JSON.stringify(cfObj));
     }
 
     if (updates.length === 0 && reference_number === undefined) {
