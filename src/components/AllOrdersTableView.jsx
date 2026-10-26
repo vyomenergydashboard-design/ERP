@@ -4405,10 +4405,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           updatedCF.tray_start_date = todayDateStr;
         }
 
-        // Issued date when status changes to Partial Issued or All Issued
+        // Issued date when status changes to Partial Issued or All Issued; reset to null otherwise
         if (issuedStatuses.includes(newValue)) {
           extraUpdates.issued_date = todayDateStr;
           updatedCF.issued_date = todayDateStr;
+        } else {
+          extraUpdates.issued_date = null;
+          updatedCF.issued_date = null;
         }
       }
 
@@ -5200,6 +5203,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       if (issuedStatuses.includes(newStatus)) {
         extra.issued_date = todayDateStr;
         cf.issued_date = todayDateStr;
+      } else {
+        extra.issued_date = null;
+        cf.issued_date = null;
       }
 
       updatesByUnitId[uId] = {
