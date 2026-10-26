@@ -10,6 +10,9 @@ export default function WiremanMasters({ token, user }) {
   const [formData, setFormData] = useState({ name: '', experience: '' });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const [deletePrompt, setDeletePrompt] = useState(null); // { id, name }
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [actionNotice, setActionNotice] = useState(null);
 
   const isAdmin = (user?.role || '').trim().toLowerCase() === 'admin';
 
@@ -43,13 +46,14 @@ export default function WiremanMasters({ token, user }) {
         e.preventDefault();
         openCreateModal();
       }
-      if (e.key === 'Escape' && showModal) {
-        closeModal();
+      if (e.key === 'Escape') {
+        if (deletePrompt) setDeletePrompt(null);
+        if (showModal) closeModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAdmin, showModal]);
+  }, [isAdmin, showModal, deletePrompt]);
 
   const openCreateModal = () => {
     setEditingId(null);
@@ -117,26 +121,30 @@ export default function WiremanMasters({ token, user }) {
     }
   };
 
-  const handleDelete = async (wireman) => {
-    if (!window.confirm(`Are you sure you want to delete wireman "${wireman.name}"?`)) {
-      return;
-    }
+  const confirmDelete = async (id, name) => {
+    setIsDeleting(true);
+    setActionNotice(null);
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/wireman-masters/${wireman.id}`, {
+      const res = await fetch(`${window.API_BASE}/api/wireman-masters/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
       if (res.ok) {
+        setDeletePrompt(null);
         await fetchWiremen();
+        setActionNotice({ type: 'success', message: `Wireman "${name}" was deleted successfully.` });
+        setTimeout(() => setActionNotice(null), 3500);
       } else {
         const data = await res.json().catch(() => ({}));
-        alert(data.error || 'Failed to delete wireman.');
+        setActionNotice({ type: 'error', message: data.error || 'Failed to delete wireman.' });
       }
     } catch (err) {
       console.error('Error deleting wireman:', err);
-      alert('Network error while deleting wireman.');
+      setActionNotice({ type: 'error', message: 'Network error while deleting wireman.' });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -173,27 +181,112 @@ export default function WiremanMasters({ token, user }) {
         )}
       </div>
 
-      {/* Search & Filter */}
-      <div style={{ marginBottom: '16px', maxWidth: '420px', position: 'relative' }}>
-        <input
-          type="text"
-          placeholder="Search wiremen by name or experience..."
-          className="form-input"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ width: '100%', padding: '8px 12px 8px 36px', background: 'var(--bg2)' }}
-        />
-        <Search
-          size={16}
+      {/* Action Notification Banner */}
+      {actionNotice && (
+        <div
           style={{
-            position: 'absolute',
-            left: '12px',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text3)',
-            pointerEvents: 'none'
+            marginBottom: '16px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: actionNotice.type === 'error' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+            border: `1px solid ${actionNotice.type === 'error' ? 'var(--red)' : '#10b981'}`,
+            color: actionNotice.type === 'error' ? 'var(--red)' : '#10b981'
           }}
-        />
+        >
+          <span>{actionNotice.message}</span>
+          <button
+            onClick={() => setActionNotice(null)}
+            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: '0 4px' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* Search & Top Action Bar just above the table */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ maxWidth: '420px', width: '100%', position: 'relative' }}>
+          <input
+            type="text"
+            placeholder="Search wiremen by name or experience..."
+            className="form-input"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={{ width: '100%', padding: '8px 12px 8px 36px', background: 'var(--bg2)' }}
+          />
+          <Search
+            size={16}
+            style={{
+              position: 'absolute',
+              left: '12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text3)',
+              pointerEvents: 'none'
+            }}
+          />
+        </div>
+
+        {/* Right-aligned Confirm & Cancel Delete Toast */}
+        {deletePrompt && (
+          <div
+            style={{
+              background: 'var(--bg2)',
+              border: '1px solid rgba(239, 68, 68, 0.45)',
+              borderLeft: '4px solid var(--red)',
+              borderRadius: '10px',
+              padding: '10px 18px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '16px',
+              boxShadow: '0 4px 18px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(239, 68, 68, 0.15)',
+              marginLeft: 'auto'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Trash2 size={18} style={{ color: 'var(--red)', flexShrink: 0 }} />
+              <span style={{ fontSize: '14px', color: 'var(--text)' }}>
+                Delete <strong>{deletePrompt.name}</strong>?
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                className="vbtn"
+                onClick={() => setDeletePrompt(null)}
+                disabled={isDeleting}
+                style={{
+                  padding: '6px 14px',
+                  fontSize: '13px',
+                  background: 'var(--bg3)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text2)'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="vbtn"
+                onClick={() => confirmDelete(deletePrompt.id, deletePrompt.name)}
+                disabled={isDeleting}
+                style={{
+                  padding: '6px 18px',
+                  fontSize: '13px',
+                  background: 'var(--red)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: '600'
+                }}
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Wiremen Table */}
@@ -201,7 +294,7 @@ export default function WiremanMasters({ token, user }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>
             <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text3)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>
-              <th style={{ padding: '12px 16px', textAlign: 'left', width: '60px' }}>#</th>
+              <th style={{ padding: '12px 16px', textAlign: 'left', width: '80px' }}>SR No.</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '220px' }}>Wireman Name</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '180px' }}>Experience</th>
               <th style={{ padding: '12px 16px', textAlign: 'left', minWidth: '140px' }}>Created Date</th>
@@ -282,7 +375,7 @@ export default function WiremanMasters({ token, user }) {
                       <div style={{ display: 'inline-flex', gap: '8px', justifyContent: 'flex-end' }}>
                         <button
                           className="vbtn"
-                          onClick={() => openEditModal(w)}
+                          onClick={() => { setDeletePrompt(null); openEditModal(w); }}
                           title="Edit Wireman"
                           style={{
                             padding: '4px 10px',
@@ -298,13 +391,13 @@ export default function WiremanMasters({ token, user }) {
                         </button>
                         <button
                           className="vbtn"
-                          onClick={() => handleDelete(w)}
+                          onClick={() => setDeletePrompt({ id: w.id, name: w.name })}
                           title="Delete Wireman"
                           style={{
                             padding: '4px 10px',
                             fontSize: '12px',
-                            background: 'rgba(239, 68, 68, 0.1)',
-                            border: '1px solid rgba(239, 68, 68, 0.3)',
+                            background: deletePrompt?.id === w.id ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.1)',
+                            border: deletePrompt?.id === w.id ? '1px solid var(--red)' : '1px solid rgba(239, 68, 68, 0.3)',
                             color: 'var(--red)',
                             display: 'flex',
                             alignItems: 'center',
