@@ -11,7 +11,9 @@ import XLSX from 'xlsx';
 import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
 import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
+import createWiremanMastersRouter from './routes/wiremanMasters.js';
 import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
+import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -322,7 +324,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
+    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, ou.tray_start_date, ou.issued_date, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -481,13 +483,25 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
 
             // HARD SAFETY GATE: Without BOTH Drawing and BOM, no panel can go to next department (Purchase, Stores, Planning, etc.)
             const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
-            const deptIdx = PIPELINE.indexOf(newDept);
+            let deptIdx = PIPELINE.indexOf(newDept);
             const designIdx = PIPELINE.indexOf('Design');
             if (deptIdx > designIdx) {
               const docInfo = await evaluateUnitDesignDocuments(clientOrPool, unitId);
               if (!docInfo.hasDrawing || !docInfo.hasBom) {
                 newDept = 'Design';
                 newStatus = 'Design';
+                deptIdx = designIdx;
+              }
+            }
+
+            // HARD SAFETY GATE: Without BOTH Tray Start Date and Issued Date, no panel can advance past Stores
+            const storesIdx = PIPELINE.indexOf('Stores');
+            if (deptIdx > storesIdx) {
+              const hasTrayStartDate = Boolean(row.tray_start_date);
+              const hasIssuedDate = Boolean(row.issued_date);
+              if (!hasTrayStartDate || !hasIssuedDate) {
+                newDept = 'Stores';
+                newStatus = 'In Process';
               }
             }
           }
@@ -1098,6 +1112,9 @@ const authorize = (roles = []) => {
 
 // Vendor Purchase Orders API
 app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize, deriveUnitStatus));
+
+// Wireman Masters API
+app.use('/api/wireman-masters', createWiremanMastersRouter(pool, authorize));
 
 // Auth Routes
 app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
@@ -4254,6 +4271,20 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         }
       }
 
+      // Mandatory Tray Start Date + Issued Date gate: Cannot complete Stores tasks if dates are missing
+      if (newStatus === 'done' && step.dept === 'Stores') {
+        for (const tu of targetUnits) {
+          const uDateRes = await client.query('SELECT tray_start_date, issued_date FROM order_units WHERE id = $1', [tu.id]);
+          const uDates = uDateRes.rows[0];
+          if (!uDates?.tray_start_date || !uDates?.issued_date) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({
+              error: 'Cannot complete task: Both Tray Start Date and Issued Date (Partial Issued or All Issued) must be set for this panel.'
+            });
+          }
+        }
+      }
+
       for (const tu of targetUnits) {
         const matchingStep = await client.query(
           'SELECT id FROM unit_steps WHERE order_unit_id = $1 AND name = $2 AND dept = $3 LIMIT 1',
@@ -4587,6 +4618,14 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
         await evaluatePurchaseAutoCompletion([realId], pool, deriveUnitStatus);
       } catch (pcErr) {
         console.warn('evaluatePurchaseAutoCompletion warn in update unit:', pcErr);
+      }
+    }
+
+    if (tray_status !== undefined || tray_start_date !== undefined || issued_date !== undefined) {
+      try {
+        await evaluateStoresAutoCompletion([realId], pool, deriveUnitStatus);
+      } catch (stErr) {
+        console.warn('evaluateStoresAutoCompletion warn in update unit:', stErr);
       }
     }
 
@@ -4968,6 +5007,8 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
                   SELECT 1 FROM order_steps os 
                   WHERE os.order_id = o.id AND os.dept = 'Sales' AND os.status != 'done'
                 )
+              ) AND (
+                $1 != 'Stores' OR (ou.tray_start_date IS NOT NULL AND ou.issued_date IS NOT NULL)
               )
             )
           )

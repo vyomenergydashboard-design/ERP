@@ -395,3 +395,13 @@ CREATE INDEX IF NOT EXISTS idx_part_number_masters_part_number ON part_number_ma
 CREATE INDEX IF NOT EXISTS idx_part_number_documents_part_id ON part_number_documents(part_number_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
 CREATE INDEX IF NOT EXISTS idx_orders_priority ON orders(priority);
+
+CREATE TABLE IF NOT EXISTS wireman_masters (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    experience TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_wireman_masters_name ON wireman_masters(name);

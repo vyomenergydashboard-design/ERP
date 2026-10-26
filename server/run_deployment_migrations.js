@@ -443,6 +443,17 @@ export async function runDeploymentMigrations(clientParam) {
 
         UPDATE order_units SET tray_status = 'Not Started' WHERE tray_status IS NULL OR tray_status = 'Pending';
         UPDATE order_line_items SET tray_status = 'Not Started' WHERE tray_status IS NULL OR tray_status = 'Pending';
+
+        -- Wireman Masters
+        CREATE TABLE IF NOT EXISTS wireman_masters (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          experience TEXT,
+          is_active BOOLEAN DEFAULT TRUE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_wireman_masters_name ON wireman_masters(name);
       `);
 
     } catch (cleanupErr) {
