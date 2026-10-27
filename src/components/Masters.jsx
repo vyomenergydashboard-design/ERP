@@ -173,8 +173,19 @@ function DocumentViewButton({ doc, title, style, onSelect }) {
   );
 }
 
+const VALID_MASTERS_TABS = ['companies', 'part_masters', 'panel_sizes', 'tasks', 'columns', 'wiremen'];
+
 export default function Masters() {
-  const [activeTab, setActiveTab] = useState('companies');
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = localStorage.getItem('erp_masters_activeTab');
+    return VALID_MASTERS_TABS.includes(saved) ? saved : 'companies';
+  });
+
+  useEffect(() => {
+    if (VALID_MASTERS_TABS.includes(activeTab)) {
+      localStorage.setItem('erp_masters_activeTab', activeTab);
+    }
+  }, [activeTab]);
 
   // Companies State
   const [companies, setCompanies] = useState([]);
