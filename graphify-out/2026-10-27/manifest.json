@@ -30,9 +30,9 @@
     "semantic_hash": "9af0c146b2cebbffdd093ae04114b8d7"
   },
   "server/index.js": {
-    "mtime": 1793017525.85942,
-    "seen": 1793080534.7453616,
-    "ast_hash": "40a0776fff9417bc44ffcd2475e1f1a7",
+    "mtime": 1793088050.4497283,
+    "seen": 1793089257.5384283,
+    "ast_hash": "e7104125386508af8ce05ce8309f1f42",
     "semantic_hash": ""
   },
   "server/init.sql": {
@@ -78,9 +78,9 @@
     "semantic_hash": "3875bd9c30f6b35f94299d37cfb75c12"
   },
   "server/run_deployment_migrations.js": {
-    "mtime": 1793017478.9183526,
-    "seen": 1793080534.7471628,
-    "ast_hash": "13bc0e703fefae7168f775708591e613",
+    "mtime": 1793087910.2069135,
+    "seen": 1793089257.5401723,
+    "ast_hash": "d2896e5c849a3cfcd6a7da6a4acce16c",
     "semantic_hash": ""
   },
   "server/seed_tasks.sql": {
@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1793016105.8459527,
-    "seen": 1793080534.751233,
-    "ast_hash": "a42c3f55bcc87f6bde1112ce7ee1f70f",
+    "mtime": 1793089082.4021528,
+    "seen": 1793089257.5451167,
+    "ast_hash": "57d7960a24ad8f1960aaf2ea290c55c2",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -1380,9 +1380,9 @@
     "semantic_hash": ""
   },
   "server/routes/wiremanMasters.js": {
-    "mtime": 1793017505.168533,
-    "seen": 1793080534.7471588,
-    "ast_hash": "c5d25a3a93fde9152f226879e0501d38",
+    "mtime": 1793088713.776636,
+    "seen": 1793089257.5401676,
+    "ast_hash": "2fd073799c7ddb7ff9c8a53079359304",
     "semantic_hash": ""
   },
   "server/services/storesAutoCompletion.js": {
@@ -1413,6 +1413,12 @@
     "mtime": 1793020572.938803,
     "seen": 1793080534.7599013,
     "ast_hash": "9494a96526867175ecd862ac847b95db",
+    "semantic_hash": ""
+  },
+  "server/test_production_columns.js": {
+    "mtime": 1793088153.5214922,
+    "seen": 1793089257.5422738,
+    "ast_hash": "d504352e9b999fdefa837da6ac3d4cb9",
     "semantic_hash": ""
   }
 }

@@ -3182,7 +3182,7 @@
       "file_type": "code",
       "norm_label": "allorderstableview()",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3541"
+      "source_location": "L3588"
     },
     {
       "id": "src_components_allorderstableview_calculateunitstatus",
@@ -11983,7 +11983,7 @@
       "file_type": "code",
       "norm_label": "pouploadbar",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3178"
+      "source_location": "L3225"
     },
     {
       "id": "src_components_allorderstableview_pouploadmodal",
@@ -11994,7 +11994,7 @@
       "file_type": "code",
       "norm_label": "pouploadmodal",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2725"
+      "source_location": "L2772"
     },
     {
       "id": "src_components_allorderstableview_priority_order",
@@ -12038,7 +12038,7 @@
       "file_type": "code",
       "norm_label": "storesbatchtraystatusbar",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3453"
+      "source_location": "L3500"
     },
     {
       "id": "src_components_allorderstableview_tablerow",
@@ -12049,7 +12049,7 @@
       "file_type": "code",
       "norm_label": "tablerow",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2510"
+      "source_location": "L2557"
     },
     {
       "id": "src_components_confirmmodal",
@@ -41088,7 +41088,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3546",
+      "source_location": "L3593",
       "weight": 1.0
     },
     {
@@ -41100,7 +41100,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5010",
+      "source_location": "L5057",
       "weight": 1.0
     },
     {
@@ -41112,7 +41112,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5010",
+      "source_location": "L5057",
       "weight": 1.0
     },
     {
@@ -41124,7 +41124,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5124",
+      "source_location": "L5171",
       "weight": 1.0
     },
     {
@@ -41136,7 +41136,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5164",
+      "source_location": "L5211",
       "weight": 1.0
     },
     {
@@ -41148,7 +41148,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5928",
+      "source_location": "L5975",
       "weight": 1.0
     },
     {
@@ -41160,7 +41160,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L5944",
+      "source_location": "L5991",
       "weight": 1.0
     },
     {
@@ -41172,7 +41172,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6278",
+      "source_location": "L6325",
       "weight": 1.0
     },
     {
@@ -41184,7 +41184,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6453",
+      "source_location": "L6500",
       "weight": 1.0
     },
     {
@@ -41196,7 +41196,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6492",
+      "source_location": "L6539",
       "weight": 1.0
     },
     {
@@ -41208,7 +41208,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6507",
+      "source_location": "L6554",
       "weight": 1.0
     },
     {
@@ -41220,7 +41220,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6548",
+      "source_location": "L6595",
       "weight": 1.0
     },
     {
@@ -41232,7 +41232,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6562",
+      "source_location": "L6609",
       "weight": 1.0
     },
     {
@@ -41244,7 +41244,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6574",
+      "source_location": "L6621",
       "weight": 1.0
     },
     {
@@ -41256,7 +41256,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6584",
+      "source_location": "L6631",
       "weight": 1.0
     },
     {
@@ -41268,7 +41268,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L6585",
+      "source_location": "L6632",
       "weight": 1.0
     },
     {
@@ -41352,7 +41352,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3434",
+      "source_location": "L3481",
       "weight": 1.0
     },
     {
@@ -41388,7 +41388,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L1719",
+      "source_location": "L1766",
       "weight": 1.0
     },
     {
@@ -41400,7 +41400,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2003",
+      "source_location": "L2050",
       "weight": 1.0
     },
     {
@@ -41412,7 +41412,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2303",
+      "source_location": "L2350",
       "weight": 1.0
     },
     {
@@ -41424,7 +41424,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2322",
+      "source_location": "L2369",
       "weight": 1.0
     },
     {
@@ -41436,7 +41436,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2621",
+      "source_location": "L2668",
       "weight": 1.0
     },
     {
@@ -41448,7 +41448,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2644",
+      "source_location": "L2691",
       "weight": 1.0
     },
     {
@@ -41460,7 +41460,7 @@
       "confidence_score": 1.0,
       "context": "call",
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2663",
+      "source_location": "L2710",
       "weight": 1.0
     },
     {
@@ -62804,7 +62804,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2510",
+      "source_location": "L2557",
       "weight": 1.0
     },
     {
@@ -62826,7 +62826,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L2725",
+      "source_location": "L2772",
       "weight": 1.0
     },
     {
@@ -62837,7 +62837,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3178",
+      "source_location": "L3225",
       "weight": 1.0
     },
     {
@@ -62848,7 +62848,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3453",
+      "source_location": "L3500",
       "weight": 1.0
     },
     {
@@ -62859,7 +62859,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "src/components/AllOrdersTableView.jsx",
-      "source_location": "L3541",
+      "source_location": "L3588",
       "weight": 1.0
     },
     {
@@ -66606,5 +66606,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "d6f56a0bd8faf7c5798bc7a57dbe43d380edff14"
+  "built_at_commit": "e4e77e4b193f2fe5dec0801629859de4b2a62ab8"
 }

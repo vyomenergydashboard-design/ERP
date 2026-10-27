@@ -10,7 +10,7 @@ const toDateInput = (val) => {
   try {
     const d = new Date(val);
     if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-  } catch {}
+  } catch { }
   return '';
 };
 
@@ -53,12 +53,12 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
       fetch(`${window.API_BASE}/api/units/${step.order_unit_id}/reference-documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => setUnitRefDocs(data))
-      .catch(err => {
-        console.error('Failed to load reference docs in StepModal', err);
-        setUnitRefDocs(null);
-      });
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setUnitRefDocs(data))
+        .catch(err => {
+          console.error('Failed to load reference docs in StepModal', err);
+          setUnitRefDocs(null);
+        });
     } else {
       setUnitRefDocs(null);
     }
@@ -186,7 +186,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
         {selectedOrder?.hold_status === 'Approved' && (
           <div style={{ background: 'rgba(239, 68, 68, 0.08)', borderBottom: '1px solid rgba(239, 68, 68, 0.15)', padding: '12px 24px', color: '#ef4444', fontSize: '12px', fontWeight: '500' }}>
-             <strong>Order is on hold.</strong> Flow updates and document uploads are disabled.
+            <strong>Order is on hold.</strong> Flow updates and document uploads are disabled.
           </div>
         )}
 
@@ -344,15 +344,15 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                   <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>If QC Fail — return to:</label>
                   {canEditStep ? (
                     <div className="qc-options">
-                      <div 
-                        className={`qc-opt${qcFailTarget === 'production' ? ' selected' : ''}`} 
+                      <div
+                        className={`qc-opt${qcFailTarget === 'production' ? ' selected' : ''}`}
                         onClick={() => canEditStep && setQcFailTarget('production')}
                         style={{ cursor: canEditStep ? 'pointer' : 'default' }}
                       >
                         Production<br /><span style={{ fontSize: 9, opacity: 0.7 }}>Rework</span>
                       </div>
-                      <div 
-                        className={`qc-opt${qcFailTarget === 'design' ? ' selected' : ''}`} 
+                      <div
+                        className={`qc-opt${qcFailTarget === 'design' ? ' selected' : ''}`}
                         onClick={() => canEditStep && setQcFailTarget('design')}
                         style={{ cursor: canEditStep ? 'pointer' : 'default' }}
                       >
@@ -488,7 +488,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                           const badgeBg = isDrawing ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
                           const badgeBorder = isDrawing ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)';
                           const docDownloadUrl = `${window.API_BASE}/uploads/${mdoc.file_path.split(/[\/\\]/).pop()}?token=${token}`;
-                          
+
                           return (
                             <div key={`smdoc-${mdoc.id}`} style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -512,7 +512,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                                     </span>
                                   </div>
                                   <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                                    {mdoc.file_size ? `${(mdoc.file_size / 1024).toFixed(1)} KB` : ''} 
+                                    {mdoc.file_size ? `${(mdoc.file_size / 1024).toFixed(1)} KB` : ''}
                                     {mdoc.uploaded_by_name ? ` · Uploaded by ${mdoc.uploaded_by_name}` : ''}
                                   </div>
                                 </div>
@@ -636,7 +636,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
           </div>
         </div>
       </div>
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .sales-action-box {
           background: rgba(20, 184, 166, 0.1);
           border: 1px solid rgba(20, 184, 166, 0.2);

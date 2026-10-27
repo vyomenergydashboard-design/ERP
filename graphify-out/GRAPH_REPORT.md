@@ -1,7 +1,7 @@
 # Graph Report - ERP  (2026-10-27)
 
 ## Corpus Check
-- 166 files · ~2,460,641 words
+- 166 files · ~2,460,781 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 16 file(s) not represented in the graph (top: (none) 5, .pptx 5, .exe 1)
 
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `d6f56a0b`
+- Built from commit: `e4e77e4b`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
