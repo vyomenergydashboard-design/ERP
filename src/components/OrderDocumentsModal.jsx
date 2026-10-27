@@ -1709,7 +1709,7 @@ export default function OrderDocumentsModal({
 
               {/* Preview Main Viewport */}
               <div style={{ flex: 1, minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', position: 'relative' }}>
-                
+
                 {/* Case 1: PDF Viewer */}
                 {activeDocType === 'pdf' && (
                   <iframe

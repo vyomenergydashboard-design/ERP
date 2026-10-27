@@ -1384,12 +1384,12 @@ function renderCellContent({
             autoFocus
             ref={(el) => {
               if (el && typeof el.showPicker === 'function') {
-                try { el.showPicker(); } catch (_) {}
+                try { el.showPicker(); } catch (_) { }
               }
             }}
             onClick={(e) => {
               if (e.target.showPicker) {
-                try { e.target.showPicker(); } catch (_) {}
+                try { e.target.showPicker(); } catch (_) { }
               }
             }}
             value={currentVal ? String(currentVal).split('T')[0] : ''}
@@ -1517,12 +1517,12 @@ function renderCellContent({
             autoFocus
             ref={(el) => {
               if (el && typeof el.showPicker === 'function') {
-                try { el.showPicker(); } catch (_) {}
+                try { el.showPicker(); } catch (_) { }
               }
             }}
             onClick={(e) => {
               if (e.target.showPicker) {
-                try { e.target.showPicker(); } catch (_) {}
+                try { e.target.showPicker(); } catch (_) { }
               }
             }}
             value={editVal}
@@ -4135,7 +4135,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           setVendorPurchaseOrders(data);
           try {
             localStorage.setItem('vyom_purchase_orders', JSON.stringify(data));
-          } catch (e) {}
+          } catch (e) { }
           return;
         }
       }
@@ -4148,7 +4148,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed)) setVendorPurchaseOrders(parsed);
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   const purchaseOrdersBySerialAndCat = useMemo(() => {
@@ -4221,7 +4221,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           setWiremenList(data);
           try {
             sessionStorage.setItem('erp_cache_wiremen', JSON.stringify(data));
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     } catch (err) { console.error('Failed to fetch wireman masters:', err); }
