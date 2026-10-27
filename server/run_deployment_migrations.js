@@ -454,6 +454,69 @@ export async function runDeploymentMigrations(clientParam) {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_wireman_masters_name ON wireman_masters(name);
+
+        -- Production Department Columns
+        ALTER TABLE order_units 
+        ADD COLUMN IF NOT EXISTS wiremen TEXT,
+        ADD COLUMN IF NOT EXISTS mounting_start_date DATE,
+        ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS wiring_start_date DATE,
+        ADD COLUMN IF NOT EXISTS wiring_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+
+        ALTER TABLE order_line_items
+        ADD COLUMN IF NOT EXISTS wiremen TEXT,
+        ADD COLUMN IF NOT EXISTS mounting_start_date DATE,
+        ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS wiring_start_date DATE,
+        ADD COLUMN IF NOT EXISTS wiring_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE,
+        ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+
+        INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+          ('wiremen',                        'Wireman',                   'Production', 'Dropdown', true, 28),
+          ('mounting_start_date',            'Mounting Start Date',       'Production', 'Date',     true, 29),
+          ('mounting_complete_date',         'Mounting Complete',         'Production', 'Date',     true, 30),
+          ('wiring_start_date',              'Wiring Start',              'Production', 'Date',     true, 31),
+          ('wiring_complete_date',           'Wiring Complete',           'Production', 'Date',     true, 32),
+          ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'Date',     true, 33),
+          ('handover_to_qc_date',            'Handover to QC',            'Production', 'Date',     true, 34)
+        ON CONFLICT (col_key) DO UPDATE SET 
+          label = EXCLUDED.label, 
+          category = EXCLUDED.category, 
+          field_type = EXCLUDED.field_type;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
+          ('Production', 'wiremen',                        true),
+          ('Production', 'mounting_start_date',            true),
+          ('Production', 'mounting_complete_date',         true),
+          ('Production', 'wiring_start_date',              true),
+          ('Production', 'wiring_complete_date',           true),
+          ('Production', 'pending_material_complete_date', true),
+          ('Production', 'handover_to_qc_date',            true),
+          ('all',        'wiremen',                        true),
+          ('all',        'mounting_start_date',            true),
+          ('all',        'mounting_complete_date',         true),
+          ('all',        'wiring_start_date',              true),
+          ('all',        'wiring_complete_date',           true),
+          ('all',        'pending_material_complete_date', true),
+          ('all',        'handover_to_qc_date',            true)
+        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible)
+        SELECT d.dept, c.col_key, false
+        FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('QC'), ('Dispatch'), ('Accounts')) AS d(dept)
+        CROSS JOIN (VALUES 
+          ('wiremen'), 
+          ('mounting_start_date'), 
+          ('mounting_complete_date'), 
+          ('wiring_start_date'), 
+          ('wiring_complete_date'), 
+          ('pending_material_complete_date'), 
+          ('handover_to_qc_date')
+        ) AS c(col_key)
+        ON CONFLICT (dept, col_key) DO NOTHING;
       `);
 
     } catch (cleanupErr) {

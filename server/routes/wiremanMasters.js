@@ -12,7 +12,7 @@ export default function createWiremanMastersRouter(pool, authorize) {
 
   // GET /api/wireman-masters
   // List all wiremen ordered alphabetically by name
-  router.get('/', authorize(['Admin', 'Manager', 'Production', 'Planning']), async (req, res) => {
+  router.get('/', authorize(), async (req, res) => {
     try {
       const result = await pool.query(
         'SELECT * FROM wireman_masters ORDER BY LOWER(TRIM(name)) ASC, id ASC'

@@ -4409,7 +4409,7 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores']), async (req, res) => {
+app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores', 'Production']), async (req, res) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });
@@ -4417,7 +4417,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   if (await isUnitOnHold(id) && req.body.po_number === undefined && req.body.reference_number === undefined && req.body.tag === undefined) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { panel_type_size, classification, custom_fields, po_number, tag, reference_number, tray_status, tray_start_date, issued_date } = req.body;
+  const { 
+    panel_type_size, classification, custom_fields, po_number, tag, reference_number, 
+    tray_status, tray_start_date, issued_date,
+    wiremen, mounting_start_date, mounting_complete_date, wiring_start_date, wiring_complete_date, pending_material_complete_date, handover_to_qc_date
+  } = req.body;
 
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
@@ -4578,6 +4582,63 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (issued_date !== undefined) {
       updates.push(`issued_date = $${idx++}`);
       values.push(issued_date || null);
+    }
+
+    if (wiremen !== undefined) {
+      const cleanWiremen = (wiremen && typeof wiremen === 'string' && wiremen.trim()) ? wiremen.trim() : null;
+      updates.push(`wiremen = $${idx++}`);
+      values.push(cleanWiremen);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET wiremen = $1 WHERE id = $2', [cleanWiremen, unit.line_item_id]);
+      }
+    }
+
+    if (mounting_start_date !== undefined) {
+      updates.push(`mounting_start_date = $${idx++}`);
+      values.push(mounting_start_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET mounting_start_date = $1 WHERE id = $2', [mounting_start_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (mounting_complete_date !== undefined) {
+      updates.push(`mounting_complete_date = $${idx++}`);
+      values.push(mounting_complete_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET mounting_complete_date = $1 WHERE id = $2', [mounting_complete_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (wiring_start_date !== undefined) {
+      updates.push(`wiring_start_date = $${idx++}`);
+      values.push(wiring_start_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET wiring_start_date = $1 WHERE id = $2', [wiring_start_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (wiring_complete_date !== undefined) {
+      updates.push(`wiring_complete_date = $${idx++}`);
+      values.push(wiring_complete_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET wiring_complete_date = $1 WHERE id = $2', [wiring_complete_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (pending_material_complete_date !== undefined) {
+      updates.push(`pending_material_complete_date = $${idx++}`);
+      values.push(pending_material_complete_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET pending_material_complete_date = $1 WHERE id = $2', [pending_material_complete_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (handover_to_qc_date !== undefined) {
+      updates.push(`handover_to_qc_date = $${idx++}`);
+      values.push(handover_to_qc_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET handover_to_qc_date = $1 WHERE id = $2', [handover_to_qc_date || null, unit.line_item_id]);
+      }
     }
 
     if (custom_fields !== undefined) {
@@ -4909,6 +4970,13 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         COALESCE(ou.tray_status, 'Not Started') AS tray_status,
         ou.tray_start_date,
         ou.issued_date,
+        ou.wiremen,
+        ou.mounting_start_date,
+        ou.mounting_complete_date,
+        ou.wiring_start_date,
+        ou.wiring_complete_date,
+        ou.pending_material_complete_date,
+        ou.handover_to_qc_date,
         ou.design_confirmed,
         ou.design_confirmed_at,
         ou.design_confirmed_by,
