@@ -30,9 +30,9 @@
     "semantic_hash": "9af0c146b2cebbffdd093ae04114b8d7"
   },
   "server/index.js": {
-    "mtime": 1792828154.4023025,
-    "seen": 1792828246.9847937,
-    "ast_hash": "5d349bfe63b3bd725e466a4e11e85eee",
+    "mtime": 1793017525.85942,
+    "seen": 1793080534.7453616,
+    "ast_hash": "40a0776fff9417bc44ffcd2475e1f1a7",
     "semantic_hash": ""
   },
   "server/init.sql": {
@@ -78,9 +78,9 @@
     "semantic_hash": "3875bd9c30f6b35f94299d37cfb75c12"
   },
   "server/run_deployment_migrations.js": {
-    "mtime": 1792819349.394328,
-    "seen": 1792819542.9140596,
-    "ast_hash": "6b710e766e900f818fb5b4aebe75d71b",
+    "mtime": 1793017478.9183526,
+    "seen": 1793080534.7471628,
+    "ast_hash": "13bc0e703fefae7168f775708591e613",
     "semantic_hash": ""
   },
   "server/seed_tasks.sql": {
@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1792829122.2802844,
-    "seen": 1792829167.6323357,
-    "ast_hash": "f728ac0243904bd207937e5d9cdc1be5",
+    "mtime": 1793016105.8459527,
+    "seen": 1793080534.751233,
+    "ast_hash": "a42c3f55bcc87f6bde1112ce7ee1f70f",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -180,9 +180,9 @@
     "semantic_hash": "f25239394d040dca8fdbfc4401c49cfc"
   },
   "src/components/Masters.jsx": {
-    "mtime": 1790960141.210434,
-    "seen": 1790960200.8877594,
-    "ast_hash": "90e9cb52719706f4ba91007c0c3c697f",
+    "mtime": 1793080482.3805578,
+    "seen": 1793080534.7556438,
+    "ast_hash": "d1ca4a8e4d6a9fa3d42c6fb776dc37fd",
     "semantic_hash": ""
   },
   "src/components/Modal.jsx": {
@@ -246,9 +246,9 @@
     "semantic_hash": ""
   },
   "src/components/Sidenav.jsx": {
-    "mtime": 1792217959.78008,
-    "seen": 1792218099.076576,
-    "ast_hash": "2032dd54b4989fcbc29748fd211966f6",
+    "mtime": 1793017750.8633924,
+    "seen": 1793080534.7585528,
+    "ast_hash": "df2993769ae3c30b0d2318b23200280f",
     "semantic_hash": ""
   },
   "src/components/StatsRow.jsx": {
@@ -1377,6 +1377,42 @@
     "mtime": 1792822928.0091004,
     "seen": 1792823348.4526167,
     "ast_hash": "2329e062ead789aea72193a19a3b256a",
+    "semantic_hash": ""
+  },
+  "server/routes/wiremanMasters.js": {
+    "mtime": 1793017505.168533,
+    "seen": 1793080534.7471588,
+    "ast_hash": "c5d25a3a93fde9152f226879e0501d38",
+    "semantic_hash": ""
+  },
+  "server/services/storesAutoCompletion.js": {
+    "mtime": 1793015899.586244,
+    "seen": 1793080534.74746,
+    "ast_hash": "b3d1db8c1715f10754c5d198e479bdf4",
+    "semantic_hash": ""
+  },
+  "server/test_stores_auto_completion.js": {
+    "mtime": 1793016178.712956,
+    "seen": 1793080534.7504354,
+    "ast_hash": "862ccb48b14426645347507653f34230",
+    "semantic_hash": ""
+  },
+  "server/test_tray_issued_date_reset.js": {
+    "mtime": 1793010905.0442564,
+    "seen": 1793080534.750695,
+    "ast_hash": "02e3b85fde7b45108a485281ff667429",
+    "semantic_hash": ""
+  },
+  "server/test_wireman_masters.js": {
+    "mtime": 1793017549.6171432,
+    "seen": 1793080534.7506988,
+    "ast_hash": "2c4903cac177b200f72dec64fe1a275a",
+    "semantic_hash": ""
+  },
+  "src/components/WiremanMasters.jsx": {
+    "mtime": 1793020572.938803,
+    "seen": 1793080534.7599013,
+    "ast_hash": "9494a96526867175ecd862ac847b95db",
     "semantic_hash": ""
   }
 }

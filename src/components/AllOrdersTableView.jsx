@@ -65,6 +65,13 @@ const BASE_COLUMNS = [
   { key: 'tray_status', label: 'Tray Status', align: 'center', dept: 'Stores' },
   { key: 'tray_start_date', label: 'Tray Start Date', align: 'center', dept: 'Stores' },
   { key: 'issued_date', label: 'Issued Date', align: 'center', dept: 'Stores' },
+  { key: 'wiremen', label: 'Wireman', align: 'left', dept: 'Production' },
+  { key: 'mounting_start_date', label: 'Mounting Start Date', align: 'center', dept: 'Production' },
+  { key: 'mounting_complete_date', label: 'Mounting Complete', align: 'center', dept: 'Production' },
+  { key: 'wiring_start_date', label: 'Wiring Start', align: 'center', dept: 'Production' },
+  { key: 'wiring_complete_date', label: 'Wiring Complete', align: 'center', dept: 'Production' },
+  { key: 'pending_material_complete_date', label: 'Pending Material Complete', align: 'center', dept: 'Production' },
+  { key: 'handover_to_qc_date', label: 'Handover to QC', align: 'center', dept: 'Production' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -135,6 +142,13 @@ const DEFAULT_COL_WIDTHS = {
   purchase_cat_automation: 195,
   purchase_cat_low_voltage: 200,
   purchase_cat_wires: 205,
+  wiremen: 180,
+  mounting_start_date: 160,
+  mounting_complete_date: 160,
+  wiring_start_date: 160,
+  wiring_complete_date: 160,
+  pending_material_complete_date: 190,
+  handover_to_qc_date: 160,
 };
 
 const MIN_COL_WIDTHS = {
@@ -159,6 +173,13 @@ const MIN_COL_WIDTHS = {
   purchase_cat_automation: 150,
   purchase_cat_low_voltage: 155,
   purchase_cat_wires: 160,
+  wiremen: 140,
+  mounting_start_date: 140,
+  mounting_complete_date: 140,
+  wiring_start_date: 140,
+  wiring_complete_date: 140,
+  pending_material_complete_date: 160,
+  handover_to_qc_date: 140,
 };
 
 export const getDocUrl = (doc) => {
@@ -1054,7 +1075,8 @@ function renderCellContent({
   onDeletePanelSize,
   purchaseOrdersBySerialAndCat,
   canEditPurchaseNA,
-  onTogglePurchaseCatNA
+  onTogglePurchaseCatNA,
+  wiremenList = []
 }) {
   const statusStyle = STATUS_STYLES[status] || STATUS_STYLES['In Progress'];
   const priority = unit.priority || 'Medium';
@@ -1407,6 +1429,167 @@ function renderCellContent({
           title={canEdit ? 'Click to edit date' : undefined}
         >
           {formatFastDate(currentVal)}
+        </span>
+      );
+    }
+
+    case 'wiremen': {
+      const currentVal = unit.wiremen || unit.custom_fields?.wiremen || '';
+      if (canEdit) {
+        const hasCustomVal = currentVal && !wiremenList.some(w => (typeof w === 'string' ? w : w.name) === currentVal);
+        return (
+          <select
+            value={currentVal}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSaveInlineCell(unit, 'wiremen', e.target.value)}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: 500,
+              borderRadius: 'var(--radius-sm, 4px)',
+              background: currentVal ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg3)',
+              color: currentVal ? 'var(--blue, #38bdf8)' : 'var(--text3)',
+              border: `1px solid ${currentVal ? 'rgba(56, 189, 248, 0.35)' : 'var(--border)'}`,
+              outline: 'none',
+              cursor: 'pointer',
+              maxWidth: '100%'
+            }}
+          >
+            <option value="" style={{ background: 'var(--bg3)', color: 'var(--text3)' }}>-- Unassigned --</option>
+            {hasCustomVal && (
+              <option value={currentVal} style={{ background: 'var(--bg3)', color: 'var(--blue)' }}>{currentVal}</option>
+            )}
+            {(wiremenList || []).map((w, idx) => {
+              const name = typeof w === 'string' ? w : (w.name || '');
+              const exp = typeof w === 'object' && w.experience ? ` (${w.experience})` : '';
+              if (!name) return null;
+              return (
+                <option key={w.id || `${name}-${idx}`} value={name} style={{ background: 'var(--bg3)', color: 'var(--text)' }}>
+                  {name}{exp}
+                </option>
+              );
+            })}
+          </select>
+        );
+      }
+
+      if (currentVal) {
+        return (
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '2px 8px',
+              borderRadius: 'var(--radius-sm, 4px)',
+              fontSize: 11,
+              fontWeight: 600,
+              background: 'rgba(56, 189, 248, 0.12)',
+              color: 'var(--blue, #38bdf8)',
+              border: '1px solid rgba(56, 189, 248, 0.3)'
+            }}
+          >
+            {currentVal}
+          </span>
+        );
+      }
+
+      return <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>;
+    }
+
+    case 'mounting_start_date':
+    case 'mounting_complete_date':
+    case 'wiring_start_date':
+    case 'wiring_complete_date':
+    case 'pending_material_complete_date':
+    case 'handover_to_qc_date': {
+      const isEditingThisDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
+      const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
+      const todayStr = (() => {
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })();
+
+      if (isEditingThisDate) {
+        const editVal = editingCell.value !== undefined ? editingCell.value : (currentVal ? String(currentVal).split('T')[0] : todayStr);
+        return (
+          <input
+            type="date"
+            autoFocus
+            ref={(el) => {
+              if (el && typeof el.showPicker === 'function') {
+                try { el.showPicker(); } catch (_) {}
+              }
+            }}
+            onClick={(e) => {
+              if (e.target.showPicker) {
+                try { e.target.showPicker(); } catch (_) {}
+              }
+            }}
+            value={editVal}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={() => {
+              onSaveInlineCell(unit, colKey, editingCell.value !== undefined ? editingCell.value : editVal);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                onSaveInlineCell(unit, colKey, editingCell.value !== undefined ? editingCell.value : editVal);
+              }
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
+              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4,
+              cursor: 'pointer'
+            }}
+          />
+        );
+      }
+
+      if (currentVal) {
+        return (
+          <span
+            onClick={(e) => {
+              if (canEdit) {
+                e.stopPropagation();
+                setEditingCell({ unitId: effectiveUnitId, colKey, value: String(currentVal).split('T')[0] });
+              }
+            }}
+            style={{
+              color: 'var(--text2)',
+              fontSize: 12,
+              fontFamily: 'var(--font-mono)',
+              cursor: canEdit ? 'pointer' : 'default',
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '1px 4px',
+              borderRadius: 3
+            }}
+            title={canEdit ? 'Click to edit date' : undefined}
+          >
+            {formatFastDate(currentVal)}
+          </span>
+        );
+      }
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey, value: todayStr });
+            }
+          }}
+          style={{
+            color: canEdit ? 'var(--blue)' : 'var(--text3)',
+            fontSize: 11,
+            cursor: canEdit ? 'pointer' : 'default',
+            display: 'inline-flex',
+            alignItems: 'center',
+            opacity: canEdit ? 0.8 : 0.5
+          }}
+          title={canEdit ? 'Click to set date (defaults to today)' : undefined}
+        >
+          {canEdit ? '+ Set Date' : '—'}
         </span>
       );
     }
@@ -2360,7 +2543,8 @@ const TableRow = memo(function TableRow({
   onDeletePanelSize,
   purchaseOrdersBySerialAndCat,
   canEditPurchaseNA,
-  onTogglePurchaseCatNA
+  onTogglePurchaseCatNA,
+  wiremenList
 }) {
   const isAltRow = idx % 2 !== 0;
   const isCancelled = status === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel');
@@ -2504,7 +2688,8 @@ const TableRow = memo(function TableRow({
               onDeletePanelSize,
               purchaseOrdersBySerialAndCat,
               canEditPurchaseNA,
-              onTogglePurchaseCatNA
+              onTogglePurchaseCatNA,
+              wiremenList
             })}
           </td>
         );
@@ -2526,6 +2711,7 @@ const TableRow = memo(function TableRow({
   if (prevProps.canEditPurchaseNA !== nextProps.canEditPurchaseNA) return false;
   if (prevProps.canEditPanelSize !== nextProps.canEditPanelSize) return false;
   if (prevProps.purchaseOrdersBySerialAndCat !== nextProps.purchaseOrdersBySerialAndCat) return false;
+  if (prevProps.wiremenList !== nextProps.wiremenList) return false;
 
   const unitId = prevProps.unit.unit_id || prevProps.unit.id;
   const prevEditing = prevProps.editingCell && prevProps.editingCell.unitId === unitId;
@@ -3922,6 +4108,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [editingCell, setEditingCell] = useState(null);
   const [partMasters, setPartMasters] = useState([]);
   const [panelSizeMasters, setPanelSizeMasters] = useState([]);
+  const [wiremenList, setWiremenList] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('erp_cache_wiremen');
+      return cached ? JSON.parse(cached) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedPartForDocs, setSelectedPartForDocs] = useState(null);
   const [editingRefTagUnit, setEditingRefTagUnit] = useState(null);
@@ -4014,6 +4208,23 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         setPanelSizeMasters(await res.json());
       }
     } catch (err) { console.error(err); }
+  };
+
+  const fetchWiremenMasters = async () => {
+    try {
+      const res = await fetch(`${window.API_BASE}/api/wireman-masters`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setWiremenList(data);
+          try {
+            sessionStorage.setItem('erp_cache_wiremen', JSON.stringify(data));
+          } catch (e) {}
+        }
+      }
+    } catch (err) { console.error('Failed to fetch wireman masters:', err); }
   };
 
   const panelSizeMap = useMemo(() => {
@@ -4368,6 +4579,91 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const targetUnitId = unit.unit_id || unit.id;
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
 
+    // Handle dedicated Production columns
+    const PRODUCTION_COLS = [
+      'wiremen',
+      'mounting_start_date',
+      'mounting_complete_date',
+      'wiring_start_date',
+      'wiring_complete_date',
+      'pending_material_complete_date',
+      'handover_to_qc_date'
+    ];
+    if (PRODUCTION_COLS.includes(colKey)) {
+      const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+      const clickedId = unit ? (unit.unit_id || unit.id) : null;
+      const isClickedSelected = clickedId && selectedList.some(u => (u.unit_id || u.id) === clickedId);
+      const finalVal = newValue || null;
+
+      if (selectedList.length > 1 && isClickedSelected) {
+        setUnits(prev => prev.map(u => {
+          const uId = u.unit_id || u.id;
+          if (selectedList.some(sel => (sel.unit_id || sel.id) === uId)) {
+            return { ...u, [colKey]: finalVal };
+          }
+          return u;
+        }));
+        setEditingCell(null);
+
+        try {
+          await Promise.all(selectedList.map(sel => {
+            const uId = sel.unit_id || sel.id;
+            return fetch(`${window.API_BASE}/api/units/${uId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ [colKey]: finalVal })
+            });
+          }));
+          if (addToast) {
+            addToast(`Updated ${colKey.replace(/_/g, ' ')} for ${selectedList.length} units`, 'success');
+          }
+          fetchUnits(true);
+        } catch (err) {
+          console.error(`Failed to batch update ${colKey}:`, err);
+          if (addToast) addToast(`Failed to update some units: ${err.message}`, 'error');
+          fetchUnits(true);
+        }
+        return;
+      }
+
+      setUnits(prev => prev.map(u => {
+        const currentId = u.unit_id || u.id;
+        if (currentId === targetUnitId) {
+          return { ...u, [colKey]: finalVal };
+        }
+        return u;
+      }));
+      setEditingCell(null);
+
+      try {
+        if (targetUnitId) {
+          const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ [colKey]: finalVal })
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.error || `Failed to update ${colKey}`);
+          }
+        }
+        fetchUnits(true);
+      } catch (err) {
+        console.error(`Failed to save ${colKey}:`, err);
+        if (addToast) {
+          addToast(err.message || `Failed to save ${colKey}`, 'error');
+        }
+        fetchUnits(true);
+      }
+      return;
+    }
+
     // Handle dedicated Stores columns
     if (['tray_status', 'tray_start_date', 'issued_date'].includes(colKey)) {
       const currentCF = unit.custom_fields || {};
@@ -4628,6 +4924,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     fetchPartMasters();
     fetchPanelSizeMasters();
     fetchVendorPurchaseOrders();
+    fetchWiremenMasters();
 
     const handleUpdate = () => {
       fetchUnits(true);
@@ -4635,16 +4932,19 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       fetchPartMasters();
       fetchPanelSizeMasters();
       fetchVendorPurchaseOrders();
+      fetchWiremenMasters();
     };
     window.addEventListener('orderUpdated', handleUpdate);
     window.addEventListener('columnMastersUpdated', handleUpdate);
     window.addEventListener('purchaseOrderStatusChanged', handleUpdate);
     window.addEventListener('purchaseOrderSaved', handleUpdate);
+    window.addEventListener('wiremenUpdated', handleUpdate);
     return () => {
       window.removeEventListener('orderUpdated', handleUpdate);
       window.removeEventListener('columnMastersUpdated', handleUpdate);
       window.removeEventListener('purchaseOrderStatusChanged', handleUpdate);
       window.removeEventListener('purchaseOrderSaved', handleUpdate);
+      window.removeEventListener('wiremenUpdated', handleUpdate);
     };
   }, [currentFilter]);
 
@@ -4742,6 +5042,28 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (isStoresCol) {
       if (currentFilter === 'Stores') {
         const deptMap = colVisibility['Stores'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
+    const isProductionCol = [
+      'wiremen',
+      'mounting_start_date',
+      'mounting_complete_date',
+      'wiring_start_date',
+      'wiring_complete_date',
+      'pending_material_complete_date',
+      'handover_to_qc_date'
+    ].includes(colKey);
+    if (isProductionCol) {
+      if (currentFilter === 'Production') {
+        const deptMap = colVisibility['Production'];
         return deptMap ? deptMap[colKey] !== false : true;
       }
       if (currentFilter === 'all') {
@@ -5991,6 +6313,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 purchaseOrdersBySerialAndCat={purchaseOrdersBySerialAndCat}
                 canEditPurchaseNA={canEditPurchaseNA}
                 onTogglePurchaseCatNA={handleTogglePurchaseCatNA}
+                wiremenList={wiremenList}
               />
             ))}
 
