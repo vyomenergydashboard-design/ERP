@@ -14,6 +14,7 @@ import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
 import createWiremanMastersRouter from './routes/wiremanMasters.js';
 import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
+import { initEventStream, broadcastEvent } from './services/eventStream.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1115,6 +1116,9 @@ app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize, deri
 
 // Wireman Masters API
 app.use('/api/wireman-masters', createWiremanMastersRouter(pool, authorize));
+
+// Real-time Server-Sent Events stream for multi-user synchronization
+initEventStream(app, authorize);
 
 // Auth Routes
 app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
@@ -3492,7 +3496,9 @@ app.put('/api/planning/line-items/bulk', authorize(['Admin', 'Manager', 'Plannin
   try {
     await client.query('BEGIN');
 
-    for (const lineItemId of lineItemIds) {
+    // Sort lineItemIds deterministically by ID ascending to avoid deadlock
+    const sortedLineItemIds = [...lineItemIds].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    for (const lineItemId of sortedLineItemIds) {
       const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [lineItemId]);
       if (checkLi.rows.length === 0) continue;
       const order_id = checkLi.rows[0].order_id;
@@ -4087,7 +4093,9 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
     holdReason,
     scope = 'unit',
     targetUnitIds,
-    resumeTarget
+    resumeTarget,
+    last_updated_at,
+    force = false
   } = req.body;
 
   const isSpecialAction = ['hold', 'resume', 'cancel'].includes(action);
@@ -4100,9 +4108,9 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Fetch step details to verify permissions
+    // Fetch step details to verify permissions & OCC timestamp
     const stepRes = await client.query(
-      `SELECT s.id, s.name, s.dept, s.assigned_user_id, ou.order_id, ou.short_serial, ou.unit_id 
+      `SELECT s.id, s.name, s.dept, s.status, s.notes, s.updated, s.updated_at, s.assigned_user_id, ou.order_id, ou.short_serial, ou.unit_id 
        FROM unit_steps s 
        JOIN order_units ou ON s.order_unit_id = ou.id 
        WHERE s.id = $1 AND s.order_unit_id = $2`,
@@ -4120,17 +4128,38 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       return res.status(403).json({ error: 'Forbidden: You are not authorized to update this task.' });
     }
 
+    // Optimistic Concurrency Control (OCC): Check if another operator modified this step
+    if (last_updated_at && !force && step.updated_at) {
+      const clientTime = new Date(last_updated_at).getTime();
+      const dbTime = new Date(step.updated_at).getTime();
+      if (!isNaN(clientTime) && !isNaN(dbTime) && (dbTime - clientTime > 500)) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          error: 'Conflict',
+          message: `This task was updated at ${step.updated || 'recently'} by another user. Refresh to view the latest status.`,
+          current: {
+            status: step.status,
+            notes: step.notes,
+            updated: step.updated,
+            updated_at: step.updated_at
+          }
+        });
+      }
+    }
+
     // Determine target units
     let targetUnits = [];
     if (scope === 'order') {
-      const orderUnitsRes = await client.query('SELECT id, short_serial FROM order_units WHERE order_id = $1', [step.order_id]);
+      const orderUnitsRes = await client.query('SELECT id, short_serial FROM order_units WHERE order_id = $1 ORDER BY id ASC', [step.order_id]);
       targetUnits = orderUnitsRes.rows;
     } else if (scope === 'selected' && Array.isArray(targetUnitIds) && targetUnitIds.length > 0) {
-      const selectedRes = await client.query('SELECT id, short_serial FROM order_units WHERE id = ANY($1::int[])', [targetUnitIds]);
+      const selectedRes = await client.query('SELECT id, short_serial FROM order_units WHERE id = ANY($1::int[]) ORDER BY id ASC', [targetUnitIds]);
       targetUnits = selectedRes.rows;
     } else {
       targetUnits = [{ id: parseInt(req.params.unitId), short_serial: step.short_serial }];
     }
+    // Guaranteed deterministic ascending order to prevent deadlocks under concurrent operations
+    targetUnits.sort((a, b) => Number(a.id) - Number(b.id));
 
     let lastResult = null;
     const userName = req.user.name || req.user.username || 'User';
@@ -4146,7 +4175,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         if (sId) {
           const upd = await client.query(
             `UPDATE unit_steps 
-             SET status = 'hold', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3 
+             SET status = 'hold', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3, updated_at = NOW() 
              WHERE id = $4 RETURNING *`,
             [reason, userName, updated, sId]
           );
@@ -4156,7 +4185,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         await client.query(
           `UPDATE order_units 
            SET hold_status = 'Hold', hold_step_id = $1, hold_step_name = $2, hold_dept = $3, 
-               hold_reason = $4, held_by_name = $5, held_at = NOW(), status = $6 
+               hold_reason = $4, held_by_name = $5, held_at = NOW(), status = $6, updated_at = NOW() 
            WHERE id = $7`,
           [sId, step.name, step.dept, reason, userName, `Hold @ ${step.name}`, tu.id]
         );
@@ -4178,7 +4207,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         if (sId) {
           const upd = await client.query(
             `UPDATE unit_steps 
-             SET status = 'inprogress', hold_reason = NULL, held_by = NULL, hold_at = NULL, updated = $1 
+             SET status = 'inprogress', hold_reason = NULL, held_by = NULL, hold_at = NULL, updated = $1, updated_at = NOW() 
              WHERE id = $2 RETURNING *`,
             [updated, sId]
           );
@@ -4191,7 +4220,8 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
                hold_step_id = NULL, hold_step_name = NULL, hold_dept = NULL, 
                hold_reason = NULL, held_by_name = NULL, held_at = NULL,
                cancelled_step_id = NULL, cancelled_step_name = NULL, cancelled_dept = NULL,
-               cancelled_reason = NULL, cancelled_by_name = NULL, cancelled_at = NULL
+               cancelled_reason = NULL, cancelled_by_name = NULL, cancelled_at = NULL,
+               updated_at = NOW()
            WHERE id = $1`,
           [tu.id]
         );
@@ -4214,7 +4244,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         if (sId) {
           const upd = await client.query(
             `UPDATE unit_steps 
-             SET status = 'cancelled', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3 
+             SET status = 'cancelled', hold_reason = $1, held_by = $2, hold_at = NOW(), updated = $3, updated_at = NOW() 
              WHERE id = $4 RETURNING *`,
             [reason, userName, updated, sId]
           );
@@ -4224,7 +4254,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         await client.query(
           `UPDATE order_units 
            SET hold_status = 'Cancelled', cancelled_step_id = $1, cancelled_step_name = $2, cancelled_dept = $3, 
-               cancelled_reason = $4, cancelled_by_name = $5, cancelled_at = NOW(), status = 'Cancelled' 
+               cancelled_reason = $4, cancelled_by_name = $5, cancelled_at = NOW(), status = 'Cancelled', updated_at = NOW() 
            WHERE id = $6`,
           [sId, step.name, step.dept, reason, userName, tu.id]
         );
@@ -4301,7 +4331,7 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
         const upd = await client.query(
           `UPDATE unit_steps 
-           SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields), assigned_user_id = COALESCE($6, assigned_user_id) 
+           SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields), assigned_user_id = COALESCE($6, assigned_user_id), updated_at = NOW() 
            WHERE id = $7 AND order_unit_id = $8 
            RETURNING *`,
           [newStatus, notes, dispatchDate || null, updated, cfJson, assigned_user_id || null, sId, tu.id]
@@ -4374,6 +4404,18 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    broadcastEvent({
+      type: 'ORDER_UPDATED',
+      entity: 'step',
+      unitId: parseInt(req.params.unitId),
+      orderId: step.order_id,
+      dept: step.dept,
+      status: req.body.status || req.body.action,
+      updatedBy: userName,
+      timestamp: Date.now()
+    });
+
     res.json(lastResult || { success: true });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -4646,15 +4688,23 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       if (typeof cfObj === 'string') {
         try { cfObj = JSON.parse(cfObj); } catch (_) { cfObj = {}; }
       }
+      let shouldDeleteIssuedDate = false;
       if (cfObj && typeof cfObj === 'object') {
         if (tray_status !== undefined && !['Partial Issued', 'All Issued'].includes(tray_status)) {
           delete cfObj.issued_date;
+          shouldDeleteIssuedDate = true;
         } else if (issued_date !== undefined && !issued_date) {
           delete cfObj.issued_date;
+          shouldDeleteIssuedDate = true;
         }
       }
-      updates.push(`custom_fields = $${idx++}`);
-      values.push(JSON.stringify(cfObj));
+      // Non-destructive JSONB merge: preserves existing custom fields while updating supplied keys
+      if (shouldDeleteIssuedDate) {
+        updates.push(`custom_fields = (COALESCE(custom_fields, '{}'::jsonb) || $${idx++}::jsonb) - 'issued_date'`);
+      } else {
+        updates.push(`custom_fields = (COALESCE(custom_fields, '{}'::jsonb) || $${idx++}::jsonb)`);
+      }
+      values.push(JSON.stringify(cfObj || {}));
     }
 
     if (updates.length === 0 && reference_number === undefined) {
@@ -4663,6 +4713,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
 
     let updatedUnit;
     if (updates.length > 0) {
+      updates.push('updated_at = NOW()');
       values.push(realId);
       const result = await pool.query(
         `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
@@ -4720,6 +4771,15 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       [req.user.id, req.user.role, logAction, unit.order_id]
     );
 
+    broadcastEvent({
+      type: 'ORDER_UPDATED',
+      entity: 'unit',
+      unitId: realId,
+      orderId: unit.order_id,
+      updatedBy: req.user?.username || 'User',
+      timestamp: Date.now()
+    });
+
     res.json({ success: true, unit: updatedUnit });
   } catch (err) {
     console.error('Failed to update unit:', err);
@@ -4776,6 +4836,16 @@ app.post('/api/units/:id/design-confirm', authorize(['Admin', 'Manager', 'Design
 
     await client.query('COMMIT');
 
+    broadcastEvent({
+      type: 'ORDER_UPDATED',
+      entity: 'unit',
+      unitId: unit.id,
+      orderId: unit.order_id,
+      action: 'design-confirm',
+      updatedBy: req.user?.username || 'Design',
+      timestamp: Date.now()
+    });
+
     const refreshed = await pool.query(
       `SELECT ou.*, u_conf.username AS design_confirmed_by_name 
        FROM order_units ou 
@@ -4830,6 +4900,16 @@ app.post('/api/units/:id/design-unconfirm', authorize(['Admin', 'Manager', 'Desi
 
     await client.query('COMMIT');
 
+    broadcastEvent({
+      type: 'ORDER_UPDATED',
+      entity: 'unit',
+      unitId: unit.id,
+      orderId: unit.order_id,
+      action: 'design-unconfirm',
+      updatedBy: req.user?.username || 'Design',
+      timestamp: Date.now()
+    });
+
     const refreshed = await pool.query(
       `SELECT ou.*, u_conf.username AS design_confirmed_by_name 
        FROM order_units ou 
@@ -4869,7 +4949,7 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Ad
 
     // 2. Derive unit status for all units of this line item to propagate departments & statuses
     const unitsRes = await client.query(
-      'SELECT id FROM order_units WHERE line_item_id = $1',
+      'SELECT id FROM order_units WHERE line_item_id = $1 ORDER BY id ASC',
       [req.params.lineItemId]
     );
     for (const unit of unitsRes.rows) {
@@ -4982,6 +5062,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.design_confirmed_by,
         u_conf.username AS design_confirmed_by_name,
         oli.quantity   AS batch_qty,
+        ou.updated_at,
         (
           SELECT json_agg(sub.step_obj)
           FROM (
@@ -4995,17 +5076,18 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
               'hold_reason', s.hold_reason,
               'held_by', s.held_by,
               'hold_at', s.hold_at,
-              'assigned_user_id', s.assigned_user_id
+              'assigned_user_id', s.assigned_user_id,
+              'updated_at', s.updated_at
             ) AS step_obj,
             s.step_order,
             s.id
             FROM (
-              SELECT us.id, us.name, us.status, us.dept, us.notes, us.updated, us.hold_reason, us.held_by, us.hold_at, us.assigned_user_id, us.step_order
+              SELECT us.id, us.name, us.status, us.dept, us.notes, us.updated, us.hold_reason, us.held_by, us.hold_at, us.assigned_user_id, us.step_order, us.updated_at
               FROM unit_steps us
               WHERE us.order_unit_id = ou.id 
                 AND us.dept = (CASE WHEN $1 = 'all' THEN ou.current_dept ELSE $1 END)
               UNION ALL
-              SELECT os.id, os.name, os.status, os.dept, os.notes, os.updated, NULL::text AS hold_reason, NULL::text AS held_by, NULL::timestamptz AS hold_at, NULL::integer AS assigned_user_id, os.step_order
+              SELECT os.id, os.name, os.status, os.dept, os.notes, os.updated, NULL::text AS hold_reason, NULL::text AS held_by, NULL::timestamptz AS hold_at, NULL::integer AS assigned_user_id, os.step_order, NULL::timestamptz AS updated_at
               FROM order_steps os
               WHERE os.order_id = o.id 
                 AND os.dept = 'Sales'
@@ -5523,7 +5605,8 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     }
 
     // 4. Re-derive unit status for all affected units so they transition out of Sales gating
-    for (const uId of unit_ids) {
+    const sortedUnitIds = [...unit_ids].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    for (const uId of sortedUnitIds) {
       try {
         await deriveUnitStatus(uId, pool);
       } catch (dErr) {
@@ -5579,22 +5662,28 @@ app.post('/api/units/batch-purchase-na', authorize(['Purchase', 'Stores', 'Sales
 
     const unitsRes = await client.query(
       `SELECT id, unit_id, custom_fields, order_id FROM order_units 
-       WHERE id = ANY($1) OR unit_id = ANY($2)`,
+       WHERE id = ANY($1) OR unit_id = ANY($2)
+       ORDER BY id ASC`,
       [intIds, strIds]
     );
 
     const updatedIds = [];
     for (const u of unitsRes.rows) {
-      const cf = u.custom_fields && typeof u.custom_fields === 'object' ? { ...u.custom_fields } : {};
       if (value === 'NA') {
-        cf[colKey] = 'NA';
+        await client.query(
+          `UPDATE order_units 
+           SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) || jsonb_build_object($1::text, 'NA')
+           WHERE id = $2`,
+          [colKey, u.id]
+        );
       } else {
-        delete cf[colKey];
+        await client.query(
+          `UPDATE order_units 
+           SET custom_fields = COALESCE(custom_fields, '{}'::jsonb) - $1::text
+           WHERE id = $2`,
+          [colKey, u.id]
+        );
       }
-      await client.query(
-        'UPDATE order_units SET custom_fields = $1 WHERE id = $2',
-        [JSON.stringify(cf), u.id]
-      );
       updatedIds.push(u.id);
     }
 

@@ -26,6 +26,7 @@ const SettingsView = lazy(() => import('./components/Settings'));
 import ErrorBoundary from './components/ErrorBoundary';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
+import { useEventStream } from './hooks/useEventStream';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -39,6 +40,7 @@ const ProtectedRoute = ({ children }) => {
 };
 
 function Dashboard() {
+  useEventStream();
   const [steps, setSteps] = useState([]);
   const [activityLog, setActivityLog] = useState([]);
   const [currentFilter, setCurrentFilter] = useState(() => {
