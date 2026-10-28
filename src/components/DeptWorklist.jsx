@@ -447,27 +447,41 @@ export default function DeptWorklist({ dept }) {
   }, [fetchWorklist]);
 
   const handleStepStatusChange = async (unitId, stepId, newStatus) => {
+    const targetUnit = units.find(u => u.unit_id === unitId || u.id === unitId);
+    const targetStep = (targetUnit?.dept_steps || []).find(s => s.id === stepId);
     try {
       const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify({ 
+          status: newStatus, 
+          last_updated_at: targetStep?.updated_at || targetUnit?.updated_at 
+        }),
       });
       if (res.ok) {
         // Optimistically update locally
         setUnits(prev => prev.map(u => {
-          if (u.unit_id !== unitId) return u;
+          if (u.unit_id !== unitId && u.id !== unitId) return u;
           return {
             ...u,
             dept_steps: (u.dept_steps || []).map(s =>
-              s.id === stepId ? { ...s, status: newStatus } : s
+              s.id === stepId ? { ...s, status: newStatus, updated_at: new Date().toISOString() } : s
             ),
           };
         }));
         window.dispatchEvent(new CustomEvent('orderUpdated'));
+      } else if (res.status === 409) {
+        const conflict = await res.json();
+        alert(conflict.message || 'Conflict: This task was modified by another operator. Refreshing view...');
+        fetchWorklist(true);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData.error || 'Failed to update step');
+        fetchWorklist(true);
       }
     } catch (err) {
       console.error('Failed to update step', err);
+      fetchWorklist(true);
     }
   };
 

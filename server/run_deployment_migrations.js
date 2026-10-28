@@ -68,7 +68,11 @@ export async function runDeploymentMigrations(clientParam) {
       ALTER TABLE unit_steps
       ADD COLUMN IF NOT EXISTS hold_reason TEXT,
       ADD COLUMN IF NOT EXISTS held_by TEXT,
-      ADD COLUMN IF NOT EXISTS hold_at TIMESTAMP WITH TIME ZONE;
+      ADD COLUMN IF NOT EXISTS hold_at TIMESTAMP WITH TIME ZONE,
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+      ALTER TABLE order_units
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
       DO $$ 
       BEGIN 
