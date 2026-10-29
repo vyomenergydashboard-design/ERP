@@ -12,6 +12,7 @@ import {
   Edit2, Pause, PackageCheck
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
+import WiremenMultiSelect from './WiremenMultiSelect';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -65,7 +66,7 @@ const BASE_COLUMNS = [
   { key: 'tray_status', label: 'Tray Status', align: 'center', dept: 'Stores' },
   { key: 'tray_start_date', label: 'Tray Start Date', align: 'center', dept: 'Stores' },
   { key: 'issued_date', label: 'Issued Date', align: 'center', dept: 'Stores' },
-  { key: 'wiremen', label: 'Wireman', align: 'left', dept: 'Production' },
+  { key: 'wiremen', label: 'Wiremen', align: 'left', dept: 'Production' },
   { key: 'mounting_start_date', label: 'Mounting Start Date', align: 'center', dept: 'Production' },
   { key: 'mounting_complete_date', label: 'Mounting Complete', align: 'center', dept: 'Production' },
   { key: 'wiring_start_date', label: 'Wiring Start', align: 'center', dept: 'Production' },
@@ -1032,6 +1033,14 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
         `Order #: ${unit.order_number}`
       ].filter(Boolean).join('\n');
 
+    case 'wiremen': {
+      const currentVal = unit.wiremen || unit.custom_fields?.wiremen || '';
+      if (!currentVal) return 'Wiremen: Unassigned';
+      const list = currentVal.split(',').map(s => s.trim()).filter(Boolean);
+      if (list.length === 1) return `Wireman: ${list[0]}`;
+      return `Assigned Wiremen (${list.length}):\n` + list.map((w, idx) => `${idx + 1}. ${w}`).join('\n');
+    }
+
     default: {
       const customCol = customColumnDefs?.find ? customColumnDefs.find(c => c.col_key === colKey) : customColumnDefs?.[colKey];
       const val = unit.custom_fields?.[colKey] ?? unit[colKey];
@@ -1435,65 +1444,14 @@ function renderCellContent({
 
     case 'wiremen': {
       const currentVal = unit.wiremen || unit.custom_fields?.wiremen || '';
-      if (canEdit) {
-        const hasCustomVal = currentVal && !wiremenList.some(w => (typeof w === 'string' ? w : w.name) === currentVal);
-        return (
-          <select
-            value={currentVal}
-            onClick={(e) => e.stopPropagation()}
-            onChange={(e) => onSaveInlineCell(unit, 'wiremen', e.target.value)}
-            style={{
-              padding: '2px 8px',
-              fontSize: 11,
-              fontWeight: 500,
-              borderRadius: 'var(--radius-sm, 4px)',
-              background: currentVal ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg3)',
-              color: currentVal ? 'var(--blue, #38bdf8)' : 'var(--text3)',
-              border: `1px solid ${currentVal ? 'rgba(56, 189, 248, 0.35)' : 'var(--border)'}`,
-              outline: 'none',
-              cursor: 'pointer',
-              maxWidth: '100%'
-            }}
-          >
-            <option value="" style={{ background: 'var(--bg3)', color: 'var(--text3)' }}>-- Unassigned --</option>
-            {hasCustomVal && (
-              <option value={currentVal} style={{ background: 'var(--bg3)', color: 'var(--blue)' }}>{currentVal}</option>
-            )}
-            {(wiremenList || []).map((w, idx) => {
-              const name = typeof w === 'string' ? w : (w.name || '');
-              const exp = typeof w === 'object' && w.experience ? ` (${w.experience})` : '';
-              if (!name) return null;
-              return (
-                <option key={w.id || `${name}-${idx}`} value={name} style={{ background: 'var(--bg3)', color: 'var(--text)' }}>
-                  {name}{exp}
-                </option>
-              );
-            })}
-          </select>
-        );
-      }
-
-      if (currentVal) {
-        return (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '2px 8px',
-              borderRadius: 'var(--radius-sm, 4px)',
-              fontSize: 11,
-              fontWeight: 600,
-              background: 'rgba(56, 189, 248, 0.12)',
-              color: 'var(--blue, #38bdf8)',
-              border: '1px solid rgba(56, 189, 248, 0.3)'
-            }}
-          >
-            {currentVal}
-          </span>
-        );
-      }
-
-      return <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>;
+      return (
+        <WiremenMultiSelect
+          value={currentVal}
+          wiremenList={wiremenList}
+          canEdit={canEdit}
+          onSave={(newVal) => onSaveInlineCell(unit, 'wiremen', newVal)}
+        />
+      );
     }
 
     case 'mounting_start_date':
@@ -5239,7 +5197,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           (u.panel_type_size || '').toLowerCase().includes(q) ||
           (u.panel_code || '').toLowerCase().includes(q) ||
           (u.panel_ip_rating || '').toLowerCase().includes(q) ||
-          (u.panel_comments || '').toLowerCase().includes(q)
+          (u.panel_comments || '').toLowerCase().includes(q) ||
+          (u.wiremen || '').toLowerCase().includes(q)
         );
       }
       return true;
