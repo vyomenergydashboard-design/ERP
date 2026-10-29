@@ -462,30 +462,44 @@ export async function runDeploymentMigrations(clientParam) {
         -- Production Department Columns
         ALTER TABLE order_units 
         ADD COLUMN IF NOT EXISTS wiremen TEXT,
-        ADD COLUMN IF NOT EXISTS mounting_start_date DATE,
-        ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS wiring_start_date DATE,
-        ADD COLUMN IF NOT EXISTS wiring_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+        ADD COLUMN IF NOT EXISTS mounting_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS mounting_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS wiring_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS wiring_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS pending_material_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS handover_to_qc_date TIMESTAMPTZ;
 
         ALTER TABLE order_line_items
         ADD COLUMN IF NOT EXISTS wiremen TEXT,
-        ADD COLUMN IF NOT EXISTS mounting_start_date DATE,
-        ADD COLUMN IF NOT EXISTS mounting_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS wiring_start_date DATE,
-        ADD COLUMN IF NOT EXISTS wiring_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE,
-        ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+        ADD COLUMN IF NOT EXISTS mounting_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS mounting_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS wiring_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS wiring_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS pending_material_complete_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS handover_to_qc_date TIMESTAMPTZ;
+
+        ALTER TABLE order_units ALTER COLUMN mounting_start_date TYPE TIMESTAMPTZ USING mounting_start_date::TIMESTAMPTZ;
+        ALTER TABLE order_units ALTER COLUMN mounting_complete_date TYPE TIMESTAMPTZ USING mounting_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_units ALTER COLUMN wiring_start_date TYPE TIMESTAMPTZ USING wiring_start_date::TIMESTAMPTZ;
+        ALTER TABLE order_units ALTER COLUMN wiring_complete_date TYPE TIMESTAMPTZ USING wiring_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_units ALTER COLUMN pending_material_complete_date TYPE TIMESTAMPTZ USING pending_material_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_units ALTER COLUMN handover_to_qc_date TYPE TIMESTAMPTZ USING handover_to_qc_date::TIMESTAMPTZ;
+
+        ALTER TABLE order_line_items ALTER COLUMN mounting_start_date TYPE TIMESTAMPTZ USING mounting_start_date::TIMESTAMPTZ;
+        ALTER TABLE order_line_items ALTER COLUMN mounting_complete_date TYPE TIMESTAMPTZ USING mounting_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_line_items ALTER COLUMN wiring_start_date TYPE TIMESTAMPTZ USING wiring_start_date::TIMESTAMPTZ;
+        ALTER TABLE order_line_items ALTER COLUMN wiring_complete_date TYPE TIMESTAMPTZ USING wiring_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_line_items ALTER COLUMN pending_material_complete_date TYPE TIMESTAMPTZ USING pending_material_complete_date::TIMESTAMPTZ;
+        ALTER TABLE order_line_items ALTER COLUMN handover_to_qc_date TYPE TIMESTAMPTZ USING handover_to_qc_date::TIMESTAMPTZ;
 
         INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
-          ('wiremen',                        'Wireman',                   'Production', 'Dropdown', true, 28),
-          ('mounting_start_date',            'Mounting Start Date',       'Production', 'Date',     true, 29),
-          ('mounting_complete_date',         'Mounting Complete',         'Production', 'Date',     true, 30),
-          ('wiring_start_date',              'Wiring Start',              'Production', 'Date',     true, 31),
-          ('wiring_complete_date',           'Wiring Complete',           'Production', 'Date',     true, 32),
-          ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'Date',     true, 33),
-          ('handover_to_qc_date',            'Handover to QC',            'Production', 'Date',     true, 34)
+          ('wiremen',                        'Wiremen',                   'Production', 'Dropdown', true, 28),
+          ('mounting_start_date',            'Mounting Start Date',       'Production', 'DateTime', true, 29),
+          ('mounting_complete_date',         'Mounting Complete',         'Production', 'DateTime', true, 30),
+          ('wiring_start_date',              'Wiring Start',              'Production', 'DateTime', true, 31),
+          ('wiring_complete_date',           'Wiring Complete',           'Production', 'DateTime', true, 32),
+          ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'DateTime', true, 33),
+          ('handover_to_qc_date',            'Handover to QC',            'Production', 'DateTime', true, 34)
         ON CONFLICT (col_key) DO UPDATE SET 
           label = EXCLUDED.label, 
           category = EXCLUDED.category, 

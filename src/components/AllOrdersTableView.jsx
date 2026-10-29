@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import WiremenMultiSelect from './WiremenMultiSelect';
+import ProductionDateTimeCell from './ProductionDateTimeCell';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -121,6 +122,18 @@ const formatFastDateTime = (val) => {
 const formatCustomDateTime = formatFastDateTime;
 const formatCustomDate = formatFastDate;
 
+const formatDateTimeForInput = (val) => {
+  if (!val) return '';
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${y}-${m}-${day}T${hh}:${mm}`;
+};
+
 const DEFAULT_COL_WIDTHS = {
   order_number: 145,
   short_serial: 160,
@@ -144,12 +157,12 @@ const DEFAULT_COL_WIDTHS = {
   purchase_cat_low_voltage: 200,
   purchase_cat_wires: 205,
   wiremen: 180,
-  mounting_start_date: 160,
-  mounting_complete_date: 160,
-  wiring_start_date: 160,
-  wiring_complete_date: 160,
-  pending_material_complete_date: 190,
-  handover_to_qc_date: 160,
+  mounting_start_date: 180,
+  mounting_complete_date: 180,
+  wiring_start_date: 180,
+  wiring_complete_date: 180,
+  pending_material_complete_date: 200,
+  handover_to_qc_date: 180,
 };
 
 const MIN_COL_WIDTHS = {
@@ -175,12 +188,12 @@ const MIN_COL_WIDTHS = {
   purchase_cat_low_voltage: 155,
   purchase_cat_wires: 160,
   wiremen: 140,
-  mounting_start_date: 140,
-  mounting_complete_date: 140,
-  wiring_start_date: 140,
-  wiring_complete_date: 140,
-  pending_material_complete_date: 160,
-  handover_to_qc_date: 140,
+  mounting_start_date: 165,
+  mounting_complete_date: 165,
+  wiring_start_date: 165,
+  wiring_complete_date: 165,
+  pending_material_complete_date: 185,
+  handover_to_qc_date: 165,
 };
 
 export const getDocUrl = (doc) => {
@@ -1041,6 +1054,21 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
       return `Assigned Wiremen (${list.length}):\n` + list.map((w, idx) => `${idx + 1}. ${w}`).join('\n');
     }
 
+    case 'mounting_start_date':
+    case 'mounting_complete_date':
+    case 'wiring_start_date':
+    case 'wiring_complete_date':
+    case 'pending_material_complete_date':
+    case 'handover_to_qc_date': {
+      const val = unit[colKey] || unit.custom_fields?.[colKey];
+      const colLabel = BASE_COLUMNS.find(c => c.key === colKey)?.label || colKey;
+      return [
+        `${colLabel}: ${val ? formatFastDateTime(val) : 'Not Set'}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+    }
+
     default: {
       const customCol = customColumnDefs?.find ? customColumnDefs.find(c => c.col_key === colKey) : customColumnDefs?.[colKey];
       const val = unit.custom_fields?.[colKey] ?? unit[colKey];
@@ -1460,95 +1488,13 @@ function renderCellContent({
     case 'wiring_complete_date':
     case 'pending_material_complete_date':
     case 'handover_to_qc_date': {
-      const isEditingThisDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === colKey;
       const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
-      const todayStr = (() => {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-      })();
-
-      if (isEditingThisDate) {
-        const editVal = editingCell.value !== undefined ? editingCell.value : (currentVal ? String(currentVal).split('T')[0] : todayStr);
-        return (
-          <input
-            type="date"
-            autoFocus
-            ref={(el) => {
-              if (el && typeof el.showPicker === 'function') {
-                try { el.showPicker(); } catch (_) { }
-              }
-            }}
-            onClick={(e) => {
-              if (e.target.showPicker) {
-                try { e.target.showPicker(); } catch (_) { }
-              }
-            }}
-            value={editVal}
-            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-            onBlur={() => {
-              onSaveInlineCell(unit, colKey, editingCell.value !== undefined ? editingCell.value : editVal);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                onSaveInlineCell(unit, colKey, editingCell.value !== undefined ? editingCell.value : editVal);
-              }
-              if (e.key === 'Escape') setEditingCell(null);
-            }}
-            style={{
-              padding: '2px 4px', fontSize: 11, background: 'var(--bg3)',
-              color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4,
-              cursor: 'pointer'
-            }}
-          />
-        );
-      }
-
-      if (currentVal) {
-        return (
-          <span
-            onClick={(e) => {
-              if (canEdit) {
-                e.stopPropagation();
-                setEditingCell({ unitId: effectiveUnitId, colKey, value: String(currentVal).split('T')[0] });
-              }
-            }}
-            style={{
-              color: 'var(--text2)',
-              fontSize: 12,
-              fontFamily: 'var(--font-mono)',
-              cursor: canEdit ? 'pointer' : 'default',
-              display: 'inline-flex',
-              alignItems: 'center',
-              padding: '1px 4px',
-              borderRadius: 3
-            }}
-            title={canEdit ? 'Click to edit date' : undefined}
-          >
-            {formatFastDate(currentVal)}
-          </span>
-        );
-      }
-
       return (
-        <span
-          onClick={(e) => {
-            if (canEdit) {
-              e.stopPropagation();
-              setEditingCell({ unitId: effectiveUnitId, colKey, value: todayStr });
-            }
-          }}
-          style={{
-            color: canEdit ? 'var(--blue)' : 'var(--text3)',
-            fontSize: 11,
-            cursor: canEdit ? 'pointer' : 'default',
-            display: 'inline-flex',
-            alignItems: 'center',
-            opacity: canEdit ? 0.8 : 0.5
-          }}
-          title={canEdit ? 'Click to set date (defaults to today)' : undefined}
-        >
-          {canEdit ? '+ Set Date' : '—'}
-        </span>
+        <ProductionDateTimeCell
+          value={currentVal}
+          canEdit={canEdit}
+          onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
+        />
       );
     }
 
@@ -2259,20 +2205,31 @@ function renderCellContent({
             );
           }
           if (isDateTimeType(customCol.field_type)) {
+            const editVal = editingCell.value !== undefined ? editingCell.value : (currentVal ? formatDateTimeForInput(currentVal) : '');
+            const handleCommit = (valToCommit) => {
+              const raw = valToCommit !== undefined ? valToCommit : editVal;
+              let finalIso = null;
+              if (raw) {
+                const d = new Date(raw);
+                finalIso = isNaN(d.getTime()) ? null : d.toISOString();
+              }
+              onSaveInlineCell(unit, colKey, finalIso);
+            };
             return (
               <input
                 type="datetime-local"
                 autoFocus
-                value={editingCell.value ? String(editingCell.value).slice(0, 16) : ''}
+                value={editVal}
                 onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
-                onBlur={() => onSaveInlineCell(unit, colKey, editingCell.value)}
+                onBlur={() => handleCommit(editingCell.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') onSaveInlineCell(unit, colKey, editingCell.value);
+                  if (e.key === 'Enter') handleCommit(editingCell.value);
                   if (e.key === 'Escape') setEditingCell(null);
                 }}
                 style={{
                   width: '100%', padding: '2px 6px', fontSize: 11, background: 'var(--bg3)',
-                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none'
+                  color: 'var(--text)', border: '1px solid var(--blue)', borderRadius: 4, outline: 'none',
+                  fontFamily: 'var(--font-mono)'
                 }}
               />
             );
@@ -2340,11 +2297,11 @@ function renderCellContent({
               onClick={(e) => {
                 if (canEdit) {
                   e.stopPropagation();
-                  setEditingCell({ unitId: effectiveUnitId, colKey, value: currentVal });
+                  setEditingCell({ unitId: effectiveUnitId, colKey, value: formatDateTimeForInput(currentVal) });
                 }
               }}
-              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 11, color: 'var(--text2)' }}
-              title={canEdit ? 'Click to edit' : undefined}
+              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 11.5, fontFamily: 'var(--font-mono)', color: 'var(--text2)', whiteSpace: 'nowrap' }}
+              title={canEdit ? 'Click to edit date & time' : undefined}
             >
               {formatCustomDateTime(currentVal)}
             </span>
@@ -5225,9 +5182,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       } else if (sortKey === 'priority') {
         av = PRIORITY_ORDER[a.priority || 'Medium'] ?? 2;
         bv = PRIORITY_ORDER[b.priority || 'Medium'] ?? 2;
-      } else if (sortKey === 'delivery_date') {
-        av = a.delivery_date ? new Date(a.delivery_date).getTime() : Infinity;
-        bv = b.delivery_date ? new Date(b.delivery_date).getTime() : Infinity;
+      } else if (sortKey === 'delivery_date' || [
+        'tray_start_date', 'issued_date',
+        'mounting_start_date', 'mounting_complete_date',
+        'wiring_start_date', 'wiring_complete_date',
+        'pending_material_complete_date', 'handover_to_qc_date'
+      ].includes(sortKey)) {
+        av = a[sortKey] ? new Date(a[sortKey]).getTime() : Infinity;
+        bv = b[sortKey] ? new Date(b[sortKey]).getTime() : Infinity;
       } else if (sortKey === 'unit_status') {
         av = getUnitStatus(a);
         bv = getUnitStatus(b);

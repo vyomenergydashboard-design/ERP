@@ -189,13 +189,13 @@ ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS qc_date DATE;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_start_date TIMESTAMPTZ;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS mounting_complete_date TIMESTAMPTZ;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiremen TEXT;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_start_date DATE;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_complete_date DATE;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE;
-ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_start_date TIMESTAMPTZ;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS wiring_complete_date TIMESTAMPTZ;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS pending_material_complete_date TIMESTAMPTZ;
+ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS handover_to_qc_date TIMESTAMPTZ;
 ALTER TABLE order_line_items ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 
 -- Planning Module columns for order_units (Unit Planning)
@@ -206,13 +206,13 @@ ALTER TABLE order_units ADD COLUMN IF NOT EXISTS expected_qc_date DATE;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Not Started';
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_status TEXT DEFAULT 'Pending' CHECK (qc_status IN ('Pending', 'Pass', 'Fail'));
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_date DATE;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_start_date DATE;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_complete_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_start_date TIMESTAMPTZ;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS mounting_complete_date TIMESTAMPTZ;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiremen TEXT;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_start_date DATE;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_complete_date DATE;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS pending_material_complete_date DATE;
-ALTER TABLE order_units ADD COLUMN IF NOT EXISTS handover_to_qc_date DATE;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_start_date TIMESTAMPTZ;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS wiring_complete_date TIMESTAMPTZ;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS pending_material_complete_date TIMESTAMPTZ;
+ALTER TABLE order_units ADD COLUMN IF NOT EXISTS handover_to_qc_date TIMESTAMPTZ;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_number TEXT;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL;
@@ -276,13 +276,13 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('tray_status',            'Tray Status',               'Stores',     'Dropdown', true, 25),
   ('tray_start_date',        'Tray Start Date',           'Stores',     'Date',     true, 26),
   ('issued_date',            'Issued Date',               'Stores',     'Date',     true, 27),
-  ('wiremen',                        'Wireman',                   'Production', 'Dropdown', true, 28),
-  ('mounting_start_date',            'Mounting Start Date',       'Production', 'Date',     true, 29),
-  ('mounting_complete_date',         'Mounting Complete',         'Production', 'Date',     true, 30),
-  ('wiring_start_date',              'Wiring Start',              'Production', 'Date',     true, 31),
-  ('wiring_complete_date',           'Wiring Complete',           'Production', 'Date',     true, 32),
-  ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'Date',     true, 33),
-  ('handover_to_qc_date',            'Handover to QC',            'Production', 'Date',     true, 34)
+  ('wiremen',                        'Wiremen',                   'Production', 'Dropdown', true, 28),
+  ('mounting_start_date',            'Mounting Start Date',       'Production', 'DateTime', true, 29),
+  ('mounting_complete_date',         'Mounting Complete',         'Production', 'DateTime', true, 30),
+  ('wiring_start_date',              'Wiring Start',              'Production', 'DateTime', true, 31),
+  ('wiring_complete_date',           'Wiring Complete',           'Production', 'DateTime', true, 32),
+  ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'DateTime', true, 33),
+  ('handover_to_qc_date',            'Handover to QC',            'Production', 'DateTime', true, 34)
 ON CONFLICT (col_key) DO UPDATE SET 
   label = EXCLUDED.label, 
   category = EXCLUDED.category, 
