@@ -213,7 +213,7 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
 
         {/* Delivery Date */}
         <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--text2)' }}>
-          {unit.delivery_date ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+          {unit.delivery_date ? new Date(unit.delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
         </td>
 
         {/* Tasks Pills */}

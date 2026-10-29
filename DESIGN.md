@@ -27,31 +27,31 @@ colors:
   status-teal-dim: "rgba(20, 184, 166, 0.12)"
 typography:
   display:
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    fontFamily: "'Inter', sans-serif"
     fontSize: "1.75rem"
     fontWeight: 700
     lineHeight: 1.2
     letterSpacing: "-0.02em"
   headline:
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    fontFamily: "'Inter', sans-serif"
     fontSize: "1.25rem"
     fontWeight: 600
     lineHeight: 1.3
     letterSpacing: "-0.01em"
   title:
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    fontFamily: "'Inter', sans-serif"
     fontSize: "1rem"
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: "normal"
   body:
-    fontFamily: "'Plus Jakarta Sans', sans-serif"
+    fontFamily: "'Inter', sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
     letterSpacing: "normal"
   label:
-    fontFamily: "'IBM Plex Mono', monospace"
+    fontFamily: "'JetBrains Mono', monospace"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1.4
@@ -99,7 +99,7 @@ The aesthetic is anchored by cool slate charcoal surfaces (`#151821` to `#2d3446
 - **High-Density Data Instrumentation:** Dense, tightly aligned tabular and Gantt views that maximize visible serials and line items per viewport without nested navigation.
 - **Uncompromising Visual Gates:** Blocked states, missing engineering documents (Drawing & BOM), and hold conditions are rendered with unmistakable high-visibility contrast.
 - **Tonal Depth & Crisp Boundaries:** Layers are separated by subtle surface stepping and 1px technical borders (`#2e3547`), avoiding distracting heavy drop shadows.
-- **Dual Type Personality:** Humanist precision typography (`Plus Jakarta Sans`) for operational text paired with technical monospaced telemetry (`IBM Plex Mono`) for all order numbers, serial IDs, part numbers, and timestamps.
+- **Dual Type Personality:** Precision interface typography (`Inter`) for operational text paired with technical monospaced telemetry (`JetBrains Mono`) for all order numbers, serial IDs, part numbers, and timestamps.
 
 ---
 
@@ -138,10 +138,10 @@ The palette is tuned for high-contrast industrial readability: deep carbon neutr
 
 ## Typography
 
-**Display & UI Font:** `Plus Jakarta Sans`, sans-serif  
-**Technical Telemetry Font:** `IBM Plex Mono`, monospace  
+**Display & UI Font:** `Inter`, sans-serif  
+**Technical Telemetry Font:** `JetBrains Mono`, monospace  
 
-**Character:** Modern geometric clarity meets industrial instrument precision. Clean letterforms ensure fast readability on shop-floor tablets and desktop monitors.
+**Character:** Industrial instrument precision meets high-density computational clarity. Razor-sharp letterforms, tall x-height, and OpenType disambiguation features ensure instant readability on shop-floor tablets and high-resolution desktop monitors.
 
 ### Hierarchy
 - **Display** (Bold 700, `1.75rem`, `line-height: 1.2`): Page titles, top-level KPI metrics, and primary modal headers.
@@ -151,7 +151,7 @@ The palette is tuned for high-contrast industrial readability: deep carbon neutr
 - **Label** (Medium 500, `0.75rem`, `line-height: 1.4`, `letter-spacing: 0.04em`): Status badges, department indicators, priority pills, and metadata keys.
 
 ### Named Rules
-- **The Monospace Serial Rule:** All order numbers (`YY(YY+1)XXXX`), unit serial numbers, line item tags, part numbers, and financial-year identifiers must be rendered in `var(--font-mono)` (`IBM Plex Mono`) to guarantee column alignment and unmistakable character differentiation (e.g., distinguishing `0` from `O` and `1` from `I`).
+- **The Monospace Serial Rule:** All order numbers (`YY(YY+1)XXXX`), unit serial numbers, line item tags, part numbers, and financial-year identifiers must be rendered in `var(--font-mono)` (`JetBrains Mono`) to guarantee column alignment and unmistakable character differentiation (e.g., distinguishing `0` from `O` and `1` from `I`).
 
 ---
 

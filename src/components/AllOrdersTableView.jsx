@@ -89,33 +89,33 @@ const isDateType = (type) => {
   return lower === 'date';
 };
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 const formatFastDate = (val) => {
   if (!val) return '—';
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
     const parts = val.split('-');
-    const mIdx = parseInt(parts[1], 10) - 1;
-    return `${parseInt(parts[2], 10)} ${MONTH_NAMES[mIdx] || parts[1]} ${parts[0]}`;
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
   }
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
-  return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 const formatFastDateTime = (val) => {
   if (!val) return '—';
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
-  const day = d.getDate();
-  const month = MONTH_NAMES[d.getMonth()];
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
   const year = d.getFullYear();
   let hours = d.getHours();
   const minutes = String(d.getMinutes()).padStart(2, '0');
   const ampm = hours >= 12 ? 'pm' : 'am';
   hours = hours % 12;
   hours = hours ? hours : 12;
-  return `${day} ${month} ${year}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
+  return `${day}/${month}/${year}, ${String(hours).padStart(2, '0')}:${minutes} ${ampm}`;
 };
 
 const formatCustomDateTime = formatFastDateTime;

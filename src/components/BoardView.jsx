@@ -562,7 +562,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           border: 1px solid var(--border);
         }
         .ord-badge {
-          font-family: 'IBM Plex Mono', monospace;
+          font-family: var(--font-mono);
           font-weight: 600;
           font-size: 13px;
           color: var(--text);
