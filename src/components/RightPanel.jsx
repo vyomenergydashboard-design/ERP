@@ -171,13 +171,13 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                 <div className="detail-row">
                   <span className="detail-key">Order Date</span>
                   <span className="detail-val">
-                    {selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                    {selectedOrder.order_date ? new Date(selectedOrder.order_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'N/A'}
                   </span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-key">Delivery</span>
                   <span className="detail-val" style={{ color: 'var(--accent)' }}>
-                    {selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBD'}
+                    {selectedOrder.delivery_date ? new Date(selectedOrder.delivery_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'TBD'}
                   </span>
                 </div>
                 {selectedOrder.packaging_type && (
