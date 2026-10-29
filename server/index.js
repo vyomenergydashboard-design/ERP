@@ -4627,7 +4627,18 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     }
 
     if (wiremen !== undefined) {
-      const cleanWiremen = (wiremen && typeof wiremen === 'string' && wiremen.trim()) ? wiremen.trim() : null;
+      let cleanWiremen = null;
+      if (Array.isArray(wiremen)) {
+        const cleaned = wiremen
+          .map(w => (typeof w === 'string' ? w.trim() : (w?.name ? String(w.name).trim() : '')))
+          .filter(Boolean);
+        const unique = Array.from(new Set(cleaned));
+        cleanWiremen = unique.length > 0 ? unique.join(', ') : null;
+      } else if (typeof wiremen === 'string') {
+        const parts = wiremen.split(',').map(s => s.trim()).filter(Boolean);
+        const unique = Array.from(new Set(parts));
+        cleanWiremen = unique.length > 0 ? unique.join(', ') : null;
+      }
       updates.push(`wiremen = $${idx++}`);
       values.push(cleanWiremen);
       if (unit.line_item_id) {
