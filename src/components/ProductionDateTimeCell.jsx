@@ -227,6 +227,17 @@ export default function ProductionDateTimeCell({
   const firstDayOfWeek = useMemo(() => new Date(viewYear, viewMonth, 1).getDay(), [viewYear, viewMonth]);
   const today = useMemo(() => new Date(), []);
 
+  const yearOptions = useMemo(() => {
+    const currentY = new Date().getFullYear();
+    const start = Math.min(viewYear - 2, currentY - 5);
+    const end = Math.max(viewYear + 2, currentY + 10);
+    const years = [];
+    for (let y = start; y <= end; y++) {
+      years.push(y);
+    }
+    return years;
+  }, [viewYear]);
+
   const calendarGrid = useMemo(() => {
     const slots = [];
     for (let i = 0; i < firstDayOfWeek; i++) {
@@ -315,8 +326,8 @@ export default function ProductionDateTimeCell({
             userSelect: 'none'
           }}
         >
-          {/* Calendar Header (Month + Year navigation) */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          {/* Calendar Header (Month + Year navigation & selectors) */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: 8 }}>
             <button
               type="button"
               onClick={handlePrevMonth}
@@ -325,22 +336,68 @@ export default function ProductionDateTimeCell({
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
                 borderRadius: 4,
-                width: 24,
+                width: 22,
                 height: 24,
                 padding: 0,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'var(--text2, #94a3b8)'
+                color: 'var(--text2, #94a3b8)',
+                flexShrink: 0
               }}
             >
               <ChevronLeft size={14} />
             </button>
 
-            <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: 0.3, color: 'var(--text, #ffffff)' }}>
-              {MONTH_NAMES[viewMonth]} {viewYear}
-            </span>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'center' }}>
+              {/* Month Dropdown */}
+              <select
+                value={viewMonth}
+                onChange={(e) => setViewMonth(Number(e.target.value))}
+                style={{
+                  background: 'var(--bg3, #0f172a)',
+                  color: 'var(--text, #f8fafc)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                  borderRadius: 4,
+                  padding: '2px 4px',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                {MONTH_NAMES.map((name, idx) => (
+                  <option key={name} value={idx} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Year Dropdown */}
+              <select
+                value={viewYear}
+                onChange={(e) => setViewYear(Number(e.target.value))}
+                style={{
+                  background: 'var(--bg3, #0f172a)',
+                  color: 'var(--text, #f8fafc)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                  borderRadius: 4,
+                  padding: '2px 4px',
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  outline: 'none'
+                }}
+              >
+                {yearOptions.map(y => (
+                  <option key={y} value={y} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <button
               type="button"
@@ -350,14 +407,15 @@ export default function ProductionDateTimeCell({
                 background: 'rgba(255, 255, 255, 0.05)',
                 border: '1px solid var(--border, rgba(255,255,255,0.1))',
                 borderRadius: 4,
-                width: 24,
+                width: 22,
                 height: 24,
                 padding: 0,
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                color: 'var(--text2, #94a3b8)'
+                color: 'var(--text2, #94a3b8)',
+                flexShrink: 0
               }}
             >
               <ChevronRight size={14} />
