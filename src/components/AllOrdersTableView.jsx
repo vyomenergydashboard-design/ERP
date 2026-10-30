@@ -45,37 +45,37 @@ const STATUS_STYLES = {
 };
 
 const BASE_COLUMNS = [
-  { key: 'order_number', label: 'Order #', align: 'left' },
-  { key: 'short_serial', label: 'Serial #', align: 'left', alias: 'unit_serial' },
+  { key: 'order_number', label: 'Order #', align: 'center' },
+  { key: 'short_serial', label: 'Serial #', align: 'center', alias: 'unit_serial' },
   { key: 'company_name', label: 'Client', align: 'left' },
-  { key: 'project_name', label: 'Project', align: 'left' },
-  { key: 'po_number', label: 'PO #', align: 'left' },
-  { key: 'reference_number', label: 'Ref / Tag', align: 'left' },
-  { key: 'end_client_name', label: 'End Client', align: 'left' },
-  { key: 'part_number', label: 'Part Number', align: 'left' },
+  { key: 'project_name', label: 'Project Name', align: 'center' },
+  { key: 'po_number', label: 'PO #', align: 'center' },
+  { key: 'reference_number', label: 'Ref / Tag', align: 'center' },
+  { key: 'end_client_name', label: 'End Client', align: 'center' },
+  { key: 'part_number', label: 'Part Number', align: 'center' },
   { key: 'panel_code', label: 'Panel Code', align: 'center' },
-  { key: 'panel_type_size', label: 'Panel Size', align: 'left' },
+  { key: 'panel_type_size', label: 'Panel Size', align: 'center' },
   { key: 'panel_ip_rating', label: 'IP Rating', align: 'center' },
   { key: 'panel_comments', label: 'Comments', align: 'left' },
   { key: 'material_description', label: 'Description', align: 'left' },
   { key: 'classification', label: 'Type (Design)', align: 'center' },
   { key: 'priority', label: 'Priority', align: 'center' },
-  { key: 'delivery_date', label: 'Delivery', align: 'left' },
+  { key: 'delivery_date', label: 'Delivery', align: 'center' },
   { key: 'unit_status', label: 'Status', align: 'center' },
-  { key: 'purchase_cat_panel', label: 'Panel (PO)', align: 'left', catKey: 'Panel' },
-  { key: 'purchase_cat_automation', label: 'Automation (PO)', align: 'left', catKey: 'Automation' },
-  { key: 'purchase_cat_low_voltage', label: 'Low Voltage (PO)', align: 'left', catKey: 'Low voltage' },
-  { key: 'purchase_cat_wires', label: 'Wires & Acc. (PO)', align: 'left', catKey: 'Wires & Accessories' },
+  { key: 'purchase_cat_panel', label: 'Panel (PO)', align: 'center', catKey: 'Panel' },
+  { key: 'purchase_cat_automation', label: 'Automation (PO)', align: 'center', catKey: 'Automation' },
+  { key: 'purchase_cat_low_voltage', label: 'Low Voltage (PO)', align: 'center', catKey: 'Low voltage' },
+  { key: 'purchase_cat_wires', label: 'Wires & Acc. (PO)', align: 'center', catKey: 'Wires & Accessories' },
   { key: 'tray_status', label: 'Tray Status', align: 'center', dept: 'Stores' },
-  { key: 'tray_start_date', label: 'Tray Start Date', align: 'center', dept: 'Stores' },
+  { key: 'tray_start_date', label: 'Tray Start', align: 'center', dept: 'Stores' },
   { key: 'issued_date', label: 'Issued Date', align: 'center', dept: 'Stores' },
-  { key: 'wiremen', label: 'Wiremen', align: 'left', dept: 'Production' },
-  { key: 'mounting_start_date', label: 'Mounting Start Date', align: 'center', dept: 'Production' },
+  { key: 'wiremen', label: 'Wiremen', align: 'center', dept: 'Production' },
+  { key: 'mounting_start_date', label: 'Mounting Start', align: 'center', dept: 'Production' },
   { key: 'mounting_complete_date', label: 'Mounting Complete', align: 'center', dept: 'Production' },
   { key: 'wiring_start_date', label: 'Wiring Start', align: 'center', dept: 'Production' },
   { key: 'wiring_complete_date', label: 'Wiring Complete', align: 'center', dept: 'Production' },
-  { key: 'pending_material_complete_date', label: 'Pending Material Complete', align: 'center', dept: 'Production' },
-  { key: 'handover_to_qc_date', label: 'Handover to QC', align: 'center', dept: 'Production' },
+  { key: 'pending_material_complete_date', label: 'Pending Material', align: 'center', dept: 'Production' },
+  { key: 'handover_to_qc_date', label: 'QC Handover', align: 'center', dept: 'Production' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -3659,9 +3659,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV12 = localStorage.getItem('erp_all_colWidths_v12');
-      if (savedV12) {
-        const parsed = JSON.parse(savedV12);
+      const savedV15 = localStorage.getItem('erp_all_colWidths_v15');
+      if (savedV15) {
+        const parsed = JSON.parse(savedV15);
         const merged = { ...DEFAULT_COL_WIDTHS };
         for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
           if (parsed[k] !== undefined) {
@@ -3686,7 +3686,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3774,7 +3774,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v7');
     localStorage.removeItem('erp_all_colWidths_v9');
     localStorage.removeItem('erp_all_colWidths_v10');
-    localStorage.removeItem('erp_all_colWidths_v12');
+    localStorage.removeItem('erp_all_colWidths_v15');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3785,7 +3785,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     e.stopPropagation();
     const startX = e.pageX;
     const startWidth = columnWidths[colKey] || DEFAULT_COL_WIDTHS[colKey] || 120;
-    const minSafe = MIN_COL_WIDTHS[colKey] || 60;
+    const colDef = allColumns?.find(c => c.key === colKey);
+    const minSafe = MIN_COL_WIDTHS[colKey] || (isDateTimeType(colDef?.fieldType) ? 165 : 80);
 
     document.body.classList.add('resizing-active');
     let latestWidth = startWidth;
@@ -3820,7 +3821,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -5620,7 +5621,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setColumnWidths(prev => {
       const updated = { ...prev, [colKey]: finalWidth };
       try {
-        localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(updated));
+        localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(updated));
       } catch (err) { }
       return updated;
     });
