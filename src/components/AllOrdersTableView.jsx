@@ -14,8 +14,10 @@ import {
 import OrderDocumentsModal from './OrderDocumentsModal';
 import WiremenMultiSelect from './WiremenMultiSelect';
 import ProductionDateTimeCell from './ProductionDateTimeCell';
+import ProductionBatchBar from './ProductionBatchBar';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
+import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -44,10 +46,10 @@ const STATUS_STYLES = {
 
 const BASE_COLUMNS = [
   { key: 'order_number', label: 'Order #', align: 'left' },
-  { key: 'short_serial', label: 'Serial No.', align: 'left', alias: 'unit_serial' },
+  { key: 'short_serial', label: 'Serial #', align: 'left', alias: 'unit_serial' },
   { key: 'company_name', label: 'Client', align: 'left' },
-  { key: 'project_name', label: 'Project Name', align: 'left' },
-  { key: 'po_number', label: 'PO Number', align: 'left' },
+  { key: 'project_name', label: 'Project', align: 'left' },
+  { key: 'po_number', label: 'PO #', align: 'left' },
   { key: 'reference_number', label: 'Ref / Tag', align: 'left' },
   { key: 'end_client_name', label: 'End Client', align: 'left' },
   { key: 'part_number', label: 'Part Number', align: 'left' },
@@ -134,67 +136,7 @@ const formatDateTimeForInput = (val) => {
   return `${y}-${m}-${day}T${hh}:${mm}`;
 };
 
-const DEFAULT_COL_WIDTHS = {
-  order_number: 145,
-  short_serial: 160,
-  company_name: 215,
-  project_name: 215,
-  po_number: 195,
-  reference_number: 185,
-  end_client_name: 165,
-  part_number: 195,
-  panel_code: 145,
-  panel_type_size: 195,
-  panel_ip_rating: 130,
-  panel_comments: 230,
-  material_description: 260,
-  classification: 225,
-  priority: 140,
-  delivery_date: 155,
-  unit_status: 235,
-  purchase_cat_panel: 180,
-  purchase_cat_automation: 195,
-  purchase_cat_low_voltage: 200,
-  purchase_cat_wires: 205,
-  wiremen: 180,
-  mounting_start_date: 180,
-  mounting_complete_date: 180,
-  wiring_start_date: 180,
-  wiring_complete_date: 180,
-  pending_material_complete_date: 200,
-  handover_to_qc_date: 180,
-};
-
-const MIN_COL_WIDTHS = {
-  order_number: 135,
-  short_serial: 145,
-  company_name: 180,
-  project_name: 180,
-  po_number: 175,
-  reference_number: 165,
-  end_client_name: 145,
-  part_number: 175,
-  panel_code: 130,
-  panel_type_size: 175,
-  panel_ip_rating: 120,
-  panel_comments: 190,
-  material_description: 220,
-  classification: 200,
-  priority: 130,
-  delivery_date: 140,
-  unit_status: 195,
-  purchase_cat_panel: 140,
-  purchase_cat_automation: 150,
-  purchase_cat_low_voltage: 155,
-  purchase_cat_wires: 160,
-  wiremen: 140,
-  mounting_start_date: 165,
-  mounting_complete_date: 165,
-  wiring_start_date: 165,
-  wiring_complete_date: 165,
-  pending_material_complete_date: 185,
-  handover_to_qc_date: 165,
-};
+// DEFAULT_COL_WIDTHS and MIN_COL_WIDTHS imported from ./tableColumnSizing
 
 export const getDocUrl = (doc) => {
   if (!doc) return '#';
@@ -1489,9 +1431,18 @@ function renderCellContent({
     case 'pending_material_complete_date':
     case 'handover_to_qc_date': {
       const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
+      const colLabels = {
+        mounting_start_date: 'Mounting Start Date',
+        mounting_complete_date: 'Mounting Complete',
+        wiring_start_date: 'Wiring Start',
+        wiring_complete_date: 'Wiring Complete',
+        pending_material_complete_date: 'Pending Material Complete',
+        handover_to_qc_date: 'Handover to QC'
+      };
       return (
         <ProductionDateTimeCell
           value={currentVal}
+          label={colLabels[colKey] || colKey}
           canEdit={canEdit}
           onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
         />
@@ -1737,7 +1688,7 @@ function renderCellContent({
       }
 
       return (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, width: '100%', minWidth: 0 }} title={poTooltip}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: '100%' }} title={poTooltip}>
           {hasPoNum ? (
             hasPdf ? (
               <button
@@ -1790,7 +1741,6 @@ function renderCellContent({
                   fontSize: 12,
                   color: 'var(--text)',
                   cursor: canUploadPo ? 'pointer' : 'default',
-                  flex: '1 1 auto',
                   minWidth: 0,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -1810,7 +1760,7 @@ function renderCellContent({
                   setEditingCell({ unitId: effectiveUnitId, colKey: 'po_number', value: '' });
                 }
               }}
-              style={{ fontSize: 12, color: 'var(--text3)', cursor: canUploadPo ? 'pointer' : 'default', flex: '1 1 auto' }}
+              style={{ fontSize: 12, color: 'var(--text3)', cursor: canUploadPo ? 'pointer' : 'default' }}
               title={poTooltip}
             >
               —
@@ -1818,7 +1768,7 @@ function renderCellContent({
           )}
 
           {canUploadPo && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0, marginLeft: 'auto' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
               <button
                 type="button"
                 onClick={(e) => {
@@ -1966,18 +1916,17 @@ function renderCellContent({
             cursor: canEdit ? 'pointer' : 'default',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 4,
+            gap: 6,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             whiteSpace: 'nowrap',
-            width: '100%',
-            minWidth: 0
+            maxWidth: '100%'
           }}
         >
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: '1 1 auto', minWidth: 0 }}>{combinedVal || '—'}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{combinedVal || '—'}</span>
           {canEdit && (
             <span
-              style={{ color: 'var(--text3)', opacity: 0.5, marginLeft: 'auto', flexShrink: 0, display: 'inline-flex', alignItems: 'center', padding: '1px' }}
+              style={{ color: 'var(--text3)', opacity: 0.6, flexShrink: 0, display: 'inline-flex', alignItems: 'center', padding: '1px' }}
               title="Edit Ref & Tag"
               onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--blue)'; }}
               onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.5'; e.currentTarget.style.color = 'var(--text3)'; }}
@@ -2154,28 +2103,21 @@ function renderCellContent({
       return (
         <div
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            padding: '2px 0',
-            lineHeight: 1.25,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            height: 24,
             fontSize: '11px',
-            whiteSpace: 'nowrap'
+            fontFamily: 'var(--font-mono, monospace)',
+            whiteSpace: 'nowrap',
+            verticalAlign: 'middle'
           }}
           title={`PO Created: ${firstDateStr}\nReceived: ${secondDateStr} (${allClosed ? 'All POs Closed' : 'Pending / Open POs'})\nLinked POs: ${matched.length}`}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: '10px', color: 'var(--text3)', fontWeight: 600, minWidth: 26 }}>PO:</span>
-            <span style={{ color: 'var(--text)', fontWeight: 500, fontFamily: 'var(--font-mono, monospace)' }}>
-              {firstDateStr}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: '10px', color: allClosed ? 'var(--green)' : 'var(--text3)', fontWeight: 600, minWidth: 26 }}>Rec:</span>
-            <span style={{ color: allClosed ? 'var(--green)' : 'var(--text3)', fontWeight: allClosed ? 600 : 400, fontFamily: 'var(--font-mono, monospace)' }}>
-              {secondDateStr}
-            </span>
-          </div>
+          <span style={{ color: 'var(--text)', fontWeight: 500 }}>{firstDateStr}</span>
+          <span style={{ color: allClosed ? 'var(--green)' : 'var(--text3)', fontSize: '10px', opacity: 0.9 }}>
+            {allClosed ? '✓ Closed' : '· Pending'}
+          </span>
         </div>
       );
     }
@@ -2533,7 +2475,7 @@ const TableRow = memo(function TableRow({
 
       {visibleCols.map((c, colIdx) => {
         const colKey = c.key;
-        const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 150);
+        const defaultWidth = DEFAULT_COL_WIDTHS[colKey] || (isDateTimeType(c.fieldType) ? 175 : 120);
         const width = columnWidths[colKey] || defaultWidth;
         const pinned = pinnedKeys.includes(colKey);
         const lastPin = pinned && pinnedKeys[pinnedKeys.length - 1] === colKey;
@@ -2609,6 +2551,7 @@ const TableRow = memo(function TableRow({
           </td>
         );
       })}
+      <td className="erp-td erp-td-filler" />
     </tr>
   );
 }, (prevProps, nextProps) => {
@@ -3716,41 +3659,34 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV7 = localStorage.getItem('erp_all_colWidths_v7');
-      const savedV6 = localStorage.getItem('erp_all_colWidths_v6');
-      const saved = savedV7 || savedV6 || localStorage.getItem('erp_all_colWidths_v5') || localStorage.getItem('erp_all_colWidths_v4') || localStorage.getItem('erp_all_colWidths_v3') || localStorage.getItem('erp_all_colWidths_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
+      const savedV12 = localStorage.getItem('erp_all_colWidths_v12');
+      if (savedV12) {
+        const parsed = JSON.parse(savedV12);
         const merged = { ...DEFAULT_COL_WIDTHS };
         for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
           if (parsed[k] !== undefined) {
-            const minSafe = MIN_COL_WIDTHS[k] || 120;
-            const savedVal = Number(parsed[k]);
-            if (!savedV7) {
-              // Upgrading to v7: ensure widened defaults for purchase categories & others
-              merged[k] = (savedVal && savedVal >= DEFAULT_COL_WIDTHS[k]) ? savedVal : DEFAULT_COL_WIDTHS[k];
-            } else {
-              merged[k] = Math.max(savedVal || minSafe, minSafe);
-            }
+            const minSafe = MIN_COL_WIDTHS[k] || 80;
+            merged[k] = Math.max(Number(parsed[k]) || minSafe, minSafe);
           }
         }
         for (const [k, v] of Object.entries(parsed)) {
           if (merged[k] === undefined && typeof v === 'number') {
-            merged[k] = Math.max(v, 120);
+            merged[k] = Math.max(v, 80);
           }
         }
         return merged;
       }
-      return DEFAULT_COL_WIDTHS;
+      // First load of v10: immediately adopt tight, calibrated DEFAULT_COL_WIDTHS
+      return { ...DEFAULT_COL_WIDTHS };
     } catch (e) {
-      return DEFAULT_COL_WIDTHS;
+      return { ...DEFAULT_COL_WIDTHS };
     }
   });
 
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v7', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3836,6 +3772,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v5');
     localStorage.removeItem('erp_all_colWidths_v6');
     localStorage.removeItem('erp_all_colWidths_v7');
+    localStorage.removeItem('erp_all_colWidths_v9');
+    localStorage.removeItem('erp_all_colWidths_v10');
+    localStorage.removeItem('erp_all_colWidths_v12');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3881,7 +3820,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v7', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -3891,105 +3830,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
-  };
-
-  const handleAutoFitColumn = (colKey, e) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    const colDef = allColumns.find(c => c.key === colKey);
-    const headerLabel = colDef?.label || colKey;
-    const minSafe = MIN_COL_WIDTHS[colKey] || 120;
-
-    // Header minimum required width: label text + grip + sort icon + pin button + padding
-    let maxCharLen = headerLabel.length;
-    let baseExtraPadding = 65;
-
-    // Scan up to 150 displayed units to determine longest content
-    const sampleUnits = displayedUnits.slice(0, 150);
-    for (const unit of sampleUnits) {
-      let cellStr = '';
-      switch (colKey) {
-        case 'order_number':
-          cellStr = String(unit.order_number || '');
-          break;
-        case 'short_serial':
-        case 'unit_serial':
-          cellStr = String(unit.unit_serial || unit.short_serial || '');
-          break;
-        case 'company_name':
-          cellStr = `${unit.company_name || ''}${unit.company_city ? ` · ${unit.company_city}` : ''}`;
-          break;
-        case 'project_name':
-          cellStr = String(unit.project_name || '');
-          break;
-        case 'po_number':
-          cellStr = String(unit.po_number || '');
-          break;
-        case 'reference_number':
-          cellStr = `${unit.reference_number || ''}${unit.tag ? `/${unit.tag}` : ''}`;
-          break;
-        case 'classification':
-          cellStr = 'Standard - Confirmed';
-          break;
-        case 'priority':
-          cellStr = String(unit.priority || 'Medium');
-          break;
-        case 'delivery_date':
-          cellStr = unit.delivery_date ? '00 MMM 0000 OVERDUE' : '';
-          break;
-        case 'unit_status': {
-          const st = getUnitStatus(unit);
-          if (st === 'Hold' || unit.hold_status === 'Hold' || String(unit.unit_status || '').toLowerCase().startsWith('hold')) {
-            const holdStep = unit.hold_step_name || (unit.unit_status?.replace(/^Hold @\s*/i, '')) || 'Current Step';
-            cellStr = `Hold @ ${holdStep}`;
-          } else if (st === 'Cancelled' || unit.hold_status === 'Cancelled' || String(unit.unit_status || '').toLowerCase().startsWith('cancel')) {
-            const cancelStep = unit.cancelled_step_name || (unit.unit_status?.replace(/^Cancelled @\s*/i, '')) || 'Current Step';
-            cellStr = `Cancelled @ ${cancelStep}`;
-          } else {
-            cellStr = String(st || '');
-          }
-          break;
-        }
-        case 'material_description':
-          cellStr = String(unit.material_description || '');
-          break;
-        case 'panel_comments':
-          cellStr = String(unit.panel_comments || '');
-          break;
-        case 'panel_code':
-          cellStr = String(unit.panel_code || '');
-          break;
-        case 'panel_ip_rating':
-          cellStr = String(unit.panel_ip_rating || '');
-          break;
-        case 'purchase_cat_panel':
-        case 'purchase_cat_automation':
-        case 'purchase_cat_low_voltage':
-        case 'purchase_cat_wires':
-          cellStr = 'PO-2026-9999 Partial received +9';
-          break;
-        default:
-          cellStr = String(unit[colKey] || unit.custom_fields?.[colKey] || '');
-          break;
-      }
-      if (cellStr.length > maxCharLen) {
-        maxCharLen = cellStr.length;
-      }
-    }
-
-    const estimatedWidth = Math.ceil(maxCharLen * 8.2) + baseExtraPadding;
-    const finalWidth = Math.min(Math.max(estimatedWidth, minSafe), 650);
-
-    setColumnWidths(prev => {
-      const updated = { ...prev, [colKey]: finalWidth };
-      try {
-        localStorage.setItem('erp_all_colWidths_v5', JSON.stringify(updated));
-      } catch (err) { }
-      return updated;
-    });
   };
 
   const token = localStorage.getItem('token');
@@ -4010,6 +3850,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const canConfirmDesign = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const isPurchaseView = (currentFilter || '').toLowerCase() === 'purchase' || (roleUpper === 'PURCHASE' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'purchase'));
   const isStoresView = (currentFilter || '').toLowerCase() === 'stores' || (roleUpper === 'STORES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'stores'));
+  const isSalesView = (currentFilter || '').toLowerCase() === 'sales' || (roleUpper === 'SALES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'sales'));
+  const isProductionView = (currentFilter || '').toLowerCase() === 'production' || (roleUpper === 'PRODUCTION' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'production'));
 
   const currentUser = (() => {
     try {
@@ -4506,14 +4348,20 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     ];
     if (PRODUCTION_COLS.includes(colKey)) {
       const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
-      const clickedId = unit ? (unit.unit_id || unit.id) : null;
-      const isClickedSelected = clickedId && selectedList.some(u => (u.unit_id || u.id) === clickedId);
       const finalVal = newValue || null;
 
-      if (selectedList.length > 1 && isClickedSelected) {
+      if (selectedList.length > 0) {
+        // Collect all target units: all selected units plus the edited unit (if not already in selectedList)
+        const targetMap = new Map();
+        selectedList.forEach(u => targetMap.set(u.unit_id || u.id, u));
+        if (unit && (unit.unit_id || unit.id)) {
+          targetMap.set(unit.unit_id || unit.id, unit);
+        }
+        const targetIds = Array.from(targetMap.keys());
+
         setUnits(prev => prev.map(u => {
           const uId = u.unit_id || u.id;
-          if (selectedList.some(sel => (sel.unit_id || sel.id) === uId)) {
+          if (targetMap.has(uId)) {
             return { ...u, [colKey]: finalVal };
           }
           return u;
@@ -4521,8 +4369,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         setEditingCell(null);
 
         try {
-          await Promise.all(selectedList.map(sel => {
-            const uId = sel.unit_id || sel.id;
+          await Promise.all(targetIds.map(uId => {
             return fetch(`${window.API_BASE}/api/units/${uId}`, {
               method: 'PUT',
               headers: {
@@ -4533,12 +4380,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             });
           }));
           if (addToast) {
-            addToast(`Updated ${colKey.replace(/_/g, ' ')} for ${selectedList.length} units`, 'success');
+            const colLabel = allColumns.find(c => c.key === colKey)?.label || colKey.replace(/_/g, ' ');
+            addToast(`Updated ${colLabel} for ${targetIds.length} serial${targetIds.length > 1 ? 's' : ''}`, 'success');
           }
           fetchUnits(true);
         } catch (err) {
           console.error(`Failed to batch update ${colKey}:`, err);
-          if (addToast) addToast(`Failed to update some units: ${err.message}`, 'error');
+          if (addToast) addToast(`Failed to update some serials: ${err.message}`, 'error');
           fetchUnits(true);
         }
         return;
@@ -4720,6 +4568,53 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     // If this is a custom field from column-masters, save into custom_fields jsonb
     if (customDef) {
+      const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+
+      if (selectedList.length > 0) {
+        const targetMap = new Map();
+        selectedList.forEach(u => targetMap.set(u.unit_id || u.id, u));
+        if (unit && (unit.unit_id || unit.id)) {
+          targetMap.set(unit.unit_id || unit.id, unit);
+        }
+        const targetsToUpdate = Array.from(targetMap.values());
+        const targetIds = Array.from(targetMap.keys());
+
+        setUnits(prevUnits => prevUnits.map(u => {
+          const uId = u.unit_id || u.id;
+          if (targetMap.has(uId)) {
+            const currentCF = u.custom_fields || {};
+            return { ...u, custom_fields: { ...currentCF, [colKey]: newValue } };
+          }
+          return u;
+        }));
+        setEditingCell(null);
+
+        try {
+          await Promise.all(targetsToUpdate.map(tUnit => {
+            const uId = tUnit.unit_id || tUnit.id;
+            const currentCF = tUnit.custom_fields || {};
+            const updatedCF = { ...currentCF, [colKey]: newValue };
+            return fetch(`${window.API_BASE}/api/units/${uId}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({ custom_fields: updatedCF })
+            });
+          }));
+          if (addToast) {
+            addToast(`Updated ${customDef.label || colKey} for ${targetIds.length} serials`, 'success');
+          }
+          fetchUnits(true);
+        } catch (err) {
+          console.error('Failed to batch save custom field:', err);
+          if (addToast) addToast(`Failed to update some custom fields: ${err.message}`, 'error');
+          fetchUnits(true);
+        }
+        return;
+      }
+
       const currentCF = unit.custom_fields || {};
       const updatedCF = { ...currentCF, [colKey]: newValue };
 
@@ -4745,6 +4640,48 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         }
       } catch (err) {
         console.error('Failed to save custom field:', err);
+      }
+      return;
+    }
+
+    // Batch update delivery_date if multiple rows selected
+    const selectedListForGeneral = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+    if (selectedListForGeneral.length > 0 && colKey === 'delivery_date') {
+      const targetMap = new Map();
+      selectedListForGeneral.forEach(u => targetMap.set(u.unit_id || u.id, u));
+      if (unit && (unit.unit_id || unit.id)) {
+        targetMap.set(unit.unit_id || unit.id, unit);
+      }
+      const targetIds = Array.from(targetMap.keys());
+
+      setUnits(prevUnits => prevUnits.map(u => {
+        const uId = u.unit_id || u.id;
+        if (targetMap.has(uId)) {
+          return { ...u, delivery_date: newValue };
+        }
+        return u;
+      }));
+      setEditingCell(null);
+
+      try {
+        await Promise.all(targetIds.map(uId => {
+          return fetch(`${window.API_BASE}/api/units/${uId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ delivery_date: newValue })
+          });
+        }));
+        if (addToast) {
+          addToast(`Updated delivery date for ${targetIds.length} serials`, 'success');
+        }
+        fetchUnits(true);
+      } catch (err) {
+        console.error('Failed to batch update delivery_date:', err);
+        if (addToast) addToast(`Failed to update delivery date: ${err.message}`, 'error');
+        fetchUnits(true);
       }
       return;
     }
@@ -5498,6 +5435,49 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }
   }, [units, isIdSelected, token, addToast]);
 
+  const handleBatchProductionDate = useCallback(async (colKey, dateValue) => {
+    const targetUnits = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+    if (targetUnits.length === 0) {
+      if (addToast) addToast('Please select serial numbers to update date.', 'warning');
+      return;
+    }
+
+    const finalVal = dateValue || null;
+    const targetIds = targetUnits.map(u => u.unit_id || u.id);
+
+    setUnits(prev => prev.map(u => {
+      const uId = u.unit_id || u.id;
+      if (targetIds.includes(uId)) {
+        return { ...u, [colKey]: finalVal };
+      }
+      return u;
+    }));
+
+    try {
+      const promises = targetIds.map(uId => {
+        return fetch(`${window.API_BASE}/api/units/${uId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ [colKey]: finalVal })
+        });
+      });
+
+      await Promise.allSettled(promises);
+      const colLabel = allColumns.find(c => c.key === colKey)?.label || colKey.replace(/_/g, ' ');
+      if (addToast) {
+        addToast(`Updated ${colLabel} for ${targetIds.length} serial${targetIds.length > 1 ? 's' : ''}.`, 'success');
+      }
+      fetchUnits(true);
+    } catch (err) {
+      console.error(`Failed to batch update ${colKey}:`, err);
+      if (addToast) addToast(`Failed to update some serials: ${err.message}`, 'error');
+      fetchUnits(true);
+    }
+  }, [units, isIdSelected, token, addToast, fetchUnits, allColumns]);
+
   const handleDeletePanelSize = useCallback((unit) => {
     if (!canEditPanelSize) {
       addToast("Only Design, Admin, and Manager roles can modify panel sizes.", 'warning');
@@ -5573,15 +5553,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
   const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores views)
-  const isSalesView = (currentFilter || '').toLowerCase() === 'sales';
-  const showRowSelection = isSalesView || isPurchaseView || isStoresView;
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production views)
+  const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView;
   const SELECTION_COL_WIDTH = showRowSelection ? 38 : 0;
   const stickyLeftMap = useMemo(() => {
     const map = {};
     let currentLeft = SELECTION_COL_WIDTH;
     pinnedCols.forEach((c) => {
-      const defaultWidth = isDateTimeType(c.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[c.key] || 150);
+      const defaultWidth = DEFAULT_COL_WIDTHS[c.key] || (isDateTimeType(c.fieldType) ? 175 : 120);
       const width = columnWidths[c.key] || defaultWidth;
       map[c.key] = currentLeft;
       currentLeft += width;
@@ -5594,7 +5573,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const getColStyle = (colKey, isHeader = false) => {
     const colDef = allColumns.find(c => c.key === colKey);
-    const defaultWidth = isDateTimeType(colDef?.fieldType) ? 170 : (DEFAULT_COL_WIDTHS[colKey] || 150);
+    const defaultWidth = DEFAULT_COL_WIDTHS[colKey] || (isDateTimeType(colDef?.fieldType) ? 175 : 120);
     const width = columnWidths[colKey] || defaultWidth;
     const pinned = isPinned(colKey);
     const lastPin = isLastPinned(colKey);
@@ -5631,6 +5610,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (selectedUnitIds.size === 0) return [];
     return units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
   }, [units, selectedUnitIds, isIdSelected]);
+
+  const handleAutoFitColumn = useCallback((colKey, e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    const finalWidth = calculateOptimalColumnWidth(colKey, displayedUnits, allColumns, panelSizeMap, getUnitStatus);
+    setColumnWidths(prev => {
+      const updated = { ...prev, [colKey]: finalWidth };
+      try {
+        localStorage.setItem('erp_all_colWidths_v12', JSON.stringify(updated));
+      } catch (err) { }
+      return updated;
+    });
+  }, [displayedUnits, allColumns, panelSizeMap, getUnitStatus]);
 
   if (isLoading) return (
     <div style={{ padding: 60, textAlign: 'center', color: 'var(--text3)' }}>
@@ -5866,6 +5860,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             selectedCount={selectedUnitIds.size}
             onClearSelection={() => setSelectedUnitIds(new Set())}
             onBatchTrayStatus={handleBatchTrayStatus}
+          />
+        )}
+
+        {/* ── Right side: Production Department Batch Bar ── */}
+        {isProductionView && selectedUnitIds.size > 0 && (
+          <ProductionBatchBar
+            selectedCount={selectedUnitIds.size}
+            onClearSelection={() => setSelectedUnitIds(new Set())}
+            onBatchSetDate={handleBatchProductionDate}
           />
         )}
 
@@ -6192,6 +6195,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                   </th>
                 );
               })}
+              <th className="erp-th erp-th-filler" />
             </tr>
           </thead>
           <tbody>
@@ -6240,7 +6244,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={(visibleCols.length || 12) + (showRowSelection ? 1 : 0)} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
+                <td colSpan={(visibleCols.length || 12) + (showRowSelection ? 1 : 0) + 1} style={{ textAlign: 'center', padding: '48px 24px', color: 'var(--text3)' }}>
                   <Search size={28} style={{ opacity: 0.3, marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
                   <div style={{ fontSize: 14 }}>
                     {activeTab === 'hold'
