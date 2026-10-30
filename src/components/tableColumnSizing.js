@@ -8,71 +8,71 @@
  */
 
 export const DEFAULT_COL_WIDTHS = {
-  order_number: 88,
-  short_serial: 82,
-  company_name: 150,
-  project_name: 110,
-  po_number: 85,
-  reference_number: 85,
-  end_client_name: 95,
-  part_number: 105,
-  panel_code: 85,
-  panel_type_size: 115,
-  panel_ip_rating: 78,
-  panel_comments: 120,
-  material_description: 150,
-  classification: 135,
-  priority: 80,
-  delivery_date: 95,
-  unit_status: 105,
-  purchase_cat_panel: 110,
-  purchase_cat_automation: 115,
-  purchase_cat_low_voltage: 115,
-  purchase_cat_wires: 120,
-  tray_status: 95,
-  tray_start_date: 95,
-  issued_date: 95,
-  wiremen: 110,
-  mounting_start_date: 142,
-  mounting_complete_date: 142,
-  wiring_start_date: 142,
-  wiring_complete_date: 142,
-  pending_material_complete_date: 155,
-  handover_to_qc_date: 142,
+  order_number: 108,
+  short_serial: 100,
+  company_name: 175,
+  project_name: 160,
+  po_number: 135,
+  reference_number: 135,
+  end_client_name: 145,
+  part_number: 135,
+  panel_code: 108,
+  panel_type_size: 145,
+  panel_ip_rating: 92,
+  panel_comments: 150,
+  material_description: 175,
+  classification: 180,
+  priority: 105,
+  delivery_date: 115,
+  unit_status: 125,
+  purchase_cat_panel: 140,
+  purchase_cat_automation: 140,
+  purchase_cat_low_voltage: 140,
+  purchase_cat_wires: 145,
+  tray_status: 125,
+  tray_start_date: 110,
+  issued_date: 110,
+  wiremen: 135,
+  mounting_start_date: 172,
+  mounting_complete_date: 172,
+  wiring_start_date: 172,
+  wiring_complete_date: 172,
+  pending_material_complete_date: 175,
+  handover_to_qc_date: 172,
 };
 
 export const MIN_COL_WIDTHS = {
-  order_number: 75,
-  short_serial: 72,
-  company_name: 95,
-  project_name: 80,
-  po_number: 70,
-  reference_number: 70,
-  end_client_name: 75,
-  part_number: 80,
-  panel_code: 65,
-  panel_type_size: 85,
-  panel_ip_rating: 60,
-  panel_comments: 80,
-  material_description: 90,
-  classification: 110,
-  priority: 65,
-  delivery_date: 75,
-  unit_status: 80,
-  purchase_cat_panel: 85,
-  purchase_cat_automation: 90,
-  purchase_cat_low_voltage: 90,
-  purchase_cat_wires: 95,
-  tray_status: 75,
-  tray_start_date: 75,
-  issued_date: 75,
-  wiremen: 85,
-  mounting_start_date: 125,
-  mounting_complete_date: 125,
-  wiring_start_date: 125,
-  wiring_complete_date: 125,
-  pending_material_complete_date: 135,
-  handover_to_qc_date: 125,
+  order_number: 100,
+  short_serial: 92,
+  company_name: 130,
+  project_name: 110,
+  po_number: 115,
+  reference_number: 115,
+  end_client_name: 110,
+  part_number: 115,
+  panel_code: 92,
+  panel_type_size: 125,
+  panel_ip_rating: 80,
+  panel_comments: 100,
+  material_description: 115,
+  classification: 165,
+  priority: 92,
+  delivery_date: 105,
+  unit_status: 115,
+  purchase_cat_panel: 125,
+  purchase_cat_automation: 125,
+  purchase_cat_low_voltage: 125,
+  purchase_cat_wires: 130,
+  tray_status: 105,
+  tray_start_date: 98,
+  issued_date: 98,
+  wiremen: 115,
+  mounting_start_date: 165,
+  mounting_complete_date: 165,
+  wiring_start_date: 165,
+  wiring_complete_date: 165,
+  pending_material_complete_date: 165,
+  handover_to_qc_date: 165,
 };
 
 /**
@@ -194,19 +194,25 @@ export function calculateOptimalColumnWidth(colKey, units = [], allColumns = [],
 
     // Realistic element accessory widths (icons, pills, badges)
     if (colKey === 'order_number') {
-      w += 28; // badge padding + paperclip button
+      w += 34; // badge padding + paperclip button + gap
     } else if (colKey === 'short_serial' || colKey === 'unit_serial') {
-      w += 16; // badge padding (0 8px)
+      w += 22; // badge padding (0 6px) + border
     } else if (colKey === 'classification') {
-      w += 36; // dropdown chevron + confirm button badge
+      w += 46; // dropdown chevron + confirm button badge with icon
     } else if (colKey === 'priority' || colKey === 'unit_status') {
-      w += 20; // pill padding & dot
+      w += 26; // pill padding & dot/icon
     } else if (colKey === 'wiremen') {
-      w += 22; // icon + count chip
+      w += 28; // icon + count chip
     } else if (colKey === 'po_number' || colKey === 'reference_number') {
-      w += 20; // upload cloud / edit icon
+      w += 32; // upload cloud / edit icon / pdf button
     } else if (colKey.startsWith('purchase_cat_')) {
-      w = Math.max(w, 110);
+      w = Math.max(w, 135);
+    } else if (colKey.includes('date')) {
+      if (colKey.includes('mounting') || colKey.includes('wiring') || colKey.includes('material') || colKey.includes('handover')) {
+        w = Math.max(w, 168); // "DD/MM/YYYY, hh:mm a" formatted full timestamp
+      } else {
+        w = Math.max(w, 108); // "DD/MM/YYYY"
+      }
     }
 
     if (w > maxContentWidth) {
@@ -214,14 +220,13 @@ export function calculateOptimalColumnWidth(colKey, units = [], allColumns = [],
     }
   }
 
-  // Cell padding: 8px left + 8px right = 16px + 2px buffer
-  const cellTotal = maxContentWidth > 0 ? maxContentWidth + 18 : 0;
+  // Cell padding: 6px left + 6px right = 12px + 4px buffer
+  const cellTotal = maxContentWidth > 0 ? maxContentWidth + 16 : 0;
 
   const minSafe = MIN_COL_WIDTHS[colKey] || 80;
   const maxSafe = 450;
 
-  // Optimal width is strictly the larger of header requirement or content requirement
-  // (NO defWidth floor, so empty or short columns can snugly hug their headers without empty space!)
+  // Optimal width is strictly the larger of header requirement, content requirement, or minSafe
   const optimal = Math.max(headerTotal, cellTotal, minSafe);
   return Math.min(Math.round(optimal), maxSafe);
 }
