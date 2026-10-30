@@ -1349,8 +1349,9 @@ textarea::placeholder {
 .design-type-control-group {
   display: inline-flex;
   align-items: stretch;
-  height: 25px;
-  border-radius: 6px;
+  height: 24px;
+  border-radius: 4px;
+  box-sizing: border-box;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   white-space: nowrap;
@@ -1510,7 +1511,7 @@ textarea::placeholder {
   height: 100%;
   font-size: 10px;
   font-weight: 500;
-  padding: 0 8px;
+  padding: 0 6px;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text3);
@@ -2977,11 +2978,21 @@ body.resizing-active * {
 /* ── Master Table Base ── */
 .erp-master-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 12.5px;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+}
+
+.erp-th-filler,
+.erp-td-filler {
+  width: auto !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
 }
 
 .erp-master-table thead {
@@ -3029,10 +3040,10 @@ body.resizing-active * {
 .erp-th-content {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   width: 100%;
   min-width: 0;
-  padding: 8px 9px;
+  padding: 4px 6px;
 }
 
 .erp-th-label-zone {
@@ -3170,10 +3181,13 @@ body.resizing-active * {
 /* ── Table Cells (<td>) ── */
 .erp-td {
   border-right: 1px solid rgba(255, 255, 255, 0.035);
-  padding: 6px 10px;
-  font-size: 12.5px;
+  padding: 4px 6px;
+  font-size: 11.5px;
   vertical-align: middle;
-  line-height: 1.4;
+  line-height: 1.25;
+  height: 32px;
+  max-height: 32px;
+  box-sizing: border-box;
   transition: background-color 0.1s ease;
 }
 
@@ -3190,7 +3204,13 @@ body.resizing-active * {
 
 /* ── Row Hover & Selection Dynamics ── */
 .table-responsive-scroll tbody tr {
+  height: 32px;
+  min-height: 32px;
   transition: background-color 0.12s ease;
+}
+
+.table-responsive-scroll tbody tr td {
+  height: 32px;
 }
 
 /* Base cell background must always be solid for position:sticky cells */
@@ -3262,8 +3282,13 @@ body.resizing-active * {
   font-size: 11.5px;
   background: rgba(56, 189, 248, 0.09);
   border: 1px solid rgba(56, 189, 248, 0.22);
-  padding: 2px 7px;
-  border-radius: 5px;
+  padding: 0 6px;
+  height: 24px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   letter-spacing: 0.3px;
   display: inline-flex;
   align-items: center;
@@ -3284,7 +3309,16 @@ body.resizing-active * {
   font-size: 11.5px;
   letter-spacing: 0.3px;
   cursor: pointer;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: rgba(129, 140, 248, 0.08);
+  border: 1px solid rgba(129, 140, 248, 0.2);
 }
 
 .erp-order-badge:hover {
@@ -3296,10 +3330,13 @@ body.resizing-active * {
 .erp-status-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 3px 9px;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 9px;
   border-radius: 12px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -3345,9 +3382,11 @@ body.resizing-active * {
 
 /* ── Modern Priority Badges & Select ── */
 .erp-priority-select {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 2px 8px;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 6px;
   border-radius: 12px;
   cursor: pointer;
   outline: none;
@@ -3388,9 +3427,11 @@ body.resizing-active * {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 2px 8px;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 9px;
   border-radius: 12px;
   text-transform: uppercase;
   letter-spacing: 0.4px;
