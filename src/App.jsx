@@ -23,6 +23,7 @@ const OrderImport = lazy(() => import('./components/OrderImport'));
 const DocumentDirectory = lazy(() => import('./components/DocumentDirectory'));
 const LogsView = lazy(() => import('./components/LogsView'));
 const SettingsView = lazy(() => import('./components/Settings'));
+import PageHeader from './components/layout/PageHeader';
 import ErrorBoundary from './components/ErrorBoundary';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
@@ -456,39 +457,73 @@ function Dashboard() {
             />
           )}
           
-          <div className="flow-header">
-            <div className="flow-title">
-              {currentView === 'board' ? 'Board' :
-               currentView === 'planning' ? 'Planning Board' :
-               currentView === 'flow' ? 'Process Flow' :
-               currentView === 'table' ? 'Table View' :
-               currentView === 'orders' ? 'Order Directory' :
-               currentView === 'documents' ? 'Document Directory' :
-               currentView === 'new-order' ? 'New Order' :
-               currentView === 'import' ? 'Import Orders' :
-               currentView === 'masters' ? 'Masters' :
-               currentView === 'logs' ? 'System Logs' :
-               currentView === 'worklist' ? `${user.role} Worklist` :
-               'User Management'}
-            </div>
-            {['board', 'flow', 'table'].includes(currentView) && (
-              <div className="view-toggle">
-                <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => navigateToView('board')}>Board</button>
-                <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
-                <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => navigateToView('table')}>Table</button>
-              </div>
-            )}
-            {currentView === 'planning' && (
-              <button
-                className={`vbtn${isPlanningFullscreen ? ' active' : ''}`}
-                onClick={() => setIsPlanningFullscreen(!isPlanningFullscreen)}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                {isPlanningFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
-                {isPlanningFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
-              </button>
-            )}
-          </div>
+          <PageHeader
+            title={
+              currentView === 'board' ? 'Board' :
+              currentView === 'planning' ? 'Planning Board' :
+              currentView === 'flow' ? (selectedOrder ? `Process Flow: ${selectedOrder.order_number}` : 'Process Flow') :
+              currentView === 'table' ? 'Table View' :
+              currentView === 'orders' ? 'Order Directory' :
+              currentView === 'documents' ? 'Document Directory' :
+              currentView === 'new-order' ? 'New Order' :
+              currentView === 'import' ? 'Import Orders' :
+              currentView === 'masters' ? 'Masters' :
+              currentView === 'logs' ? 'System Logs' :
+              currentView === 'worklist' ? `${user.role} Worklist` :
+              'User Management'
+            }
+            subtitle={
+              currentView === 'flow' && selectedOrder
+                ? `${selectedOrder.company_name || 'Client'}${selectedOrder.project_name ? ` · ${selectedOrder.project_name}` : ''}`
+                : null
+            }
+            status={
+              currentView === 'flow' && selectedOrder
+                ? (selectedOrder.status || 'In Progress')
+                : null
+            }
+            breadcrumbs={[
+              { label: 'Vyom ERP', onClick: () => navigateToView('table') },
+              ...(currentFilter && currentFilter !== 'all' ? [{ label: currentFilter }] : []),
+              {
+                label:
+                  currentView === 'board' ? 'Board' :
+                  currentView === 'planning' ? 'Planning' :
+                  currentView === 'flow' ? (selectedOrder ? `Order #${selectedOrder.order_number}` : 'Flow') :
+                  currentView === 'table' ? 'Table View' :
+                  currentView === 'orders' ? 'Orders' :
+                  currentView === 'documents' ? 'Documents' :
+                  currentView === 'new-order' ? 'New Order' :
+                  currentView === 'import' ? 'Import' :
+                  currentView === 'masters' ? 'Masters' :
+                  currentView === 'logs' ? 'Logs' :
+                  currentView === 'worklist' ? 'Worklist' :
+                  'Users'
+              }
+            ]}
+            actions={
+              <>
+                {['board', 'flow', 'table'].includes(currentView) && (
+                  <div className="view-toggle" style={{ margin: 0 }}>
+                    <button className={`vbtn${currentView === 'board' ? ' active' : ''}`} onClick={() => navigateToView('board')}>Board</button>
+                    <button className={`vbtn${currentView === 'flow' ? ' active' : ''}`} onClick={() => setCurrentView('flow')}>Flow</button>
+                    <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => navigateToView('table')}>Table</button>
+                  </div>
+                )}
+                {currentView === 'planning' && (
+                  <button
+                    className={`vbtn${isPlanningFullscreen ? ' active' : ''}`}
+                    onClick={() => setIsPlanningFullscreen(!isPlanningFullscreen)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    {isPlanningFullscreen ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
+                    {isPlanningFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                  </button>
+                )}
+              </>
+            }
+            style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 'var(--radius, 8px)' }}
+          />
 
           <ErrorBoundary key={currentView} name={currentView.toUpperCase()}>
             <Suspense fallback={

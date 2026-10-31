@@ -78,7 +78,16 @@
   --theme-icon: '☀️';
 
   /* Stat card gradient end */
-  --stat-card-gradient-end: rgba(36, 41, 55, 0.5);
+    --stat-card-gradient-end: rgba(36, 41, 55, 0.5);
+
+  /* Gridline and Data Table Tokens (Spreadsheet Standard - High Contrast Reference) */
+  --border-grid: rgba(255, 255, 255, 0.28);
+  --table-header-bg: #2d261e;
+  --table-header-text: #fde68a;
+  --table-idx-bg: #152438;
+  --table-idx-text: #38bdf8;
+  --table-idx-border: #0284c7;
+  --cell-active-border: #38bdf8;
 }
 
 /* ── Light Mode Overrides ── */
@@ -153,7 +162,16 @@
   --theme-icon: '';
 
   /* Stat card gradient end */
-  --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
+    --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
+
+  /* Gridline and Data Table Tokens (Spreadsheet Standard - 100% Match to User Reference) */
+  --border-grid: #b8c4d2;
+  --table-header-bg: #faeed7;
+  --table-header-text: #2d2417;
+  --table-idx-bg: #e5effa;
+  --table-idx-text: #1d4ed8;
+  --table-idx-border: #93c5fd;
+  --cell-active-border: #1d4ed8;
 }
 
 /* Scoped theme transitions (avoid global wildcard on table cells to ensure 60fps scrolling) */
@@ -3060,31 +3078,34 @@ body.resizing-active * {
 }
 
 .erp-th-drag-handle {
-  opacity: 0.25;
+  opacity: 0;
+  width: 0;
+  margin: 0;
+  overflow: hidden;
   color: var(--text3);
-  transition: all 0.15s ease;
+  transition: opacity 0.15s ease, width 0.15s ease, margin 0.15s ease;
   cursor: grab;
   flex-shrink: 0;
 }
 
 .erp-th:hover .erp-th-drag-handle {
   opacity: 0.85;
+  width: 12px;
+  margin-right: 2px;
   color: var(--blue, #3b82f6);
 }
 
 .erp-th-title {
   white-space: normal;
-  word-break: normal;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.15;
-  font-size: 10.5px;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  word-wrap: normal;
+  hyphens: none;
+  line-height: 1.2;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.25px;
+  letter-spacing: 0.2px;
   text-align: center;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 .erp-th-sort-icon {
@@ -3092,22 +3113,26 @@ body.resizing-active * {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  margin-left: 2px;
 }
 
 .sort-icon-idle {
-  opacity: 0.3;
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
   color: var(--text3);
-  transition: opacity 0.15s;
+  transition: all 0.15s ease;
 }
 
 .erp-th:hover .sort-icon-idle {
-  opacity: 0.7;
+  opacity: 0.65;
+  width: 12px;
+  margin-left: 2px;
 }
 
 .sort-icon-active {
   color: var(--blue, #3b82f6);
   filter: drop-shadow(0 0 4px rgba(59, 130, 246, 0.5));
+  margin-left: 2px;
 }
 
 /* ── Header Freeze / Pin Button ── */
@@ -3304,8 +3329,9 @@ body.resizing-active * {
   align-items: center;
   justify-content: center;
   letter-spacing: 0.3px;
-  display: inline-flex;
-  align-items: center;
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  flex-shrink: 0 !important;
   transition: all 0.15s ease;
   user-select: all;
 }
@@ -3333,11 +3359,29 @@ body.resizing-active * {
   border-radius: 4px;
   background: rgba(129, 140, 248, 0.08);
   border: 1px solid rgba(129, 140, 248, 0.2);
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  flex-shrink: 0 !important;
 }
 
 .erp-order-badge:hover {
   color: #a5b4fc;
   text-decoration: underline;
+}
+
+.erp-panel-size-del-btn {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+  transition: all 0.15s ease;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.erp-td:hover .erp-panel-size-del-btn {
+  opacity: 0.7;
+  width: 14px;
+  padding: 2px !important;
 }
 
 /* ── Modern Status Badges (/frontend-ui-engineering) ── */
@@ -3676,4 +3720,144 @@ body.resizing-active * {
 [data-theme="light"] .vyom-toast-close:hover {
   color: #0b0f19 !important;
   background: var(--bg4) !important;
+}
+
+/* ── Spreadsheet Gridlines & High-Clarity Column Visibility (User Reference) ── */
+.erp-master-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+}
+
+.erp-th {
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  white-space: normal !important;
+  user-select: none;
+  border-bottom: 2px solid var(--border-grid) !important;
+  border-right: 1px solid var(--border-grid) !important;
+  background: var(--table-header-bg) !important;
+  color: var(--table-header-text) !important;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  padding: 0;
+  min-height: 44px;
+  height: auto;
+  transition: background-color 0.15s ease;
+}
+
+.erp-th:hover {
+  filter: brightness(0.96);
+}
+
+.erp-th-title {
+  white-space: normal !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  word-wrap: normal !important;
+  hyphens: none !important;
+  line-height: 1.2;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  text-align: center;
+  display: block;
+  padding: 2px 4px;
+  color: var(--table-header-text) !important;
+}
+
+.erp-td {
+  border-bottom: 1px solid var(--border-grid) !important;
+  border-right: 1px solid var(--border-grid) !important;
+  padding: 6px 8px;
+  font-size: 12px;
+  vertical-align: middle;
+  line-height: 1.35;
+  min-height: 36px;
+  height: auto;
+  box-sizing: border-box;
+  transition: background-color 0.1s ease;
+}
+
+/* Leading Row Index / "Values" Column (100% Match to Soft Ice-Blue Reference) */
+.erp-th-idx,
+.erp-td-idx {
+  background: var(--table-idx-bg) !important;
+  color: var(--table-idx-text) !important;
+  border-right: 2px solid var(--table-idx-border) !important;
+  border-bottom: 1px solid var(--border-grid) !important;
+  text-align: center;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  user-select: none;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+}
+
+.erp-th-idx {
+  border-bottom: 2px solid var(--table-idx-border) !important;
+  z-index: 26 !important;
+}
+
+/* Light Mode Overrides (Matching User's Reference Screenshot) */
+[data-theme="light"] .erp-th-idx,
+[data-theme="light"] .erp-td-idx {
+  background: #e5effa !important;
+  color: #1d4ed8 !important;
+  border-right: 2px solid #93c5fd !important;
+}
+
+[data-theme="light"] .erp-master-table thead {
+  background: #faeed7 !important;
+}
+
+[data-theme="light"] .erp-th {
+  background: #faeed7 !important;
+  color: #2d2417 !important;
+  border-bottom: 2px solid #b8c4d2 !important;
+  border-right: 1px solid #b8c4d2 !important;
+}
+
+[data-theme="light"] .erp-td {
+  background: #ffffff;
+  color: #0f172a !important;
+  border-bottom: 1px solid #d1d9e2 !important;
+  border-right: 1px solid #b8c4d2 !important;
+}
+
+[data-theme="light"] .table-responsive-scroll tbody tr:nth-child(even) td {
+  background-color: #fbfcfe;
+}
+
+[data-theme="light"] .erp-order-badge {
+  color: #4338ca !important;
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+
+[data-theme="light"] .erp-serial-badge {
+  color: #0369a1 !important;
+  background: #f0f9ff !important;
+  border-color: #bae6fd !important;
+}
+
+/* Dotted focus ring on active/clicked cell (like '9.00' in screenshot) */
+.erp-td:active,
+.erp-td:focus,
+.erp-td.cell-active {
+  outline: 2px dotted #1d4ed8 !important;
+  outline-offset: -2px;
+}
+[data-theme="dark"] .erp-td:active,
+[data-theme="dark"] .erp-td:focus,
+[data-theme="dark"] .erp-td.cell-active {
+  outline: 2px dotted #38bdf8 !important;
+  outline-offset: -2px;
 }

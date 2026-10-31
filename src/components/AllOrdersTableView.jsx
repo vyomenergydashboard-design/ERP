@@ -9,7 +9,7 @@ import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, AlertTriangle,
-  Edit2, Pause, PackageCheck
+  Edit2, Pause, PackageCheck, Maximize2
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import WiremenMultiSelect from './WiremenMultiSelect';
@@ -17,7 +17,16 @@ import ProductionDateTimeCell from './ProductionDateTimeCell';
 import ProductionBatchBar from './ProductionBatchBar';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
-import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
+import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth, calculateAllOptimalWidths } from './tableColumnSizing';
+
+const TEXT_WRAPPABLE_COLS = new Set([
+  'company_name',
+  'project_name',
+  'end_client_name',
+  'material_description',
+  'panel_comments',
+  'comments'
+]);
 
 const PRIORITY_ORDER = { Urgent: 0, High: 1, Medium: 2, Low: 3 };
 
@@ -421,6 +430,7 @@ function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave, onDele
           {canEdit && currentValue && (
             <button
               type="button"
+              className="erp-panel-size-del-btn"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete?.(unit);
@@ -1066,9 +1076,10 @@ function renderCellContent({
   switch (colKey) {
     case 'order_number': {
       return (
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'nowrap', whiteSpace: 'nowrap' }}>
           <span
             className="erp-order-badge"
+            style={{ whiteSpace: 'nowrap', wordBreak: 'keep-all', flexShrink: 0 }}
             onClick={(e) => { e.stopPropagation(); onRowClick(unit.order_id, effectiveUnitId); }}
           >
             {unit.order_number}
@@ -1130,7 +1141,7 @@ function renderCellContent({
     case 'company_name': {
       return (
         <div
-          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          style={{ overflowWrap: 'break-word', wordBreak: 'normal', whiteSpace: 'normal', lineHeight: 1.3 }}
         >
           <span style={{ fontWeight: 600, color: 'var(--text)' }}>{unit.company_name || '—'}</span>
           {unit.company_city && <span style={{ color: 'var(--text3)', fontWeight: 400, fontSize: 11, marginLeft: 4 }}>· {unit.company_city}</span>}
@@ -1502,7 +1513,9 @@ function renderCellContent({
             fontWeight: 600,
             color: hasPart ? 'var(--blue)' : 'var(--text3)',
             cursor: 'pointer',
-            textDecoration: hasPart ? 'underline' : 'none'
+            textDecoration: hasPart ? 'underline' : 'none',
+            whiteSpace: 'nowrap',
+            wordBreak: 'keep-all'
           }}
         >
           {unit.part_number || '—'}
@@ -2339,6 +2352,8 @@ function renderCellContent({
         canEdit && isEditableTextCol ? '(Click to edit)' : null
       ].filter(Boolean).join('\n');
 
+      const isWrappableText = ['project_name', 'end_client_name', 'material_description', 'panel_comments'].includes(colKey);
+
       return (
         <span
           onClick={(e) => {
@@ -2353,9 +2368,12 @@ function renderCellContent({
             fontSize: 12,
             cursor: canEdit && isEditableTextCol ? 'pointer' : 'default',
             display: 'block',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
+            overflow: isWrappableText ? 'visible' : 'hidden',
+            textOverflow: isWrappableText ? 'clip' : 'ellipsis',
+            whiteSpace: isWrappableText ? 'normal' : 'nowrap',
+            wordBreak: isWrappableText ? 'normal' : 'keep-all',
+            overflowWrap: isWrappableText ? 'break-word' : 'normal',
+            lineHeight: 1.3
           }}
         >
           {currentVal || '—'}
@@ -2442,36 +2460,40 @@ const TableRow = memo(function TableRow({
       }}
       onMouseEnter={(e) => onRowMouseEnter(unit.unit_id, idx, e)}
     >
-      {/* Selection Checkbox Cell — Sales Only */}
-      {showSelection && (
-        <td
-          style={{
-            position: 'sticky',
-            left: 0,
-            zIndex: 3,
-            background: checkboxBg,
-            width: 38,
-            minWidth: 38,
-            maxWidth: 38,
-            padding: '6px 4px',
-            textAlign: 'center',
-            verticalAlign: 'middle',
-            borderRight: '1px solid var(--border)',
-            borderLeft: isSelected ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'),
-            userSelect: 'none',
-            cursor: 'pointer'
-          }}
-          title={isSelected ? "Click to deselect row (or drag to deselect range)" : "Click to select row (or drag to select range)"}
-          onMouseDown={(e) => onRowMouseDown(unit.unit_id, idx, e)}
-        >
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => { }}
-            style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14, pointerEvents: 'none' }}
-          />
-        </td>
-      )}
+      {/* Row Index / Selection Cell — Spreadsheet Values Column */}
+      <td
+        className="erp-td-idx"
+        style={{
+          position: 'sticky',
+          left: 0,
+          zIndex: 4,
+          width: showSelection ? 68 : 58,
+          minWidth: showSelection ? 68 : 58,
+          maxWidth: showSelection ? 68 : 58,
+          padding: '4px 2px',
+          textAlign: 'center',
+          verticalAlign: 'middle',
+          userSelect: 'none',
+          cursor: showSelection ? 'pointer' : 'default',
+          borderLeft: isSelected ? '4px solid var(--blue)' : (isCancelled ? '4px solid var(--red)' : isHold ? '4px solid var(--orange)' : '4px solid transparent'),
+        }}
+        title={showSelection ? (isSelected ? "Click to deselect row (or drag to deselect range)" : "Click to select row (or drag to select range)") : `Row ${idx + 1}`}
+        onMouseDown={showSelection ? ((e) => onRowMouseDown(unit.unit_id, idx, e)) : undefined}
+      >
+        {showSelection ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => { }}
+              style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 13, height: 13, pointerEvents: 'none' }}
+            />
+            <span style={{ fontSize: 11, opacity: 0.9 }}>{idx + 1}</span>
+          </div>
+        ) : (
+          <span style={{ fontSize: 11.5 }}>{idx + 1}</span>
+        )}
+      </td>
 
       {visibleCols.map((c, colIdx) => {
         const colKey = c.key;
@@ -2493,6 +2515,8 @@ const TableRow = memo(function TableRow({
           ? (isSelected ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'))
           : undefined;
 
+        const isTextWrappable = TEXT_WRAPPABLE_COLS.has(colKey);
+
         return (
           <td
             key={colKey}
@@ -2505,15 +2529,19 @@ const TableRow = memo(function TableRow({
               minWidth: width,
               maxWidth: width,
               boxSizing: 'border-box',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              overflow: isTextWrappable ? 'visible' : 'hidden',
+              textOverflow: isTextWrappable ? 'clip' : 'ellipsis',
+              wordBreak: isTextWrappable ? 'normal' : 'keep-all',
+              overflowWrap: isTextWrappable ? 'break-word' : 'normal',
+              whiteSpace: isTextWrappable ? 'normal' : 'nowrap',
               verticalAlign: 'middle',
               position: pinned ? 'sticky' : 'relative',
               left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
               zIndex: pinned ? 3 : 1,
               background: pinned ? pinnedBg : undefined,
               borderLeft: borderLeftStyle,
+              borderRight: lastPin ? '2px solid var(--blue, #3b82f6)' : '1px solid var(--border-grid, var(--border))',
+              borderBottom: '1px solid var(--border-grid, var(--border))',
               textAlign: c.align || 'left'
             }}
           >
@@ -3659,24 +3687,36 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   // Column Widths (Resizing)
   const [columnWidths, setColumnWidths] = useState(() => {
     try {
-      const savedV15 = localStorage.getItem('erp_all_colWidths_v15');
-      if (savedV15) {
-        const parsed = JSON.parse(savedV15);
+      const savedV16 = localStorage.getItem('erp_all_colWidths_v16');
+      if (savedV16) {
+        const parsed = JSON.parse(savedV16);
         const merged = { ...DEFAULT_COL_WIDTHS };
         for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
           if (parsed[k] !== undefined) {
-            const minSafe = MIN_COL_WIDTHS[k] || 80;
+            const minSafe = MIN_COL_WIDTHS[k] || 85;
             merged[k] = Math.max(Number(parsed[k]) || minSafe, minSafe);
           }
         }
         for (const [k, v] of Object.entries(parsed)) {
           if (merged[k] === undefined && typeof v === 'number') {
-            merged[k] = Math.max(v, 80);
+            merged[k] = Math.max(v, MIN_COL_WIDTHS[k] || 85);
           }
         }
         return merged;
       }
-      // First load of v10: immediately adopt tight, calibrated DEFAULT_COL_WIDTHS
+      // Migrate from v15 if available, but clamp strictly to new safe MIN_COL_WIDTHS
+      const savedV15 = localStorage.getItem('erp_all_colWidths_v15');
+      if (savedV15) {
+        const parsed = JSON.parse(savedV15);
+        const merged = { ...DEFAULT_COL_WIDTHS };
+        for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
+          const minSafe = MIN_COL_WIDTHS[k] || 85;
+          if (parsed[k] !== undefined) {
+            merged[k] = Math.max(Number(parsed[k]) || (DEFAULT_COL_WIDTHS[k] || minSafe), minSafe);
+          }
+        }
+        return merged;
+      }
       return { ...DEFAULT_COL_WIDTHS };
     } catch (e) {
       return { ...DEFAULT_COL_WIDTHS };
@@ -3686,7 +3726,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(columnWidths));
+        localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(columnWidths));
       } catch (err) {
         console.error('Failed to save colWidths', err);
       }
@@ -3775,6 +3815,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_colWidths_v9');
     localStorage.removeItem('erp_all_colWidths_v10');
     localStorage.removeItem('erp_all_colWidths_v15');
+    localStorage.removeItem('erp_all_colWidths_v16');
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
@@ -3821,7 +3862,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setColumnWidths(prev => {
         const finalMap = { ...prev, [colKey]: latestWidth };
         try {
-          localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(finalMap));
+          localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(finalMap));
         } catch (err) {
           console.error('Failed to save colWidths', err);
         }
@@ -5556,10 +5597,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production views)
   const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView;
-  const SELECTION_COL_WIDTH = showRowSelection ? 38 : 0;
+  const INDEX_COL_WIDTH = showRowSelection ? 68 : 58;
   const stickyLeftMap = useMemo(() => {
     const map = {};
-    let currentLeft = SELECTION_COL_WIDTH;
+    let currentLeft = INDEX_COL_WIDTH;
     pinnedCols.forEach((c) => {
       const defaultWidth = DEFAULT_COL_WIDTHS[c.key] || (isDateTimeType(c.fieldType) ? 175 : 120);
       const width = columnWidths[c.key] || defaultWidth;
@@ -5567,7 +5608,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       currentLeft += width;
     });
     return map;
-  }, [pinnedCols, columnWidths, SELECTION_COL_WIDTH]);
+  }, [pinnedCols, columnWidths, INDEX_COL_WIDTH]);
 
   const isPinned = (colKey) => pinnedKeys.includes(colKey);
   const isLastPinned = (colKey) => pinnedCols.length > 0 && pinnedCols[pinnedCols.length - 1].key === colKey;
@@ -5586,14 +5627,15 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       boxSizing: 'border-box',
       overflow: 'hidden',
       textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
+      whiteSpace: isHeader ? 'normal' : 'nowrap',
       verticalAlign: 'middle',
       position: pinned ? 'sticky' : 'relative',
       left: pinned ? `${stickyLeftMap[colKey]}px` : undefined,
       zIndex: pinned ? (isHeader ? 24 : 3) : (isHeader ? 20 : 1),
-      background: isHeader ? 'var(--bg2)' : undefined,
+      background: isHeader ? 'var(--table-header-bg, var(--bg2))' : undefined,
       willChange: pinned ? 'transform' : undefined,
-      borderRight: lastPin ? '2px solid var(--blue, #3b82f6)' : undefined
+      borderRight: lastPin ? '2px solid var(--blue, #3b82f6)' : '1px solid var(--border-grid, var(--border))',
+      borderBottom: isHeader ? '2px solid var(--border-grid, var(--border))' : '1px solid var(--border-grid, var(--border))'
     };
   };
 
@@ -5612,6 +5654,17 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
   }, [units, selectedUnitIds, isIdSelected]);
 
+  const handleAutoFitAll = useCallback(() => {
+    const optimalWidths = calculateAllOptimalWidths(visibleCols, displayedUnits, allColumns, panelSizeMap, getUnitStatus);
+    setColumnWidths(prev => {
+      const updated = { ...prev, ...optimalWidths };
+      try {
+        localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(updated));
+      } catch (err) { }
+      return updated;
+    });
+  }, [visibleCols, displayedUnits, allColumns, panelSizeMap, getUnitStatus]);
+
   const handleAutoFitColumn = useCallback((colKey, e) => {
     if (e) {
       e.preventDefault();
@@ -5621,7 +5674,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setColumnWidths(prev => {
       const updated = { ...prev, [colKey]: finalWidth };
       try {
-        localStorage.setItem('erp_all_colWidths_v15', JSON.stringify(updated));
+        localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(updated));
       } catch (err) { }
       return updated;
     });
@@ -5957,6 +6010,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           Reset Layout
         </button>
 
+        {/* Auto-Fit All Columns Button */}
+        <button
+          onClick={handleAutoFitAll}
+          title="Auto-fit all column widths to snugly display complete content and wrapped headers"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5,
+            background: 'var(--bg3)', border: '1px solid var(--border)',
+            borderRadius: 8, padding: '7px 11px', fontSize: 12, color: 'var(--text)',
+            cursor: 'pointer', outline: 'none'
+          }}
+        >
+          <Maximize2 size={12} style={{ color: 'var(--blue)' }} />
+          Auto-Fit All
+        </button>
+
         {statCardFilter && (
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
@@ -6008,41 +6076,44 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         <table className="erp-master-table">
           <thead>
             <tr>
-              {/* Selection Checkbox Header — Sales & Purchase */}
-              {showRowSelection && (
-                <th
-                  className="erp-th"
-                  style={{
-                    position: 'sticky',
-                    left: 0,
-                    zIndex: 26,
-                    width: 38,
-                    minWidth: 38,
-                    maxWidth: 38,
-                    padding: '8px 4px',
-                    textAlign: 'center',
-                    verticalAlign: 'middle',
-                    borderBottom: '2px solid var(--border)',
-                    borderRight: '1px solid var(--border)',
-                    userSelect: 'none'
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id))}
-                    ref={el => {
-                      if (el) {
-                        const hasSome = displayedUnits.some(u => isIdSelected(u.unit_id));
-                        const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id));
-                        el.indeterminate = hasSome && !hasAll;
-                      }
-                    }}
-                    onChange={handleToggleSelectAll}
-                    style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14 }}
-                    title="Select / Deselect visible serial numbers"
-                  />
-                </th>
-              )}
+              {/* Row Index / Selection Header — Spreadsheet Values Column */}
+              <th
+                className="erp-th erp-th-idx"
+                style={{
+                  position: 'sticky',
+                  left: 0,
+                  zIndex: 26,
+                  width: INDEX_COL_WIDTH,
+                  minWidth: INDEX_COL_WIDTH,
+                  maxWidth: INDEX_COL_WIDTH,
+                  padding: '6px 4px',
+                  textAlign: 'center',
+                  verticalAlign: 'middle',
+                  userSelect: 'none'
+                }}
+              >
+                {showRowSelection ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    <input
+                      type="checkbox"
+                      checked={displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id))}
+                      ref={el => {
+                        if (el) {
+                          const hasSome = displayedUnits.some(u => isIdSelected(u.unit_id));
+                          const hasAll = displayedUnits.length > 0 && displayedUnits.every(u => isIdSelected(u.unit_id));
+                          el.indeterminate = hasSome && !hasAll;
+                        }
+                      }}
+                      onChange={handleToggleSelectAll}
+                      style={{ cursor: 'pointer', accentColor: 'var(--blue)', width: 14, height: 14 }}
+                      title="Select / Deselect visible serial numbers"
+                    />
+                    <span style={{ fontSize: 11, fontWeight: 700 }}>Sr.</span>
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 11.5, fontWeight: 700 }}>Sr.</span>
+                )}
+              </th>
               {visibleCols.map(({ key: colKey, label, align }) => {
                 const isPinned = pinnedKeys.includes(colKey);
                 const isOver = dragOverColKey === colKey;

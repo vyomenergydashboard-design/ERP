@@ -19,6 +19,22 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   const [logoName, setLogoName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom Process Flow');
   const [headerTitle, setHeaderTitle] = useState(() => localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
 
+  // Global Ctrl+K shortcut for Awesomebar
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        const input = searchRef.current?.querySelector('input');
+        if (input) {
+          input.focus();
+          setIsDropdownOpen(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Apply theme to document root
   useEffect(() => {
     const saved = localStorage.getItem('erp_theme');
@@ -234,19 +250,14 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         <div className="logo">{logoName}</div>
         <div className="header-title">{headerTitle}</div>
       </div>
-      <div className="header-right">
-        <div className="user-info">
-          <User size={14} className="user-icon" />
-          <span className="user-name">{user.username || 'User'}</span>
-          <span className={`role-badge role-${user.role?.toLowerCase()}`}>{user.role || 'Viewer'}</span>
-        </div>
 
+      <div className="header-center">
         <div className="order-selector" ref={searchRef}>
           <Search size={14} className="search-icon" />
           <input 
             type="text"
             className="order-search-input"
-            placeholder="Search Serial No., Order #, PO, Client..."
+            placeholder="Search Serial No., Order #, Client, PO... (Ctrl+K)"
             value={searchQuery}
             onFocus={() => setIsDropdownOpen(true)}
             onChange={(e) => {
@@ -320,7 +331,9 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
             </div>
           )}
         </div>
+      </div>
 
+      <div className="header-right">
         <div className="clock-wrapper">
           <Clock size={12} className="clock-icon" />
           <span>{time}</span>
@@ -333,6 +346,11 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           {isDark ? <Sun size={13} /> : <Moon size={13} />}
           <span className="theme-toggle-text">{isDark ? 'Light' : 'Dark'}</span>
         </button>
+        <div className="user-info">
+          <User size={14} className="user-icon" />
+          <span className="user-name">{user.username || 'User'}</span>
+          <span className={`role-badge role-${user.role?.toLowerCase()}`}>{user.role || 'Viewer'}</span>
+        </div>
         <button onClick={onLogout} className="logout-btn">
           <LogOut size={14} className="logout-icon" />
           <span className="logout-text">Logout</span>
@@ -359,11 +377,19 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           color: var(--accent);
           border-color: var(--accent);
         }
+        .header-center {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex: 1;
+          max-width: 480px;
+          margin: 0 16px;
+        }
         .order-selector {
           position: relative;
           display: flex;
           align-items: center;
-          margin-right: 16px;
+          width: 100%;
         }
         .order-search-input {
           background: var(--bg3);
@@ -371,8 +397,8 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           border-radius: 8px;
           color: var(--text);
           padding: 7px 30px 7px 34px;
-          font-size: 12px;
-          width: 270px;
+          font-size: 12.5px;
+          width: 100%;
           outline: none;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
