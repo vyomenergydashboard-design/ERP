@@ -8,23 +8,23 @@
  */
 
 export const DEFAULT_COL_WIDTHS = {
-  order_number: 108,
-  short_serial: 100,
-  company_name: 175,
-  project_name: 160,
+  order_number: 118,
+  short_serial: 108,
+  company_name: 180,
+  project_name: 155,
   po_number: 135,
   reference_number: 135,
   end_client_name: 145,
-  part_number: 135,
-  panel_code: 108,
-  panel_type_size: 145,
-  panel_ip_rating: 92,
-  panel_comments: 150,
-  material_description: 175,
-  classification: 180,
-  priority: 105,
-  delivery_date: 115,
-  unit_status: 125,
+  part_number: 145,
+  panel_code: 110,
+  panel_type_size: 160,
+  panel_ip_rating: 95,
+  panel_comments: 155,
+  material_description: 180,
+  classification: 185,
+  priority: 108,
+  delivery_date: 120,
+  unit_status: 130,
   purchase_cat_panel: 140,
   purchase_cat_automation: 140,
   purchase_cat_low_voltage: 140,
@@ -42,23 +42,23 @@ export const DEFAULT_COL_WIDTHS = {
 };
 
 export const MIN_COL_WIDTHS = {
-  order_number: 100,
-  short_serial: 92,
-  company_name: 130,
-  project_name: 110,
+  order_number: 108,
+  short_serial: 98,
+  company_name: 135,
+  project_name: 115,
   po_number: 115,
   reference_number: 115,
-  end_client_name: 110,
-  part_number: 115,
-  panel_code: 92,
-  panel_type_size: 125,
-  panel_ip_rating: 80,
-  panel_comments: 100,
-  material_description: 115,
-  classification: 165,
-  priority: 92,
-  delivery_date: 105,
-  unit_status: 115,
+  end_client_name: 115,
+  part_number: 125,
+  panel_code: 95,
+  panel_type_size: 140,
+  panel_ip_rating: 85,
+  panel_comments: 110,
+  material_description: 120,
+  classification: 170,
+  priority: 95,
+  delivery_date: 112,
+  unit_status: 118,
   purchase_cat_panel: 125,
   purchase_cat_automation: 125,
   purchase_cat_low_voltage: 125,
@@ -177,10 +177,26 @@ export function calculateOptimalColumnWidth(colKey, units = [], allColumns = [],
     'mounting_complete_date', 'wiring_start_date', 'wiring_complete_date', 'pending_material_complete_date',
     'handover_to_qc_date', 'delivery_date', 'po_number'].includes(colKey);
 
-  // Exact header width requirement:
-  // drag handle (10px) + gap (3px) + text + sort icon (12px) + gap (3px) + pin button (16px) + th padding (16px) + buffer (6px) = 56px
-  const headerTextWidth = estimateTextWidth(label, false, 11);
-  const headerTotal = headerTextWidth + 56;
+  // When headers wrap cleanly into up to 2 lines:
+  // Split multi-word labels into balanced lines so column name stays completely visible without forcing wide voids
+  const words = String(label).trim().split(/\s+/);
+  let effectiveHeaderCharCount = label.length;
+  if (words.length >= 2) {
+    let bestLineLen = label.length;
+    let running = '';
+    for (let i = 0; i < words.length; i++) {
+      running += (i > 0 ? ' ' : '') + words[i];
+      const remainder = words.slice(i + 1).join(' ');
+      const longest = Math.max(running.length, remainder.length);
+      if (longest < bestLineLen) {
+        bestLineLen = longest;
+      }
+    }
+    const maxSingleWord = Math.max(...words.map(w => w.length));
+    effectiveHeaderCharCount = Math.max(bestLineLen, maxSingleWord, 6);
+  }
+  const headerTextWidth = Math.ceil(effectiveHeaderCharCount * 11 * 0.55);
+  const headerTotal = headerTextWidth + 30;
 
   // Measure content from sample units
   const sampleUnits = units.slice(0, 100);
@@ -194,9 +210,11 @@ export function calculateOptimalColumnWidth(colKey, units = [], allColumns = [],
 
     // Realistic element accessory widths (icons, pills, badges)
     if (colKey === 'order_number') {
-      w += 34; // badge padding + paperclip button + gap
+      w += 32; // badge padding + paperclip button + gap
     } else if (colKey === 'short_serial' || colKey === 'unit_serial') {
       w += 22; // badge padding (0 6px) + border
+    } else if (colKey === 'panel_type_size') {
+      w += 36; // combobox padding + chevron + gaps
     } else if (colKey === 'classification') {
       w += 46; // dropdown chevron + confirm button badge with icon
     } else if (colKey === 'priority' || colKey === 'unit_status') {

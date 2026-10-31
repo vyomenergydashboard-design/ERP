@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { RefreshCw, CheckCircle2, Clock, AlertCircle, ChevronDown, ChevronRight, User, ArrowUpDown, ChevronUp } from 'lucide-react';
+import PageHeader from './layout/PageHeader';
+import Button from './common/Button';
+import SearchInput from './common/SearchInput';
+import StatusBadge from './feedback/StatusBadge';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
@@ -623,39 +627,32 @@ export default function DeptWorklist({ dept }) {
 
   return (
     <div style={{ padding: '4px 0' }}>
-      {/* Header bar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 20, flexWrap: 'wrap', gap: 12,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div>
-            <h2 style={{ margin: 0, color: 'var(--text)', fontSize: 20, fontWeight: 800 }}>
-              {dept} Worklist
-            </h2>
-            <div style={{ color: 'var(--text3)', fontSize: 12, marginTop: 2 }}>
-              {dept === 'Sales' 
-                ? `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total in system`
-                : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} visible in ${dept}`
-              }
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={() => fetchWorklist(true)}
-          disabled={refreshing}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            background: 'var(--bg4)', border: '1px solid var(--border2)',
-            color: 'var(--text2)', fontSize: 12, borderRadius: 8, padding: '7px 14px',
-            cursor: 'pointer', transition: 'all 0.2s',
-          }}
-        >
-          <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
-          Refresh
-        </button>
-      </div>
+      {/* ERPNext-style Page Header */}
+      <PageHeader
+        title={`${dept} Worklist`}
+        subtitle={
+          dept === 'Sales' 
+            ? `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total in system`
+            : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} in queue`
+        }
+        breadcrumbs={[
+          { label: 'Vyom ERP', onClick: () => window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'table' } })) },
+          { label: `${dept} Department` },
+          { label: 'Worklist Queue' }
+        ]}
+        actions={
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => fetchWorklist(true)}
+            loading={refreshing}
+            icon={RefreshCw}
+          >
+            Refresh Queue
+          </Button>
+        }
+        style={{ marginBottom: 16, borderRadius: 'var(--radius, 8px)' }}
+      />
 
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 20 }}>
@@ -679,19 +676,13 @@ export default function DeptWorklist({ dept }) {
       </div>
 
       {/* Search + filter bar */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <input
-          type="text"
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <SearchInput
           placeholder="Search by serial no., item, client..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          style={{
-            flex: 1, minWidth: 220, background: 'var(--bg4)', border: '1px solid var(--border2)',
-            borderRadius: 8, padding: '9px 14px', color: 'var(--text)', fontSize: 13,
-            outline: 'none', transition: 'border-color 0.2s',
-          }}
-          onFocus={e => e.target.style.borderColor = deptColor}
-          onBlur={e => e.target.style.borderColor = 'var(--border2)'}
+          size="sm"
+          style={{ flex: '1 1 240px', minWidth: 220 }}
         />
         <div style={{ display: 'flex', background: 'var(--bg4)', border: '1px solid var(--border2)', borderRadius: 8, overflow: 'hidden' }}>
           {['all', 'pending', 'inprogress', 'done', 'hold', 'cancelled'].map(f => (
