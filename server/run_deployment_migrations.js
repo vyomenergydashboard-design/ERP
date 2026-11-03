@@ -639,6 +639,61 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] QC columns migration error:', qcErr);
     }
 
+    // 19. Dispatch and Accounts Department columns:
+    // Dispatch: dispatch_date (Date)
+    // Accounts: invoice_number (Text), invoice_date (Date)
+    try {
+      await client.query(`
+        ALTER TABLE order_units 
+          ADD COLUMN IF NOT EXISTS dispatch_date DATE,
+          ADD COLUMN IF NOT EXISTS invoice_number TEXT,
+          ADD COLUMN IF NOT EXISTS invoice_date DATE;
+
+        ALTER TABLE order_line_items 
+          ADD COLUMN IF NOT EXISTS dispatch_date DATE,
+          ADD COLUMN IF NOT EXISTS invoice_number TEXT,
+          ADD COLUMN IF NOT EXISTS invoice_date DATE;
+
+        INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+          ('dispatch_date',  'Dispatch Date',  'Dispatch', 'Date', true, 40),
+          ('invoice_number', 'Invoice Number', 'Accounts', 'Text', true, 41),
+          ('invoice_date',   'Invoice Date',   'Accounts', 'Date', true, 42)
+        ON CONFLICT (col_key) DO UPDATE SET 
+          label = EXCLUDED.label, 
+          category = EXCLUDED.category, 
+          field_type = EXCLUDED.field_type;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
+          ('Dispatch', 'dispatch_date',  true),
+          ('Accounts', 'invoice_number', true),
+          ('Accounts', 'invoice_date',   true),
+          ('all',      'dispatch_date',  true),
+          ('all',      'invoice_number', true),
+          ('all',      'invoice_date',   true)
+        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible)
+        SELECT d.dept, c.col_key, false
+        FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Planning'), ('Production'), ('QC')) AS d(dept)
+        CROSS JOIN (VALUES 
+          ('dispatch_date'), 
+          ('invoice_number'), 
+          ('invoice_date')
+        ) AS c(col_key)
+        ON CONFLICT (dept, col_key) DO NOTHING;
+
+        -- Also hide invoice fields from Dispatch and dispatch_date from Accounts by default
+        INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
+          ('Dispatch', 'invoice_number', false),
+          ('Dispatch', 'invoice_date',   false),
+          ('Accounts', 'dispatch_date',  true)
+        ON CONFLICT (dept, col_key) DO NOTHING;
+      `);
+      console.log('[Deployment Migration] Dispatch (dispatch_date) and Accounts (invoice_number, invoice_date) columns established.');
+    } catch (daErr) {
+      console.error('[Deployment Migration] Dispatch and Accounts columns migration error:', daErr);
+    }
+
   } catch (err) {
     console.error('[Deployment Migration Error]:', err);
   } finally {
