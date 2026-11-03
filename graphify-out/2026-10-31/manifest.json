@@ -108,9 +108,9 @@
     "semantic_hash": "ac884a43bba6f7bac27ebd418e1a76a9"
   },
   "src/components/AllOrdersTableView.jsx": {
-    "mtime": 1793436703.6311517,
-    "seen": 1793436833.8383093,
-    "ast_hash": "f42db80207dc882484f31c2e563e8478",
+    "mtime": 1793438330.8269622,
+    "seen": 1793438402.6753066,
+    "ast_hash": "2190a64e94042b81c85b0bf0804a93c1",
     "semantic_hash": ""
   },
   "src/components/BoardView.jsx": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "src/components/Header.jsx": {
-    "mtime": 1793436768.3930447,
-    "seen": 1793436833.8446605,
-    "ast_hash": "3d39bf83175f4815cd572ff7073e0f6c",
+    "mtime": 1793436975.2897344,
+    "seen": 1793438402.6790268,
+    "ast_hash": "e42bdf464e5746b2049ff1c3288bc795",
     "semantic_hash": ""
   },
   "src/components/Login.jsx": {
@@ -312,9 +312,9 @@
     "semantic_hash": "46b95a2f49ed83b18a14fee6afa39d2b"
   },
   "index.html": {
-    "mtime": 1793436739.266832,
-    "seen": 1793436833.9048307,
-    "ast_hash": "4144bf196707cb03bf47a3f539171411",
+    "mtime": 1793436972.947371,
+    "seen": 1793438402.7155826,
+    "ast_hash": "9a582574d1b7586d5dcabea7e4a1c2b0",
     "semantic_hash": ""
   },
   "scratch/check_indexes.mjs": {
@@ -1476,9 +1476,9 @@
     "semantic_hash": ""
   },
   "src/components/tableColumnSizing.js": {
-    "mtime": 1793434471.3019137,
-    "seen": 1793434789.2120929,
-    "ast_hash": "1eef8f9f32887e0231f26e89442ee728",
+    "mtime": 1793437942.387664,
+    "seen": 1793438402.6910243,
+    "ast_hash": "d1d97567cc81576c6255f8d3e1c59c4e",
     "semantic_hash": ""
   },
   "server/test_production_batch_update.js": {

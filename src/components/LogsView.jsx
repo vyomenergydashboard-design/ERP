@@ -287,7 +287,15 @@ export default function LogsView() {
               filteredLogs.map(log => (
                 <tr key={log.id} style={{ borderBottom: '1px solid var(--border)' }} className="log-row">
                   <td style={{ padding: '16px', color: 'var(--text3)', whiteSpace: 'nowrap' }}>{formatDate(log.timestamp)}</td>
-                  <td style={{ padding: '16px', color: 'var(--text)', fontWeight: '600' }}>{log.username}</td>
+                  <td style={{ padding: '16px', color: 'var(--text)', fontWeight: '600' }}>
+                    {log.username === 'Deleted User' ? (
+                      <span style={{ color: 'var(--text3)', fontStyle: 'italic', fontWeight: '400' }}>
+                        Deleted User
+                      </span>
+                    ) : (
+                      log.username || 'System'
+                    )}
+                  </td>
                   <td style={{ padding: '16px' }}>
                     {log.order_number 
                       ? <span style={{ fontFamily: 'monospace', fontSize: '11px', background: 'var(--orange-dim)', color: 'var(--accent)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245,158,11,0.2)' }}>{log.order_number}</span>

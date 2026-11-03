@@ -39,6 +39,10 @@ export const DEFAULT_COL_WIDTHS = {
   wiring_complete_date: 172,
   pending_material_complete_date: 175,
   handover_to_qc_date: 172,
+  qc_receiving_date: 172,
+  qc_start_date: 172,
+  qc_complete_date: 172,
+  qc_status: 165,
 };
 
 export const MIN_COL_WIDTHS = {
@@ -73,6 +77,10 @@ export const MIN_COL_WIDTHS = {
   wiring_complete_date: 165,
   pending_material_complete_date: 165,
   handover_to_qc_date: 165,
+  qc_receiving_date: 165,
+  qc_start_date: 165,
+  qc_complete_date: 165,
+  qc_status: 145,
 };
 
 /**
