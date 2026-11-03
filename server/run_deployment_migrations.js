@@ -541,6 +541,104 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Resilient task cleanup warning:', cleanupErr);
     }
 
+    // 17. Ensure activity_logs preserves historical audit trail even when users are deleted
+    try {
+      // Add username_snapshot column
+      await client.query(`ALTER TABLE activity_logs ADD COLUMN IF NOT EXISTS username_snapshot TEXT`);
+
+      // Ensure user_id allows NULL
+      await client.query(`ALTER TABLE activity_logs ALTER COLUMN user_id DROP NOT NULL`);
+
+      // Backfill any existing logs' username_snapshot from active users
+      await client.query(`
+        UPDATE activity_logs l
+        SET username_snapshot = u.username
+        FROM users u
+        WHERE l.user_id = u.id AND l.username_snapshot IS NULL
+      `);
+
+      // Drop existing foreign key on activity_logs(user_id) if it was ON DELETE CASCADE
+      const fkRes = await client.query(`
+        SELECT tc.constraint_name 
+        FROM information_schema.table_constraints AS tc 
+        JOIN information_schema.key_column_usage AS kcu
+          ON tc.constraint_name = kcu.constraint_name
+          AND tc.table_schema = kcu.table_schema
+        WHERE tc.constraint_type = 'FOREIGN KEY' 
+          AND tc.table_name = 'activity_logs' 
+          AND kcu.column_name = 'user_id';
+      `);
+
+      for (const row of fkRes.rows) {
+        await client.query(`ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS "${row.constraint_name}"`);
+      }
+
+      // Add resilient ON DELETE SET NULL foreign key constraint
+      await client.query(`
+        ALTER TABLE activity_logs 
+        ADD CONSTRAINT activity_logs_user_id_fkey 
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      `);
+
+      console.log('[Deployment Migration] activity_logs ON DELETE SET NULL foreign key established.');
+    } catch (logFkErr) {
+      console.warn('[Deployment Migration] activity_logs foreign key notice:', logFkErr.message);
+    }
+
+    // 18. QC Department columns: qc_receiving_date, qc_start_date, qc_complete_date, qc_status
+    try {
+      await client.query(`
+        ALTER TABLE order_units 
+        ADD COLUMN IF NOT EXISTS qc_receiving_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS qc_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS qc_complete_date TIMESTAMPTZ;
+
+        ALTER TABLE order_line_items
+        ADD COLUMN IF NOT EXISTS qc_receiving_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS qc_start_date TIMESTAMPTZ,
+        ADD COLUMN IF NOT EXISTS qc_complete_date TIMESTAMPTZ;
+
+        ALTER TABLE order_units DROP CONSTRAINT IF EXISTS order_units_qc_status_check;
+        ALTER TABLE order_line_items DROP CONSTRAINT IF EXISTS order_line_items_qc_status_check;
+
+        INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+          ('qc_receiving_date', 'QC Receiving Date', 'QC', 'DateTime', true, 35),
+          ('qc_start_date',     'QC Start Date',     'QC', 'DateTime', true, 36),
+          ('qc_complete_date',  'QC Complete Date',  'QC', 'DateTime', true, 37)
+        ON CONFLICT (col_key) DO UPDATE SET 
+          label = EXCLUDED.label, 
+          category = EXCLUDED.category, 
+          field_type = EXCLUDED.field_type;
+
+        UPDATE column_masters SET category = 'QC', label = 'QC Status', field_type = 'Dropdown' WHERE col_key = 'qc_status';
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
+          ('QC',  'qc_receiving_date', true),
+          ('QC',  'qc_start_date',     true),
+          ('QC',  'qc_complete_date',  true),
+          ('QC',  'qc_status',         true),
+          ('all', 'qc_receiving_date', true),
+          ('all', 'qc_start_date',     true),
+          ('all', 'qc_complete_date',  true),
+          ('all', 'qc_status',         true)
+        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible)
+        SELECT d.dept, c.col_key, false
+        FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('Dispatch'), ('Accounts')) AS d(dept)
+        CROSS JOIN (VALUES 
+          ('qc_receiving_date'), 
+          ('qc_start_date'), 
+          ('qc_complete_date'), 
+          ('qc_status')
+        ) AS c(col_key)
+        ON CONFLICT (dept, col_key) DO NOTHING;
+      `);
+      console.log('[Deployment Migration] QC columns (qc_receiving_date, qc_start_date, qc_complete_date, qc_status) established.');
+    } catch (qcErr) {
+      console.error('[Deployment Migration] QC columns migration error:', qcErr);
+    }
+
   } catch (err) {
     console.error('[Deployment Migration Error]:', err);
   } finally {

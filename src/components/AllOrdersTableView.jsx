@@ -9,15 +9,16 @@ import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, AlertTriangle,
-  Edit2, Pause, PackageCheck, Maximize2
+  Edit2, Pause, PackageCheck
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import WiremenMultiSelect from './WiremenMultiSelect';
 import ProductionDateTimeCell from './ProductionDateTimeCell';
 import ProductionBatchBar from './ProductionBatchBar';
+import QcBatchBar from './QcBatchBar';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
-import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth, calculateAllOptimalWidths } from './tableColumnSizing';
+import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
 
 const TEXT_WRAPPABLE_COLS = new Set([
   'company_name',
@@ -85,6 +86,10 @@ const BASE_COLUMNS = [
   { key: 'wiring_complete_date', label: 'Wiring Complete', align: 'center', dept: 'Production' },
   { key: 'pending_material_complete_date', label: 'Pending Material', align: 'center', dept: 'Production' },
   { key: 'handover_to_qc_date', label: 'QC Handover', align: 'center', dept: 'Production' },
+  { key: 'qc_receiving_date', label: 'QC Receiving Date', align: 'center', dept: 'QC' },
+  { key: 'qc_start_date', label: 'QC Start Date', align: 'center', dept: 'QC' },
+  { key: 'qc_complete_date', label: 'QC Complete Date', align: 'center', dept: 'QC' },
+  { key: 'qc_status', label: 'QC Status', align: 'center', dept: 'QC' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -1011,11 +1016,23 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
     case 'wiring_start_date':
     case 'wiring_complete_date':
     case 'pending_material_complete_date':
-    case 'handover_to_qc_date': {
+    case 'handover_to_qc_date':
+    case 'qc_receiving_date':
+    case 'qc_start_date':
+    case 'qc_complete_date': {
       const val = unit[colKey] || unit.custom_fields?.[colKey];
       const colLabel = BASE_COLUMNS.find(c => c.key === colKey)?.label || colKey;
       return [
         `${colLabel}: ${val ? formatFastDateTime(val) : 'Not Set'}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+    }
+
+    case 'qc_status': {
+      const val = unit.qc_status || unit.custom_fields?.qc_status;
+      return [
+        `QC Status: ${val || 'Not Set'}`,
         unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
         `Order #: ${unit.order_number}`
       ].filter(Boolean).join('\n');
@@ -1440,7 +1457,10 @@ function renderCellContent({
     case 'wiring_start_date':
     case 'wiring_complete_date':
     case 'pending_material_complete_date':
-    case 'handover_to_qc_date': {
+    case 'handover_to_qc_date':
+    case 'qc_receiving_date':
+    case 'qc_start_date':
+    case 'qc_complete_date': {
       const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
       const colLabels = {
         mounting_start_date: 'Mounting Start Date',
@@ -1448,7 +1468,10 @@ function renderCellContent({
         wiring_start_date: 'Wiring Start',
         wiring_complete_date: 'Wiring Complete',
         pending_material_complete_date: 'Pending Material Complete',
-        handover_to_qc_date: 'Handover to QC'
+        handover_to_qc_date: 'Handover to QC',
+        qc_receiving_date: 'QC Receiving Date',
+        qc_start_date: 'QC Start Date',
+        qc_complete_date: 'QC Complete Date'
       };
       return (
         <ProductionDateTimeCell
@@ -1457,6 +1480,82 @@ function renderCellContent({
           canEdit={canEdit}
           onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
         />
+      );
+    }
+
+    case 'qc_status': {
+      const currentVal = unit.qc_status || unit.custom_fields?.qc_status || '';
+      const stNorm = String(currentVal).trim().toLowerCase().replace(/\s+/g, '');
+
+      let bg = 'rgba(100, 116, 139, 0.12)';
+      let color = '#94a3b8';
+      let border = 'rgba(100, 116, 139, 0.3)';
+
+      if (stNorm === 'labeling') {
+        bg = 'rgba(249, 115, 22, 0.12)';
+        color = 'var(--amber, #f59e0b)';
+        border = 'rgba(249, 115, 22, 0.3)';
+      } else if (stNorm === 'wirechecking') {
+        bg = 'rgba(20, 184, 166, 0.12)';
+        color = 'var(--teal, #14b8a6)';
+        border = 'rgba(20, 184, 166, 0.3)';
+      } else if (stNorm === 'inprocess' || stNorm === 'inprogress') {
+        bg = 'rgba(56, 189, 248, 0.12)';
+        color = 'var(--blue, #38bdf8)';
+        border = 'rgba(56, 189, 248, 0.3)';
+      } else if (stNorm === 'fatcompleted') {
+        bg = 'rgba(16, 185, 129, 0.12)';
+        color = 'var(--green, #10b981)';
+        border = 'rgba(16, 185, 129, 0.3)';
+      } else if (stNorm === 'handovertopacking') {
+        bg = 'rgba(168, 85, 247, 0.12)';
+        color = 'var(--purple, #a855f7)';
+        border = 'rgba(168, 85, 247, 0.3)';
+      }
+
+      if (canEdit) {
+        return (
+          <select
+            value={currentVal || ''}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => onSaveInlineCell(unit, 'qc_status', e.target.value)}
+            style={{
+              padding: '2px 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 'var(--radius-sm, 4px)',
+              background: bg,
+              color: color,
+              border: `1px solid ${border}`,
+              outline: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="" style={{ background: 'var(--bg3)', color: '#94a3b8' }}>— Select QC Status —</option>
+            <option value="Labeling" style={{ background: 'var(--bg3)', color: 'var(--amber, #f59e0b)' }}>Labeling</option>
+            <option value="WireChecking" style={{ background: 'var(--bg3)', color: 'var(--teal, #14b8a6)' }}>WireChecking</option>
+            <option value="In Process" style={{ background: 'var(--bg3)', color: 'var(--blue, #38bdf8)' }}>In Process</option>
+            <option value="FAT Completed" style={{ background: 'var(--bg3)', color: 'var(--green, #10b981)' }}>FAT Completed</option>
+            <option value="Handover to packing" style={{ background: 'var(--bg3)', color: 'var(--purple, #a855f7)' }}>Handover to packing</option>
+          </select>
+        );
+      }
+
+      return (
+        <span
+          style={{
+            display: 'inline-block',
+            padding: '2px 8px',
+            fontSize: 11,
+            fontWeight: 600,
+            borderRadius: 'var(--radius-sm, 4px)',
+            background: bg,
+            color: color,
+            border: `1px solid ${border}`
+          }}
+        >
+          {currentVal || '—'}
+        </span>
       );
     }
 
@@ -3884,7 +3983,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return localStorage.getItem('userRole') || 'Sales';
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
-  const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION', 'STORES', 'PURCHASE'].includes(roleUpper);
+  const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION', 'STORES', 'PURCHASE', 'QC', 'DISPATCH', 'ACCOUNTS'].includes(roleUpper);
   const canEditPurchaseNA = ['ADMIN', 'MANAGER', 'PURCHASE', 'STORES', 'DESIGN', 'SALES'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
@@ -3894,6 +3993,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const isStoresView = (currentFilter || '').toLowerCase() === 'stores' || (roleUpper === 'STORES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'stores'));
   const isSalesView = (currentFilter || '').toLowerCase() === 'sales' || (roleUpper === 'SALES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'sales'));
   const isProductionView = (currentFilter || '').toLowerCase() === 'production' || (roleUpper === 'PRODUCTION' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'production'));
+  const isQcView = (currentFilter || '').toLowerCase() === 'qc' || (roleUpper === 'QC' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'qc'));
 
   const currentUser = (() => {
     try {
@@ -4378,17 +4478,21 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     const targetUnitId = unit.unit_id || unit.id;
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
 
-    // Handle dedicated Production columns
-    const PRODUCTION_COLS = [
+    // Handle dedicated Production and QC columns
+    const PRODUCTION_AND_QC_COLS = [
       'wiremen',
       'mounting_start_date',
       'mounting_complete_date',
       'wiring_start_date',
       'wiring_complete_date',
       'pending_material_complete_date',
-      'handover_to_qc_date'
+      'handover_to_qc_date',
+      'qc_receiving_date',
+      'qc_start_date',
+      'qc_complete_date',
+      'qc_status'
     ];
-    if (PRODUCTION_COLS.includes(colKey)) {
+    if (PRODUCTION_AND_QC_COLS.includes(colKey)) {
       const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
       const finalVal = newValue || null;
 
@@ -4968,6 +5072,25 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       return deptMap ? deptMap[colKey] === true : false;
     }
 
+    const isQcCol = [
+      'qc_receiving_date',
+      'qc_start_date',
+      'qc_complete_date',
+      'qc_status'
+    ].includes(colKey);
+    if (isQcCol) {
+      if (currentFilter === 'QC') {
+        const deptMap = colVisibility['QC'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
     if (currentFilter === 'all') return true;
     const deptMap = colVisibility[currentFilter];
     if (!deptMap) return true;
@@ -5165,7 +5288,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         'tray_start_date', 'issued_date',
         'mounting_start_date', 'mounting_complete_date',
         'wiring_start_date', 'wiring_complete_date',
-        'pending_material_complete_date', 'handover_to_qc_date'
+        'pending_material_complete_date', 'handover_to_qc_date',
+        'qc_receiving_date', 'qc_start_date', 'qc_complete_date'
       ].includes(sortKey)) {
         av = a[sortKey] ? new Date(a[sortKey]).getTime() : Infinity;
         bv = b[sortKey] ? new Date(b[sortKey]).getTime() : Infinity;
@@ -5520,6 +5644,48 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }
   }, [units, isIdSelected, token, addToast, fetchUnits, allColumns]);
 
+  const handleBatchQcStatus = useCallback(async (newStatus) => {
+    const targetUnits = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
+    if (targetUnits.length === 0) {
+      if (addToast) addToast('Please select serial numbers to update QC status.', 'warning');
+      return;
+    }
+
+    const finalVal = newStatus || null;
+    const targetIds = targetUnits.map(u => u.unit_id || u.id);
+
+    setUnits(prev => prev.map(u => {
+      const uId = u.unit_id || u.id;
+      if (targetIds.includes(uId)) {
+        return { ...u, qc_status: finalVal };
+      }
+      return u;
+    }));
+
+    try {
+      const promises = targetIds.map(uId => {
+        return fetch(`${window.API_BASE}/api/units/${uId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ qc_status: finalVal })
+        });
+      });
+
+      await Promise.allSettled(promises);
+      if (addToast) {
+        addToast(`Updated QC Status to "${finalVal}" for ${targetIds.length} serial${targetIds.length > 1 ? 's' : ''}.`, 'success');
+      }
+      fetchUnits(true);
+    } catch (err) {
+      console.error('Failed to batch update qc_status:', err);
+      if (addToast) addToast(`Failed to update some serials: ${err.message}`, 'error');
+      fetchUnits(true);
+    }
+  }, [units, isIdSelected, token, addToast, fetchUnits]);
+
   const handleDeletePanelSize = useCallback((unit) => {
     if (!canEditPanelSize) {
       addToast("Only Design, Admin, and Manager roles can modify panel sizes.", 'warning');
@@ -5595,8 +5761,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
   const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production views)
-  const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView;
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production, QC views)
+  const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView || isQcView;
   const INDEX_COL_WIDTH = showRowSelection ? 68 : 58;
   const stickyLeftMap = useMemo(() => {
     const map = {};
@@ -5653,17 +5819,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (selectedUnitIds.size === 0) return [];
     return units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
   }, [units, selectedUnitIds, isIdSelected]);
-
-  const handleAutoFitAll = useCallback(() => {
-    const optimalWidths = calculateAllOptimalWidths(visibleCols, displayedUnits, allColumns, panelSizeMap, getUnitStatus);
-    setColumnWidths(prev => {
-      const updated = { ...prev, ...optimalWidths };
-      try {
-        localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(updated));
-      } catch (err) { }
-      return updated;
-    });
-  }, [visibleCols, displayedUnits, allColumns, panelSizeMap, getUnitStatus]);
 
   const handleAutoFitColumn = useCallback((colKey, e) => {
     if (e) {
@@ -5926,6 +6081,16 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           />
         )}
 
+        {/* ── Right side: QC Department Batch Bar ── */}
+        {isQcView && selectedUnitIds.size > 0 && (
+          <QcBatchBar
+            selectedCount={selectedUnitIds.size}
+            onClearSelection={() => setSelectedUnitIds(new Set())}
+            onBatchSetDate={handleBatchProductionDate}
+            onBatchSetStatus={handleBatchQcStatus}
+          />
+        )}
+
       </div>
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
@@ -6008,21 +6173,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         >
           <RotateCcw size={12} />
           Reset Layout
-        </button>
-
-        {/* Auto-Fit All Columns Button */}
-        <button
-          onClick={handleAutoFitAll}
-          title="Auto-fit all column widths to snugly display complete content and wrapped headers"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            background: 'var(--bg3)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '7px 11px', fontSize: 12, color: 'var(--text)',
-            cursor: 'pointer', outline: 'none'
-          }}
-        >
-          <Maximize2 size={12} style={{ color: 'var(--blue)' }} />
-          Auto-Fit All
         </button>
 
         {statCardFilter && (

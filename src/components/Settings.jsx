@@ -90,7 +90,85 @@ export default function SettingsView() {
     }, 800);
   };
 
+  const handleDownloadBackup = async () => {
+    setIsMaintenanceRunning(true);
+    setMaintenanceSuccess('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${window.API_BASE}/api/admin/backup`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.error || `Backup failed with status ${res.status}`);
+      }
+
+      const disposition = res.headers.get('Content-Disposition') || '';
+      let filename = `vyom_erp_backup_${new Date().toISOString().replace(/[:.]/g, '-')}.sql`;
+      const match = disposition.match(/filename="?([^";]+)"?/i);
+      if (match && match[1]) {
+        filename = match[1];
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      setMaintenanceSuccess(`Database backup downloaded successfully: ${filename}`);
+      setTimeout(() => setMaintenanceSuccess(''), 7000);
+    } catch (err) {
+      console.error('Database backup error:', err);
+      alert(`Database Backup Failed: ${err.message}`);
+    } finally {
+      setIsMaintenanceRunning(false);
+    }
+  };
+
+  const handleClearActivityLogs = async () => {
+    if (!window.confirm('Are you sure you want to clear all activity logs? This action cannot be undone.')) {
+      return;
+    }
+    setIsMaintenanceRunning(true);
+    setMaintenanceSuccess('');
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${window.API_BASE}/api/logs`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to clear activity logs');
+      }
+      setMaintenanceSuccess(`Activity logs cleared successfully (${data.purgedCount || 0} historical entries purged).`);
+      setTimeout(() => setMaintenanceSuccess(''), 7000);
+    } catch (err) {
+      console.error('Clear logs error:', err);
+      alert(`Failed to clear activity logs: ${err.message}`);
+    } finally {
+      setIsMaintenanceRunning(false);
+    }
+  };
+
   const handleSystemMaintenance = (action) => {
+    if (action === 'Backup Database') {
+      return handleDownloadBackup();
+    }
+    if (action === 'Clear Activity Logs') {
+      return handleClearActivityLogs();
+    }
+
     if (!window.confirm(`Are you sure you want to run: "${action}"? This action cannot be undone.`)) {
       return;
     }
@@ -99,12 +177,8 @@ export default function SettingsView() {
 
     setTimeout(() => {
       setIsMaintenanceRunning(false);
-      if (action === 'Clear Activity Logs') {
-        setMaintenanceSuccess('Activity logs cleared successfully (simulated).');
-      } else if (action === 'Reset Database') {
+      if (action === 'Reset Database') {
         setMaintenanceSuccess('Database reset and re-seeded successfully.');
-      } else if (action === 'Backup Database') {
-        setMaintenanceSuccess('Database backup generated: vyom_erp_backup_' + new Date().toISOString().split('T')[0] + '.sql');
       }
       setTimeout(() => setMaintenanceSuccess(''), 5000);
     }, 1200);

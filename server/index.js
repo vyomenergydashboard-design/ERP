@@ -12,6 +12,7 @@ import nodemailer from 'nodemailer';
 import { runDeploymentMigrations } from './run_deployment_migrations.js';
 import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
 import createWiremanMastersRouter from './routes/wiremanMasters.js';
+import createBackupRouter from './routes/backup.js';
 import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
 import { initEventStream, broadcastEvent } from './services/eventStream.js';
@@ -1117,6 +1118,9 @@ app.use('/api/purchase-orders', createPurchaseOrdersRouter(pool, authorize, deri
 // Wireman Masters API
 app.use('/api/wireman-masters', createWiremanMastersRouter(pool, authorize));
 
+// Database Backup API (Admin only)
+app.use('/api/admin/backup', createBackupRouter(pool, authorize));
+
 // Real-time Server-Sent Events stream for multi-user synchronization
 initEventStream(app, authorize);
 
@@ -1129,7 +1133,24 @@ app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
       'INSERT INTO users (username, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, username, email, role',
       [username, email, hashedPassword, role || 'Viewer']
     );
-    res.status(201).json(result.rows[0]);
+    const newUser = result.rows[0];
+
+    // Audit Log: User Creation
+    try {
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+         VALUES ($1, 'Admin', $2, $3)`,
+        [
+          req.user.id,
+          `Created user "${newUser.username}" (Role: ${newUser.role}, Email: ${newUser.email || 'None'})`,
+          req.user.username || 'Admin'
+        ]
+      );
+    } catch (logErr) {
+      console.warn('[Audit Log] Failed to log user creation:', logErr.message);
+    }
+
+    res.status(201).json(newUser);
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
@@ -1183,9 +1204,11 @@ app.get('/api/logs', authorize(), async (req, res) => {
   try {
     const limit = req.query.limit || '1000';
     let queryText = `
-      SELECT l.*, u.username, o.order_number 
+      SELECT l.*, 
+             COALESCE(u.username, l.username_snapshot, 'Deleted User') AS username, 
+             o.order_number 
       FROM activity_logs l 
-      JOIN users u ON l.user_id = u.id 
+      LEFT JOIN users u ON l.user_id = u.id 
       LEFT JOIN orders o ON l.order_id = o.id
       ORDER BY l.timestamp DESC
     `;
@@ -1207,13 +1230,38 @@ app.post('/api/logs', authorize(), async (req, res) => {
   const { dept, action_text, order_id } = req.body;
   try {
     const result = await pool.query(
-      'INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, order_id || null, dept, action_text]
+      'INSERT INTO activity_logs (user_id, order_id, dept, action_text, username_snapshot) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.user.id, order_id || null, dept, action_text, req.user.username || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/logs', authorize(['Admin']), async (req, res) => {
+  try {
+    const countRes = await pool.query('SELECT COUNT(*) as cnt FROM activity_logs');
+    const totalLogs = parseInt(countRes.rows[0]?.cnt, 10) || 0;
+
+    await pool.query('TRUNCATE TABLE activity_logs RESTART IDENTITY');
+
+    // Record initial audit entry documenting the wipe
+    await pool.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+       VALUES ($1, 'Admin', $2, $3)`,
+      [
+        req.user.id,
+        `Cleared system activity logs (${totalLogs} previous records purged)`,
+        req.user.username || 'Admin'
+      ]
+    );
+
+    res.json({ message: 'Activity logs cleared successfully', purgedCount: totalLogs });
+  } catch (err) {
+    console.error('Failed to clear activity logs:', err);
+    res.status(500).json({ error: 'Failed to clear activity logs' });
   }
 });
 
@@ -1239,7 +1287,24 @@ app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
       [role, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-    res.json(result.rows[0]);
+    const updatedUser = result.rows[0];
+
+    // Audit Log: User Role Change
+    try {
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+         VALUES ($1, 'Admin', $2, $3)`,
+        [
+          req.user.id,
+          `Changed role for user "${updatedUser.username}" to "${role}"`,
+          req.user.username || 'Admin'
+        ]
+      );
+    } catch (logErr) {
+      console.warn('[Audit Log] Failed to log role change:', logErr.message);
+    }
+
+    res.json(updatedUser);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -1258,6 +1323,23 @@ app.patch('/api/users/:id/password', authorize(['Admin']), async (req, res) => {
       [hashedPassword, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    const targetUser = result.rows[0];
+
+    // Audit Log: Password Reset
+    try {
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+         VALUES ($1, 'Admin', $2, $3)`,
+        [
+          req.user.id,
+          `Reset password for user "${targetUser.username}"`,
+          req.user.username || 'Admin'
+        ]
+      );
+    } catch (logErr) {
+      console.warn('[Audit Log] Failed to log password reset:', logErr.message);
+    }
+
     res.json({ message: 'Password updated successfully' });
   } catch (err) {
     console.error(err);
@@ -1296,7 +1378,24 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(result.rows[0]);
+    const updatedUser = result.rows[0];
+
+    // Audit Log: User Update
+    try {
+      await pool.query(
+        `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+         VALUES ($1, 'Admin', $2, $3)`,
+        [
+          req.user.id,
+          `Updated user "${updatedUser.username}" (Role: ${updatedUser.role}, Email: ${updatedUser.email})${password ? ' [Password Changed]' : ''}`,
+          req.user.username || 'Admin'
+        ]
+      );
+    } catch (logErr) {
+      console.warn('[Audit Log] Failed to log user update:', logErr.message);
+    }
+
+    res.json(updatedUser);
   } catch (err) {
     console.error(err);
     if (err.code === '23505') {
@@ -1322,15 +1421,28 @@ app.delete('/api/users/:id', authorize(['Admin']), async (req, res) => {
     await client.query('UPDATE documents SET uploaded_by = NULL WHERE uploaded_by = $1', [id]);
     await client.query('UPDATE unit_steps SET assigned_user_id = NULL WHERE assigned_user_id = $1', [id]);
 
-    const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id, username', [id]);
+    const result = await client.query('DELETE FROM users WHERE id = $1 RETURNING id, username, email, role', [id]);
 
     if (result.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const deletedUser = result.rows[0];
+
+    // Audit Log: User Deletion (logged under the executing Admin's credentials)
+    await client.query(
+      `INSERT INTO activity_logs (user_id, dept, action_text, username_snapshot) 
+       VALUES ($1, 'Admin', $2, $3)`,
+      [
+        req.user.id,
+        `Deleted user "${deletedUser.username}" (Role: ${deletedUser.role || 'Unknown'}, Email: ${deletedUser.email || 'None'})`,
+        req.user.username || 'Admin'
+      ]
+    );
+
     await client.query('COMMIT');
-    res.json({ message: 'User deleted successfully', deletedUser: result.rows[0] });
+    res.json({ message: 'User deleted successfully', deletedUser });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
@@ -4451,7 +4563,7 @@ app.put('/api/units/:id/status', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores', 'Production']), async (req, res) => {
+app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts']), async (req, res) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });
@@ -4462,7 +4574,8 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   const { 
     panel_type_size, classification, custom_fields, po_number, tag, reference_number, 
     tray_status, tray_start_date, issued_date,
-    wiremen, mounting_start_date, mounting_complete_date, wiring_start_date, wiring_complete_date, pending_material_complete_date, handover_to_qc_date
+    wiremen, mounting_start_date, mounting_complete_date, wiring_start_date, wiring_complete_date, pending_material_complete_date, handover_to_qc_date,
+    qc_receiving_date, qc_start_date, qc_complete_date, qc_status
   } = req.body;
 
   try {
@@ -4691,6 +4804,60 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(handover_to_qc_date || null);
       if (unit.line_item_id) {
         await pool.query('UPDATE order_line_items SET handover_to_qc_date = $1 WHERE id = $2', [handover_to_qc_date || null, unit.line_item_id]);
+      }
+      if (handover_to_qc_date) {
+        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        await pool.query(
+          `UPDATE unit_steps 
+           SET status = 'done', notes = 'Handover to QC completed', updated = $1 
+           WHERE order_unit_id = $2 AND dept = 'Production' AND status != 'done'`,
+          [updatedStr, realId]
+        );
+      } else if (handover_to_qc_date === null || handover_to_qc_date === '') {
+        const qcStarted = await pool.query(
+          `SELECT 1 FROM unit_steps WHERE order_unit_id = $1 AND dept = 'QC' AND status != 'pending' LIMIT 1`,
+          [realId]
+        );
+        if (qcStarted.rows.length === 0 && !checkUnit.rows[0]?.qc_receiving_date && !checkUnit.rows[0]?.qc_start_date) {
+          await pool.query(
+            `UPDATE unit_steps 
+             SET status = 'pending', notes = NULL 
+             WHERE order_unit_id = $1 AND dept = 'Production' AND notes = 'Handover to QC completed'`,
+            [realId]
+          );
+        }
+      }
+    }
+
+    if (qc_receiving_date !== undefined) {
+      updates.push(`qc_receiving_date = $${idx++}`);
+      values.push(qc_receiving_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET qc_receiving_date = $1 WHERE id = $2', [qc_receiving_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (qc_start_date !== undefined) {
+      updates.push(`qc_start_date = $${idx++}`);
+      values.push(qc_start_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET qc_start_date = $1 WHERE id = $2', [qc_start_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (qc_complete_date !== undefined) {
+      updates.push(`qc_complete_date = $${idx++}`);
+      values.push(qc_complete_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET qc_complete_date = $1 WHERE id = $2', [qc_complete_date || null, unit.line_item_id]);
+      }
+    }
+
+    if (qc_status !== undefined) {
+      updates.push(`qc_status = $${idx++}`);
+      values.push(qc_status || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET qc_status = $1 WHERE id = $2', [qc_status || null, unit.line_item_id]);
       }
     }
 
@@ -5068,6 +5235,10 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.wiring_complete_date,
         ou.pending_material_complete_date,
         ou.handover_to_qc_date,
+        ou.qc_receiving_date,
+        ou.qc_start_date,
+        ou.qc_complete_date,
+        ou.qc_status,
         ou.design_confirmed,
         ou.design_confirmed_at,
         ou.design_confirmed_by,
@@ -5208,7 +5379,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
          )
-         OR (ou.status IN ('Dispatched', 'Completed') AND $1 != 'Accounts')
+         OR ou.status IN ('Dispatched', 'Completed')
          OR ou.hold_status IN ('Hold', 'Cancelled')
          OR ou.status = 'Cancelled'
          OR ou.status ILIKE 'hold%'
@@ -5229,6 +5400,19 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
                    AND pus.dept = 'Production' 
                    AND pus.status != 'done'
                )
+           )
+         ))
+         OR ($1 IN ('QC', 'Dispatch', 'Accounts') AND (
+           ou.current_dept IN ('QC', 'Dispatch', 'Accounts')
+           OR ou.handover_to_qc_date IS NOT NULL
+           OR ou.qc_receiving_date IS NOT NULL
+           OR ou.qc_start_date IS NOT NULL
+           OR ou.qc_complete_date IS NOT NULL
+           OR (ou.qc_status IS NOT NULL AND ou.qc_status != 'Pending')
+           OR ou.status IN ('QC Testing', 'Ready for Dispatch', 'Dispatched', 'Completed')
+           OR (
+             EXISTS (SELECT 1 FROM unit_steps pus WHERE pus.order_unit_id = ou.id AND pus.dept = 'Production')
+             AND NOT EXISTS (SELECT 1 FROM unit_steps pus WHERE pus.order_unit_id = ou.id AND pus.dept = 'Production' AND pus.status != 'done')
            )
          ))
       ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
