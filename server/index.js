@@ -4575,7 +4575,8 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     panel_type_size, classification, custom_fields, po_number, tag, reference_number, 
     tray_status, tray_start_date, issued_date,
     wiremen, mounting_start_date, mounting_complete_date, wiring_start_date, wiring_complete_date, pending_material_complete_date, handover_to_qc_date,
-    qc_receiving_date, qc_start_date, qc_complete_date, qc_status
+    qc_receiving_date, qc_start_date, qc_complete_date, qc_status,
+    dispatch_date, invoice_number, invoice_date
   } = req.body;
 
   try {
@@ -4858,6 +4859,48 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(qc_status || null);
       if (unit.line_item_id) {
         await pool.query('UPDATE order_line_items SET qc_status = $1 WHERE id = $2', [qc_status || null, unit.line_item_id]);
+      }
+    }
+
+    if (dispatch_date !== undefined) {
+      updates.push(`dispatch_date = $${idx++}`);
+      values.push(dispatch_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET dispatch_date = $1 WHERE id = $2', [dispatch_date || null, unit.line_item_id]);
+      }
+      if (dispatch_date) {
+        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        await pool.query(
+          `UPDATE unit_steps 
+           SET status = 'done', notes = 'Dispatch completed', updated = $1 
+           WHERE order_unit_id = $2 AND dept = 'Dispatch' AND status != 'done'`,
+          [updatedStr, realId]
+        );
+      }
+    }
+
+    if (invoice_number !== undefined) {
+      updates.push(`invoice_number = $${idx++}`);
+      values.push(invoice_number ? String(invoice_number).trim() : null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET invoice_number = $1 WHERE id = $2', [invoice_number ? String(invoice_number).trim() : null, unit.line_item_id]);
+      }
+      if (invoice_number && String(invoice_number).trim()) {
+        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        await pool.query(
+          `UPDATE unit_steps 
+           SET status = 'done', notes = $1, updated = $2 
+           WHERE order_unit_id = $3 AND dept = 'Accounts' AND status != 'done'`,
+          [`Invoice: ${String(invoice_number).trim()}`, updatedStr, realId]
+        );
+      }
+    }
+
+    if (invoice_date !== undefined) {
+      updates.push(`invoice_date = $${idx++}`);
+      values.push(invoice_date || null);
+      if (unit.line_item_id) {
+        await pool.query('UPDATE order_line_items SET invoice_date = $1 WHERE id = $2', [invoice_date || null, unit.line_item_id]);
       }
     }
 
@@ -5239,6 +5282,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ou.qc_start_date,
         ou.qc_complete_date,
         ou.qc_status,
+        ou.dispatch_date,
+        ou.invoice_number,
+        ou.invoice_date,
         ou.design_confirmed,
         ou.design_confirmed_at,
         ou.design_confirmed_by,
@@ -5409,6 +5455,9 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
            OR ou.qc_start_date IS NOT NULL
            OR ou.qc_complete_date IS NOT NULL
            OR (ou.qc_status IS NOT NULL AND ou.qc_status != 'Pending')
+           OR ou.dispatch_date IS NOT NULL
+           OR ou.invoice_number IS NOT NULL
+           OR ou.invoice_date IS NOT NULL
            OR ou.status IN ('QC Testing', 'Ready for Dispatch', 'Dispatched', 'Completed')
            OR (
              EXISTS (SELECT 1 FROM unit_steps pus WHERE pus.order_unit_id = ou.id AND pus.dept = 'Production')

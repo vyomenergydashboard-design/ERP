@@ -291,7 +291,10 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('handover_to_qc_date',            'Handover to QC',            'Production', 'DateTime', true, 34),
   ('qc_receiving_date',              'QC Receiving Date',         'QC',         'DateTime', true, 35),
   ('qc_start_date',                  'QC Start Date',             'QC',         'DateTime', true, 36),
-  ('qc_complete_date',               'QC Complete Date',          'QC',         'DateTime', true, 37)
+  ('qc_complete_date',               'QC Complete Date',          'QC',         'DateTime', true, 37),
+  ('dispatch_date',                  'Dispatch Date',             'Dispatch',   'Date',     true, 38),
+  ('invoice_number',                 'Invoice Number',            'Accounts',   'Text',     true, 39),
+  ('invoice_date',                   'Invoice Date',              'Accounts',   'Date',     true, 40)
 ON CONFLICT (col_key) DO UPDATE SET 
   label = EXCLUDED.label, 
   category = EXCLUDED.category, 

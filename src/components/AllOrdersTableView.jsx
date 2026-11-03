@@ -90,6 +90,9 @@ const BASE_COLUMNS = [
   { key: 'qc_start_date', label: 'QC Start Date', align: 'center', dept: 'QC' },
   { key: 'qc_complete_date', label: 'QC Complete Date', align: 'center', dept: 'QC' },
   { key: 'qc_status', label: 'QC Status', align: 'center', dept: 'QC' },
+  { key: 'dispatch_date', label: 'Dispatch Date', align: 'center', dept: 'Dispatch' },
+  { key: 'invoice_number', label: 'Invoice #', align: 'center', dept: 'Accounts' },
+  { key: 'invoice_date', label: 'Invoice Date', align: 'center', dept: 'Accounts' },
 ];
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
@@ -1019,11 +1022,22 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
     case 'handover_to_qc_date':
     case 'qc_receiving_date':
     case 'qc_start_date':
-    case 'qc_complete_date': {
+    case 'qc_complete_date':
+    case 'dispatch_date':
+    case 'invoice_date': {
       const val = unit[colKey] || unit.custom_fields?.[colKey];
       const colLabel = BASE_COLUMNS.find(c => c.key === colKey)?.label || colKey;
       return [
-        `${colLabel}: ${val ? formatFastDateTime(val) : 'Not Set'}`,
+        `${colLabel}: ${val ? (colKey === 'dispatch_date' || colKey === 'invoice_date' ? formatFastDate(val) : formatFastDateTime(val)) : 'Not Set'}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+    }
+
+    case 'invoice_number': {
+      const val = unit.invoice_number || unit.custom_fields?.invoice_number;
+      return [
+        `Invoice Number: ${val || 'Not Set'}`,
         unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
         `Order #: ${unit.order_number}`
       ].filter(Boolean).join('\n');
@@ -1460,7 +1474,9 @@ function renderCellContent({
     case 'handover_to_qc_date':
     case 'qc_receiving_date':
     case 'qc_start_date':
-    case 'qc_complete_date': {
+    case 'qc_complete_date':
+    case 'dispatch_date':
+    case 'invoice_date': {
       const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
       const colLabels = {
         mounting_start_date: 'Mounting Start Date',
@@ -1471,7 +1487,9 @@ function renderCellContent({
         handover_to_qc_date: 'Handover to QC',
         qc_receiving_date: 'QC Receiving Date',
         qc_start_date: 'QC Start Date',
-        qc_complete_date: 'QC Complete Date'
+        qc_complete_date: 'QC Complete Date',
+        dispatch_date: 'Dispatch Date',
+        invoice_date: 'Invoice Date'
       };
       return (
         <ProductionDateTimeCell
@@ -1480,6 +1498,68 @@ function renderCellContent({
           canEdit={canEdit}
           onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
         />
+      );
+    }
+
+    case 'invoice_number': {
+      const isEditingThis = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'invoice_number';
+      const currentVal = unit.invoice_number || unit.custom_fields?.invoice_number || '';
+
+      if (isEditingThis) {
+        return (
+          <input
+            autoFocus
+            type="text"
+            defaultValue={editingCell.value !== undefined ? editingCell.value : currentVal}
+            onChange={(e) => setEditingCell({ ...editingCell, value: e.target.value })}
+            onBlur={() => onSaveInlineCell(unit, 'invoice_number', editingCell.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') onSaveInlineCell(unit, 'invoice_number', editingCell.value);
+              if (e.key === 'Escape') setEditingCell(null);
+            }}
+            style={{
+              padding: '3px 8px',
+              fontSize: 12,
+              background: 'var(--bg3)',
+              color: 'var(--text)',
+              border: '1px solid var(--blue)',
+              borderRadius: 4,
+              width: '90%',
+              maxWidth: 140,
+              textAlign: 'center',
+              outline: 'none'
+            }}
+            placeholder="INV-XXXX"
+          />
+        );
+      }
+
+      return (
+        <span
+          onClick={(e) => {
+            if (canEdit) {
+              e.stopPropagation();
+              setEditingCell({ unitId: effectiveUnitId, colKey: 'invoice_number', value: currentVal });
+            }
+          }}
+          title={canEdit ? 'Click to edit Invoice Number' : (currentVal || 'No invoice number')}
+          style={{
+            cursor: canEdit ? 'pointer' : 'default',
+            color: currentVal ? 'var(--text)' : 'var(--text3)',
+            fontWeight: currentVal ? 600 : 400,
+            fontSize: 12,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2px 8px',
+            borderRadius: 4,
+            background: currentVal ? 'rgba(56, 189, 248, 0.08)' : 'transparent',
+            border: currentVal ? '1px solid rgba(56, 189, 248, 0.2)' : '1px dashed rgba(255, 255, 255, 0.1)',
+            minWidth: 70
+          }}
+        >
+          {currentVal || '—'}
+        </span>
       );
     }
 
@@ -3994,6 +4074,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const isSalesView = (currentFilter || '').toLowerCase() === 'sales' || (roleUpper === 'SALES' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'sales'));
   const isProductionView = (currentFilter || '').toLowerCase() === 'production' || (roleUpper === 'PRODUCTION' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'production'));
   const isQcView = (currentFilter || '').toLowerCase() === 'qc' || (roleUpper === 'QC' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'qc'));
+  const isDispatchView = (currentFilter || '').toLowerCase() === 'dispatch' || (roleUpper === 'DISPATCH' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'dispatch'));
+  const isAccountsView = (currentFilter || '').toLowerCase() === 'accounts' || (roleUpper === 'ACCOUNTS' && (currentFilter === 'all' || (currentFilter || '').toLowerCase() === 'accounts'));
 
   const currentUser = (() => {
     try {
@@ -4490,7 +4572,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       'qc_receiving_date',
       'qc_start_date',
       'qc_complete_date',
-      'qc_status'
+      'qc_status',
+      'dispatch_date',
+      'invoice_number',
+      'invoice_date'
     ];
     if (PRODUCTION_AND_QC_COLS.includes(colKey)) {
       const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
@@ -5091,6 +5176,34 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       return deptMap ? deptMap[colKey] === true : false;
     }
 
+    const isDispatchCol = ['dispatch_date'].includes(colKey);
+    if (isDispatchCol) {
+      if (currentFilter === 'Dispatch') {
+        const deptMap = colVisibility['Dispatch'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
+    const isAccountsCol = ['invoice_number', 'invoice_date'].includes(colKey);
+    if (isAccountsCol) {
+      if (currentFilter === 'Accounts') {
+        const deptMap = colVisibility['Accounts'];
+        return deptMap ? deptMap[colKey] !== false : true;
+      }
+      if (currentFilter === 'all') {
+        const allMap = colVisibility['all'];
+        return allMap ? allMap[colKey] !== false : true;
+      }
+      const deptMap = colVisibility[currentFilter];
+      return deptMap ? deptMap[colKey] === true : false;
+    }
+
     if (currentFilter === 'all') return true;
     const deptMap = colVisibility[currentFilter];
     if (!deptMap) return true;
@@ -5289,7 +5402,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         'mounting_start_date', 'mounting_complete_date',
         'wiring_start_date', 'wiring_complete_date',
         'pending_material_complete_date', 'handover_to_qc_date',
-        'qc_receiving_date', 'qc_start_date', 'qc_complete_date'
+        'qc_receiving_date', 'qc_start_date', 'qc_complete_date',
+        'dispatch_date', 'invoice_date'
       ].includes(sortKey)) {
         av = a[sortKey] ? new Date(a[sortKey]).getTime() : Infinity;
         bv = b[sortKey] ? new Date(b[sortKey]).getTime() : Infinity;
@@ -5761,8 +5875,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const unpinnedCols = useMemo(() => activeCols.filter(c => !pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
   const visibleCols = useMemo(() => [...pinnedCols, ...unpinnedCols], [pinnedCols, unpinnedCols]);
 
-  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production, QC views)
-  const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView || isQcView;
+  // Calculate cumulative left offsets for pinned columns (offset by selection column width in Sales, Purchase, Stores, Production, QC, Dispatch, Accounts views)
+  const showRowSelection = isSalesView || isPurchaseView || isStoresView || isProductionView || isQcView || isDispatchView || isAccountsView;
   const INDEX_COL_WIDTH = showRowSelection ? 68 : 58;
   const stickyLeftMap = useMemo(() => {
     const map = {};

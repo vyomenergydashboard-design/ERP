@@ -43,6 +43,9 @@ export const DEFAULT_COL_WIDTHS = {
   qc_start_date: 172,
   qc_complete_date: 172,
   qc_status: 165,
+  dispatch_date: 160,
+  invoice_number: 145,
+  invoice_date: 140,
 };
 
 export const MIN_COL_WIDTHS = {
@@ -81,6 +84,9 @@ export const MIN_COL_WIDTHS = {
   qc_start_date: 165,
   qc_complete_date: 165,
   qc_status: 145,
+  dispatch_date: 120,
+  invoice_number: 110,
+  invoice_date: 110,
 };
 
 /**
