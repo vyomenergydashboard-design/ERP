@@ -77,6 +77,9 @@
   --row-selected-hover-bg-alt: #2a4057;
   --row-hold-hover-bg: #383025;
   --row-cancelled-hover-bg: #38242f;
+  --row-active-bg: #1e3a5f;
+  --row-cancelled-active-bg: #3d242e;
+  --row-hold-active-bg: #3d3420;
 
   /* Theme toggle icon */
   --theme-icon: '☀️';
@@ -165,6 +168,9 @@
   --row-selected-hover-bg-alt: #b8d4fa;
   --row-hold-hover-bg: #fef0b8;
   --row-cancelled-hover-bg: #fed7d7;
+  --row-active-bg: #e0f2fe;
+  --row-cancelled-active-bg: #fee2e2;
+  --row-hold-active-bg: #fef3c7;
 
   /* Theme toggle icon */
   --theme-icon: '';
@@ -3309,9 +3315,9 @@ body.resizing-active * {
 
 /* Selected rows (100% opaque) */
 
-/* Active / Clicked row highlight (inspection highlight without batch selection) */
+/* Active / Clicked row highlight (100% OPAQUE SOLID BACKGROUND — prevents sticky bleed-through) */
 .table-responsive-scroll tbody tr.row-active td {
-  background-color: var(--row-active-bg) !important;
+  background-color: var(--row-active-bg, #e0f2fe) !important;
   box-shadow: inset 0 2px 0 var(--blue), inset 0 -2px 0 var(--blue);
 }
 
@@ -3321,13 +3327,24 @@ body.resizing-active * {
 }
 
 .table-responsive-scroll tbody tr.row-active.row-cancelled td {
-  background-color: var(--row-cancelled-active-bg) !important;
+  background-color: var(--row-cancelled-active-bg, #fee2e2) !important;
   box-shadow: inset 0 2px 0 var(--blue), inset 0 -2px 0 var(--blue);
 }
 
 .table-responsive-scroll tbody tr.row-active.row-hold td {
-  background-color: var(--row-hold-active-bg) !important;
+  background-color: var(--row-hold-active-bg, #fef3c7) !important;
   box-shadow: inset 0 2px 0 var(--blue), inset 0 -2px 0 var(--blue);
+}
+
+/* Ensure sticky/pinned cells ALWAYS have 100% solid opaque background */
+.table-responsive-scroll tbody tr td.pinned,
+.table-responsive-scroll tbody tr td.erp-td-idx {
+  background-color: var(--bg2, #ffffff);
+}
+
+.table-responsive-scroll tbody tr:nth-child(odd) td.pinned,
+.table-responsive-scroll tbody tr:nth-child(odd) td.erp-td-idx {
+  background-color: var(--bg, #f8fafc);
 }
 
 .table-responsive-scroll tbody tr.row-selected td,
