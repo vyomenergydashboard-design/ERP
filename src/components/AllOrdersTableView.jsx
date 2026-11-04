@@ -19,6 +19,8 @@ import QcBatchBar from './QcBatchBar';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
 import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
+import TableHorizontalScrollbar from './TableHorizontalScrollbar';
+import TableVerticalScrollbar from './TableVerticalScrollbar';
 
 const TEXT_WRAPPABLE_COLS = new Set([
   'company_name',
@@ -3673,6 +3675,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     let scrollLeft;
 
     const handleMouseDown = (e) => {
+      if (e.button !== 0) return; // Only primary left-click for canvas drag
       if (
         ['INPUT', 'SELECT', 'OPTION', 'BUTTON', 'A', 'TH'].includes(e.target.tagName) ||
         e.target.closest('th') ||
@@ -3715,6 +3718,26 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       slider.removeEventListener('mouseleave', handleMouseLeave);
       slider.removeEventListener('mouseup', handleMouseUp);
       slider.removeEventListener('mousemove', handleMouseMove);
+    };
+  }, []);
+
+  // Mouse Wheel on Table Header scrolls horizontally
+  useEffect(() => {
+    const container = tableContainerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e) => {
+      // If cursor is hovering over table header (thead / th), convert wheel to horizontal scroll
+      const isHeader = e.target.closest('thead') || e.target.closest('.erp-th');
+      if (isHeader && e.deltaY && !e.shiftKey) {
+        e.preventDefault();
+        container.scrollLeft += e.deltaY * 1.3;
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
     };
   }, []);
 
@@ -5981,7 +6004,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
 
       {/* ── Tabs Bar (All Orders, Hold, Cancelled) ─────────────── */}
       <div style={{
@@ -5990,7 +6013,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         background: 'var(--bg2)',
         borderBottom: '1px solid var(--border)',
         padding: '0 16px',
-        gap: 6
+        gap: 6,
+        flexShrink: 0
       }}>
         {/* All Orders Tab */}
         <button
@@ -6001,9 +6025,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             border: 'none',
             borderBottom: activeTab === 'all' ? '2px solid var(--blue)' : '2px solid transparent',
             color: activeTab === 'all' ? 'var(--text)' : 'var(--text3)',
-            padding: '11px 16px',
+            padding: '6px 14px',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: activeTab === 'all' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -6034,9 +6058,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             border: 'none',
             borderBottom: activeTab === 'hold' ? '2px solid var(--orange)' : '2px solid transparent',
             color: activeTab === 'hold' ? 'var(--orange)' : 'var(--text3)',
-            padding: '11px 16px',
+            padding: '6px 14px',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: activeTab === 'hold' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -6071,9 +6095,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             border: 'none',
             borderBottom: activeTab === 'cancelled' ? '2px solid var(--red)' : '2px solid transparent',
             color: activeTab === 'cancelled' ? 'var(--red)' : 'var(--text3)',
-            padding: '11px 16px',
+            padding: '6px 14px',
             cursor: 'pointer',
-            fontSize: 13,
+            fontSize: 12,
             fontWeight: activeTab === 'cancelled' ? 600 : 500,
             display: 'flex',
             alignItems: 'center',
@@ -6234,16 +6258,17 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
         background: 'var(--bg2)', borderBottom: '1px solid var(--border)',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        flexShrink: 0
       }}>
 
         {/* Search */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           background: 'var(--bg3)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '7px 12px', flex: '1 1 200px', minWidth: 0
+          borderRadius: 6, padding: '4px 10px', flex: '1 1 180px', minWidth: 0
         }}>
           <Search size={13} style={{ color: 'var(--text3)', flexShrink: 0 }} />
           <input
@@ -6357,10 +6382,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       </div>
 
       {/* ── Table ───────────────────────────────────────────────── */}
+      {/* ── Table Area with Custom Scrollbars ─────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
       <div
         ref={tableContainerRef}
         className="table-responsive-scroll"
-        style={{ overflowX: 'auto', overflowY: 'auto', flex: 1 }}
+        style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0 }}
       >
         <table className="erp-master-table">
           <thead>
@@ -6424,6 +6452,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 return (
                   <th
                     key={colKey}
+                    data-col-key={colKey}
                     className={thClass}
                     draggable
                     onDragStart={(e) => handleHeaderDragStart(e, colKey)}
@@ -6620,6 +6649,12 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           </tbody>
         </table>
       </div>
+          <TableVerticalScrollbar containerRef={tableContainerRef} />
+        </div>
+
+      {/* ── High-Precision Custom Horizontal Scrollbar (Compact Dragger & Thick Track) ── */}
+      <TableHorizontalScrollbar containerRef={tableContainerRef} />
+      </div>
 
       {/* ── Table Footer & Pagination ── */}
       <div style={{
@@ -6632,7 +6667,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         fontSize: '12px',
         color: 'var(--text2)',
         flexWrap: 'wrap',
-        gap: 8
+        gap: 8,
+        flexShrink: 0
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span>
