@@ -2589,6 +2589,8 @@ function renderCellContent({
 }
 
 const TableRow = memo(function TableRow({
+  isActiveRow,
+  onRowClickHighlight,
   unit,
   idx,
   currentFilter,
@@ -2633,12 +2635,14 @@ const TableRow = memo(function TableRow({
 
   const baseBg = isAltRow ? 'var(--bg2)' : 'var(--bg)';
   const defaultBg = isSelected
-    ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
-    : isCancelled
-      ? (isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)')
-      : isHold
-        ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
-        : baseBg;
+    ? 'var(--row-selected-bg, #122038)'
+    : isActiveRow
+      ? (isCancelled ? 'var(--row-cancelled-active-bg, #fed7d7)' : isHold ? 'var(--row-hold-active-bg, #fde68a)' : 'var(--row-active-bg, #e0f2fe)')
+      : isCancelled
+        ? 'var(--row-cancelled-bg, #221417)'
+        : isHold
+          ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
+          : baseBg;
 
   const borderBottomColor = isCancelled
     ? 'rgba(239, 68, 68, 0.45)'
@@ -2649,11 +2653,12 @@ const TableRow = memo(function TableRow({
   const rowClass = [
     isCancelled ? 'row-cancelled' : '',
     isHold ? 'row-hold' : '',
-    isSelected ? 'row-selected' : ''
+    isSelected ? 'row-selected' : '',
+    isActiveRow ? 'row-active' : ''
   ].filter(Boolean).join(' ');
 
   const checkboxBg = isSelected
-    ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
+    ? 'var(--row-selected-bg, #122038)'
     : defaultBg;
 
   return (
@@ -2661,9 +2666,10 @@ const TableRow = memo(function TableRow({
       className={rowClass}
       style={{
         background: defaultBg,
-        cursor: 'default',
+        cursor: 'pointer',
         borderBottom: `1px solid ${borderBottomColor}`,
       }}
+      onClick={(e) => onRowClickHighlight(unit.unit_id, e)}
       onMouseEnter={(e) => onRowMouseEnter(unit.unit_id, idx, e)}
     >
       {/* Row Index / Selection Cell — Spreadsheet Values Column */}
@@ -2710,15 +2716,17 @@ const TableRow = memo(function TableRow({
 
         let pinnedBg = baseBg;
         if (isSelected) {
-          pinnedBg = isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)';
+          pinnedBg = 'var(--row-selected-bg, #122038)';
+        } else if (isActiveRow) {
+          pinnedBg = isCancelled ? 'var(--row-cancelled-active-bg, #fed7d7)' : isHold ? 'var(--row-hold-active-bg, #fde68a)' : 'var(--row-active-bg, #e0f2fe)';
         } else if (isCancelled) {
-          pinnedBg = isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)';
+          pinnedBg = 'var(--row-cancelled-bg, #221417)';
         } else if (isHold) {
           pinnedBg = isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)';
         }
 
         const borderLeftStyle = (!showSelection && colIdx === 0)
-          ? (isSelected ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'))
+          ? (isSelected ? '5px solid var(--blue)' : isActiveRow ? '5px solid var(--blue)' : (isCancelled ? '5px solid var(--red)' : isHold ? '5px solid var(--orange)' : '5px solid transparent'))
           : undefined;
 
         const isTextWrappable = TEXT_WRAPPABLE_COLS.has(colKey);
@@ -2789,6 +2797,7 @@ const TableRow = memo(function TableRow({
     </tr>
   );
 }, (prevProps, nextProps) => {
+  if (prevProps.isActiveRow !== nextProps.isActiveRow) return false;
   if (prevProps.isSelected !== nextProps.isSelected) return false;
   if (prevProps.unit !== nextProps.unit) return false;
   if (prevProps.currentFilter !== nextProps.currentFilter) return false;
@@ -3770,6 +3779,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   }, [sortDir]);
 
   // Excel-style multi-row selection state (persisted across browser refresh)
+  // Active / focused row highlight (clicked row inspection without batch selection)
+  const [activeRowId, setActiveRowId] = useState(null);
+
   const [selectedUnitIds, setSelectedUnitIds] = useState(() => {
     try {
       const saved = localStorage.getItem('erp_all_selectedUnitIds');
@@ -5083,6 +5095,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return;
+      setActiveRowId(null);
 
       // If any modal overlay is active, let the modal's Escape handler take precedence
       const hasOpenModal = Boolean(
@@ -5491,8 +5504,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return sorted.slice(start, start + pageSize);
   }, [sorted, pageSize, currentPage]);
 
+  const handleRowClickHighlight = useCallback((unitId, e) => {
+    if (!e || !e.target) return;
+    if (e.target.closest('button, select, input, a, textarea, .modal-overlay, [data-interactive], .interactive-cell')) return;
+    setActiveRowId(prev => (prev === unitId || String(prev) === String(unitId)) ? null : unitId);
+  }, []);
+
   const handleRowMouseDown = useCallback((unitId, idx, e) => {
-    if (e.button !== 0) return; // Only primary (left) mouse click
     if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return;
     if (e.target.closest('button') || e.target.closest('select') || e.target.closest('a') || e.target.closest('.modal-overlay')) return;
 
@@ -5536,7 +5554,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       else next.delete(unitId);
       return next;
     });
-  }, [displayedUnits, selectedUnitIds]);
+  }, [displayedUnits, selectedUnitIds, isIdSelected]);
 
   const handleRowMouseEnter = useCallback((unitId, idx, e) => {
     if (!isDraggingSelectRef.current || dragStartIdxRef.current === null) return;
@@ -6596,6 +6614,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 idx={idx}
                 currentFilter={currentFilter}
                 showSelection={showRowSelection}
+                isActiveRow={activeRowId === unit.unit_id || String(activeRowId) === String(unit.unit_id)}
+                onRowClickHighlight={handleRowClickHighlight}
                 isSelected={isIdSelected(unit.unit_id)}
                 status={getUnitStatus(unit)}
                 visibleCols={visibleCols}
