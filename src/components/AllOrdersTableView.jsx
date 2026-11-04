@@ -1022,13 +1022,22 @@ function getCellTooltip(unit, colKey, status, customColumnDefs = []) {
     case 'handover_to_qc_date':
     case 'qc_receiving_date':
     case 'qc_start_date':
-    case 'qc_complete_date':
+    case 'qc_complete_date': {
+      const val = unit[colKey] || unit.custom_fields?.[colKey];
+      const colLabel = BASE_COLUMNS.find(c => c.key === colKey)?.label || colKey;
+      return [
+        `${colLabel}: ${val ? formatFastDateTime(val) : 'Not Set'}`,
+        unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
+        `Order #: ${unit.order_number}`
+      ].filter(Boolean).join('\n');
+    }
+
     case 'dispatch_date':
     case 'invoice_date': {
       const val = unit[colKey] || unit.custom_fields?.[colKey];
       const colLabel = BASE_COLUMNS.find(c => c.key === colKey)?.label || colKey;
       return [
-        `${colLabel}: ${val ? (colKey === 'dispatch_date' || colKey === 'invoice_date' ? formatFastDate(val) : formatFastDateTime(val)) : 'Not Set'}`,
+        `${colLabel}: ${val ? formatFastDate(val) : 'Not Set'}`,
         unit.unit_serial ? `Serial: ${unit.unit_serial}` : null,
         `Order #: ${unit.order_number}`
       ].filter(Boolean).join('\n');
@@ -1474,9 +1483,7 @@ function renderCellContent({
     case 'handover_to_qc_date':
     case 'qc_receiving_date':
     case 'qc_start_date':
-    case 'qc_complete_date':
-    case 'dispatch_date':
-    case 'invoice_date': {
+    case 'qc_complete_date': {
       const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
       const colLabels = {
         mounting_start_date: 'Mounting Start Date',
@@ -1487,7 +1494,22 @@ function renderCellContent({
         handover_to_qc_date: 'Handover to QC',
         qc_receiving_date: 'QC Receiving Date',
         qc_start_date: 'QC Start Date',
-        qc_complete_date: 'QC Complete Date',
+        qc_complete_date: 'QC Complete Date'
+      };
+      return (
+        <ProductionDateTimeCell
+          value={currentVal}
+          label={colLabels[colKey] || colKey}
+          canEdit={canEdit}
+          onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
+        />
+      );
+    }
+
+    case 'dispatch_date':
+    case 'invoice_date': {
+      const currentVal = unit[colKey] || unit.custom_fields?.[colKey] || '';
+      const colLabels = {
         dispatch_date: 'Dispatch Date',
         invoice_date: 'Invoice Date'
       };
@@ -1496,7 +1518,10 @@ function renderCellContent({
           value={currentVal}
           label={colLabels[colKey] || colKey}
           canEdit={canEdit}
-          onSave={(newIso) => onSaveInlineCell(unit, colKey, newIso)}
+          dateOnly={true}
+          placeholder="+ Set Date"
+          title={`Click to edit ${colLabels[colKey] || colKey}`}
+          onSave={(newVal) => onSaveInlineCell(unit, colKey, newVal)}
         />
       );
     }
