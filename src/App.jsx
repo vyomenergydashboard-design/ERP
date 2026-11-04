@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Maximize2, Minimize2, PanelLeftClose } from 'lucide-react';
+import { Maximize2, Minimize2, PanelLeftClose, Eye, EyeOff } from 'lucide-react';
 import Header from './components/Header';
 import Sidenav from './components/Sidenav';
 import StatsRow from './components/StatsRow';
@@ -75,7 +75,8 @@ function Dashboard() {
   const [isPlanningFullscreen, setIsPlanningFullscreen] = useState(true);
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
   const [sidenavCollapsed, setSidenavCollapsed] = useState(() => window.innerWidth < 1200);
-  const [statCardFilter, setStatCardFilter] = useState(null); // 'all' | 'priority' | 'inprogress' | 'blocked' | 'due'
+  const [statCardFilter, setStatCardFilter] = useState(null);
+  const [showTableStats, setShowTableStats] = useState(() => localStorage.getItem('erp_show_table_stats') === 'true'); // 'all' | 'priority' | 'inprogress' | 'blocked' | 'due'
 
   const [selectedUnitId, setSelectedUnitId] = useState(() => {
     return localStorage.getItem('erp_selectedUnitId') || '';
@@ -442,8 +443,8 @@ function Dashboard() {
             collapsed={sidenavCollapsed}
           />
         )}
-        <main className="main">
-          {currentView !== 'planning' && (
+        <main className={`main${currentView === 'table' ? ' main-table-mode' : ''}`}>
+          {currentView !== 'planning' && (currentView !== 'table' || showTableStats) && (
             <StatsRow 
               steps={combinedSteps} 
               currentFilter={currentFilter} 
@@ -510,6 +511,22 @@ function Dashboard() {
                     <button className={`vbtn${currentView === 'table' ? ' active' : ''}`} onClick={() => navigateToView('table')}>Table</button>
                   </div>
                 )}
+                {currentView === 'table' && (
+                  <button
+                    type="button"
+                    className={`vbtn${showTableStats ? ' active' : ''}`}
+                    onClick={() => setShowTableStats(s => {
+                      const next = !s;
+                      localStorage.setItem('erp_show_table_stats', String(next));
+                      return next;
+                    })}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, padding: '4px 10px' }}
+                    title={showTableStats ? 'Hide KPI summary cards to show more panel rows' : 'Show KPI summary cards'}
+                  >
+                    {showTableStats ? <EyeOff size={13} /> : <Eye size={13} />}
+                    <span>{showTableStats ? 'Hide KPIs' : 'Show KPIs'}</span>
+                  </button>
+                )}
                 {currentView === 'planning' && (
                   <button
                     className={`vbtn${isPlanningFullscreen ? ' active' : ''}`}
@@ -522,7 +539,7 @@ function Dashboard() {
                 )}
               </>
             }
-            style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 'var(--radius, 8px)' }}
+            style={{ marginBottom: currentView === 'table' ? 6 : 16, padding: currentView === 'table' ? '6px 14px' : '10px 14px', borderRadius: 'var(--radius, 8px)' }}
           />
 
           <ErrorBoundary key={currentView} name={currentView.toUpperCase()}>
