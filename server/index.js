@@ -16,6 +16,7 @@ import createBackupRouter from './routes/backup.js';
 import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
 import { initEventStream, broadcastEvent } from './services/eventStream.js';
+import { safeEvaluateCondition } from './services/safeConditionEvaluator.js';
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1077,16 +1078,16 @@ const generateOrderNumber = async (client) => {
 };
 
 // Middleware for RBAC
-const authorize = (roles = []) => {
+const authorize = (roles = [], options = {}) => {
   return (req, res, next) => {
     let token = null;
     if (req.headers.authorization) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (req.query.token) {
+    } else if (options.allowQueryToken && req.query.token) {
       token = req.query.token;
     }
 
-    if (!token) return res.status(401).json({ error: 'No token provided' });
+    if (!token) return res.status(401).json({ error: 'No token provided in Authorization header' });
 
     jwt.verify(token, JWT_SECRET, async (err, decoded) => {
       if (err) return res.status(401).json({ error: 'Unauthorized' });
@@ -3221,8 +3222,7 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
 
           if (f.condition && String(f.condition).trim() !== '') {
             try {
-              const fn = new Function('$val', `return (${f.condition});`);
-              return !!fn(val);
+              return safeEvaluateCondition(f.condition, val);
             } catch (err) {
               console.error('Failed evaluating condition:', f.condition, err);
               return false;
@@ -4140,8 +4140,7 @@ app.get('/api/units/:unitId/steps', authorize(), async (req, res) => {
 
           if (f.condition && String(f.condition).trim() !== '') {
             try {
-              const fn = new Function('$val', `return (${f.condition});`);
-              return !!fn(val);
+              return safeEvaluateCondition(f.condition, val);
             } catch (err) {
               console.error('Failed evaluating condition:', f.condition, err);
               return false;
@@ -4582,7 +4581,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   try {
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
     const checkUnit = await pool.query(
-      'SELECT id, order_id, line_item_id, unit_id, tray_status, tray_start_date, issued_date FROM order_units WHERE id = $1 OR unit_id = $2',
+      'SELECT id, order_id, line_item_id, unit_id, tray_status, tray_start_date, issued_date, dispatch_date, invoice_number FROM order_units WHERE id = $1 OR unit_id = $2',
       [numId, String(id)]
     );
     if (checkUnit.rows.length === 0) {
@@ -4859,6 +4858,35 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       values.push(qc_status || null);
       if (unit.line_item_id) {
         await pool.query('UPDATE order_line_items SET qc_status = $1 WHERE id = $2', [qc_status || null, unit.line_item_id]);
+      }
+      const normQcStatus = String(qc_status || '').trim().toLowerCase();
+      if (normQcStatus === 'handover to packing') {
+        const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        await pool.query(
+          `UPDATE unit_steps 
+           SET status = 'done', notes = 'Handover to packing completed', updated = $1 
+           WHERE order_unit_id = $2 AND dept = 'QC' AND status != 'done'`,
+          [updatedStr, realId]
+        );
+        if (unit.order_id) {
+          await updateOrderQCStatusFromSteps(unit.order_id, pool);
+        }
+      } else {
+        const dispatchStarted = await pool.query(
+          `SELECT 1 FROM unit_steps WHERE order_unit_id = $1 AND dept IN ('Dispatch', 'Accounts') AND status != 'pending' LIMIT 1`,
+          [realId]
+        );
+        if (dispatchStarted.rows.length === 0 && !unit.dispatch_date && !unit.invoice_number) {
+          await pool.query(
+            `UPDATE unit_steps 
+             SET status = 'pending', notes = NULL 
+             WHERE order_unit_id = $1 AND dept = 'QC' AND notes = 'Handover to packing completed'`,
+            [realId]
+          );
+          if (unit.order_id) {
+            await updateOrderQCStatusFromSteps(unit.order_id, pool);
+          }
+        }
       }
     }
 
@@ -6374,6 +6402,20 @@ app.get('/api/units/:unitId/reference-documents', authorize(), async (req, res) 
   }
 });
 
+app.post('/api/documents/ticket', authorize(), async (req, res) => {
+  const { file } = req.body;
+  if (!file || typeof file !== 'string') {
+    return res.status(400).json({ error: 'File name is required' });
+  }
+  const safeName = path.basename(file).replace(/\0/g, '');
+  const ticket = jwt.sign(
+    { sub: 'download', file: safeName, userId: req.user.id },
+    JWT_SECRET,
+    { expiresIn: '60s' }
+  );
+  res.json({ ticket });
+});
+
 app.delete('/api/documents/:id', authorize(), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM documents WHERE id = $1', [req.params.id]);
@@ -7310,14 +7352,58 @@ const templateHandler = (req, res) => {
 app.get('/api/template/download', templateHandler);
 app.get('/api/template/order_import_template.xlsx', templateHandler);
 
-// Static files
-// Static files with Security Sandboxing
-app.use('/uploads', authorize(), (req, res, next) => {
+// Static files with Security Sandboxing & Scoped Download Tickets
+const authorizeUploadDownload = (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  next();
-}, express.static(path.join(__dirname, 'uploads'), {
+
+  // 1. Authorization: Bearer header
+  if (req.headers.authorization) {
+    const token = req.headers.authorization.split(' ')[1];
+    jwt.verify(token, JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).json({ error: 'Unauthorized' });
+      req.user = decoded;
+      return next();
+    });
+    return;
+  }
+
+  // 2. Short-lived scoped download ticket: ?ticket=...
+  if (req.query.ticket) {
+    const ticket = req.query.ticket;
+    jwt.verify(ticket, JWT_SECRET, (err, decoded) => {
+      if (err) {
+        return res.status(401).json({ error: 'Unauthorized: Download ticket expired or invalid' });
+      }
+      if (decoded.sub !== 'download') {
+        return res.status(403).json({ error: 'Forbidden: Invalid ticket type' });
+      }
+      const reqFile = path.basename(req.path);
+      if (decoded.file && decoded.file !== reqFile) {
+        return res.status(403).json({ error: 'Forbidden: Ticket does not match requested file' });
+      }
+      req.user = decoded;
+      return next();
+    });
+    return;
+  }
+
+  // 3. Fallback for backwards compatibility with existing direct links: ?token=...
+  if (req.query.token) {
+    const legacyToken = req.query.token;
+    jwt.verify(legacyToken, JWT_SECRET, (err, decoded) => {
+      if (err) return res.status(401).json({ error: 'Unauthorized' });
+      req.user = decoded;
+      return next();
+    });
+    return;
+  }
+
+  return res.status(401).json({ error: 'Unauthorized: No authorization header or valid download ticket provided' });
+};
+
+app.use('/uploads', authorizeUploadDownload, express.static(path.join(__dirname, 'uploads'), {
   dotfiles: 'ignore',
   index: false
 }));

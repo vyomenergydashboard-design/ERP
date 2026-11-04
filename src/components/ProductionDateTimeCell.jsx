@@ -31,6 +31,23 @@ export const formatCellDateTime = (val) => {
 };
 
 /**
+ * Format timestamp or date string to pure calendar Date: "DD/MM/YYYY"
+ */
+export const formatCellDate = (val) => {
+  if (!val) return '—';
+  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    const parts = val.split('-');
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return String(val);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+/**
  * Converts ISO/Date to local "HH:mm"
  */
 const getTimePart = (val) => {
@@ -81,13 +98,38 @@ export default function ProductionDateTimeCell({
   value,
   canEdit = false,
   onSave,
-  placeholder = '+ Set Date & Time',
-  title = 'Click to edit date & time'
+  label,
+  placeholder,
+  title,
+  dateOnly = false
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(() => (value ? new Date(value) : new Date()));
-  const [viewYear, setViewYear] = useState(() => (value ? new Date(value).getFullYear() : new Date().getFullYear()));
-  const [viewMonth, setViewMonth] = useState(() => (value ? new Date(value).getMonth() : new Date().getMonth()));
+  const [isHovered, setIsHovered] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (!value) return new Date();
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? new Date() : d;
+  });
+  const [viewYear, setViewYear] = useState(() => {
+    if (!value) return new Date().getFullYear();
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return Number(value.split('-')[0]);
+    }
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? new Date().getFullYear() : d.getFullYear();
+  });
+  const [viewMonth, setViewMonth] = useState(() => {
+    if (!value) return new Date().getMonth();
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return Number(value.split('-')[1]) - 1;
+    }
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? new Date().getMonth() : d.getMonth();
+  });
   const [timeStr, setTimeStr] = useState(() => getTimePart(value));
   const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
 
@@ -103,8 +145,16 @@ export default function ProductionDateTimeCell({
     if (!canEdit) return;
     e?.stopPropagation();
 
-    const d = value ? new Date(value) : new Date();
-    const validD = isNaN(d.getTime()) ? new Date() : d;
+    let validD = new Date();
+    if (value) {
+      if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        const [y, m, d] = value.split('-').map(Number);
+        validD = new Date(y, m - 1, d);
+      } else {
+        const d = new Date(value);
+        if (!isNaN(d.getTime())) validD = d;
+      }
+    }
 
     setSelectedDate(validD);
     setViewYear(validD.getFullYear());
@@ -113,9 +163,9 @@ export default function ProductionDateTimeCell({
 
     if (triggerRef.current) {
       const rect = triggerRef.current.getBoundingClientRect();
-      const popoverWidth = 260;
-      const popoverHeight = 310;
-      let left = rect.left;
+      const popoverWidth = 254;
+      const popoverHeight = dateOnly ? 250 : 310;
+      let left = rect.left + (rect.width - popoverWidth) / 2;
       let top = rect.bottom + 4;
 
       if (top + popoverHeight > window.innerHeight) {
@@ -123,6 +173,9 @@ export default function ProductionDateTimeCell({
       }
       if (left + popoverWidth > window.innerWidth) {
         left = Math.max(10, window.innerWidth - popoverWidth - 10);
+      }
+      if (left < 10) {
+        left = 10;
       }
       setPopoverPos({ top, left });
     }
@@ -185,6 +238,25 @@ export default function ProductionDateTimeCell({
     setSelectedDate(new Date(viewYear, viewMonth, day));
   };
 
+  const handleDayDoubleClick = (day, e) => {
+    e.stopPropagation();
+    if (dateOnly) {
+      const y = viewYear;
+      const m = String(viewMonth + 1).padStart(2, '0');
+      const d = String(day).padStart(2, '0');
+      onSave?.(`${y}-${m}-${d}`);
+      setIsEditing(false);
+    }
+  };
+
+  const handleToday = (e) => {
+    e.stopPropagation();
+    const now = new Date();
+    setSelectedDate(now);
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+  };
+
   const handleHourChange = (newHour) => {
     setTimeStr(formatTimeFromParts(newHour, curMinute, curAmpm));
   };
@@ -200,6 +272,14 @@ export default function ProductionDateTimeCell({
   const handleCommit = () => {
     if (!selectedDate || isNaN(selectedDate.getTime())) {
       onSave?.(null);
+      setIsEditing(false);
+      return;
+    }
+    if (dateOnly) {
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const d = String(selectedDate.getDate()).padStart(2, '0');
+      onSave?.(`${y}-${m}-${d}`);
       setIsEditing(false);
       return;
     }
@@ -258,51 +338,70 @@ export default function ProductionDateTimeCell({
     return slots;
   }, [firstDayOfWeek, daysInMonth, viewYear, viewMonth, selectedDate, today]);
 
+  const displayVal = useMemo(() => {
+    if (!value) return null;
+    return dateOnly ? formatCellDate(value) : formatCellDateTime(value);
+  }, [value, dateOnly]);
+
+  const defaultPlaceholder = dateOnly ? '+ Set Date' : '+ Set Date & Time';
+  const defaultTitle = dateOnly ? 'Click to edit date' : 'Click to edit date & time';
+
   return (
     <>
-      <span
+      <div
         ref={triggerRef}
         onClick={startEditing}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         style={{
-          color: value ? 'var(--text2)' : (canEdit ? 'var(--blue)' : 'var(--text3)'),
-          fontSize: 11.5,
-          fontFamily: 'var(--font-mono)',
-          cursor: canEdit ? 'pointer' : 'default',
-          display: 'inline-flex',
+          width: '100%',
+          height: '100%',
+          minHeight: 28,
+          display: 'flex',
           alignItems: 'center',
-          height: 24,
-          maxHeight: 24,
+          justifyContent: 'center',
+          cursor: canEdit ? 'pointer' : 'default',
+          margin: '-4px -6px',
+          padding: '4px 6px',
           boxSizing: 'border-box',
-          padding: canEdit ? '0 7px' : '0 2px',
-          borderRadius: 4,
-          background: isEditing
-            ? 'rgba(56, 189, 248, 0.15)'
-            : (value ? 'rgba(255, 255, 255, 0.03)' : (canEdit ? 'rgba(56, 189, 248, 0.06)' : 'transparent')),
-          border: isEditing
-            ? '1px solid var(--blue)'
-            : (value ? '1px solid rgba(255, 255, 255, 0.07)' : (canEdit ? '1px dashed rgba(56, 189, 248, 0.28)' : '1px solid transparent')),
-          whiteSpace: 'nowrap',
-          verticalAlign: 'middle',
-          transition: 'all 0.15s ease'
+          userSelect: 'none'
         }}
-        onMouseEnter={(e) => {
-          if (canEdit && !isEditing) {
-            e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
-            e.currentTarget.style.background = 'rgba(56, 189, 248, 0.08)';
-            e.currentTarget.style.color = 'var(--text)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (canEdit && !isEditing) {
-            e.currentTarget.style.borderColor = value ? 'rgba(255, 255, 255, 0.07)' : 'rgba(56, 189, 248, 0.28)';
-            e.currentTarget.style.background = value ? 'rgba(255, 255, 255, 0.03)' : 'rgba(56, 189, 248, 0.06)';
-            e.currentTarget.style.color = value ? 'var(--text2)' : 'var(--blue)';
-          }
-        }}
-        title={canEdit ? (value ? title : 'Click to set date & time') : undefined}
+        title={canEdit ? (value ? (title || defaultTitle) : (placeholder || defaultPlaceholder)) : undefined}
       >
-        {value ? formatCellDateTime(value) : (canEdit ? placeholder : '—')}
-      </span>
+        <span
+          style={{
+            color: value ? 'var(--text2)' : (canEdit ? 'var(--blue)' : 'var(--text3)'),
+            fontSize: 11.5,
+            fontFamily: 'var(--font-mono)',
+            cursor: canEdit ? 'pointer' : 'default',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 24,
+            maxHeight: 24,
+            boxSizing: 'border-box',
+            padding: canEdit ? '0 8px' : '0 2px',
+            borderRadius: 4,
+            background: isEditing
+              ? 'rgba(56, 189, 248, 0.15)'
+              : (isHovered && canEdit)
+                ? 'rgba(56, 189, 248, 0.08)'
+                : (value ? 'rgba(255, 255, 255, 0.03)' : (canEdit ? 'rgba(56, 189, 248, 0.06)' : 'transparent')),
+            border: isEditing
+              ? '1px solid var(--blue)'
+              : (isHovered && canEdit)
+                ? '1px solid rgba(56, 189, 248, 0.4)'
+                : (value ? '1px solid rgba(255, 255, 255, 0.07)' : (canEdit ? '1px dashed rgba(56, 189, 248, 0.28)' : '1px solid transparent')),
+            whiteSpace: 'nowrap',
+            verticalAlign: 'middle',
+            transition: 'all 0.15s ease',
+            width: '100%',
+            maxWidth: dateOnly ? 110 : 160
+          }}
+        >
+          {value ? displayVal : (canEdit ? (placeholder || defaultPlaceholder) : '—')}
+        </span>
+      </div>
 
       {/* Floating Calendar Popover rendered via Portal */}
       {isEditing && createPortal(
@@ -452,6 +551,8 @@ export default function ProductionDateTimeCell({
                   key={slot.key}
                   type="button"
                   onClick={(e) => handleSelectDay(day, e)}
+                  onDoubleClick={(e) => handleDayDoubleClick(day, e)}
+                  title={dateOnly ? "Click to select, double-click to save" : "Click to select"}
                   style={{
                     height: 26,
                     padding: 0,
@@ -490,93 +591,95 @@ export default function ProductionDateTimeCell({
           </div>
 
           {/* Time Selector Dropdowns Row (Select Hour, Minute, AM/PM instead of manual entry) */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '6px 8px',
-              borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-              background: 'rgba(0, 0, 0, 0.22)',
-              borderRadius: 6,
-              marginTop: 8
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text2, #94a3b8)' }}>
-              <Clock size={12} style={{ color: 'var(--blue, #38bdf8)' }} />
-              <span style={{ fontWeight: 600 }}>Time:</span>
+          {!dateOnly && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 8px',
+                borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+                background: 'rgba(0, 0, 0, 0.22)',
+                borderRadius: 6,
+                marginTop: 8
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text2, #94a3b8)' }}>
+                <Clock size={12} style={{ color: 'var(--blue, #38bdf8)' }} />
+                <span style={{ fontWeight: 600 }}>Time:</span>
+              </div>
+
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                {/* Hour Dropdown */}
+                <select
+                  value={curHour}
+                  onChange={(e) => handleHourChange(e.target.value)}
+                  style={{
+                    background: 'var(--bg3, #0f172a)',
+                    color: 'var(--text, #f8fafc)',
+                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                    borderRadius: 4,
+                    padding: '3px 4px',
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  {HOURS_12.map(h => (
+                    <option key={h} value={h} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
+
+                <span style={{ color: 'var(--text3, #64748b)', fontWeight: 700, fontSize: 11 }}>:</span>
+
+                {/* Minute Dropdown (00 to 59) */}
+                <select
+                  value={curMinute}
+                  onChange={(e) => handleMinuteChange(e.target.value)}
+                  style={{
+                    background: 'var(--bg3, #0f172a)',
+                    color: 'var(--text, #f8fafc)',
+                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                    borderRadius: 4,
+                    padding: '3px 4px',
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  {MINUTES.map(m => (
+                    <option key={m} value={m} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+
+                {/* AM / PM Dropdown */}
+                <select
+                  value={curAmpm}
+                  onChange={(e) => handleAmpmChange(e.target.value)}
+                  style={{
+                    background: 'var(--bg3, #0f172a)',
+                    color: 'var(--blue, #38bdf8)',
+                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                    borderRadius: 4,
+                    padding: '3px 4px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  <option value="AM" style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>AM</option>
+                  <option value="PM" style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>PM</option>
+                </select>
+              </div>
             </div>
-
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-              {/* Hour Dropdown */}
-              <select
-                value={curHour}
-                onChange={(e) => handleHourChange(e.target.value)}
-                style={{
-                  background: 'var(--bg3, #0f172a)',
-                  color: 'var(--text, #f8fafc)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                  borderRadius: 4,
-                  padding: '3px 4px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                {HOURS_12.map(h => (
-                  <option key={h} value={h} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
-                    {h}
-                  </option>
-                ))}
-              </select>
-
-              <span style={{ color: 'var(--text3, #64748b)', fontWeight: 700, fontSize: 11 }}>:</span>
-
-              {/* Minute Dropdown (00 to 59) */}
-              <select
-                value={curMinute}
-                onChange={(e) => handleMinuteChange(e.target.value)}
-                style={{
-                  background: 'var(--bg3, #0f172a)',
-                  color: 'var(--text, #f8fafc)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                  borderRadius: 4,
-                  padding: '3px 4px',
-                  fontSize: 11,
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                {MINUTES.map(m => (
-                  <option key={m} value={m} style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-
-              {/* AM / PM Dropdown */}
-              <select
-                value={curAmpm}
-                onChange={(e) => handleAmpmChange(e.target.value)}
-                style={{
-                  background: 'var(--bg3, #0f172a)',
-                  color: 'var(--blue, #38bdf8)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                  borderRadius: 4,
-                  padding: '3px 4px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  outline: 'none'
-                }}
-              >
-                <option value="AM" style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>AM</option>
-                <option value="PM" style={{ background: 'var(--bg2, #1e293b)', color: '#fff' }}>PM</option>
-              </select>
-            </div>
-          </div>
+          )}
 
           {/* Footer Actions — [✓ Save] button shifted to right bottom of the calendar */}
           <div
@@ -606,11 +709,28 @@ export default function ProductionDateTimeCell({
               >
                 Cancel
               </button>
+              <button
+                type="button"
+                onClick={handleToday}
+                title="Set to today"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  borderRadius: 4,
+                  padding: '4px 7px',
+                  fontSize: 11,
+                  color: 'var(--blue, #38bdf8)',
+                  cursor: 'pointer',
+                  fontWeight: 500
+                }}
+              >
+                Today
+              </button>
               {value && (
                 <button
                   type="button"
                   onClick={handleClear}
-                  title="Clear date & time"
+                  title={dateOnly ? "Clear date" : "Clear date & time"}
                   style={{
                     background: 'transparent',
                     border: 'none',
@@ -630,7 +750,7 @@ export default function ProductionDateTimeCell({
             <button
               type="button"
               onClick={handleCommit}
-              title="Save Date & Time (Enter)"
+              title={dateOnly ? "Save Date (Enter)" : "Save Date & Time (Enter)"}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

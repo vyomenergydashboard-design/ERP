@@ -62,7 +62,7 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
 
   // POST /api/purchase-orders
   // Saves a new vendor purchase order with assigned serial numbers
-  router.post('/', authorize(['Admin', 'Manager', 'Purchase', 'Stores', 'Viewer']), async (req, res) => {
+  router.post('/', authorize(['Admin', 'Manager', 'Purchase', 'Stores']), async (req, res) => {
     const { category, pos, serials, status = 'Pending' } = req.body;
 
     if (!category || !Array.isArray(pos) || pos.length === 0) {
@@ -147,7 +147,7 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
 
   // PATCH /api/purchase-orders/:id/status
   // Updates the receipt status of a specific vendor purchase order
-  router.patch('/:id/status', authorize(['Admin', 'Manager', 'Purchase', 'Stores', 'Viewer']), async (req, res) => {
+  router.patch('/:id/status', authorize(['Admin', 'Manager', 'Purchase', 'Stores']), async (req, res) => {
     const { id } = req.params;
     const { status, dateReceived } = req.body;
 
