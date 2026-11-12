@@ -358,31 +358,62 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        .header {
+          height: 56px;
+          min-height: 56px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 16px;
+          background: var(--header-bg, #ffffff);
+          border-bottom: 1px solid var(--header-border, #e2e8f0);
+          z-index: 50;
+        }
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
         .sidebar-toggle-btn {
-          background: transparent;
+          background: var(--bg3);
           border: 1px solid var(--border);
-          border-radius: var(--radius-sm, 4px);
+          border-radius: 8px;
           color: var(--text2);
           cursor: pointer;
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 28px;
-          height: 28px;
+          width: 36px;
+          height: 36px;
           transition: all 0.2s;
-          margin-right: 4px;
         }
         .sidebar-toggle-btn:hover {
           background: var(--bg4);
           color: var(--accent);
           border-color: var(--accent);
         }
+        .logo {
+          font-size: 14px;
+          font-weight: 700;
+          color: var(--text);
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+        }
+        .header-title {
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--text3);
+          border-left: 1px solid var(--border);
+          padding-left: 10px;
+          margin-left: 4px;
+          white-space: nowrap;
+        }
         .header-center {
           display: flex;
           align-items: center;
           justify-content: center;
           flex: 1;
-          max-width: 480px;
+          max-width: 460px;
           margin: 0 16px;
         }
         .order-selector {
@@ -390,13 +421,15 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           display: flex;
           align-items: center;
           width: 100%;
+          height: 36px;
         }
         .order-search-input {
           background: var(--bg3);
           border: 1px solid var(--border);
           border-radius: 8px;
           color: var(--text);
-          padding: 7px 30px 7px 34px;
+          padding: 0 32px 0 34px;
+          height: 36px;
           font-size: 12.5px;
           width: 100%;
           outline: none;
@@ -406,9 +439,9 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           border-color: var(--border2);
         }
         .order-search-input:focus {
-          border-color: var(--blue);
+          border-color: var(--accent, #f97316);
           background: var(--bg2);
-          box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+          box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.15);
         }
         .search-icon {
           position: absolute;
@@ -438,17 +471,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           overflow-y: auto;
           background: var(--bg2);
           border: 1px solid var(--border2);
-          border-radius: var(--radius-lg, 14px);
-          box-shadow: 0 12px 36px rgba(0,0,0,0.45);
+          border-radius: 10px;
+          box-shadow: 0 12px 32px rgba(0,0,0,0.18);
           z-index: 1000;
-          padding: 5px;
+          padding: 6px;
         }
         .search-dropdown-item {
           padding: 8px 12px;
           cursor: pointer;
           font-size: 12px;
           color: var(--text2);
-          border-radius: var(--radius-sm, 4px);
+          border-radius: 6px;
           margin-bottom: 2px;
           transition: background 0.15s, color 0.15s;
         }
@@ -458,12 +491,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         .search-dropdown-item.empty { color: var(--text3); text-align: center; font-style: italic; cursor: default; }
         .search-dropdown-item.empty:hover { background: transparent; }
         
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
         .user-info {
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-right: 14px;
-          padding: 4px 10px;
+          height: 36px;
+          padding: 0 12px;
           background: var(--bg3);
           border: 1px solid var(--border);
           border-radius: 8px;
@@ -472,20 +510,19 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           font-weight: 500;
         }
         .clock-wrapper {
-          margin-right: 14px;
+          height: 36px;
           font-family: var(--font-mono);
           font-size: 11.5px;
           font-weight: 600;
           letter-spacing: 0.4px;
-          color: var(--text, #f1f5f9);
+          color: var(--text);
           background: var(--bg3);
-          padding: 5px 10px;
-          border-radius: 6px;
-          border: 1px solid var(--border2);
+          padding: 0 12px;
+          border-radius: 8px;
+          border: 1px solid var(--border);
           display: inline-flex;
           align-items: center;
           gap: 6px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
         }
         .clock-icon {
           color: var(--accent, #f97316);
@@ -493,6 +530,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           flex-shrink: 0;
         }
         .theme-toggle-btn {
+          height: 36px;
           background: var(--bg3);
           border: 1px solid var(--border);
           border-radius: 8px;
@@ -500,8 +538,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           cursor: pointer;
           display: flex;
           align-items: center;
-          padding: 6px 10px;
-          margin-right: 8px;
+          padding: 0 12px;
           transition: all 0.15s;
           gap: 6px;
           font-size: 12px;
@@ -513,15 +550,17 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           border-color: var(--border2);
         }
         .logout-btn {
+          height: 36px;
           display: flex;
           align-items: center;
           gap: 6px;
           background: transparent;
           border: 1px solid var(--border);
           border-radius: 8px;
-          padding: 6px 12px;
+          padding: 0 14px;
           color: var(--text2);
           font-size: 12px;
+          font-weight: 500;
           cursor: pointer;
           transition: all 0.15s;
         }
@@ -561,14 +600,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
             display: none;
           }
           .theme-toggle-btn, .logout-btn {
-            padding: 6px;
-            margin-right: 4px;
-          }
-          .user-info {
-            margin-right: 8px;
-          }
-          .order-selector {
-            margin-right: 8px;
+            padding: 0 8px;
           }
         }
       `}} />

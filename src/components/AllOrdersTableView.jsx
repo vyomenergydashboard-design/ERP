@@ -9,7 +9,7 @@ import {
   Search, X, ArrowUpDown, ChevronUp, ChevronDown, Pin, GripVertical, RotateCcw, Check,
   UploadCloud, FileText, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, AlertTriangle,
-  Edit2, Pause, PackageCheck
+  Edit2, Pause, PackageCheck, Columns3
 } from 'lucide-react';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import WiremenMultiSelect from './WiremenMultiSelect';
@@ -4043,6 +4043,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setColumnKeys(allColumns.map(c => c.key));
     setColumnWidths(DEFAULT_COL_WIDTHS);
     setPinnedKeys(['order_number', 'short_serial']);
+    setUserHiddenColumns(new Set());
+    localStorage.removeItem('erp_user_hidden_columns');
     localStorage.removeItem('erp_all_column_order');
     localStorage.removeItem('erp_all_colWidths');
     localStorage.removeItem('erp_all_colWidths_v2');
@@ -4146,6 +4148,52 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   })();
 
   const [colVisibility, setColVisibility] = useState({});
+  const [userHiddenColumns, setUserHiddenColumns] = useState(() => {
+    try {
+      const saved = localStorage.getItem('erp_user_hidden_columns');
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+  const [isColumnMenuOpen, setIsColumnMenuOpen] = useState(false);
+  const [colSearchQuery, setColSearchQuery] = useState('');
+  const columnMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (columnMenuRef.current && !columnMenuRef.current.contains(e.target)) {
+        setIsColumnMenuOpen(false);
+      }
+    };
+    if (isColumnMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isColumnMenuOpen]);
+
+  const toggleColumnVisibility = (key) => {
+    setUserHiddenColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      try {
+        localStorage.setItem('erp_user_hidden_columns', JSON.stringify([...next]));
+      } catch (e) { }
+      return next;
+    });
+  };
+
+  const showAllColumns = () => {
+    setUserHiddenColumns(new Set());
+    try {
+      localStorage.removeItem('erp_user_hidden_columns');
+    } catch (e) { }
+  };
+
   const [editingCell, setEditingCell] = useState(null);
   const [partMasters, setPartMasters] = useState([]);
   const [panelSizeMasters, setPanelSizeMasters] = useState([]);
@@ -5168,6 +5216,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   };
 
   const isColVisible = (colKey) => {
+    if (userHiddenColumns.has(colKey)) return false;
     const isPurchaseCatCol = colKey.startsWith('purchase_cat_');
     if (isPurchaseCatCol) {
       if (currentFilter === 'Purchase') {
@@ -5934,7 +5983,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       .filter(key => isColVisible(key))
       .map(key => allColumns.find(c => c.key === key))
       .filter(Boolean);
-  }, [columnKeys, allColumns, isColVisible]);
+  }, [columnKeys, allColumns, isColVisible, userHiddenColumns]);
 
   // Partition active columns into Pinned (frozen on left) and Unpinned
   const pinnedCols = useMemo(() => activeCols.filter(c => pinnedKeys.includes(c.key)), [activeCols, pinnedKeys]);
@@ -6274,88 +6323,208 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       </div>
 
-      {/* ── Toolbar ─────────────────────────────────────────────── */}
+      {/* ── Modern Enterprise Toolbar ─────────────────────────────── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 12, padding: '8px 16px',
         background: 'var(--bg2)', borderBottom: '1px solid var(--border)',
-        flexWrap: 'wrap',
-        flexShrink: 0
+        flexWrap: 'wrap', flexShrink: 0
       }}>
-
-        {/* Search */}
+        {/* Left: Search input */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
           background: 'var(--bg3)', border: '1px solid var(--border)',
-          borderRadius: 6, padding: '4px 10px', flex: '1 1 180px', minWidth: 0
+          borderRadius: 8, padding: '0 12px', height: 36,
+          flex: '1 1 240px', maxWidth: 360, minWidth: 200,
+          transition: 'all 0.15s ease'
         }}>
-          <Search size={13} style={{ color: 'var(--text3)', flexShrink: 0 }} />
+          <Search size={14} style={{ color: 'var(--text3)', flexShrink: 0 }} />
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search serial no., PO, description, client..."
+            placeholder="Search serial no., PO, client, desc..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             style={{
               background: 'none', border: 'none', outline: 'none',
-              color: 'var(--text)', fontSize: 13, width: '100%'
+              color: 'var(--text)', fontSize: 13, width: '100%',
+              fontFamily: 'inherit'
             }}
           />
           {searchTerm && (
-            <button onClick={() => setSearchTerm('')} style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', display: 'flex', padding: 0 }}>
-              <X size={13} />
+            <button
+              onClick={() => setSearchTerm('')}
+              style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', display: 'flex', padding: 0 }}
+              title="Clear search"
+            >
+              <X size={14} />
             </button>
           )}
         </div>
 
-        {/* Status filter */}
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          style={{
-            background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
-            color: 'var(--text2)', fontSize: 12, padding: '7px 10px', cursor: 'pointer', outline: 'none'
-          }}
-        >
-          <option value="all">All Status</option>
-          <option value="incomplete">Not Started + In Process</option>
-          <option value="pending">Not Started</option>
-          <option value="inprogress">In Process</option>
-          <option value="completed">Completed</option>
-          <option value="blocked">Blocked</option>
-          <option value="hold">On Hold</option>
-          <option value="cancelled">Cancelled</option>
-        </select>
+        {/* Center/Right Controls Group */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            style={{
+              height: 36,
+              background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+              color: 'var(--text)', fontSize: 12.5, fontWeight: 500, padding: '0 12px',
+              cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
+            }}
+          >
+            <option value="all">All Status</option>
+            <option value="incomplete">Not Started + In Process</option>
+            <option value="pending">Not Started</option>
+            <option value="inprogress">In Process</option>
+            <option value="completed">Completed</option>
+            <option value="blocked">Blocked</option>
+            <option value="hold">On Hold</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
 
-        {/* Priority filter */}
-        <select
-          value={priorityFilter}
-          onChange={e => setPriorityFilter(e.target.value)}
-          style={{
-            background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
-            color: 'var(--text2)', fontSize: 12, padding: '7px 10px', cursor: 'pointer', outline: 'none'
-          }}
-        >
-          <option value="all">All Priorities</option>
-          <option value="urgent">Urgent</option>
-          <option value="high">High</option>
-          <option value="medium">Medium</option>
-          <option value="low">Low</option>
-        </select>
+          {/* Priority filter */}
+          <select
+            value={priorityFilter}
+            onChange={e => setPriorityFilter(e.target.value)}
+            style={{
+              height: 36,
+              background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 8,
+              color: 'var(--text)', fontSize: 12.5, fontWeight: 500, padding: '0 12px',
+              cursor: 'pointer', outline: 'none', fontFamily: 'inherit'
+            }}
+          >
+            <option value="all">All Priorities</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
 
-        {/* Reset Layout button */}
-        <button
-          onClick={handleResetLayout}
-          title="Reset column positions, sizes, and freeze states to default"
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            background: 'var(--bg3)', border: '1px solid var(--border)',
-            borderRadius: 8, padding: '7px 10px', fontSize: 12, color: 'var(--text2)',
-            cursor: 'pointer', outline: 'none'
-          }}
-        >
-          <RotateCcw size={12} />
-          Reset Layout
-        </button>
+          {/* Column Visibility Popover Button */}
+          <div style={{ position: 'relative' }} ref={columnMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsColumnMenuOpen(prev => !prev)}
+              title="Toggle column visibility"
+              style={{
+                height: 36,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                background: isColumnMenuOpen ? 'var(--bg4, #e2e8f0)' : 'var(--bg3)',
+                border: '1px solid var(--border)',
+                borderRadius: 8, padding: '0 12px', fontSize: 12.5, fontWeight: 500,
+                color: 'var(--text)', cursor: 'pointer', outline: 'none'
+              }}
+            >
+              <Columns3 size={14} style={{ color: 'var(--text3)' }} />
+              <span>Columns</span>
+              <span style={{
+                background: 'var(--bg2)', border: '1px solid var(--border)',
+                borderRadius: 6, padding: '1px 5px', fontSize: 11, fontWeight: 600,
+                color: 'var(--text2)'
+              }}>
+                {visibleCols.length}
+              </span>
+            </button>
+
+            {isColumnMenuOpen && (
+              <div style={{
+                position: 'absolute', top: 42, right: 0, width: 280,
+                background: 'var(--bg2)', border: '1px solid var(--border2, #cbd5e1)',
+                borderRadius: 10, boxShadow: '0 12px 28px rgba(0, 0, 0, 0.18)',
+                padding: '10px', zIndex: 120, display: 'flex', flexDirection: 'column', gap: 8
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>Column Visibility</span>
+                  <button
+                    type="button"
+                    onClick={showAllColumns}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--accent, #f97316)',
+                      fontSize: 11.5, fontWeight: 600, cursor: 'pointer', padding: 0
+                    }}
+                  >
+                    Show All
+                  </button>
+                </div>
+
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: 'var(--bg3)', border: '1px solid var(--border)',
+                  borderRadius: 6, padding: '4px 8px'
+                }}>
+                  <Search size={12} style={{ color: 'var(--text3)' }} />
+                  <input
+                    type="text"
+                    placeholder="Search columns..."
+                    value={colSearchQuery}
+                    onChange={e => setColSearchQuery(e.target.value)}
+                    style={{
+                      background: 'none', border: 'none', outline: 'none',
+                      color: 'var(--text)', fontSize: 12, width: '100%'
+                    }}
+                  />
+                  {colSearchQuery && (
+                    <button
+                      onClick={() => setColSearchQuery('')}
+                      style={{ background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: 0 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ maxHeight: 240, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {allColumns
+                    .filter(c => !colSearchQuery || c.label.toLowerCase().includes(colSearchQuery.toLowerCase()))
+                    .map(c => {
+                      const isVisible = isColVisible(c.key);
+                      const isPinned = pinnedKeys.includes(c.key);
+                      return (
+                        <label
+                          key={c.key}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8, padding: '5px 8px',
+                            borderRadius: 6, cursor: 'pointer', fontSize: 12, color: 'var(--text)',
+                            background: isVisible ? 'transparent' : 'rgba(148, 163, 184, 0.06)'
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isVisible}
+                            onChange={() => toggleColumnVisibility(c.key)}
+                            style={{ accentColor: 'var(--accent, #f97316)', cursor: 'pointer' }}
+                          />
+                          <span style={{ flex: 1, opacity: isVisible ? 1 : 0.6 }}>{c.label}</span>
+                          {isPinned && (
+                            <span style={{ fontSize: 10, color: 'var(--blue, #38bdf8)', fontWeight: 600 }}>pinned</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Reset Layout button */}
+          <button
+            onClick={handleResetLayout}
+            title="Reset column positions, sizes, and freeze states to default"
+            style={{
+              height: 36,
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              background: 'var(--bg3)', border: '1px solid var(--border)',
+              borderRadius: 8, padding: '0 12px', fontSize: 12, fontWeight: 500,
+              color: 'var(--text2)', cursor: 'pointer', outline: 'none'
+            }}
+          >
+            <RotateCcw size={13} />
+            <span>Reset Layout</span>
+          </button>
+        </div>
 
         {statCardFilter && (
           <div style={{
