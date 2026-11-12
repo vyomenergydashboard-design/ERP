@@ -17,9 +17,9 @@
   --vbtn-active-border: var(--accent);
   --scrollbar-thumb-bg: var(--border2);
   --table-scrollbar-track: rgba(15, 23, 42, 0.75);
-  --table-scrollbar-thumb: #1e40af;
-  --table-scrollbar-hover: #2563eb;
-  --table-scrollbar-active: #172554;
+  --table-scrollbar-thumb: #334155;
+  --table-scrollbar-hover: #475569;
+  --table-scrollbar-active: #64748b;
   --green: #10b981;
   --green-dim: rgba(16, 185, 129, 0.12);
   --blue: #38bdf8;
@@ -87,27 +87,27 @@
   /* Stat card gradient end */
     --stat-card-gradient-end: rgba(36, 41, 55, 0.5);
 
-  /* Gridline and Data Table Tokens (Spreadsheet Standard - High Contrast Reference) */
-  --border-grid: rgba(255, 255, 255, 0.28);
-  --table-header-bg: #2d261e;
-  --table-header-text: #fde68a;
-  --table-idx-bg: #152438;
-  --table-idx-text: #38bdf8;
-  --table-idx-border: #0284c7;
+  /* Gridline and Data Table Tokens (Enterprise Modern) */
+  --border-grid: #242c3d;
+  --table-header-bg: #19202f;
+  --table-header-text: #94a3b8;
+  --table-idx-bg: #161c28;
+  --table-idx-text: #94a3b8;
+  --table-idx-border: #242c3d;
   --cell-active-border: #38bdf8;
 }
 
 /* ── Light Mode Overrides ── */
 [data-theme="light"] {
-  --bg: #f3f5f9;
+  --bg: #F5F7FA;
   --bg2: #ffffff;
   --bg3: #f8fafc;
   --bg4: #edf0f5;
   --border: #e2e8f0;
   --border2: #cbd5e1;
-  --text: #0b0f19;
-  --text2: #1e293b;
-  --text3: #475569;
+  --text: #172033;
+  --text2: #334155;
+  --text3: #64748B;
   --accent: #f97316;
   --accent2: #ea580c;
   --vbtn-active-bg: #fff7ed;
@@ -133,9 +133,9 @@
   --gray-dim: #e5e7eb;
 
   /* Sidebar/Header/Card Decoupling */
-  --sidebar-bg: #f8fafc;
-  --sidebar-text: #475569;
-  --sidebar-text-hover: #0f172a;
+  --sidebar-bg: #ffffff;
+  --sidebar-text: #64748b;
+  --sidebar-text-hover: #172033;
   --sidebar-text-active: #ea580c;
   --sidebar-border: #e2e8f0;
   --sidebar-active-bg: #fff7ed;
@@ -144,31 +144,31 @@
   --header-border: #e2e8f0;
   --card-bg: #ffffff;
   --card-border: #e2e8f0;
-  --card-shadow: 0 4px 16px rgba(15, 23, 42, 0.04), 0 2px 4px rgba(15, 23, 42, 0.02);
+  --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
 
   /* Step status card backgrounds (light) */
-  --step-inprogress-bg: #dbeafe;
-  --step-done-bg: #dcfce7;
-  --step-blocked-bg: #fee2e2;
-  --step-review-bg: #ffedd5;
+  --step-inprogress-bg: #eff6ff;
+  --step-done-bg: #f0fdf4;
+  --step-blocked-bg: #fef2f2;
+  --step-review-bg: #fff7ed;
 
   /* Modal backdrop */
-  --modal-overlay-bg: rgba(0, 0, 0, 0.45);
+  --modal-overlay-bg: rgba(15, 23, 42, 0.5);
 
-  /* Solid row highlight colors for high-performance rendering */
+  /* Solid row highlight colors for high-performance rendering (100% opaque for sticky columns) */
   --row-cancelled-bg: #fee2e2;
-  --row-cancelled-bg-alt: #fee2e2;
+  --row-cancelled-bg-alt: #fef2f2;
   --row-hold-bg: #fef3c7;
-  --row-hold-bg-alt: #fde68a;
-  --row-selected-bg: #dbeafe;
-  --row-selected-bg-alt: #bfdbfe;
-  --row-hover-bg: #eaf1fb;
-  --row-hover-bg-alt: #e1ebfa;
-  --row-selected-hover-bg: #cbe0fc;
-  --row-selected-hover-bg-alt: #b8d4fa;
-  --row-hold-hover-bg: #fef0b8;
-  --row-cancelled-hover-bg: #fed7d7;
-  --row-active-bg: #e0f2fe;
+  --row-hold-bg-alt: #fffbeb;
+  --row-selected-bg: #eff6ff;
+  --row-selected-bg-alt: #eff6ff;
+  --row-hover-bg: #f1f5f9;
+  --row-hover-bg-alt: #f8fafc;
+  --row-selected-hover-bg: #e0f2fe;
+  --row-selected-hover-bg-alt: #e0f2fe;
+  --row-hold-hover-bg: #fef08a;
+  --row-cancelled-hover-bg: #fecaca;
+  --row-active-bg: #eff6ff;
   --row-cancelled-active-bg: #fee2e2;
   --row-hold-active-bg: #fef3c7;
 
@@ -178,14 +178,14 @@
   /* Stat card gradient end */
     --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
 
-  /* Gridline and Data Table Tokens (Spreadsheet Standard - 100% Match to User Reference) */
-  --border-grid: #b8c4d2;
-  --table-header-bg: #faeed7;
-  --table-header-text: #2d2417;
-  --table-idx-bg: #e5effa;
-  --table-idx-text: #1d4ed8;
-  --table-idx-border: #93c5fd;
-  --cell-active-border: #1d4ed8;
+  /* Table Tokens (Enterprise Modern) */
+  --border-grid: #e2e8f0;
+  --table-header-bg: #f8fafc;
+  --table-header-text: #64748b;
+  --table-idx-bg: #f8fafc;
+  --table-idx-text: #64748b;
+  --table-idx-border: #e2e8f0;
+  --cell-active-border: #3b82f6;
 }
 
 /* Scoped theme transitions (avoid global wildcard on table cells to ensure 60fps scrolling) */
@@ -734,73 +734,57 @@ textarea::placeholder {
 
 .main.main-table-mode .stats-row {
   flex-shrink: 0;
-  margin-bottom: 6px;
-  gap: 8px;
+  margin-bottom: 12px;
+  gap: 12px;
 }
 
 .main.main-table-mode .stat-card {
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  min-height: 74px;
 }
 
 .main.main-table-mode .stat-label {
-  font-size: 9px;
-  margin-bottom: 2px;
+  font-size: 10.5px;
+  margin-bottom: 4px;
 }
 
 .main.main-table-mode .stat-value {
-  font-size: 16px !important;
-  margin: 1px 0;
+  font-size: 22px !important;
+  margin: 2px 0;
 }
 
 .main.main-table-mode .stat-sub {
-  font-size: 10px;
-  opacity: 0.8;
+  font-size: 11px;
+  opacity: 0.85;
 }
 
 .main.main-table-mode .erp-page-head {
   flex-shrink: 0;
-  margin-bottom: 6px;
-  padding: 6px 14px !important;
-  border-radius: 6px;
+  margin-bottom: 8px;
+  padding: 8px 14px !important;
+  border-radius: 8px;
 }
 
 /* ── Top stats ── */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-@media (max-width: 1200px) {
-  .stats-row {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 768px) {
-  .stats-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-  }
-}
-
-@media (max-width: 480px) {
-  .stats-row {
-    grid-template-columns: 1fr;
-  }
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .stat-card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 16px 18px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 14px 18px;
+  min-height: 78px;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: var(--card-shadow);
   display: flex;
   flex-direction: column;
+  justify-content: center;
   position: relative;
   overflow: hidden;
 }
@@ -3384,14 +3368,14 @@ body.resizing-active * {
 
 /* ── Table Cells (<td>) ── */
 .erp-td {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  border-right: 1px solid rgba(255, 255, 255, 0.16);
-  padding: 4px 6px;
-  font-size: 11.5px;
+  border-bottom: 1px solid var(--border-grid);
+  border-right: 1px solid var(--border-grid);
+  padding: 6px 10px;
+  font-size: 12.5px;
   vertical-align: middle;
-  line-height: 1.25;
-  height: 32px;
-  max-height: 32px;
+  line-height: 1.35;
+  height: 40px;
+  min-height: 40px;
   box-sizing: border-box;
   transition: background-color 0.1s ease;
 }
@@ -3409,22 +3393,22 @@ body.resizing-active * {
 
 /* ── Row Hover & Selection Dynamics ── */
 .table-responsive-scroll tbody tr {
-  height: 29px;
-  min-height: 29px;
+  height: 40px;
+  min-height: 40px;
   transition: background-color 0.12s ease;
 }
 
 .table-responsive-scroll tbody tr td {
-  height: 29px;
+  height: 40px;
 }
 
 /* Base cell background must always be solid for position:sticky cells */
 .table-responsive-scroll tbody tr td {
-  background-color: var(--bg);
+  background-color: var(--bg2);
 }
 
 .table-responsive-scroll tbody tr:nth-child(even) td {
-  background-color: var(--bg2);
+  background-color: var(--bg3);
 }
 
 /* Row Hover on regular rows (100% opaque to prevent sticky column bleed-through) */
@@ -3915,16 +3899,16 @@ body.resizing-active * {
   background: var(--bg4) !important;
 }
 
-/* ── Spreadsheet Gridlines & High-Clarity Column Visibility (User Reference) ── */
+/* ── Modern Enterprise Table System ── */
 .erp-master-table {
   width: 100%;
   table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-  background: var(--bg);
+  background: var(--bg2);
 }
 
 .erp-th {
@@ -3933,21 +3917,23 @@ body.resizing-active * {
   overflow: hidden;
   white-space: normal !important;
   user-select: none;
-  border-bottom: 2px solid var(--border-grid) !important;
+  border-bottom: 1px solid var(--border-grid) !important;
   border-right: 1px solid var(--border-grid) !important;
   background: var(--table-header-bg) !important;
   color: var(--table-header-text) !important;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   padding: 0;
-  min-height: 44px;
-  height: auto;
-  transition: background-color 0.15s ease;
+  min-height: 42px;
+  height: 42px;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .erp-th:hover {
-  filter: brightness(0.96);
+  background: var(--bg3) !important;
+  color: var(--text) !important;
 }
 
 .erp-th-title {
@@ -3956,101 +3942,136 @@ body.resizing-active * {
   overflow-wrap: normal !important;
   word-wrap: normal !important;
   hyphens: none !important;
-  line-height: 1.2;
+  line-height: 1.25;
   font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.2px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
   text-align: center;
   display: block;
-  padding: 2px 4px;
+  padding: 2px 6px;
   color: var(--table-header-text) !important;
 }
 
 .erp-td {
   border-bottom: 1px solid var(--border-grid) !important;
   border-right: 1px solid var(--border-grid) !important;
-  padding: 3px 6px;
-  font-size: 11.5px;
+  padding: 6px 10px;
+  font-size: 12.5px;
   vertical-align: middle;
-  line-height: 1.25;
-  min-height: 29px;
-  height: 29px;
+  line-height: 1.35;
+  min-height: 40px;
+  height: 40px;
   box-sizing: border-box;
   transition: background-color 0.1s ease;
 }
 
-/* Leading Row Index / "Values" Column (100% Match to Soft Ice-Blue Reference) */
+/* Leading Row Index / "Values" Column */
 .erp-th-idx,
 .erp-td-idx {
   background: var(--table-idx-bg) !important;
   color: var(--table-idx-text) !important;
-  border-right: 2px solid var(--table-idx-border) !important;
+  border-right: 1px solid var(--table-idx-border) !important;
   border-bottom: 1px solid var(--border-grid) !important;
   text-align: center;
-  font-weight: 700;
+  font-weight: 600;
   font-family: var(--font-mono);
   user-select: none;
-  font-size: 12px;
+  font-size: 11.5px;
   letter-spacing: 0.2px;
 }
 
 .erp-th-idx {
-  border-bottom: 2px solid var(--table-idx-border) !important;
+  border-bottom: 1px solid var(--table-idx-border) !important;
   z-index: 26 !important;
 }
 
-/* Light Mode Overrides (Matching User's Reference Screenshot) */
-[data-theme="light"] .erp-th-idx,
-[data-theme="light"] .erp-td-idx {
-  background: #e5effa !important;
-  color: #1d4ed8 !important;
-  border-right: 2px solid #93c5fd !important;
+/* Row Heights & Alternating Striping */
+.table-responsive-scroll tbody tr {
+  height: 40px;
+  min-height: 40px;
+  transition: background-color 0.12s ease;
 }
 
-[data-theme="light"] .erp-master-table thead {
-  background: #faeed7 !important;
+.table-responsive-scroll tbody tr td {
+  height: 40px;
 }
 
-[data-theme="light"] .erp-th {
-  background: #faeed7 !important;
-  color: #2d2417 !important;
-  border-bottom: 2px solid #b8c4d2 !important;
-  border-right: 1px solid #b8c4d2 !important;
+.table-responsive-scroll tbody tr:nth-child(odd) td {
+  background-color: var(--bg2);
 }
 
-[data-theme="light"] .erp-td {
-  background: #ffffff;
-  color: #0f172a !important;
-  border-bottom: 1px solid #d1d9e2 !important;
-  border-right: 1px solid #b8c4d2 !important;
+.table-responsive-scroll tbody tr:nth-child(even) td {
+  background-color: var(--bg3);
 }
 
-[data-theme="light"] .table-responsive-scroll tbody tr:nth-child(even) td {
-  background-color: #fbfcfe;
+/* Hover & Active States */
+.table-responsive-scroll tbody tr:hover td {
+  background-color: var(--row-hover-bg) !important;
 }
 
-[data-theme="light"] .erp-order-badge {
-  color: #4338ca !important;
-  background: #eef2ff !important;
-  border-color: #c7d2fe !important;
+.table-responsive-scroll tbody tr.row-active td {
+  background-color: var(--row-active-bg, #eff6ff) !important;
+  box-shadow: inset 0 1px 0 #3b82f6, inset 0 -1px 0 #3b82f6;
 }
 
-[data-theme="light"] .erp-serial-badge {
-  color: #0369a1 !important;
-  background: #f0f9ff !important;
-  border-color: #bae6fd !important;
+.table-responsive-scroll tbody tr.row-active td.erp-td-idx,
+.table-responsive-scroll tbody tr.row-active td:first-child {
+  border-left: 4px solid #3b82f6 !important;
 }
 
-/* Dotted focus ring on active/clicked cell (like '9.00' in screenshot) */
-.erp-td:active,
-.erp-td:focus,
-.erp-td.cell-active {
-  outline: 2px dotted #1d4ed8 !important;
-  outline-offset: -2px;
+/* Standardized Order & Serial Badges */
+.erp-order-badge {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #2563eb;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  transition: all 0.15s ease;
 }
-[data-theme="dark"] .erp-td:active,
-[data-theme="dark"] .erp-td:focus,
-[data-theme="dark"] .erp-td.cell-active {
-  outline: 2px dotted #38bdf8 !important;
-  outline-offset: -2px;
+
+.erp-order-badge:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+[data-theme="dark"] .erp-order-badge {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.25);
+}
+
+[data-theme="dark"] .erp-order-badge:hover {
+  background: rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+}
+
+.erp-serial-badge {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 11.5px;
+  letter-spacing: 0.2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: #0d9488;
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .erp-serial-badge {
+  color: #2dd4bf;
+  background: rgba(45, 212, 191, 0.1);
+  border-color: rgba(45, 212, 191, 0.25);
 }
