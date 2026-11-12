@@ -1,4 +1,5 @@
-import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText, Table } from 'lucide-react';
+import { useState } from 'react';
+import { LayoutDashboard, ClipboardList, PlusCircle, Database, Upload, Users, ScrollText, Calendar, Settings, ListTodo, FileText, Table, Layers, ArrowDown } from 'lucide-react';
 import { DEPTS } from '../data/planningData';
 
 const PRIMARY_NAV = [
@@ -42,6 +43,8 @@ export default function Sidenav({
   userRole,
   collapsed = false,
 }) {
+  const [isFormsExpanded, setIsFormsExpanded] = useState(false);
+  const [formsList, setFormsList] = useState([]);
   return (
     <aside className={`sidenav${collapsed ? ' sidenav--collapsed' : ''}`}>
       <div className="sidenav-inner">
@@ -59,6 +62,49 @@ export default function Sidenav({
               />
             );
           })}
+        </div>
+
+        {/* ── Forms ── */}
+        <div className="sidenav-group">
+          <p className="sidenav-label">Forms</p>
+          <button
+            className={`dept-btn forms-parent-btn${isFormsExpanded ? ' active' : ''}`}
+            onClick={() => setIsFormsExpanded(prev => !prev)}
+            title="All Forms"
+            type="button"
+          >
+            <Layers size={16} className="nav-icon" style={{ color: 'var(--accent, #f97316)', opacity: 1 }} />
+            <span className="nav-label" style={{ fontWeight: 600 }}>All Forms</span>
+            <span
+              className={`forms-expand-arrow${isFormsExpanded ? ' expanded' : ''}`}
+              title={isFormsExpanded ? 'Collapse forms' : 'Expand forms'}
+            >
+              <ArrowDown size={11} strokeWidth={2.5} />
+            </span>
+          </button>
+
+          {isFormsExpanded && (
+            <div className="forms-submenu">
+              {formsList.length > 0 ? (
+                formsList.map((form) => (
+                  <button
+                    key={form.id}
+                    className={`forms-submenu-item${currentView === form.id ? ' active' : ''}`}
+                    onClick={() => onSetView(form.id)}
+                    type="button"
+                    title={form.label}
+                  >
+                    <FileText size={13} style={{ opacity: 0.7 }} />
+                    <span className="nav-label">{form.label}</span>
+                  </button>
+                ))
+              ) : (
+                <div className="forms-submenu-placeholder">
+                  Forms will appear here
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* ── Departments ── */}
