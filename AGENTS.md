@@ -278,3 +278,8 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
     - When not explicitly asked to make changes in the codebase, NEVER modify codebase files.
     - If the user's prompt is an inquiry, testing request, debugging check, edge-case test, or question (e.g. "test it with dummy data to see if it works for edge cases"), execute tests using non-destructive queries or isolated test scripts.
     - NEVER proactively implement new endpoints, edit components, or alter existing codebase source files unless the user explicitly requests code modifications or fixes.
+
+11. **Strict Git Commit & Push Guardrail (NEVER Commit Unless Explicitly Instructed):**
+    - Agents must NEVER run `git commit` or `git push` on their own initiative or autonomously upon completing a task.
+    - Git commits and pushes may ONLY be performed when the user explicitly gives a direct instruction to do so (e.g., "commit this", "make a commit", "push to origin").
+    - All work must remain as uncommitted working tree modifications so the user can inspect, test, and approve the changes before any commit is created.

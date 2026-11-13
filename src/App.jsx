@@ -23,6 +23,7 @@ const OrderImport = lazy(() => import('./components/OrderImport'));
 const DocumentDirectory = lazy(() => import('./components/DocumentDirectory'));
 const LogsView = lazy(() => import('./components/LogsView'));
 const SettingsView = lazy(() => import('./components/Settings'));
+const Pdr03View = lazy(() => import('./components/Pdr03View'));
 import PageHeader from './components/layout/PageHeader';
 import ErrorBoundary from './components/ErrorBoundary';
 import { INITIAL_STEPS, fmtTime } from './data/planningData';
@@ -444,7 +445,7 @@ function Dashboard() {
           />
         )}
         <main className={`main${currentView === 'table' ? ' main-table-mode' : ''}`}>
-          {currentView !== 'planning' && (currentView !== 'table' || showTableStats) && (
+          {currentView !== 'planning' && !currentView.startsWith('form-') && (currentView !== 'table' || showTableStats) && (
             <StatsRow 
               steps={combinedSteps} 
               currentFilter={currentFilter} 
@@ -471,6 +472,10 @@ function Dashboard() {
               currentView === 'masters' ? 'Masters' :
               currentView === 'logs' ? 'System Logs' :
               currentView === 'worklist' ? `${user.role} Worklist` :
+              currentView === 'form-pdr-03' ? 'PDR-03 Form' :
+              currentView === 'form-qc' ? 'QC Form' :
+              currentView === 'form-inspection' ? 'Inspection Form' :
+              currentView === 'form-material-req' ? 'Material Request' :
               'User Management'
             }
             subtitle={
@@ -499,6 +504,7 @@ function Dashboard() {
                   currentView === 'masters' ? 'Masters' :
                   currentView === 'logs' ? 'Logs' :
                   currentView === 'worklist' ? 'Worklist' :
+                  currentView.startsWith('form-') ? 'Forms' :
                   'Users'
               }
             ]}
@@ -618,6 +624,36 @@ function Dashboard() {
               <SettingsView />
             ) : currentView === 'worklist' ? (
               <DeptWorklist dept={user.role} />
+            ) : currentView === 'form-pdr-03' ? (
+              <Pdr03View onNavigateToView={navigateToView} userRole={user.role} />
+            ) : currentView.startsWith('form-') ? (
+              <div style={{
+                background: 'var(--bg2)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '40px 24px',
+                textAlign: 'center',
+                maxWidth: 640,
+                margin: '24px auto',
+                boxShadow: 'var(--card-shadow)'
+              }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                  {currentView === 'form-qc' ? 'QC Form' :
+                   currentView === 'form-inspection' ? 'Inspection Form' :
+                   currentView === 'form-material-req' ? 'Material Request' :
+                   'Form View'}
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+                  This form is ready. Form fields will be loaded here.
+                </p>
+                <button
+                  className="vbtn active"
+                  onClick={() => navigateToView('table')}
+                  style={{ padding: '8px 16px', fontSize: 12.5 }}
+                >
+                  Return to Table View
+                </button>
+              </div>
             ) : (
               <UserManagement />
             )}
