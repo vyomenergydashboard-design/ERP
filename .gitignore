@@ -33,3 +33,25 @@ server/tokens.json
 server/backups/*
 !server/backups/.gitkeep
 backups/
+
+
+# Browser automation profiles
+scratch/
+edge_profile*/
+chrome_profile*/
+
+# Generated analysis
+graphify-out/
+
+# Test coverage and build output
+coverage/
+build/
+
+# Temporary files
+*.tmp
+*.log
+
+# Repository audit files
+repository-structure.txt
+tracked-files.txt
+
