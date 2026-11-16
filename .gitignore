@@ -54,4 +54,9 @@ build/
 # Repository audit files
 repository-structure.txt
 tracked-files.txt
+staged-review.txt
+
+# Claude Code: share agents/settings, keep personal and temporary files local
+.claude/settings.local.json
+.claude/worktrees/
 

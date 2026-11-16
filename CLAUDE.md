@@ -1,0 +1,60 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+The project rules contract (workflow gates, numbering immutability, security guardrails, transaction conventions, and the "don't modify code / don't commit unless asked" rules) lives in AGENTS.md and is binding:
+
+@AGENTS.md
+
+The notes below add what AGENTS.md does not cover.
+
+## Commands
+
+```bash
+# Full dev stack (Postgres on host port 5433, backend :5000, Vite :5173)
+docker-compose up erp-dev backend db
+
+# Backend only (auto-runs init.sql + run_deployment_migrations.js on boot)
+cd server && node index.js
+
+# Frontend
+npm run dev          # Vite with --host
+npm run build
+npm run check        # scripts/verify_codebase.js — Babel AST scan for undeclared identifiers in src/
+```
+
+**Tests**: there is no test runner. Each `server/test_*.js` is a standalone script that runs against a **live backend and live DB**. Run a single one with:
+
+```bash
+node server/test_sales_to_design_gate.js
+```
+
+Test defaults: `DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_db`, `API_BASE=http://localhost:5000`, and `JWT_SECRET=supersecret` (which matches docker-compose). The tests mint their own JWTs and insert and delete rows whose order numbers are prefixed with `TEST-...`. That means the backend must be running and the JWT secret must match. Never point a test at a production DB.
+
+`vite.config.js` proxies `/api` and `/uploads` to `http://backend:5000`, the Docker service name. If you run Vite natively outside Docker, that target won't resolve unless you change it.
+
+## Architecture
+
+### Unit status is derived, not set
+The core of the system is `deriveUnitStatus(unitId, clientOrPool)` in `server/index.js`. Endpoints that change steps, documents, holds, or Purchase/Stores state update rows and then call `deriveUnitStatus`. That function recomputes `order_units.current_dept` from the `unit_steps` states, uploaded documents (Drawing/BOM/PO), `design_confirmed`, `sales_cleared`, and hold/cancel flags, and it sends dept-change emails. When changing advancement behaviour, change this function rather than writing `current_dept` directly. Pass the transaction `client` when calling it inside a transaction.
+
+The department order is the `PIPELINE` array (`Sales → Design → Purchase → Stores → Planning → Production → QC → Dispatch → Accounts`). It is redeclared inline in several places in `server/index.js`, and the frontend copy is `DEPTS` in `src/data/planningData.js`, so update all of them together. Completing a step while upstream departments are unfinished returns HTTP 409.
+
+### Backend layout
+- `server/index.js` is the monolith. It holds the auth (`authorize(roles)`), the large majority of routes, `deriveUnitStatus`, startup DB init, and the email code.
+- New code belongs in `server/routes/*.js`. These are router factories that receive dependencies, e.g. `createPurchaseOrdersRouter(pool, authorize, deriveUnitStatus)`, and are mounted in index.js. Supporting logic goes in `server/services/`: `purchaseAutoCompletion` / `storesAutoCompletion` (automatic step completion), `eventStream` (SSE), `databaseBackup`, and `safeConditionEvaluator`.
+- Schema: `init.sql` is the base schema. It also seeds the DB through docker-entrypoint. `run_deployment_migrations.js` runs on every boot and must stay idempotent and additive.
+
+### Real-time updates
+`services/eventStream.js` provides Server-Sent Events. The client first calls `POST /api/events/ticket` with its Bearer token to get a short-lived ticket, then opens `EventSource('/api/events?ticket=…')` (see `src/hooks/useEventStream.js`). This way the JWT never goes in the URL. Mutations call `broadcastEvent(...)` so that open views refresh. Downloads from `/uploads` are likewise protected by `authorizeUploadDownload`.
+
+### Frontend
+- `src/main.jsx` sets `window.API_BASE = ''`, so the app uses relative URLs that go through the Vite or Nginx proxy. It also installs a global fetch interceptor that logs the user out on a 401.
+- `src/App.jsx` handles routing, view tabs, and session sync. `AllOrdersTableView.jsx` is the main per-department table. Its dept-specific column sets and batch bars (`ProductionBatchBar`, `QcBatchBar`) are where most department UI changes land.
+- Bulk order import works from an Excel template (`BulkImportModal`, `OrderImport`, using `xlsx` on both client and server).
+
+## Other context files
+- `PRODUCT.md`, `DESIGN.md`: product intent and UI design language.
+- `SPEC-*.md`: feature specs (design confirmation/auto-release, non-standard panel docs).
+- `tasks/plan.md`, `tasks/todo.md`: current work plans.
+- `docs/BACKUP_AND_RECOVERY_GUIDE.md`: the backup/restore procedure.
