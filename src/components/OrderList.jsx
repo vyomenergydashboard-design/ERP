@@ -1505,11 +1505,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
                     <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>Material Description</label>
                     <input
                       type="text"
-                      required
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
                       value={editLineItemForm.material_description}
                       onChange={(e) => handleEditLineItemChange('material_description', e.target.value)}
-                      placeholder="e.g. VFD Control Panel 22kW"
+                      placeholder="e.g. VFD Control Panel 22kW (optional)"
                     />
                   </div>
 
@@ -1645,15 +1644,14 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
                   <div style={{ gridColumn: 'span 2' }}>
                     <label style={{ display: 'block', fontSize: '11px', color: 'var(--text3)', marginBottom: '4px', textTransform: 'uppercase' }}>
-                      Material Description <span style={{ color: '#ef4444' }}>*</span>
+                      Material Description
                     </label>
                     <input
                       type="text"
-                      required
                       style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'var(--bg3)', color: 'var(--text)', border: '1px solid var(--border)', boxSizing: 'border-box' }}
                       value={addLineItemForm.material_description}
                       onChange={(e) => handleAddLineItemChange('material_description', e.target.value)}
-                      placeholder="e.g. VFD Control Panel 22kW"
+                      placeholder="e.g. VFD Control Panel 22kW (optional)"
                     />
                   </div>
 

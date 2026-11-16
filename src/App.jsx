@@ -33,11 +33,11 @@ import { useEventStream } from './hooks/useEventStream';
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
   const user = localStorage.getItem('user');
-  
+
   if (!token || token === 'undefined' || token === 'null' || !user) {
     return <Navigate to="/" replace />;
   }
-  
+
   return children;
 };
 
@@ -214,10 +214,10 @@ function Dashboard() {
       fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(async res => {
-        if (res.ok) setUnitSteps(await res.json());
-      })
-      .catch(console.error);
+        .then(async res => {
+          if (res.ok) setUnitSteps(await res.json());
+        })
+        .catch(console.error);
     } else {
       setUnitSteps([]);
     }
@@ -230,16 +230,16 @@ function Dashboard() {
         fetchOrderSteps(selectedOrderId);
         fetchOrderDetails(selectedOrderId);
         fetchTaskMasters();
-        
+
         const targetUnitId = selectedUnitId;
         if (targetUnitId && token) {
           fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
             headers: { 'Authorization': `Bearer ${token}` }
           })
-          .then(async res => {
-            if (res.ok) setUnitSteps(await res.json());
-          })
-          .catch(console.error);
+            .then(async res => {
+              if (res.ok) setUnitSteps(await res.json());
+            })
+            .catch(console.error);
         }
       }
     };
@@ -290,9 +290,9 @@ function Dashboard() {
       const res = await authFetch(window.API_BASE + "/api/logs");
       if (res?.ok) {
         const data = await res.json();
-        setActivityLog(data.map(l => ({ 
-          time: fmtTime(new Date(l.timestamp)), 
-          dept: l.dept, 
+        setActivityLog(data.map(l => ({
+          time: fmtTime(new Date(l.timestamp)),
+          dept: l.dept,
           text: l.action_text,
           username: l.username
         })));
@@ -355,19 +355,19 @@ function Dashboard() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(data)
       });
-      
+
       if (res.ok) {
         await fetchOrderSteps(selectedOrderId); // refresh steps
         await fetchOrderDetails(selectedOrderId); // refresh order details
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
 
         if (selectedStep.special === 'qc' && data.status === 'blocked' && data.qcFailTarget) {
-          const routeText = data.qcFailTarget === 'production' 
-            ? 'QC FAIL → returned to Production for rework' 
+          const routeText = data.qcFailTarget === 'production'
+            ? 'QC FAIL → returned to Production for rework'
             : 'QC FAIL → returned to Design for re-check';
           logActivity('QC', routeText, selectedOrderId);
         }
-        
+
         logActivity(selectedStep.dept, `"${selectedStep.name}" → ${data.status.toUpperCase()}${data.notes ? ' — ' + data.notes : ''}`, selectedOrderId);
         setIsModalOpen(false);
         return null; // success
@@ -423,8 +423,8 @@ function Dashboard() {
 
   return (
     <div className="app-container">
-      <Header 
-        onLogout={handleLogout} 
+      <Header
+        onLogout={handleLogout}
         onToggleSidebar={() => setSidenavCollapsed(c => !c)}
         sidenavCollapsed={sidenavCollapsed}
       />
@@ -446,9 +446,9 @@ function Dashboard() {
         )}
         <main className={`main${currentView === 'table' ? ' main-table-mode' : ''}`}>
           {currentView !== 'planning' && !currentView.startsWith('form-') && (currentView !== 'table' || showTableStats) && (
-            <StatsRow 
-              steps={combinedSteps} 
-              currentFilter={currentFilter} 
+            <StatsRow
+              steps={combinedSteps}
+              currentFilter={currentFilter}
               selectedOrder={selectedOrder}
               selectedOrderId={selectedOrderId}
               currentView={currentView}
@@ -458,25 +458,25 @@ function Dashboard() {
               }}
             />
           )}
-          
+
           <PageHeader
             title={
               currentView === 'board' ? 'Board' :
-              currentView === 'planning' ? 'Planning Board' :
-              currentView === 'flow' ? (selectedOrder ? `Process Flow: ${selectedOrder.order_number}` : 'Process Flow') :
-              currentView === 'table' ? 'Table View' :
-              currentView === 'orders' ? 'Order Directory' :
-              currentView === 'documents' ? 'Document Directory' :
-              currentView === 'new-order' ? 'New Order' :
-              currentView === 'import' ? 'Import Orders' :
-              currentView === 'masters' ? 'Masters' :
-              currentView === 'logs' ? 'System Logs' :
-              currentView === 'worklist' ? `${user.role} Worklist` :
-              currentView === 'form-pdr-03' ? 'PDR-03 Form' :
-              currentView === 'form-qc' ? 'QC Form' :
-              currentView === 'form-inspection' ? 'Inspection Form' :
-              currentView === 'form-material-req' ? 'Material Request' :
-              'User Management'
+                currentView === 'planning' ? 'Planning Board' :
+                  currentView === 'flow' ? (selectedOrder ? `Process Flow: ${selectedOrder.order_number}` : 'Process Flow') :
+                    currentView === 'table' ? 'Table View' :
+                      currentView === 'orders' ? 'Order Directory' :
+                        currentView === 'documents' ? 'Document Directory' :
+                          currentView === 'new-order' ? 'New Order' :
+                            currentView === 'import' ? 'Import Orders' :
+                              currentView === 'masters' ? 'Masters' :
+                                currentView === 'logs' ? 'System Logs' :
+                                  currentView === 'worklist' ? `${user.role} Worklist` :
+                                    currentView === 'form-pdr-03' ? 'PDR-03 Form' :
+                                      currentView === 'form-qc' ? 'QC Form' :
+                                        currentView === 'form-inspection' ? 'Inspection Form' :
+                                          currentView === 'form-material-req' ? 'Material Request' :
+                                            'User Management'
             }
             subtitle={
               currentView === 'flow' && selectedOrder
@@ -494,18 +494,18 @@ function Dashboard() {
               {
                 label:
                   currentView === 'board' ? 'Board' :
-                  currentView === 'planning' ? 'Planning' :
-                  currentView === 'flow' ? (selectedOrder ? `Order #${selectedOrder.order_number}` : 'Flow') :
-                  currentView === 'table' ? 'Table View' :
-                  currentView === 'orders' ? 'Orders' :
-                  currentView === 'documents' ? 'Documents' :
-                  currentView === 'new-order' ? 'New Order' :
-                  currentView === 'import' ? 'Import' :
-                  currentView === 'masters' ? 'Masters' :
-                  currentView === 'logs' ? 'Logs' :
-                  currentView === 'worklist' ? 'Worklist' :
-                  currentView.startsWith('form-') ? 'Forms' :
-                  'Users'
+                    currentView === 'planning' ? 'Planning' :
+                      currentView === 'flow' ? (selectedOrder ? `Order #${selectedOrder.order_number}` : 'Flow') :
+                        currentView === 'table' ? 'Table View' :
+                          currentView === 'orders' ? 'Orders' :
+                            currentView === 'documents' ? 'Documents' :
+                              currentView === 'new-order' ? 'New Order' :
+                                currentView === 'import' ? 'Import' :
+                                  currentView === 'masters' ? 'Masters' :
+                                    currentView === 'logs' ? 'Logs' :
+                                      currentView === 'worklist' ? 'Worklist' :
+                                        currentView.startsWith('form-') ? 'Forms' :
+                                          'Users'
               }
             ]}
             actions={
@@ -556,108 +556,108 @@ function Dashboard() {
               </div>
             }>
 
-            {currentView === 'board' ? (
-              <BoardView 
-                currentFilter={currentFilter} 
-                userRole={user.role} 
-                onSetView={navigateToView}
-                statCardFilter={statCardFilter}
-                onClearStatFilter={() => setStatCardFilter(null)}
-              />
-            ) : currentView === 'planning' ? (
-              <PlanningModule />
-            ) : currentView === 'flow' ? (
-              selectedOrderId ? (
-                <FlowView 
-                  steps={steps} 
-                  currentFilter={currentFilter} 
-                  onOpenModal={handleOpenModal} 
-                  onSetView={navigateToView} 
-                  userRole={user.role} 
-                  selectedOrderId={selectedOrderId} 
-                  selectedOrder={selectedOrder} 
-                  onStepsChanged={() => fetchOrderSteps(selectedOrderId)}
-                  selectedUnitId={selectedUnitId}
-                  setSelectedUnitId={setSelectedUnitId}
-                  unitSteps={unitSteps}
-                  setUnitSteps={setUnitSteps}
-                  taskMasters={taskMasters}
+              {currentView === 'board' ? (
+                <BoardView
+                  currentFilter={currentFilter}
+                  userRole={user.role}
+                  onSetView={navigateToView}
+                  statCardFilter={statCardFilter}
+                  onClearStatFilter={() => setStatCardFilter(null)}
                 />
-              ) : (
-                <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
-                  Please select an order from the Header dropdown to view its Process Flow.
+              ) : currentView === 'planning' ? (
+                <PlanningModule />
+              ) : currentView === 'flow' ? (
+                selectedOrderId ? (
+                  <FlowView
+                    steps={steps}
+                    currentFilter={currentFilter}
+                    onOpenModal={handleOpenModal}
+                    onSetView={navigateToView}
+                    userRole={user.role}
+                    selectedOrderId={selectedOrderId}
+                    selectedOrder={selectedOrder}
+                    onStepsChanged={() => fetchOrderSteps(selectedOrderId)}
+                    selectedUnitId={selectedUnitId}
+                    setSelectedUnitId={setSelectedUnitId}
+                    unitSteps={unitSteps}
+                    setUnitSteps={setUnitSteps}
+                    taskMasters={taskMasters}
+                  />
+                ) : (
+                  <div style={{ padding: 40, textAlign: 'center', color: 'var(--text3)' }}>
+                    Please select an order from the Header dropdown to view its Process Flow.
+                  </div>
+                )
+              ) : currentView === 'table' ? (
+                <AllOrdersTableView
+                  currentFilter={currentFilter}
+                  userRole={user?.role}
+                  onSetView={navigateToView}
+                  statCardFilter={statCardFilter}
+                  onClearStatFilter={() => setStatCardFilter(null)}
+                />
+              ) : currentView === 'orders' ? (
+                <OrderList
+                  initialSelectedId={selectedOrderId}
+                  onSelectOrder={(id) => {
+                    setSelectedOrderId(id);
+                    selectedOrderIdRef.current = id;
+                  }}
+                />
+              ) : currentView === 'documents' ? (
+                <DocumentDirectory />
+              ) : currentView === 'new-order' ? (
+                <OrderCreationFlow onOrderCreated={() => {
+                  setCurrentView('orders');
+                  window.dispatchEvent(new CustomEvent('orderUpdated'));
+                }} />
+              ) : currentView === 'import' ? (
+                <OrderImport onImportComplete={() => {
+                  setCurrentView('orders');
+                  window.dispatchEvent(new CustomEvent('orderUpdated'));
+                }} />
+              ) : currentView === 'masters' ? (
+                <Masters />
+              ) : currentView === 'logs' ? (
+                <LogsView />
+              ) : currentView === 'settings' ? (
+                <SettingsView />
+              ) : currentView === 'worklist' ? (
+                <DeptWorklist dept={user.role} />
+              ) : currentView === 'form-pdr-03' ? (
+                <Pdr03View onNavigateToView={navigateToView} userRole={user.role} />
+              ) : currentView.startsWith('form-') ? (
+                <div style={{
+                  background: 'var(--bg2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: '40px 24px',
+                  textAlign: 'center',
+                  maxWidth: 640,
+                  margin: '24px auto',
+                  boxShadow: 'var(--card-shadow)'
+                }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
+                    {currentView === 'form-qc' ? 'QC Form' :
+                      currentView === 'form-inspection' ? 'Inspection Form' :
+                        currentView === 'form-material-req' ? 'Material Request' :
+                          'Form View'}
+                  </h3>
+                  <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
+                    This form is ready. Form fields will be loaded here.
+                  </p>
+                  <button
+                    className="vbtn active"
+                    onClick={() => navigateToView('table')}
+                    style={{ padding: '8px 16px', fontSize: 12.5 }}
+                  >
+                    Return to Table View
+                  </button>
                 </div>
-              )
-            ) : currentView === 'table' ? (
-              <AllOrdersTableView 
-                currentFilter={currentFilter} 
-                userRole={user?.role}
-                onSetView={navigateToView}
-                statCardFilter={statCardFilter}
-                onClearStatFilter={() => setStatCardFilter(null)}
-              />
-            ) : currentView === 'orders' ? (
-              <OrderList 
-                initialSelectedId={selectedOrderId} 
-                onSelectOrder={(id) => {
-                  setSelectedOrderId(id);
-                  selectedOrderIdRef.current = id;
-                }}
-              />
-            ) : currentView === 'documents' ? (
-              <DocumentDirectory />
-            ) : currentView === 'new-order' ? (
-              <OrderCreationFlow onOrderCreated={() => {
-                setCurrentView('orders');
-                window.dispatchEvent(new CustomEvent('orderUpdated'));
-              }} />
-            ) : currentView === 'import' ? (
-              <OrderImport onImportComplete={() => {
-                setCurrentView('orders');
-                window.dispatchEvent(new CustomEvent('orderUpdated'));
-              }} />
-            ) : currentView === 'masters' ? (
-              <Masters />
-            ) : currentView === 'logs' ? (
-              <LogsView />
-            ) : currentView === 'settings' ? (
-              <SettingsView />
-            ) : currentView === 'worklist' ? (
-              <DeptWorklist dept={user.role} />
-            ) : currentView === 'form-pdr-03' ? (
-              <Pdr03View onNavigateToView={navigateToView} userRole={user.role} />
-            ) : currentView.startsWith('form-') ? (
-              <div style={{
-                background: 'var(--bg2)',
-                border: '1px solid var(--border)',
-                borderRadius: 12,
-                padding: '40px 24px',
-                textAlign: 'center',
-                maxWidth: 640,
-                margin: '24px auto',
-                boxShadow: 'var(--card-shadow)'
-              }}>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
-                  {currentView === 'form-qc' ? 'QC Form' :
-                   currentView === 'form-inspection' ? 'Inspection Form' :
-                   currentView === 'form-material-req' ? 'Material Request' :
-                   'Form View'}
-                </h3>
-                <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 20 }}>
-                  This form is ready. Form fields will be loaded here.
-                </p>
-                <button
-                  className="vbtn active"
-                  onClick={() => navigateToView('table')}
-                  style={{ padding: '8px 16px', fontSize: 12.5 }}
-                >
-                  Return to Table View
-                </button>
-              </div>
-            ) : (
-              <UserManagement />
-            )}
-          
+              ) : (
+                <UserManagement />
+              )}
+
             </Suspense>
           </ErrorBoundary>
         </main>
@@ -692,13 +692,13 @@ export default function App() {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
             <ProtectedRoute>
               <Dashboard />
             </ProtectedRoute>
-          } 
+          }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

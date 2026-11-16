@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle, Hash, Lock } from 'lucide-react';
+import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle, Hash, Lock, AlertTriangle, X } from 'lucide-react';
 
 export default function SettingsView() {
   const [companyName, setCompanyName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom Process Flow');
@@ -26,9 +26,17 @@ export default function SettingsView() {
   const [maintenanceSuccess, setMaintenanceSuccess] = useState('');
   const [isMaintenanceRunning, setIsMaintenanceRunning] = useState(false);
 
-  useEffect(() => {
+  // Factory Reset Modal States
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetConfirmationInput, setResetConfirmationInput] = useState('');
+  const [resetStartingSequence, setResetStartingSequence] = useState(true);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetModalError, setResetModalError] = useState('');
+
+  const fetchSettings = () => {
+    const currentToken = localStorage.getItem('token');
     fetch(window.API_BASE + '/api/system-settings', {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${currentToken}` }
     })
       .then(r => r.json())
       .then(data => {
@@ -36,7 +44,23 @@ export default function SettingsView() {
         setOrdersExist(!!data._orders_exist);
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchSettings();
   }, [token]);
+
+  // Accessibility: Close modal on Escape
+  useEffect(() => {
+    if (!showResetModal) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && !isResetting) {
+        handleCloseResetModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showResetModal, isResetting]);
 
   const handleOrderNumberSave = async () => {
     setOrderSettingError('');
@@ -161,6 +185,99 @@ export default function SettingsView() {
     }
   };
 
+  const handleOpenResetModal = () => {
+    setResetModalError('');
+    setResetConfirmationInput('');
+    setResetStartingSequence(true);
+    setShowResetModal(true);
+  };
+
+  const handleCloseResetModal = () => {
+    if (isResetting) return;
+    setShowResetModal(false);
+    setResetConfirmationInput('');
+    setResetStartingSequence(true);
+    setResetModalError('');
+  };
+
+  const handleExecuteFactoryReset = async () => {
+    if (resetConfirmationInput !== 'FACTORY RESET' || isResetting) return;
+    setIsResetting(true);
+    setResetModalError('');
+    try {
+      const currentToken = localStorage.getItem('token');
+      const res = await fetch(`${window.API_BASE}/api/admin/maintenance/factory-reset`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`
+        },
+        body: JSON.stringify({
+          confirmation: 'FACTORY RESET',
+          resetStartingSequence: resetStartingSequence
+        })
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.error || `Factory reset failed with status ${res.status}`);
+      }
+
+      // Format success message with backup path if provided
+      let successMsg = data.message || 'ERP system successfully reset to factory defaults.';
+      const backupPath = data.backupPath || data.backupFile || (data.summary && data.summary.backupPath);
+      if (backupPath) {
+        successMsg += ` (Saved on server: ${backupPath})`;
+      }
+
+      // Automatically trigger direct browser download to personal computer
+      if (data.downloadUrl) {
+        try {
+          const downloadRes = await fetch(`${window.API_BASE}${data.downloadUrl}`, {
+            headers: {
+              'Authorization': `Bearer ${currentToken}`
+            }
+          });
+          if (downloadRes.ok) {
+            const blob = await downloadRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = data.bundleFilename || 'complete_emergency_backup.zip';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            window.URL.revokeObjectURL(url);
+            successMsg += ' Complete backup bundle (.zip) downloaded to your computer!';
+          }
+        } catch (dlErr) {
+          console.warn('[Factory Reset] Auto-download error:', dlErr);
+        }
+      }
+
+      setMaintenanceSuccess(successMsg);
+      handleCloseResetModal();
+
+      // Clear stale order selection caches from localStorage
+      localStorage.removeItem('erp_selectedOrderId');
+      localStorage.removeItem('erp_selectedUnitId');
+      localStorage.removeItem('erp_all_selectedUnitIds');
+      localStorage.removeItem('vyom_purchase_orders');
+
+      // Refresh system settings and notify application
+      fetchSettings();
+      window.dispatchEvent(new CustomEvent('erpSettingsUpdated'));
+      window.dispatchEvent(new CustomEvent('orderUpdated'));
+      window.dispatchEvent(new CustomEvent('ordersUpdated'));
+    } catch (err) {
+      console.error('Factory reset error:', err);
+      setResetModalError(err.message || 'An unexpected error occurred during factory reset.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   const handleSystemMaintenance = (action) => {
     if (action === 'Backup Database') {
       return handleDownloadBackup();
@@ -168,20 +285,9 @@ export default function SettingsView() {
     if (action === 'Clear Activity Logs') {
       return handleClearActivityLogs();
     }
-
-    if (!window.confirm(`Are you sure you want to run: "${action}"? This action cannot be undone.`)) {
-      return;
+    if (action === 'Reset Database') {
+      return handleOpenResetModal();
     }
-    setIsMaintenanceRunning(true);
-    setMaintenanceSuccess('');
-
-    setTimeout(() => {
-      setIsMaintenanceRunning(false);
-      if (action === 'Reset Database') {
-        setMaintenanceSuccess('Database reset and re-seeded successfully.');
-      }
-      setTimeout(() => setMaintenanceSuccess(''), 5000);
-    }, 1200);
   };
 
   return (
@@ -449,9 +555,9 @@ export default function SettingsView() {
                     <p>Re-seeds and formats databases to standard template values (removes testing orders).</p>
                   </div>
                   <button 
-                    onClick={() => handleSystemMaintenance('Reset Database')}
+                    onClick={handleOpenResetModal}
                     className="maint-btn danger"
-                    disabled={isMaintenanceRunning}
+                    disabled={isMaintenanceRunning || isResetting}
                   >
                     Factory Reset
                   </button>
@@ -465,14 +571,316 @@ export default function SettingsView() {
               )}
 
               {maintenanceSuccess && (
-                <div className="maintenance-result">
-                  <CheckCircle size={14} /> {maintenanceSuccess}
+                <div className="maintenance-result success" style={{
+                  color: 'var(--green, #10b981)',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  marginTop: '16px',
+                  fontSize: '13px',
+                  lineHeight: '1.4'
+                }}>
+                  <CheckCircle size={18} style={{ flexShrink: 0, color: 'var(--green, #10b981)' }} />
+                  <span style={{ flex: 1 }}>{maintenanceSuccess}</span>
+                  <button
+                    type="button"
+                    onClick={() => setMaintenanceSuccess('')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text3, #5a6070)',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    aria-label="Dismiss"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Factory Reset Confirmation Modal */}
+      {showResetModal && (
+        <div 
+          className="modal-overlay open" 
+          data-modal="open" 
+          data-modal-overlay="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isResetting) {
+              handleCloseResetModal();
+            }
+          }}
+        >
+          <div 
+            className="modal" 
+            style={{ 
+              width: '560px', 
+              maxWidth: '92vw',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: 'var(--bg2)',
+              border: '1px solid var(--border2)',
+              borderRadius: '12px',
+              boxShadow: '0 24px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(239, 68, 68, 0.25)',
+              padding: '24px'
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="factory-reset-modal-title"
+          >
+            <div className="modal-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'var(--red, #ef4444)'
+                }}>
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 id="factory-reset-modal-title" style={{ margin: 0, fontSize: '16px', fontWeight: '700', color: 'var(--text)' }}>
+                    Factory Reset ERP
+                  </h3>
+                  <div style={{ fontSize: '11px', color: 'var(--text3)', marginTop: '2px' }}>
+                    Complete system wipe and factory restoration
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="modal-close"
+                data-modal-close
+                onClick={handleCloseResetModal}
+                disabled={isResetting}
+                aria-label="Close"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text3)',
+                  cursor: isResetting ? 'not-allowed' : 'pointer',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '4px'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Prominent warning styling (red/danger alert banner) */}
+            <div style={{
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1px solid rgba(239, 68, 68, 0.35)',
+              borderRadius: '8px',
+              padding: '12px 14px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--red, #f87171)', fontWeight: '600', fontSize: '13px', marginBottom: '4px' }}>
+                <AlertTriangle size={15} />
+                DANGER: Irreversible Administrative Action
+              </div>
+              <p style={{ margin: 0, fontSize: '12px', color: 'var(--text2)', lineHeight: '1.45' }}>
+                This operation permanently purges operational transactional records from the database. Please review the details below before proceeding.
+              </p>
+            </div>
+
+            {/* Clear explanation of changes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '18px' }}>
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>⚠️</span>
+                <div style={{ fontSize: '12.5px' }}>
+                  <strong style={{ color: 'var(--red, #f87171)', display: 'block', marginBottom: '2px' }}>What will be deleted:</strong>
+                  <span style={{ color: 'var(--text2, #94a3b8)', lineHeight: '1.4' }}>
+                    All orders, line items, panel units, steps, uploaded documents, and activity logs.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.08)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>🛡️</span>
+                <div style={{ fontSize: '12.5px' }}>
+                  <strong style={{ color: 'var(--green, #10b981)', display: 'block', marginBottom: '2px' }}>What will be kept:</strong>
+                  <span style={{ color: 'var(--text2, #94a3b8)', lineHeight: '1.4' }}>
+                    All users, companies &amp; customer locations, task masters, panel sizes, and catalog masters.
+                  </span>
+                </div>
+              </div>
+
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '16px', lineHeight: 1.2 }}>💾</span>
+                <div style={{ fontSize: '12.5px' }}>
+                  <strong style={{ color: 'var(--blue, #3b82f6)', display: 'block', marginBottom: '2px' }}>Emergency Backup:</strong>
+                  <span style={{ color: 'var(--text2, #94a3b8)', lineHeight: '1.4' }}>
+                    An emergency snapshot will be automatically created on disk before wiping.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Checkbox: Reset Order Number Sequence */}
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              padding: '10px 14px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              cursor: isResetting ? 'not-allowed' : 'pointer',
+              marginBottom: '16px',
+              userSelect: 'none'
+            }}>
+              <input
+                type="checkbox"
+                id="resetStartingSequenceCheckbox"
+                checked={resetStartingSequence}
+                onChange={(e) => setResetStartingSequence(e.target.checked)}
+                disabled={isResetting}
+                style={{ accentColor: 'var(--red, #ef4444)', width: '16px', height: '16px', cursor: isResetting ? 'not-allowed' : 'pointer' }}
+              />
+              <span style={{ fontSize: '13px', color: 'var(--text)', fontWeight: '500' }}>
+                Reset Order Number Sequence to 1
+              </span>
+            </label>
+
+            {/* Confirmation text input */}
+            <div style={{ marginBottom: '16px' }}>
+              <label htmlFor="factoryResetConfirmInput" style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text)', marginBottom: '8px' }}>
+                To confirm, type <span style={{ color: 'var(--red, #f87171)', fontFamily: 'monospace', fontWeight: 'bold' }}>FACTORY RESET</span> below:
+              </label>
+              <input
+                id="factoryResetConfirmInput"
+                type="text"
+                value={resetConfirmationInput}
+                onChange={(e) => {
+                  setResetConfirmationInput(e.target.value);
+                  if (resetModalError) setResetModalError('');
+                }}
+                placeholder="Type FACTORY RESET to confirm"
+                disabled={isResetting}
+                autoFocus
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  padding: '10px 14px',
+                  background: 'var(--bg)',
+                  border: `1px solid ${resetConfirmationInput === 'FACTORY RESET' ? 'var(--red, #ef4444)' : 'var(--border2)'}`,
+                  borderRadius: '6px',
+                  color: 'var(--text)',
+                  fontSize: '13px',
+                  fontFamily: 'monospace',
+                  letterSpacing: '0.5px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            {/* Error alert banner */}
+            {resetModalError && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid var(--red, #ef4444)',
+                color: '#fca5a5',
+                borderRadius: '6px',
+                padding: '10px 14px',
+                fontSize: '12px',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+                <span>{resetModalError}</span>
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button
+                type="button"
+                onClick={handleCloseResetModal}
+                disabled={isResetting}
+                style={{
+                  padding: '9px 18px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  color: 'var(--text2, #94a3b8)',
+                  fontSize: '13px',
+                  fontWeight: '500',
+                  cursor: isResetting ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleExecuteFactoryReset}
+                disabled={resetConfirmationInput !== 'FACTORY RESET' || isResetting}
+                style={{
+                  padding: '9px 20px',
+                  background: resetConfirmationInput === 'FACTORY RESET' && !isResetting ? 'var(--red, #ef4444)' : 'rgba(239, 68, 68, 0.25)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: resetConfirmationInput === 'FACTORY RESET' && !isResetting ? '#fff' : 'rgba(255, 255, 255, 0.4)',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: resetConfirmationInput === 'FACTORY RESET' && !isResetting ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.15s'
+                }}
+              >
+                {isResetting ? <RefreshCw size={14} className="spin" /> : <AlertTriangle size={14} />}
+                {isResetting ? 'Resetting...' : 'Confirm Factory Reset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style dangerouslySetInnerHTML={{ __html: `
         .settings-layout {

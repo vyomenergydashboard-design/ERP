@@ -54,7 +54,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     const id = setInterval(() => {
       setTime(new Date().toLocaleTimeString('en-IN'));
     }, 1000);
-    
+
     // Fetch orders for everyone
     fetchOrders();
 
@@ -78,7 +78,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       fetchOrders();
     };
     window.addEventListener('orderUpdated', handleUpdate);
-    
+
     // Click outside to close dropdown
     const handleClickOutside = (event) => {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -92,7 +92,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       setHeaderTitle(localStorage.getItem('erp_system_title') || 'Control Panel Manufacturing');
     };
     window.addEventListener('erpSettingsUpdated', handleSettingsUpdate);
-    
+
     return () => {
       clearInterval(id);
       window.removeEventListener('setView', handleSetView);
@@ -140,14 +140,14 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     setSelectedOrderId(orderId);
     setSearchQuery(orderNum || '');
     setIsDropdownOpen(false);
-    
+
     if (orderId) {
-      window.dispatchEvent(new CustomEvent('setView', { 
-        detail: { view: 'flow', orderId: parseInt(orderId) } 
+      window.dispatchEvent(new CustomEvent('setView', {
+        detail: { view: 'flow', orderId: parseInt(orderId) }
       }));
     } else {
-      window.dispatchEvent(new CustomEvent('setView', { 
-        detail: { view: 'table', orderId: null, unitId: null } 
+      window.dispatchEvent(new CustomEvent('setView', {
+        detail: { view: 'table', orderId: null, unitId: null }
       }));
     }
   };
@@ -156,14 +156,14 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     setSelectedOrderId(orderId);
     setSearchQuery(unitSerial || orderNum || '');
     setIsDropdownOpen(false);
-    
+
     if (unitId && orderId) {
-      window.dispatchEvent(new CustomEvent('setView', { 
-        detail: { view: 'flow', orderId: parseInt(orderId), unitId: parseInt(unitId) } 
+      window.dispatchEvent(new CustomEvent('setView', {
+        detail: { view: 'flow', orderId: parseInt(orderId), unitId: parseInt(unitId) }
       }));
     } else {
-      window.dispatchEvent(new CustomEvent('setView', { 
-        detail: { view: 'table', orderId: null, unitId: null } 
+      window.dispatchEvent(new CustomEvent('setView', {
+        detail: { view: 'table', orderId: null, unitId: null }
       }));
     }
   };
@@ -225,10 +225,10 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       const poNum = (item.poNumber || '').toLowerCase();
       const desc = (item.materialDescription || '').toLowerCase();
       const part = (item.partNumber || '').toLowerCase();
-      return tokens.every(token => 
-        serial.includes(token) || 
-        orderNum.includes(token) || 
-        compName.includes(token) || 
+      return tokens.every(token =>
+        serial.includes(token) ||
+        orderNum.includes(token) ||
+        compName.includes(token) ||
         poNum.includes(token) ||
         desc.includes(token) ||
         part.includes(token)
@@ -239,7 +239,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   return (
     <div className="header">
       <div className="header-left">
-        <button 
+        <button
           className="sidebar-toggle-btn"
           onClick={onToggleSidebar}
           title={sidenavCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -254,7 +254,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       <div className="header-center">
         <div className="order-selector" ref={searchRef}>
           <Search size={14} className="search-icon" />
-          <input 
+          <input
             type="text"
             className="order-search-input"
             placeholder="Search Serial No., Order #, Client, PO... (Ctrl+K)"
@@ -266,26 +266,26 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
             }}
           />
           {selectedOrderId && (
-            <button 
-              className="clear-search" 
+            <button
+              className="clear-search"
               onClick={(e) => { e.stopPropagation(); handleSelectOrder('', ''); }}
               title="Clear Selection"
             >
               ×
             </button>
           )}
-          
+
           {isDropdownOpen && (
             <div className="search-dropdown-menu">
-              <div 
+              <div
                 className={`search-dropdown-item ${!selectedOrderId ? 'active' : ''}`}
                 onClick={() => handleSelectOrder('', '')}
               >
                 View All Units (Table View)
               </div>
               {filteredUnits.length > 0 ? filteredUnits.map(item => (
-                <div 
-                  key={`${item.orderId}-${item.unitId || 'order'}`} 
+                <div
+                  key={`${item.orderId}-${item.unitId || 'order'}`}
                   className={`search-dropdown-item ${selectedOrderId == item.orderId ? 'active' : ''}`}
                   onClick={() => {
                     if (item.isOrderLevel) {
@@ -357,7 +357,8 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
         </button>
       </div>
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .sidebar-toggle-btn {
           background: transparent;
           border: 1px solid var(--border);
@@ -538,22 +539,39 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
           }
         }
         @media (max-width: 1024px) {
+          .header-title {
+            display: none;
+          }
+          .clock-wrapper {
+            display: none;
+          }
+          .header-center {
+            margin: 0 8px;
+            max-width: 320px;
+          }
           .order-search-input {
-            width: 180px;
+            width: 100% !important;
           }
         }
-        @media (max-width: 900px) {
+        @media (max-width: 820px) {
           .user-name {
             display: none;
           }
           .clock-wrapper {
             display: none;
           }
+          .header-center {
+            margin: 0 6px;
+            max-width: 240px;
+          }
           .order-search-input {
-            width: 140px;
+            width: 100% !important;
           }
         }
         @media (max-width: 768px) {
+          .header {
+            padding: 0 10px;
+          }
           .role-badge {
             display: none;
           }
@@ -565,10 +583,16 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
             margin-right: 4px;
           }
           .user-info {
-            margin-right: 8px;
+            margin-right: 6px;
+            padding: 4px 6px;
           }
           .order-selector {
-            margin-right: 8px;
+            margin-right: 4px;
+          }
+          .order-search-input {
+            width: 100% !important;
+            font-size: 11.5px;
+            padding: 6px 24px 6px 28px;
           }
         }
       `}} />

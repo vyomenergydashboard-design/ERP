@@ -85,7 +85,7 @@ export default function PageHeader({
           gap: 12
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flexWrap: 'wrap' }}>
           <h1
             style={{
               margin: 0,
@@ -120,7 +120,7 @@ export default function PageHeader({
 
         {/* Right-aligned action buttons slot */}
         {actions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             {actions}
           </div>
         )}

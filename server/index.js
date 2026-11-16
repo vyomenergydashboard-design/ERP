@@ -13,6 +13,7 @@ import { runDeploymentMigrations } from './run_deployment_migrations.js';
 import createPurchaseOrdersRouter from './routes/purchaseOrders.js';
 import createWiremanMastersRouter from './routes/wiremanMasters.js';
 import createBackupRouter from './routes/backup.js';
+import createMaintenanceRouter from './routes/maintenance.js';
 import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
 import { initEventStream, broadcastEvent } from './services/eventStream.js';
@@ -1122,6 +1123,9 @@ app.use('/api/wireman-masters', createWiremanMastersRouter(pool, authorize));
 // Database Backup API (Admin only)
 app.use('/api/admin/backup', createBackupRouter(pool, authorize));
 
+// Maintenance API (Admin only)
+app.use('/api/admin/maintenance', createMaintenanceRouter(pool, authorize));
+
 // Real-time Server-Sent Events stream for multi-user synchronization
 initEventStream(app, authorize);
 
@@ -1558,10 +1562,14 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
 
       const cleanTag = (li.tag && typeof li.tag === 'string' && li.tag.trim()) ? li.tag.trim() : null;
       const li_delivery_date = (li.delivery_date && typeof li.delivery_date === 'string' && li.delivery_date.trim()) ? li.delivery_date.trim() : resolved_delivery_date;
+      const rawDesc = (li.material_description && typeof li.material_description === 'string' && li.material_description.trim()) ? li.material_description.trim() : null;
+      const rawPart = (li.part_number && typeof li.part_number === 'string' && li.part_number.trim()) ? li.part_number.trim() : null;
+      // Anti-duplicate rule: if description is identical to part number, do not duplicate
+      const cleanDesc = (rawDesc && rawPart && rawDesc.toLowerCase() === rawPart.toLowerCase()) ? null : rawDesc;
       const liResult = await client.query(
         `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number, panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
-        [order.id, assigned_li_number, li.material_description, li.part_number, li.panel_type_size, li_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes, li.project_name || order.project_name || null, cleanTag]
+        [order.id, assigned_li_number, cleanDesc, rawPart, li.panel_type_size, li_delivery_date, qty, li.unit, li.unit_price, li.total_price, li.notes, li.project_name || order.project_name || null, cleanTag]
       );
       const lineItem = liResult.rows[0];
       totalUnits += qty;
@@ -2083,9 +2091,15 @@ app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sale
     tag,
   } = req.body;
 
-  if (!material_description || typeof material_description !== 'string' || !material_description.trim()) {
-    return res.status(400).json({ error: 'Material description is required.' });
+  const rawDesc = (material_description && typeof material_description === 'string' && material_description.trim()) ? material_description.trim() : null;
+  const rawPart = (part_number && typeof part_number === 'string' && part_number.trim()) ? part_number.trim() : null;
+
+  if (!rawDesc && !rawPart) {
+    return res.status(400).json({ error: 'Either Material description or Part number is required.' });
   }
+
+  // Anti-duplicate rule: if description is identical to part number, do not duplicate
+  const cleanDesc = (rawDesc && rawPart && rawDesc.toLowerCase() === rawPart.toLowerCase()) ? null : rawDesc;
 
   const qty = parseInt(quantity, 10);
   if (isNaN(qty) || qty < 1) {
@@ -2152,8 +2166,8 @@ app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sale
       [
         order.id,
         assigned_li_number,
-        material_description.trim(),
-        part_number ? part_number.trim() : null,
+        cleanDesc,
+        rawPart,
         panel_type_size ? panel_type_size.trim() : null,
         resolvedDeliveryDate,
         qty,
@@ -2647,11 +2661,14 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         }
 
         const cleanLiTag = li['tag'] && typeof li['tag'] === 'string' && li['tag'].trim() ? li['tag'].trim() : null;
+        const impDesc = (li['material_description'] && typeof li['material_description'] === 'string' && li['material_description'].trim()) ? li['material_description'].trim() : null;
+        const impPart = (li['part_number'] && typeof li['part_number'] === 'string' && li['part_number'].trim()) ? li['part_number'].trim() : null;
+        const finalImpDesc = (impDesc && impPart && impDesc.toLowerCase() === impPart.toLowerCase()) ? null : impDesc;
         const liResult = await client.query(
           `INSERT INTO order_line_items (order_id, line_item_number, material_description, part_number,
             panel_type_size, delivery_date, quantity, unit, unit_price, total_price, notes, project_name, tag)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-          [order.id, li_number, li['material_description'] || '', li['part_number'] || '',
+          [order.id, li_number, finalImpDesc, impPart || '',
           li['panel_type_size'] || '', delivery_date,
             qty, li['unit'] || 'Nos', unit_price, total_price, li['line_item_notes'] || null,
           li['project_name'] || li['project'] || order.project_name || null, cleanLiTag]

@@ -1049,6 +1049,7 @@ export default function Masters() {
           <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', padding: '20px' }}>
             <h3 style={{ margin: '0 0 16px 0', color: 'var(--text)', fontSize: '16px' }}>Column Registry & Custom Fields</h3>
 
+            <div style={{ overflowX: 'auto', minWidth: 0, maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
@@ -1091,6 +1092,7 @@ export default function Masters() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </>
       )}
@@ -1123,12 +1125,12 @@ export default function Masters() {
               onChange={(e) => setPartSearch(e.target.value)}
               style={{
                 background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px',
-                color: 'var(--text)', fontSize: '13px', padding: '8px 14px', width: '360px'
+                color: 'var(--text)', fontSize: '13px', padding: '8px 14px', maxWidth: '360px', width: '100%'
               }}
             />
           </div>
 
-          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflowX: 'auto', minWidth: 0, maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>
@@ -1520,7 +1522,7 @@ export default function Masters() {
             />
           </div>
 
-          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+          <div style={{ background: 'var(--bg2)', borderRadius: '12px', border: '1px solid var(--border)', overflowX: 'auto', minWidth: 0, maxWidth: '100%' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
                 <tr style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text3)', textTransform: 'uppercase', fontSize: '11px', letterSpacing: '0.5px' }}>

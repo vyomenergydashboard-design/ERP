@@ -9,14 +9,14 @@ function StatusBadge({ status }) {
   return <span className={`step-status-badge ${cls}`}>{label}</span>;
 }
 
-export default function FlowView({ 
-  steps, 
-  currentFilter, 
-  onOpenModal, 
-  onSetView, 
-  userRole, 
-  selectedOrderId, 
-  selectedOrder, 
+export default function FlowView({
+  steps,
+  currentFilter,
+  onOpenModal,
+  onSetView,
+  userRole,
+  selectedOrderId,
+  selectedOrder,
   onStepsChanged,
   selectedUnitId,
   setSelectedUnitId,
@@ -63,13 +63,13 @@ export default function FlowView({
       fetch(`${window.API_BASE}/api/units/${editingUnitStep.order_unit_id}/reference-documents`, {
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      .then(res => res.ok ? res.json() : null)
-      .then(data => setUnitRefDocs(data))
-      .catch(err => {
-        console.error('Failed to load reference documents', err);
-        setUnitRefDocs(null);
-      })
-      .finally(() => setIsLoadingRefDocs(false));
+        .then(res => res.ok ? res.json() : null)
+        .then(data => setUnitRefDocs(data))
+        .catch(err => {
+          console.error('Failed to load reference documents', err);
+          setUnitRefDocs(null);
+        })
+        .finally(() => setIsLoadingRefDocs(false));
     } else {
       setUnitRefDocs(null);
     }
@@ -94,10 +94,10 @@ export default function FlowView({
           headers: { 'Authorization': `Bearer ${token}` }
         }).then(r => r.json());
         setUnitSteps(freshSteps);
-        
+
         const updatedStep = freshSteps.find(s => s.id === stepId);
         setEditingUnitStep(updatedStep);
-        
+
         if (onStepsChanged) onStepsChanged();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
       } else {
@@ -261,7 +261,7 @@ export default function FlowView({
       <div className="unit-selector-container" style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, color: 'var(--text3)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Track Level:</span>
-          <select 
+          <select
             className="form-select"
             value={selectedUnitId}
             onChange={(e) => setSelectedUnitId(e.target.value)}
@@ -389,13 +389,13 @@ export default function FlowView({
     fetch(window.API_BASE + "/api/task_masters", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-    .then(async res => {
-      if (res.ok) {
-        const data = await res.json();
-        setInternalTaskMasters(data);
-      }
-    })
-    .catch(console.error);
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          setInternalTaskMasters(data);
+        }
+      })
+      .catch(console.error);
   }, [token, propTaskMasters]);
 
   const handleAddTask = async (taskId) => {
@@ -445,7 +445,7 @@ export default function FlowView({
     const deptSteps = steps.filter(s => s.dept === targetStep.dept);
     const oldIndex = deptSteps.findIndex(s => s.id === draggedStep.id);
     const newIndex = deptSteps.findIndex(s => s.id === targetStep.id);
-    
+
     if (oldIndex === -1 || newIndex === -1) return;
 
     // Create new array with reordered items
@@ -484,16 +484,16 @@ export default function FlowView({
   const currentSerial = selectedUnit
     ? (selectedUnit.unit_id || selectedUnit.unit_serial || selectedUnit.serial_number)
     : (selectedOrder?.units?.length === 1
-        ? (selectedOrder.units[0].unit_id || selectedOrder.units[0].unit_serial)
-        : selectedOrder?.order_number);
+      ? (selectedOrder.units[0].unit_id || selectedOrder.units[0].unit_serial)
+      : selectedOrder?.order_number);
   const isOrderOnHold = selectedOrder?.hold_status === 'Approved' || String(selectedOrder?.status || '').toLowerCase().startsWith('hold');
   const isOrderCancelled = String(selectedOrder?.status || '').toLowerCase().startsWith('cancel');
   const isSelectedUnitOnHold = selectedUnit && (
-    selectedUnit.hold_status === 'Hold' || 
+    selectedUnit.hold_status === 'Hold' ||
     (String(selectedUnit.status || '').startsWith('Hold') && !isOrderOnHold)
   );
   const isSelectedUnitCancelled = selectedUnit && (
-    selectedUnit.hold_status === 'Cancelled' || 
+    selectedUnit.hold_status === 'Cancelled' ||
     (String(selectedUnit.status || '').startsWith('Cancel') && !isOrderCancelled)
   );
 
@@ -703,14 +703,14 @@ export default function FlowView({
           </button>
         </div>
       )}
-      
+
       {currentFilter === 'all' ? (
         <div className="lanes">
           {depts.map((dept) => {
             const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
             const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
             const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
-            
+
             const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
 
             return (
@@ -720,19 +720,19 @@ export default function FlowView({
                   <div className="lane-name">{dept.label}</div>
                   <div className="lane-sub">{dept.sub}</div>
                   {dept.id === 'Sales' && userRole === 'Sales' && !selectedUnitId && (
-                    <button 
-                      className="vbtn" 
+                    <button
+                      className="vbtn"
                       style={{ marginTop: 12, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
                       onClick={() => onSetView('new-order')}
                     >
                       + New Order
                     </button>
                   )}
-                  
+
                   {canEdit && availableTasks.length > 0 && selectedOrderId && !selectedUnitId && (
                     <div style={{ marginTop: 12 }}>
-                      <select 
-                        className="form-select" 
+                      <select
+                        className="form-select"
                         style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
                         onChange={(e) => {
                           handleAddTask(e.target.value);
@@ -758,7 +758,7 @@ export default function FlowView({
                     const isPausedDueToHold = selectedUnit && isSelectedUnitOnHold && !isStepHold && (step.status === 'pending' || step.status === 'inprogress');
 
                     return (
-                      <div 
+                      <div
                         key={isUnitStep ? `unit-${step.id}` : `order-${step.id}`}
                         style={{ display: 'flex', alignItems: 'center' }}
                         draggable={canDrag}
@@ -767,7 +767,7 @@ export default function FlowView({
                         onDragOver={(e) => handleDragOver(e, dept.id)}
                         onDrop={(e) => canDrag && handleDrop(e, step)}
                       >
-                        <div 
+                        <div
                           className={`step status-${step.status}${isStepHold ? ' status-hold' : ''}${isStepCancelled ? ' status-cancelled' : ''}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
                           onClick={() => handleStepClick(step)}
                           style={{
@@ -789,7 +789,7 @@ export default function FlowView({
                           <span className={`step-dot dot-${isStepHold ? 'hold' : isStepCancelled ? 'cancelled' : step.status}`} />
                           <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
                           <div className="step-name">
-                            {step.name} 
+                            {step.name}
                             {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4, fontSize: 10, color: 'var(--accent)' }}>(Upload Required)</span>}
                           </div>
                           <div className="step-sub">{step.sub}</div>
@@ -825,8 +825,9 @@ export default function FlowView({
               </div>
             );
           })}
-          
-          <style dangerouslySetInnerHTML={{ __html: `
+
+          <style dangerouslySetInnerHTML={{
+            __html: `
             .pulse-sales {
               animation: sales-glow 2s infinite ease-in-out;
               border: 1px solid rgba(20, 184, 166, 0.4) !important;
@@ -841,175 +842,175 @@ export default function FlowView({
       ) : (
         <div className="flow-card-grid">
           {depts.map((dept) => {
-          const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
-          const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
-          const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
-          
-          const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
+            const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
+            const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
+            const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
 
-          return (
-            <div key={dept.id} className={`dept-flow-card${hasBlocked ? ' has-blocked' : ''}`}>
-              <div className="dept-card-header">
-                <div className="dept-card-title-row">
-                  <div className="dept-color-bar" style={{ background: dept.color }}></div>
-                  <div>
-                    <div className="dept-card-title">{dept.label}</div>
-                    <div className="dept-card-sub">{dept.sub}</div>
-                  </div>
-                </div>
-                
-                {selectedOrder && (
-                  <div className="dept-card-ord-row">
-                    <div
-                      className="ord-badge"
-                      title={selectedUnit ? `Unit Serial: ${currentSerial} (Order #${selectedOrder.order_number})` : `Order #${selectedOrder.order_number}`}
-                    >
-                      {currentSerial}
+            const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
+
+            return (
+              <div key={dept.id} className={`dept-flow-card${hasBlocked ? ' has-blocked' : ''}`}>
+                <div className="dept-card-header">
+                  <div className="dept-card-title-row">
+                    <div className="dept-color-bar" style={{ background: dept.color }}></div>
+                    <div>
+                      <div className="dept-card-title">{dept.label}</div>
+                      <div className="dept-card-sub">{dept.sub}</div>
                     </div>
-                    {selectedOrder.company_name && (
-                      <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }} title={selectedOrder.company_name}>
-                        {selectedOrder.company_name}
-                      </div>
-                    )}
-                    {selectedOrder.delivery_date && (
-                      <div className="delivery-badge">
-                        <span className="icon">Delivery:</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </div>
-                    )}
                   </div>
-                )}
-                
-                {selectedOrder && (selectedUnit?.notes || selectedOrder.notes) && (
-                  <div style={{
-                    marginTop: '10px',
-                    fontSize: '11px',
-                    color: '#f59e0b',
-                    background: 'rgba(245, 158, 11, 0.05)',
-                    border: '1px solid rgba(245, 158, 11, 0.15)',
-                    borderRadius: '6px',
-                    padding: '6px 10px',
-                    fontStyle: 'italic',
-                    lineHeight: '1.4',
-                    wordBreak: 'break-word',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '4px'
-                  }}>
-                    <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: 'var(--accent)', marginTop: '1px', flexShrink: 0 }}>Note:</span>
-                    <span style={{ color: 'var(--text2)' }}>{selectedUnit?.notes || selectedOrder.notes}</span>
-                  </div>
-                )}
-                
-                {dept.id === 'Sales' && userRole === 'Sales' && !selectedUnitId && (
-                  <button 
-                    className="vbtn" 
-                    style={{ marginTop: 8, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
-                    onClick={() => onSetView('new-order')}
-                  >
-                    + New Order
-                  </button>
-                )}
-                
-                {canEdit && availableTasks.length > 0 && selectedOrderId && !selectedUnitId && (
-                  <div style={{ marginTop: 8 }}>
-                    <select 
-                      className="form-select" 
-                      style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
-                      onChange={(e) => {
-                        handleAddTask(e.target.value);
-                        e.target.value = "";
-                      }}
-                    >
-                      <option value="">+ Add Task...</option>
-                      {availableTasks.map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-              
-              <div className="dept-card-tasks-vertical">
-                {deptSteps.map((step, i) => {
-                  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-                  const isUnitStep = !!step.order_unit_id;
-                  const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
-                  const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
-                  const isStepHold = step.status === 'hold' || (selectedUnit && selectedUnit.hold_step_id === step.id);
-                  const isStepCancelled = step.status === 'cancelled' || (selectedUnit && selectedUnit.cancelled_step_id === step.id);
-                  const isPausedDueToHold = selectedUnit && isSelectedUnitOnHold && !isStepHold && (step.status === 'pending' || step.status === 'inprogress');
 
-                  return (
-                    <div 
-                      key={isUnitStep ? `unit-${step.id}` : `order-${step.id}`}
-                      style={{ display: 'flex', alignItems: 'center' }}
-                      draggable={canDrag}
-                      onDragStart={(e) => canDrag && handleDragStart(e, step)}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={(e) => handleDragOver(e, dept.id)}
-                      onDrop={(e) => canDrag && handleDrop(e, step)}
+                  {selectedOrder && (
+                    <div className="dept-card-ord-row">
+                      <div
+                        className="ord-badge"
+                        title={selectedUnit ? `Unit Serial: ${currentSerial} (Order #${selectedOrder.order_number})` : `Order #${selectedOrder.order_number}`}
+                      >
+                        {currentSerial}
+                      </div>
+                      {selectedOrder.company_name && (
+                        <div style={{ fontSize: '11px', color: 'var(--text3)', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }} title={selectedOrder.company_name}>
+                          {selectedOrder.company_name}
+                        </div>
+                      )}
+                      {selectedOrder.delivery_date && (
+                        <div className="delivery-badge">
+                          <span className="icon">Delivery:</span> {new Date(selectedOrder.delivery_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedOrder && (selectedUnit?.notes || selectedOrder.notes) && (
+                    <div style={{
+                      marginTop: '10px',
+                      fontSize: '11px',
+                      color: '#f59e0b',
+                      background: 'rgba(245, 158, 11, 0.05)',
+                      border: '1px solid rgba(245, 158, 11, 0.15)',
+                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      fontStyle: 'italic',
+                      lineHeight: '1.4',
+                      wordBreak: 'break-word',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '4px'
+                    }}>
+                      <span style={{ fontWeight: '700', textTransform: 'uppercase', fontSize: '9px', letterSpacing: '0.5px', color: 'var(--accent)', marginTop: '1px', flexShrink: 0 }}>Note:</span>
+                      <span style={{ color: 'var(--text2)' }}>{selectedUnit?.notes || selectedOrder.notes}</span>
+                    </div>
+                  )}
+
+                  {dept.id === 'Sales' && userRole === 'Sales' && !selectedUnitId && (
+                    <button
+                      className="vbtn"
+                      style={{ marginTop: 8, width: '100%', fontSize: 11, background: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+                      onClick={() => onSetView('new-order')}
                     >
-                      <div 
-                        className={`step status-${step.status}${isStepHold ? ' status-hold' : ''}${isStepCancelled ? ' status-cancelled' : ''}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
-                        onClick={() => handleStepClick(step)}
-                        style={{
-                          cursor: canDrag ? 'grab' : 'pointer',
-                          ...(isStepHold ? {
-                            background: 'rgba(245, 158, 11, 0.28)',
-                            border: '2px solid #f59e0b',
-                            boxShadow: '0 0 16px rgba(245, 158, 11, 0.45)',
-                          } : isStepCancelled ? {
-                            background: 'rgba(239, 68, 68, 0.28)',
-                            border: '2px solid #ef4444',
-                            boxShadow: '0 0 16px rgba(239, 68, 68, 0.45)',
-                          } : isPausedDueToHold ? {
-                            opacity: 0.55,
-                            filter: 'grayscale(0.3)'
-                          } : {})
+                      + New Order
+                    </button>
+                  )}
+
+                  {canEdit && availableTasks.length > 0 && selectedOrderId && !selectedUnitId && (
+                    <div style={{ marginTop: 8 }}>
+                      <select
+                        className="form-select"
+                        style={{ fontSize: 11, padding: '4px 8px', background: 'rgba(255,255,255,0.05)' }}
+                        onChange={(e) => {
+                          handleAddTask(e.target.value);
+                          e.target.value = "";
                         }}
                       >
-                        <span className={`step-dot dot-${isStepHold ? 'hold' : isStepCancelled ? 'cancelled' : step.status}`} />
-                        <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
-                        <div className="step-name">
-                          {step.name} 
-                          {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4, fontSize: 10, color: 'var(--accent)' }}>(Upload Required)</span>}
-                        </div>
-                        <div className="step-sub">{step.sub}</div>
-                        <StatusBadge status={isStepHold ? 'hold' : isStepCancelled ? 'cancelled' : step.status} />
-                        {isStepHold && (selectedUnit?.hold_reason || step.notes) && (
-                          <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 4, fontWeight: 700 }}>
-                            ⏸ {selectedUnit?.hold_reason || step.notes}
-                          </div>
-                        )}
-                        {isStepCancelled && (selectedUnit?.cancelled_reason || step.notes) && (
-                          <div style={{ fontSize: 10, color: '#f87171', marginTop: 4, fontWeight: 700 }}>
-                            ✕ {selectedUnit?.cancelled_reason || step.notes}
-                          </div>
-                        )}
-                        {isPausedDueToHold && (
-                          <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 4, fontStyle: 'italic' }}>
-                            ⏸ Paused (Held Upstream)
-                          </div>
-                        )}
-                        {step.notes && !isStepHold && !isStepCancelled && <div className="step-note">{step.notes}</div>}
-
-                      </div>
+                        <option value="">+ Add Task...</option>
+                        {availableTasks.map(t => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
                     </div>
-                  );
-                })}
-                {deptSteps.length === 0 && (
-                  <div style={{ padding: 12, color: 'var(--text3)', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
-                    No tasks assigned to this department.
-                  </div>
-                )}
+                  )}
+                </div>
+
+                <div className="dept-card-tasks-vertical">
+                  {deptSteps.map((step, i) => {
+                    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                    const isUnitStep = !!step.order_unit_id;
+                    const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
+                    const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
+                    const isStepHold = step.status === 'hold' || (selectedUnit && selectedUnit.hold_step_id === step.id);
+                    const isStepCancelled = step.status === 'cancelled' || (selectedUnit && selectedUnit.cancelled_step_id === step.id);
+                    const isPausedDueToHold = selectedUnit && isSelectedUnitOnHold && !isStepHold && (step.status === 'pending' || step.status === 'inprogress');
+
+                    return (
+                      <div
+                        key={isUnitStep ? `unit-${step.id}` : `order-${step.id}`}
+                        style={{ display: 'flex', alignItems: 'center' }}
+                        draggable={canDrag}
+                        onDragStart={(e) => canDrag && handleDragStart(e, step)}
+                        onDragEnd={handleDragEnd}
+                        onDragOver={(e) => handleDragOver(e, dept.id)}
+                        onDrop={(e) => canDrag && handleDrop(e, step)}
+                      >
+                        <div
+                          className={`step status-${step.status}${isStepHold ? ' status-hold' : ''}${isStepCancelled ? ' status-cancelled' : ''}${!canEditStep ? ' read-only' : ''}${step.dept === 'Sales' && step.status === 'pending' ? ' pulse-sales' : ''}${draggedStep?.id === step.id ? ' dragging' : ''}`}
+                          onClick={() => handleStepClick(step)}
+                          style={{
+                            cursor: canDrag ? 'grab' : 'pointer',
+                            ...(isStepHold ? {
+                              background: 'rgba(245, 158, 11, 0.28)',
+                              border: '2px solid #f59e0b',
+                              boxShadow: '0 0 16px rgba(245, 158, 11, 0.45)',
+                            } : isStepCancelled ? {
+                              background: 'rgba(239, 68, 68, 0.28)',
+                              border: '2px solid #ef4444',
+                              boxShadow: '0 0 16px rgba(239, 68, 68, 0.45)',
+                            } : isPausedDueToHold ? {
+                              opacity: 0.55,
+                              filter: 'grayscale(0.3)'
+                            } : {})
+                          }}
+                        >
+                          <span className={`step-dot dot-${isStepHold ? 'hold' : isStepCancelled ? 'cancelled' : step.status}`} />
+                          <div className="step-num">{dept.id.toUpperCase().slice(0, 3)}-{String(i + 1).padStart(2, '0')}</div>
+                          <div className="step-name">
+                            {step.name}
+                            {step.requires_upload && <span title="Requires Upload" style={{ marginLeft: 4, fontSize: 10, color: 'var(--accent)' }}>(Upload Required)</span>}
+                          </div>
+                          <div className="step-sub">{step.sub}</div>
+                          <StatusBadge status={isStepHold ? 'hold' : isStepCancelled ? 'cancelled' : step.status} />
+                          {isStepHold && (selectedUnit?.hold_reason || step.notes) && (
+                            <div style={{ fontSize: 10, color: '#fbbf24', marginTop: 4, fontWeight: 700 }}>
+                              ⏸ {selectedUnit?.hold_reason || step.notes}
+                            </div>
+                          )}
+                          {isStepCancelled && (selectedUnit?.cancelled_reason || step.notes) && (
+                            <div style={{ fontSize: 10, color: '#f87171', marginTop: 4, fontWeight: 700 }}>
+                              ✕ {selectedUnit?.cancelled_reason || step.notes}
+                            </div>
+                          )}
+                          {isPausedDueToHold && (
+                            <div style={{ fontSize: 9, color: 'var(--text3)', marginTop: 4, fontStyle: 'italic' }}>
+                              ⏸ Paused (Held Upstream)
+                            </div>
+                          )}
+                          {step.notes && !isStepHold && !isStepCancelled && <div className="step-note">{step.notes}</div>}
+
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {deptSteps.length === 0 && (
+                    <div style={{ padding: 12, color: 'var(--text3)', fontSize: 11, fontStyle: 'italic', textAlign: 'center' }}>
+                      No tasks assigned to this department.
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>)}
+            );
+          })}
+        </div>)}
 
       {isUnitModalOpen && editingUnitStep && (
-        <div className="modal-overlay open" onClick={(e) => { if(e.target.className === 'modal-overlay open') setIsUnitModalOpen(false); }}>
+        <div className="modal-overlay open" onClick={(e) => { if (e.target.className === 'modal-overlay open') setIsUnitModalOpen(false); }}>
           <div className="modal" style={{ maxWidth: '600px', width: '95%' }}>
             <div className="modal-header">
               <div>
@@ -1115,7 +1116,7 @@ export default function FlowView({
                   <div className="modal-field" style={{ marginBottom: '16px' }}>
                     <label>Status</label>
                     {canEditUnitStep ? (
-                      <select 
+                      <select
                         className="form-select"
                         value={editingUnitStep.status}
                         onChange={(e) => {
@@ -1154,7 +1155,7 @@ export default function FlowView({
                   <div className="modal-field" style={{ marginBottom: '16px' }}>
                     <label>Assign Worker</label>
                     {canEditUnitStep ? (
-                      <select 
+                      <select
                         className="form-select"
                         value={editingUnitStep.assigned_user_id || ''}
                         onChange={(e) => handleUpdateUnitStep(editingUnitStep.id, { assigned_user_id: e.target.value ? parseInt(e.target.value) : null })}
@@ -1178,7 +1179,7 @@ export default function FlowView({
                   <div className="modal-field" style={{ marginBottom: '16px' }}>
                     <label>Notes</label>
                     {canEditUnitStep ? (
-                      <textarea 
+                      <textarea
                         className="form-input"
                         defaultValue={editingUnitStep.notes || ''}
                         onBlur={(e) => handleUpdateUnitStep(editingUnitStep.id, { notes: e.target.value })}
@@ -1214,13 +1215,13 @@ export default function FlowView({
                             {field.type === 'Yes/No' ? (field.value === 'Yes' || field.value === true ? 'Yes' : 'No') : (field.value || '—')}
                           </div>
                         ) : field.type === 'Yes/No' ? (
-                          <input 
+                          <input
                             type="checkbox"
                             checked={!!field.value}
                             onChange={(e) => handleFieldChange(e.target.checked)}
                           />
                         ) : field.type === 'Dropdown' ? (
-                          <select 
+                          <select
                             className="form-select"
                             value={field.value || ''}
                             onChange={(e) => handleFieldChange(e.target.value)}
@@ -1232,7 +1233,7 @@ export default function FlowView({
                             ))}
                           </select>
                         ) : (
-                          <input 
+                          <input
                             type={field.type === 'Number' ? 'number' : 'text'}
                             className="form-input"
                             defaultValue={field.value || ''}
@@ -1297,7 +1298,7 @@ export default function FlowView({
                               const badgeBg = isDrawing ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
                               const badgeBorder = isDrawing ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)';
                               const docDownloadUrl = `${window.API_BASE}/uploads/${mdoc.file_path.split(/[\/\\]/).pop()}?token=${token}`;
-                              
+
                               return (
                                 <div key={`mdoc-${mdoc.id}`} style={{
                                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -1321,7 +1322,7 @@ export default function FlowView({
                                         </span>
                                       </div>
                                       <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2 }}>
-                                        {mdoc.file_size ? `${(mdoc.file_size / 1024).toFixed(1)} KB` : ''} 
+                                        {mdoc.file_size ? `${(mdoc.file_size / 1024).toFixed(1)} KB` : ''}
                                         {mdoc.uploaded_by_name ? ` · Uploaded by ${mdoc.uploaded_by_name}` : ''}
                                       </div>
                                     </div>
@@ -1533,10 +1534,11 @@ export default function FlowView({
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .flow-card-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
           gap: 24px;
           align-items: start;
           padding-bottom: 40px;

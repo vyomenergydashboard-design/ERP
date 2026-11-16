@@ -208,10 +208,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     // 2. Select this new part for the target line item
     if (partModalLineIdx !== null) {
       const updates = { part_number: newPart.part_number };
-      const currentDesc = formData.lineItems[partModalLineIdx]?.material_description;
-      if (!currentDesc && newPart.description) {
-        updates.material_description = newPart.description;
-      }
       if (newPart.panel_code) {
         const matchedPanel = panelSizeMasters.find(ps => ps.panel_code === newPart.panel_code);
         if (matchedPanel) {
@@ -560,9 +556,6 @@ export default function OrderCreationFlow({ onOrderCreated }) {
                         onChange={(partNo, matchedPart) => {
                           const partObj = matchedPart || partMasters.find(p => p.part_number === partNo);
                           const updates = { part_number: partNo };
-                          if (partObj?.description && !li.material_description) {
-                            updates.material_description = partObj.description;
-                          }
                           // Automatically select linked standard panel size if part has panel_code (can be overwritten)
                           if (partObj?.panel_code) {
                             const matchedPanel = panelSizeMasters.find(ps => ps.panel_code === partObj.panel_code);

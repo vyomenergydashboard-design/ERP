@@ -4356,7 +4356,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       orderNumber: unit.order_number || '',
       unitId: targetUnitId,
       unitSerial: unit.unit_serial || unit.short_serial || '',
-      description: unit.material_description || match?.description || '',
+      description: unit.material_description || '',
       classification: unit.classification || 'Standard',
       drawing: currentDrawing,
       bom: currentBOM,
@@ -5041,6 +5041,19 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({ po_number: newValue })
+          });
+        }
+      } else if (colKey === 'material_description') {
+        const liId = unit.line_item_id;
+        const ordId = unit.order_id;
+        if (liId && ordId) {
+          await fetch(`${window.API_BASE}/api/orders/${ordId}/line-items/${liId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ material_description: newValue })
           });
         }
       } else {
@@ -6022,7 +6035,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1, minHeight: 0, height: '100%', overflow: 'hidden', minWidth: 0, maxWidth: '100%' }}>
 
       {/* ── Tabs Bar (All Orders, Hold, Cancelled) ─────────────── */}
       <div style={{
@@ -6032,7 +6045,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         borderBottom: '1px solid var(--border)',
         padding: '0 16px',
         gap: 6,
-        flexShrink: 0
+        flexShrink: 0,
+        overflowX: 'auto',
+        minWidth: 0
       }}>
         {/* All Orders Tab */}
         <button
@@ -6401,12 +6416,12 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       {/* ── Table ───────────────────────────────────────────────── */}
       {/* ── Table Area with Custom Scrollbars ─────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative' }}>
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'relative', minWidth: 0, maxWidth: '100%' }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative', minWidth: 0, maxWidth: '100%' }}>
       <div
         ref={tableContainerRef}
         className="table-responsive-scroll"
-        style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0 }}
+        style={{ overflowX: 'auto', overflowY: 'auto', flex: 1, minHeight: 0, minWidth: 0, maxWidth: '100%' }}
       >
         <table className="erp-master-table">
           <thead>

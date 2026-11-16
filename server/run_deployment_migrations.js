@@ -694,6 +694,25 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Dispatch and Accounts columns migration error:', daErr);
     }
 
+    // 10. Allow material_description to be optional (DROP NOT NULL) & clear duplicate part numbers
+    try {
+      await client.query(`ALTER TABLE order_line_items ALTER COLUMN material_description DROP NOT NULL;`);
+      console.log('[Deployment Migration] order_line_items.material_description NOT NULL constraint dropped successfully.');
+    } catch (mnErr) {
+      console.warn('[Deployment Migration] Notice dropping NOT NULL on material_description:', mnErr.message);
+    }
+
+    try {
+      const clearRes = await client.query(`
+        UPDATE order_line_items 
+        SET material_description = NULL 
+        WHERE LOWER(TRIM(material_description)) = LOWER(TRIM(part_number));
+      `);
+      console.log(`[Deployment Migration] Cleared duplicate part numbers from material_description in ${clearRes.rowCount} rows.`);
+    } catch (clearErr) {
+      console.error('[Deployment Migration] Error clearing duplicate part numbers from material_description:', clearErr);
+    }
+
   } catch (err) {
     console.error('[Deployment Migration Error]:', err);
   } finally {

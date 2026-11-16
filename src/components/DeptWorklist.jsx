@@ -7,30 +7,30 @@ import StatusBadge from './feedback/StatusBadge';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
-  High:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
+  High: { color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
   Medium: { color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)' },
-  Low:    { color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.3)' },
+  Low: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.3)' },
 };
 
 const STEP_STATUS_CONFIG = {
-  done:       { label: 'Done',        color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: '✓' },
+  done: { label: 'Done', color: '#10b981', bg: 'rgba(16,185,129,0.12)', icon: '✓' },
   inprogress: { label: 'In Progress', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', icon: '◉' },
-  pending:    { label: 'Pending',     color: '#6b7280', bg: 'rgba(107,114,128,0.12)', icon: '○' },
-  blocked:    { label: 'Blocked',     color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: '✕' },
-  review:     { label: 'Review',      color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: '⟳' },
-  hold:       { label: 'Hold',        color: '#f59e0b', bg: 'rgba(245,158,11,0.25)', icon: '⏸' },
-  cancelled:  { label: 'Cancelled',   color: '#ef4444', bg: 'rgba(239,68,68,0.25)', icon: '✕' },
+  pending: { label: 'Pending', color: '#6b7280', bg: 'rgba(107,114,128,0.12)', icon: '○' },
+  blocked: { label: 'Blocked', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', icon: '✕' },
+  review: { label: 'Review', color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)', icon: '⟳' },
+  hold: { label: 'Hold', color: '#f59e0b', bg: 'rgba(245,158,11,0.25)', icon: '⏸' },
+  cancelled: { label: 'Cancelled', color: '#ef4444', bg: 'rgba(239,68,68,0.25)', icon: '✕' },
 };
 
 const DEPT_COLORS = {
-  Design:     '#6366f1',
-  Purchase:   '#f59e0b',
-  Stores:     '#10b981',
+  Design: '#6366f1',
+  Purchase: '#f59e0b',
+  Stores: '#10b981',
   Production: '#3b82f6',
-  QC:         '#8b5cf6',
-  Dispatch:   '#ec4899',
-  Accounts:   '#14b8a6',
-  Sales:      '#f97316',
+  QC: '#8b5cf6',
+  Dispatch: '#ec4899',
+  Accounts: '#14b8a6',
+  Sales: '#f97316',
 };
 
 
@@ -77,13 +77,13 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   const hasBlocked = steps.some(s => s.status === 'blocked');
   const isCompleted = unit.is_dept_completed === true || unit.is_downstream === true || allDone;
 
-  const isHold = unit.hold_status === 'Hold' || 
-                 unit.order_hold_status === 'Approved' || 
-                 String(unit.order_status || '').toLowerCase().startsWith('hold') || 
-                 String(unit.unit_status || '').toLowerCase().startsWith('hold');
-  const isCancelled = unit.hold_status === 'Cancelled' || 
-                      String(unit.order_status || '').toLowerCase().startsWith('cancel') || 
-                      String(unit.unit_status || '').toLowerCase().startsWith('cancel');
+  const isHold = unit.hold_status === 'Hold' ||
+    unit.order_hold_status === 'Approved' ||
+    String(unit.order_status || '').toLowerCase().startsWith('hold') ||
+    String(unit.unit_status || '').toLowerCase().startsWith('hold');
+  const isCancelled = unit.hold_status === 'Cancelled' ||
+    String(unit.order_status || '').toLowerCase().startsWith('cancel') ||
+    String(unit.unit_status || '').toLowerCase().startsWith('cancel');
 
   const getCanEditStep = (step) => {
     if (isHold || isCancelled) return false;
@@ -92,13 +92,13 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
   };
 
   const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : isCompleted ? 'var(--green)' : 'transparent';
-  const rowBg = isCancelled 
+  const rowBg = isCancelled
     ? (expanded ? 'rgba(239, 68, 68, 0.28)' : 'rgba(239, 68, 68, 0.18)')
     : isHold
-    ? (expanded ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.18)')
-    : isCompleted
-    ? (expanded ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.04)')
-    : (expanded ? 'rgba(37, 99, 235, 0.22)' : 'transparent');
+      ? (expanded ? 'rgba(245, 158, 11, 0.28)' : 'rgba(245, 158, 11, 0.18)')
+      : isCompleted
+        ? (expanded ? 'rgba(16, 185, 129, 0.16)' : 'rgba(16, 185, 129, 0.04)')
+        : (expanded ? 'rgba(37, 99, 235, 0.22)' : 'transparent');
 
   return (
     <>
@@ -291,13 +291,13 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
                       )}
                       {getCanEditStep(step) ? (
                         <select
-                           value={step.status}
-                           onChange={e => onStepStatusChange(unit.unit_id, step.id, e.target.value)}
-                           style={{
-                             background: cfg.bg, border: `1px solid ${cfg.color}44`,
-                             color: cfg.color, fontSize: 11, borderRadius: 6, padding: '4px 8px',
-                             cursor: 'pointer', fontWeight: 600, outline: 'none',
-                           }}
+                          value={step.status}
+                          onChange={e => onStepStatusChange(unit.unit_id, step.id, e.target.value)}
+                          style={{
+                            background: cfg.bg, border: `1px solid ${cfg.color}44`,
+                            color: cfg.color, fontSize: 11, borderRadius: 6, padding: '4px 8px',
+                            cursor: 'pointer', fontWeight: 600, outline: 'none',
+                          }}
                         >
                           <option value="pending">Pending</option>
                           <option value="inprogress">In Progress</option>
@@ -326,11 +326,11 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
       {expanded && steps.length === 0 && (
         <tr style={{ background: 'var(--bg3)' }}>
           <td colSpan={8} style={{ padding: '14px 24px', color: 'var(--text3)', fontSize: 12, fontStyle: 'italic' }}>
-            {isHold 
+            {isHold
               ? `This unit is currently ON HOLD ${unit.hold_dept ? `in ${unit.hold_dept}` : ''}${unit.hold_step_name ? ` @ ${unit.hold_step_name}` : ''}${unit.hold_reason ? ` (Reason: ${unit.hold_reason})` : ''}. No active tasks for ${dept}.`
-              : isCancelled 
-              ? `This unit is CANCELLED ${unit.cancelled_dept ? `in ${unit.cancelled_dept}` : ''}${unit.cancelled_step_name ? ` @ ${unit.cancelled_step_name}` : ''}${unit.cancelled_reason ? ` (Reason: ${unit.cancelled_reason})` : ''}.`
-              : `No steps currently assigned to ${dept} on this unit.`
+              : isCancelled
+                ? `This unit is CANCELLED ${unit.cancelled_dept ? `in ${unit.cancelled_dept}` : ''}${unit.cancelled_step_name ? ` @ ${unit.cancelled_step_name}` : ''}${unit.cancelled_reason ? ` (Reason: ${unit.cancelled_reason})` : ''}.`
+                : `No steps currently assigned to ${dept} on this unit.`
             }
           </td>
         </tr>
@@ -342,14 +342,14 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
 
 
 export default function DeptWorklist({ dept }) {
-  const [units, setUnits]       = useState([]);
-  const [users, setUsers]       = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [units, setUnits] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter]     = useState(() => localStorage.getItem('erp_dept_filter') || 'all'); // 'all' | 'pending' | 'inprogress' | 'done'
-  const [search, setSearch]     = useState('');
-  const [sortKey, setSortKey]   = useState(() => localStorage.getItem('erp_dept_sortKey') || 'order_number');
-  const [sortDir, setSortDir]   = useState(() => localStorage.getItem('erp_dept_sortDir') || 'asc');
+  const [filter, setFilter] = useState(() => localStorage.getItem('erp_dept_filter') || 'all'); // 'all' | 'pending' | 'inprogress' | 'done'
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState(() => localStorage.getItem('erp_dept_sortKey') || 'order_number');
+  const [sortDir, setSortDir] = useState(() => localStorage.getItem('erp_dept_sortDir') || 'asc');
 
   useEffect(() => {
     localStorage.setItem('erp_dept_filter', filter);
@@ -457,9 +457,9 @@ export default function DeptWorklist({ dept }) {
       const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ 
-          status: newStatus, 
-          last_updated_at: targetStep?.updated_at || targetUnit?.updated_at 
+        body: JSON.stringify({
+          status: newStatus,
+          last_updated_at: targetStep?.updated_at || targetUnit?.updated_at
         }),
       });
       if (res.ok) {
@@ -510,11 +510,11 @@ export default function DeptWorklist({ dept }) {
       const company = (u.company_name || '').toLowerCase();
       const refNum = (u.reference_number || '').toLowerCase();
       const poNum = (u.po_number || '').toLowerCase();
-      
-      const matchesAllTokens = tokens.every(token => 
-        serial.includes(token) || 
-        shortSerial.includes(token) || 
-        material.includes(token) || 
+
+      const matchesAllTokens = tokens.every(token =>
+        serial.includes(token) ||
+        shortSerial.includes(token) ||
+        material.includes(token) ||
         company.includes(token) ||
         refNum.includes(token) ||
         poNum.includes(token)
@@ -631,7 +631,7 @@ export default function DeptWorklist({ dept }) {
       <PageHeader
         title={`${dept} Worklist`}
         subtitle={
-          dept === 'Sales' 
+          dept === 'Sales'
             ? `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} total in system`
             : `${totalUnits} unit${totalUnits !== 1 ? 's' : ''} in queue`
         }
@@ -659,10 +659,10 @@ export default function DeptWorklist({ dept }) {
         {[
           { label: 'Total Units', value: totalUnits, color: deptColor },
           { label: 'In Progress', value: inProgUnits, color: '#3b82f6' },
-          { label: 'Completed',   value: doneUnits,   color: '#10b981' },
-          { label: 'Blocked',     value: blockedUnits, color: '#ef4444' },
-          { label: 'On Hold',     value: holdUnits,    color: '#f59e0b' },
-          { label: 'Cancelled',   value: cancelledUnits, color: '#ef4444' },
+          { label: 'Completed', value: doneUnits, color: '#10b981' },
+          { label: 'Blocked', value: blockedUnits, color: '#ef4444' },
+          { label: 'On Hold', value: holdUnits, color: '#f59e0b' },
+          { label: 'Cancelled', value: cancelledUnits, color: '#ef4444' },
         ].map(stat => (
           <div key={stat.label} style={{
             background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 10,
@@ -684,7 +684,7 @@ export default function DeptWorklist({ dept }) {
           size="sm"
           style={{ flex: '1 1 240px', minWidth: 220 }}
         />
-        <div style={{ display: 'flex', background: 'var(--bg4)', border: '1px solid var(--border2)', borderRadius: 8, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: 'var(--bg4)', border: '1px solid var(--border2)', borderRadius: 8, overflow: 'hidden', overflowX: 'auto', maxWidth: '100%' }}>
           {['all', 'pending', 'inprogress', 'done', 'hold', 'cancelled'].map(f => (
             <button
               key={f}
@@ -709,10 +709,10 @@ export default function DeptWorklist({ dept }) {
           background: 'var(--bg2)', borderRadius: 12, border: '1px solid var(--border)',
         }}>
           <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 18, marginBottom: 6 }}>
-            {search || filter !== 'all' 
-              ? 'No matching units' 
-              : dept === 'Sales' 
-                ? 'No units in the system' 
+            {search || filter !== 'all'
+              ? 'No matching units'
+              : dept === 'Sales'
+                ? 'No units in the system'
                 : `No units in ${dept}`
             }
           </div>
@@ -724,12 +724,12 @@ export default function DeptWorklist({ dept }) {
 
       {/* Worklist Table */}
       {filteredUnits.length > 0 && (
-        <div 
+        <div
           ref={tableContainerRef}
           className="worklist-table-container"
           style={{
             background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12,
-            overflowX: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            overflowX: 'auto', minWidth: 0, maxWidth: '100%', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           }}
         >
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>

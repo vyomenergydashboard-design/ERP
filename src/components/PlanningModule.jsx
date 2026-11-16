@@ -509,8 +509,8 @@ export default function PlanningModule() {
       const val = order.custom_fields?.[columnId];
       if (val === undefined || val === null || val === '') {
         return (
-          <span 
-            className="dim text-xs" 
+          <span
+            className="dim text-xs"
             style={{ cursor: canEdit ? 'pointer' : 'default', padding: '2px 4px', display: 'inline-block' }}
             title={canEdit ? "Click to edit" : undefined}
           >
@@ -573,7 +573,7 @@ export default function PlanningModule() {
           order.material_description ? `Description: ${order.material_description}` : null
         ].filter(Boolean).join('\n');
         return order.specific_unit_serial ? (
-          <span 
+          <span
             title={serialTooltip}
             style={{ fontFamily: 'var(--font-mono)', color: 'var(--blue)', fontWeight: 600, fontSize: '13px' }}
           >
@@ -1071,12 +1071,12 @@ export default function PlanningModule() {
       const compName = (order.company_name || '').toLowerCase();
       const endClient = (order.end_client_name || '').toLowerCase();
       const unitSerial = (order.specific_unit_serial || order.unit_numbers || '').toLowerCase();
-      
-      const customMatches = Object.values(order.custom_fields || {}).some(val => 
+
+      const customMatches = Object.values(order.custom_fields || {}).some(val =>
         val && String(val).toLowerCase().includes(tokens[0])
       );
 
-      matchesSearch = tokens.every(token => 
+      matchesSearch = tokens.every(token =>
         orderNum.includes(token) ||
         lineItemNum.includes(token) ||
         orderNumFull.includes(token) ||
@@ -1328,7 +1328,7 @@ export default function PlanningModule() {
     try {
       const isCustom = customColumns.some(c => c.col_key === colId);
       if (isCustom) {
-        const targetOrder = repeatedOrders.find(o => 
+        const targetOrder = repeatedOrders.find(o =>
           (unitId && o.specific_unit_id === unitId) || (!unitId && o.line_item_id === lineItemId)
         ) || orders.find(o => o.line_item_id === lineItemId);
 
@@ -1643,40 +1643,40 @@ export default function PlanningModule() {
     const defaultBg = isCancelled
       ? (isAltRow ? 'var(--row-cancelled-bg-alt, #28181c)' : 'var(--row-cancelled-bg, #221417)')
       : isHold
-      ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
-      : isRowSelected
-      ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
-      : baseRowBg;
+        ? (isAltRow ? 'var(--row-hold-bg-alt, #2c2214)' : 'var(--row-hold-bg, #241c10)')
+        : isRowSelected
+          ? (isAltRow ? 'var(--row-selected-bg-alt, #162846)' : 'var(--row-selected-bg, #122038)')
+          : baseRowBg;
 
     const borderLeft = isCancelled
       ? '5px solid #ef4444'
       : isHold
-      ? '5px solid #f59e0b'
-      : undefined;
+        ? '5px solid #f59e0b'
+        : undefined;
 
     const cbBg = defaultBg;
 
     return (
-      <tr 
-        key={order.row_key} 
+      <tr
+        key={order.row_key}
         className={`planning-row ${isRowSelected ? 'selected-row' : ''} ${isCancelled ? 'row-cancelled' : isHold ? 'row-hold' : ''}`}
         onClick={(e) => handleCellClick(e, 'row', order)}
-        style={{ 
+        style={{
           cursor: canEdit ? 'pointer' : 'default',
           background: defaultBg,
           borderLeft: borderLeft
         }}
       >
         {canEdit && (
-          <td 
-            className="col-sticky-checkbox" 
-            style={{ 
-              width: '40px', 
-              minWidth: '40px', 
-              textAlign: 'center', 
+          <td
+            className="col-sticky-checkbox"
+            style={{
+              width: '40px',
+              minWidth: '40px',
+              textAlign: 'center',
               left: 0,
               background: cbBg
-            }} 
+            }}
             onClick={(e) => e.stopPropagation()}
           >
             <input
@@ -1914,7 +1914,7 @@ export default function PlanningModule() {
                     onDragEnd={handleDragEnd}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', width: '100%' }}>
-                      <div 
+                      <div
                         onClick={() => isSortable && handleSort(colId)}
                         style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: isSortable ? 'pointer' : 'default', overflow: 'hidden', flex: 1 }}
                       >
@@ -2462,9 +2462,9 @@ export default function PlanningModule() {
 
 
 
-                 {/* QC Date */}
-                 <div className="modal-field">
-                   <label>QC Passed Date</label>
+                {/* QC Date */}
+                <div className="modal-field">
+                  <label>QC Passed Date</label>
                   <input
                     type="date"
                     value={bulkEditForm.qc_date}
@@ -2484,11 +2484,14 @@ export default function PlanningModule() {
       )}
 
       {/* ── Custom CSS for Planning Module ── */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .planning-module {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          min-width: 0;
+          max-width: 100%;
           animation: fadeIn 0.25s ease-out;
         }
 
@@ -2501,7 +2504,9 @@ export default function PlanningModule() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          gap: 16px;
+          flex-wrap: wrap;
+          gap: 12px;
+          min-width: 0;
           background: var(--bg2, #1c202b);
           border: 1px solid var(--border, #2e3547);
           border-radius: var(--radius-lg, 10px);
@@ -2510,8 +2515,9 @@ export default function PlanningModule() {
 
         .search-box {
           position: relative;
-          flex: 1;
-          max-width: 480px;
+          flex: 1 1 240px;
+          min-width: 180px;
+          max-width: 100%;
           display: flex;
           align-items: center;
         }
@@ -2541,7 +2547,8 @@ export default function PlanningModule() {
 
         .filter-group {
           display: flex;
-          gap: 12px;
+          flex-wrap: wrap;
+          gap: 10px;
         }
 
         .filter-select-wrapper {
@@ -2582,6 +2589,9 @@ export default function PlanningModule() {
           overflow-x: auto;
           box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
           cursor: grab;
+          min-width: 0;
+          max-width: 100%;
+          width: 100%;
         }
         .table-responsive.active-drag {
           cursor: grabbing;

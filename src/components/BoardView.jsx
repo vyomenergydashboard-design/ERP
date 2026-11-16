@@ -10,7 +10,7 @@ function StatusBadge({ status }) {
 export default function BoardView({ currentFilter, userRole, onSetView, statCardFilter, onClearStatFilter }) {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Filters
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('incomplete');
@@ -73,22 +73,22 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
       if (statusFilter === 'completed' && o.status !== 'completed') return false;
       if (statusFilter === 'hold' && o.status !== 'hold' && o.hold_status !== 'Approved') return false;
       if (statusFilter === 'cancelled' && o.status !== 'cancelled') return false;
-      
+
       if (searchTerm.trim() !== '') {
         const tokens = searchTerm.trim().toLowerCase().split(/\s+/);
         const orderNum = (o.order_number || '').toLowerCase();
         const compName = (o.company_name || '').toLowerCase();
         const poNum = (o.po_number || '').toLowerCase();
-        
-        const matchesAllTokens = tokens.every(token => 
-          orderNum.includes(token) || 
-          compName.includes(token) || 
+
+        const matchesAllTokens = tokens.every(token =>
+          orderNum.includes(token) ||
+          compName.includes(token) ||
           poNum.includes(token) ||
           (o.steps && o.steps.some(s => (s.name || '').toLowerCase().includes(token) || (s.dept || '').toLowerCase().includes(token)))
         );
         if (!matchesAllTokens) return false;
       }
-      
+
       return true;
     })
     .sort((a, b) => {
@@ -111,7 +111,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
             <option value="created">Recently Created</option>
           </select>
         </div>
-        
+
         <div className="filter-group">
           <span className="filter-label">Status:</span>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="board-select">
@@ -137,28 +137,27 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.12)' :
-                        statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
-                        statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
-                        statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+              statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.12)' :
+                statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.12)' :
+                  statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.12)' : 'rgba(245, 158, 11, 0.12)',
             color: statCardFilter === 'priority' ? '#f97316' :
-                   statCardFilter === 'inprogress' ? '#3b82f6' :
-                   statCardFilter === 'blocked' ? '#ef4444' :
-                   statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
-            border: `1px solid ${
-              statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
+              statCardFilter === 'inprogress' ? '#3b82f6' :
+                statCardFilter === 'blocked' ? '#ef4444' :
+                  statCardFilter === 'due' ? '#a855f7' : '#f59e0b',
+            border: `1px solid ${statCardFilter === 'priority' ? 'rgba(249, 115, 22, 0.35)' :
               statCardFilter === 'inprogress' ? 'rgba(59, 130, 246, 0.35)' :
-              statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
-              statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
-            }`,
+                statCardFilter === 'blocked' ? 'rgba(239, 68, 68, 0.35)' :
+                  statCardFilter === 'due' ? 'rgba(168, 85, 247, 0.35)' : 'rgba(245, 158, 11, 0.35)'
+              }`,
             borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600,
             whiteSpace: 'nowrap'
           }}>
             <span>
               Card Filter: {
                 statCardFilter === 'priority' ? 'Urgent / High' :
-                statCardFilter === 'inprogress' ? 'In Progress' :
-                statCardFilter === 'blocked' ? 'Blocked' :
-                statCardFilter === 'due' ? 'Due This Week' : 'All Active'
+                  statCardFilter === 'inprogress' ? 'In Progress' :
+                    statCardFilter === 'blocked' ? 'Blocked' :
+                      statCardFilter === 'due' ? 'Due This Week' : 'All Active'
               }
             </span>
             <button
@@ -200,8 +199,8 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           }
 
           return (
-            <div 
-              key={order.id} 
+            <div
+              key={order.id}
               className="completed-order-row"
               onClick={() => {
                 window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
@@ -241,8 +240,8 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           }
 
           return (
-            <div 
-              key={order.id} 
+            <div
+              key={order.id}
               className="completed-order-row"
               style={{ borderColor: '#f59e0b' }}
               onClick={() => {
@@ -287,8 +286,8 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           }
 
           return (
-            <div 
-              key={order.id} 
+            <div
+              key={order.id}
               className="completed-order-row"
               style={{ borderColor: '#ef4444' }}
               onClick={() => {
@@ -331,7 +330,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
 
         // Find the specific active steps for the entire order
         displaySteps = order.steps.filter(s => ['inprogress', 'blocked', 'review', 'hold', 'cancelled'].includes(s.status));
-        
+
         // If no steps are currently in progress, find the VERY NEXT pending step in the sequence
         if (displaySteps.length === 0) {
           const firstPending = order.steps.find(s => s.status === 'pending');
@@ -350,16 +349,16 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
             <h3 className="board-order-title">
               {order.order_number} {order.company_name && <span className="board-order-company">— {order.company_name}</span>}
             </h3>
-            
+
             <div className="board-dept-grid">
               {orderDepts.map(dept => {
                 // Only list the specific active steps in the card, not all pending tasks
                 const deptSteps = displaySteps.filter(s => s.dept === dept.id);
-                
+
                 return (
-                  <div 
-                    key={dept.id} 
-                    className="dept-flow-card" 
+                  <div
+                    key={dept.id}
+                    className="dept-flow-card"
                     style={{ borderTopColor: dept.color }}
                     onClick={() => {
                       window.dispatchEvent(new CustomEvent('setView', { detail: { view: 'flow', orderId: order.id } }));
@@ -371,7 +370,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
                         <div className="dept-color-bar" style={{ background: dept.color }}></div>
                         <div className="dept-card-title">{dept.label}</div>
                       </div>
-                      
+
                       <div className="dept-card-ord-row">
                         <div className="ord-badge">{order.order_number}</div>
                         {order.company_name && (
@@ -385,7 +384,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
                           </div>
                         )}
                       </div>
-                      
+
                       {order.notes && (
                         <div style={{
                           marginTop: '10px',
@@ -407,7 +406,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="dept-card-tasks">
                       {deptSteps.map(step => (
                         <div key={step.id} className={`board-task status-${step.status}`}>
@@ -424,12 +423,13 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
           </div>
         );
       })}
-      
+
       {displayOrders.length === 0 && (
         <div style={{ padding: 40, textAlign: 'center', color: '#888' }}>No orders match the current filters.</div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .board-view-orders {
           display: flex;
           flex-direction: column;
@@ -439,7 +439,8 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
         .board-filters {
           display: flex;
           align-items: center;
-          gap: 20px;
+          flex-wrap: wrap;
+          gap: 12px;
           background: var(--card-bg);
           padding: 12px 20px;
           border-radius: 8px;
@@ -510,7 +511,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
         }
         .board-dept-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
           gap: 24px;
           align-items: start;
         }

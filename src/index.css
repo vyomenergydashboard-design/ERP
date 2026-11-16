@@ -85,7 +85,7 @@
   --theme-icon: '☀️';
 
   /* Stat card gradient end */
-    --stat-card-gradient-end: rgba(36, 41, 55, 0.5);
+  --stat-card-gradient-end: rgba(36, 41, 55, 0.5);
 
   /* Gridline and Data Table Tokens (Spreadsheet Standard - High Contrast Reference) */
   --border-grid: rgba(255, 255, 255, 0.28);
@@ -176,7 +176,7 @@
   --theme-icon: '';
 
   /* Stat card gradient end */
-    --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
+  --stat-card-gradient-end: rgba(220, 225, 235, 0.4);
 
   /* Gridline and Data Table Tokens (Spreadsheet Standard - 100% Match to User Reference) */
   --border-grid: #b8c4d2;
@@ -219,11 +219,19 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
 }
 
-code, kbd, samp, pre, .erp-mono, [data-mono] {
+code,
+kbd,
+samp,
+pre,
+.erp-mono,
+[data-mono] {
   font-family: var(--font-mono);
   font-feature-settings: 'zero' 1, 'calt' 1;
   font-variant-numeric: tabular-nums;
@@ -328,6 +336,10 @@ textarea::placeholder {
   display: flex;
   height: calc(100vh - 56px);
   overflow: hidden;
+  min-width: 0;
+  max-width: 100vw;
+  width: 100%;
+  position: relative;
 }
 
 /* ── Left nav ── */
@@ -701,7 +713,10 @@ textarea::placeholder {
 .main {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 20px 24px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .main.main-table-mode {
@@ -711,6 +726,8 @@ textarea::placeholder {
   min-height: 0;
   overflow: hidden;
   padding: 6px 16px 4px 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .main.main-table-mode .stats-row {
@@ -749,27 +766,37 @@ textarea::placeholder {
 /* ── Top stats ── */
 .stats-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
   margin-bottom: 24px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1366px) {
+  .stats-row {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 1024px) {
   .stats-row {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
   }
 }
 
 @media (max-width: 768px) {
   .stats-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
+    gap: 8px;
+    margin-bottom: 14px;
   }
 }
 
 @media (max-width: 480px) {
   .stats-row {
     grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 
@@ -1318,6 +1345,7 @@ textarea::placeholder {
   border-left-color: transparent;
   opacity: 0;
   pointer-events: none;
+  display: none !important;
 }
 
 /* ── Floating toggle pill — always visible on the left boundary ── */
@@ -1343,6 +1371,14 @@ textarea::placeholder {
 
   transition: background 0.15s, color 0.15s, border-color 0.15s,
     transform 0.15s ease;
+}
+
+.right-panel--collapsed .rp-toggle {
+  left: auto;
+  right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.35);
 }
 
 .rp-toggle:hover {
@@ -2717,6 +2753,8 @@ option {
   /* Main area gets full width */
   .main {
     padding: 16px;
+    min-width: 0;
+    max-width: 100%;
   }
 
   /* Stats: 3 cols */
@@ -2781,30 +2819,38 @@ option {
 
 /* ── 768px: large phones / small tablets ── */
 @media (max-width: 768px) {
-  /* Header already handled in Header.jsx inline styles */
-
-  /* App layout: no sidenav, main is full width */
+  /* App layout: main is full width */
   .app {
     overflow-x: hidden;
+    min-width: 0;
+    max-width: 100vw;
   }
 
+  /* Sidenav auto-collapses */
   .sidenav {
-    position: fixed;
-    left: 0;
-    top: 56px;
-    height: calc(100vh - 56px);
-    z-index: 1100;
     width: 64px;
     min-width: 64px;
   }
 
+  .sidenav-inner {
+    width: 64px;
+  }
+
   .sidenav:hover .sidenav-inner {
     width: 240px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1000;
     box-shadow: 12px 0 40px rgba(0, 0, 0, 0.4);
   }
 
   .main {
     padding: 10px 12px;
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
   }
 
   /* Stats: 2 cols */
@@ -3118,8 +3164,13 @@ body.resizing-active * {
   overflow-y: auto;
   flex: 1;
   position: relative;
-  scrollbar-width: none; /* Hide default Firefox scrollbars */
-  -ms-overflow-style: none; /* IE/Edge */
+  scrollbar-width: none;
+  /* Hide default Firefox scrollbars */
+  -ms-overflow-style: none;
+  /* IE/Edge */
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
 }
 
 /* Hide native scrollbars (both horizontal and vertical handled by high-precision custom scrollbars) */
@@ -4029,6 +4080,7 @@ body.resizing-active * {
   outline: 2px dotted #1d4ed8 !important;
   outline-offset: -2px;
 }
+
 [data-theme="dark"] .erp-td:active,
 [data-theme="dark"] .erp-td:focus,
 [data-theme="dark"] .erp-td.cell-active {
