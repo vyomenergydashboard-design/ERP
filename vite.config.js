@@ -35,6 +35,22 @@ export default defineConfig({
     },
     watch: {
       usePolling: true,
+      interval: 1000,
+      binaryInterval: 1000,
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/server/**',
+        '**/scratch/**',
+        '**/dist/**',
+        '**/build/**',
+        '**/graphify-out/**',
+        '**/.agents/**',
+        '**/.agent/**',
+        '**/.impeccable/**',
+        '**/backups/**',
+        '**/.user_uploaded/**',
+      ],
     },
     proxy: {
       '/api': {
