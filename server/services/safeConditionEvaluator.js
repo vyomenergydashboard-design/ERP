@@ -6,7 +6,14 @@
  * with a strictly sandboxed, deterministic parser.
  */
 
-const DANGEROUS_IDENTIFIERS = /(process|require|import|global|window|document|constructor|__proto__|prototype|Function|eval|child_process|fs|path|os|exec|spawn)\b/i;
+// Whole-word, case-sensitive match (JS identifiers are case-sensitive), applied only to
+// text OUTSIDE quoted literals so values like 'Process OK' or "os" don't trip it.
+const DANGEROUS_IDENTIFIERS = /\b(process|require|import|global|window|document|constructor|__proto__|prototype|Function|eval|child_process|fs|path|os|exec|spawn)\b/;
+const QUOTED_LITERALS = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g;
+
+function stripQuotedLiterals(expr) {
+  return expr.replace(QUOTED_LITERALS, "''");
+}
 
 /**
  * Safely evaluates a boolean condition string against a given input value ($val).
@@ -29,7 +36,7 @@ export function safeEvaluateCondition(condition, val) {
   if (!trimmed) return false;
 
   // 1. Strict AST security boundary: Reject any dynamic code injection keywords
-  if (DANGEROUS_IDENTIFIERS.test(trimmed)) {
+  if (DANGEROUS_IDENTIFIERS.test(stripQuotedLiterals(trimmed))) {
     console.warn('[Security Warning] Blocked hazardous condition evaluation expression:', trimmed);
     return false;
   }

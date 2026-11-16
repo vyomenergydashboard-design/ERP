@@ -24,8 +24,13 @@ export function broadcastEvent(eventData) {
   }
 }
 
-export function initEventStream(app, authorize) {
-  const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+export function initEventStream(app, authorize, jwtSecret = process.env.JWT_SECRET) {
+  // No hard-coded fallback: if neither is set, header-token auth is simply unavailable
+  // (tickets issued via authorize() still work).
+  const JWT_SECRET = jwtSecret || process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    console.warn('[eventStream] JWT_SECRET is not configured; Bearer-token auth for /api/events is disabled (tickets only).');
+  }
 
   // 1. Ticket generation endpoint (passes auth token in header, receives short-lived ticket)
   app.post('/api/events/ticket', authorize(), (req, res) => {
@@ -51,13 +56,13 @@ export function initEventStream(app, authorize) {
       ticketStore.delete(ticket); // Single use
     }
 
-    // Fallback: Check Authorization header or query token
-    if (!authenticatedUser) {
+    // Fallback: Authorization: Bearer <jwt> header only (never a token in the URL)
+    if (!authenticatedUser && JWT_SECRET) {
       const authHeader = req.headers['authorization'];
-      const token = (authHeader && authHeader.split(' ')[1]) || req.query.token;
-      if (token) {
+      const match = typeof authHeader === 'string' ? authHeader.match(/^Bearer\s+(\S+)$/i) : null;
+      if (match) {
         try {
-          authenticatedUser = jwt.verify(token, JWT_SECRET);
+          authenticatedUser = jwt.verify(match[1], JWT_SECRET);
         } catch (_) {}
       }
     }

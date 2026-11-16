@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { DEPTS } from '../data/planningData';
 import { Clock, ChevronLeft } from 'lucide-react';
 import EditRefTagModal from './EditRefTagModal.jsx';
+import { openProtectedUpload } from '../utils/protectedUploads';
 
 function relativeTime(isoString) {
   if (!isoString) return null;
@@ -221,9 +222,8 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                     {selectedOrder.documents.filter(d => d.doc_type !== 'TaskUpload').map((doc) => (
                       <div key={doc.id} style={{ fontSize: 11, marginBottom: 3 }}>
                         <a
-                          href={`${window.API_BASE}/uploads/${doc.file_path.split(/[/\\]/).pop()}?token=${localStorage.getItem('token')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.')); }}
                           style={{ color: 'var(--blue)', textDecoration: 'none' }}
                         >
                           {doc.file_name}

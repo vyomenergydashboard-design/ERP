@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import ExcelSheetViewer from './ExcelSheetViewer';
+import { getSignedUploadUrl, openProtectedUpload, downloadProtectedUpload, useSignedUploadUrl } from '../utils/protectedUploads';
 import {
   X, UploadCloud, FileText, Download, Trash2, Eye,
   CheckCircle2, AlertCircle, Loader2, RefreshCw, ExternalLink,
@@ -15,23 +16,6 @@ function formatFileSize(bytes) {
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-}
-
-function getDocumentUrl(filePath) {
-  if (!filePath) return '';
-  let pathStr = filePath.replace(/\\/g, '/');
-  const uploadsIdx = pathStr.indexOf('uploads/');
-  let relPath = '';
-  if (uploadsIdx !== -1) {
-    relPath = pathStr.substring(uploadsIdx + 8);
-  } else {
-    relPath = pathStr.split('/').pop();
-  }
-  relPath = relPath.replace(/^\/+/, '');
-  const token = localStorage.getItem('token');
-  const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-  const baseUrl = window.API_BASE || '';
-  return `${baseUrl}/uploads/${relPath}${tokenParam}`;
 }
 
 function getFileType(fileName) {
@@ -150,7 +134,7 @@ export default function OrderDocumentsModal({
     const loadExcel = async () => {
       setExcelData(prev => ({ ...prev, loading: true, error: null }));
       try {
-        const fileUrl = getDocumentUrl(selectedDocForPreview.file_path);
+        const fileUrl = await getSignedUploadUrl(selectedDocForPreview.file_path);
         const res = await fetch(fileUrl);
         if (!res.ok) throw new Error(`Could not load spreadsheet (status ${res.status})`);
         const buffer = await res.arrayBuffer();
@@ -414,7 +398,17 @@ export default function OrderDocumentsModal({
 
   const isPreviewActive = Boolean(selectedDocForPreview);
   const activeDocType = selectedDocForPreview ? getFileType(selectedDocForPreview.file_name) : null;
-  const activeDocUrl = selectedDocForPreview ? getDocumentUrl(selectedDocForPreview.file_path) : '';
+  // Short-lived signed URL for inline viewers (iframe/img/Excel); links fetch fresh tickets on click.
+  const { url: signedActiveDocUrl } = useSignedUploadUrl(selectedDocForPreview ? selectedDocForPreview.file_path : null);
+  const activeDocUrl = signedActiveDocUrl || undefined;
+  const openActiveDoc = (e) => {
+    e.preventDefault();
+    if (selectedDocForPreview) openProtectedUpload(selectedDocForPreview.file_path).catch(() => alert('Could not open document. Please try again.'));
+  };
+  const downloadActiveDoc = (e) => {
+    e.preventDefault();
+    if (selectedDocForPreview) downloadProtectedUpload(selectedDocForPreview.file_path, selectedDocForPreview.file_name).catch(() => alert('Could not download document. Please try again.'));
+  };
 
   // Filter Excel rows based on search
   const filteredExcelRows = excelData.rows.filter((row, idx) => {
@@ -775,10 +769,8 @@ export default function OrderDocumentsModal({
                         </button>
 
                         <a
-                          href={getDocumentUrl(poDoc.file_path)}
-                          download={poDoc.file_name}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); downloadProtectedUpload(poDoc.file_path, poDoc.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -983,10 +975,8 @@ export default function OrderDocumentsModal({
                       </button>
 
                       <a
-                        href={getDocumentUrl(quotationDoc.file_path)}
-                        download={quotationDoc.file_name}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); downloadProtectedUpload(quotationDoc.file_path, quotationDoc.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1189,10 +1179,8 @@ export default function OrderDocumentsModal({
                       </button>
 
                       <a
-                        href={getDocumentUrl(detailsDoc.file_path)}
-                        download={detailsDoc.file_name}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="#"
+                        onClick={(e) => { e.preventDefault(); downloadProtectedUpload(detailsDoc.file_path, detailsDoc.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
@@ -1441,11 +1429,8 @@ export default function OrderDocumentsModal({
                               </button>
 
                               <a
-                                href={getDocumentUrl(doc.file_path)}
-                                download={doc.file_name}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); downloadProtectedUpload(doc.file_path, doc.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                                 style={{
                                   color: 'var(--text2)',
                                   padding: '3px 5px',
@@ -1619,9 +1604,8 @@ export default function OrderDocumentsModal({
                   )}
 
                   <a
-                    href={activeDocUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="#"
+                    onClick={openActiveDoc}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1642,10 +1626,8 @@ export default function OrderDocumentsModal({
                   </a>
 
                   <a
-                    href={activeDocUrl}
-                    download={selectedDocForPreview.file_name}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="#"
+                    onClick={downloadActiveDoc}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -1770,8 +1752,8 @@ export default function OrderDocumentsModal({
                         <div style={{ fontSize: '14px', color: 'var(--text)' }}>Could not display spreadsheet directly.</div>
                         <div style={{ fontSize: '12px', color: 'var(--text3)' }}>{excelData.error}</div>
                         <a
-                          href={activeDocUrl}
-                          download={selectedDocForPreview.file_name}
+                          href="#"
+                          onClick={downloadActiveDoc}
                           style={{
                             padding: '8px 16px',
                             background: '#10b981',
@@ -1944,8 +1926,8 @@ export default function OrderDocumentsModal({
                       </div>
                     </div>
                     <a
-                      href={activeDocUrl}
-                      download={selectedDocForPreview.file_name}
+                      href="#"
+                      onClick={downloadActiveDoc}
                       style={{
                         padding: '10px 24px',
                         background: 'var(--blue, #3b82f6)',
@@ -2017,6 +1999,7 @@ export default function OrderDocumentsModal({
           fileName={selectedDocForPreview.file_name}
           title={`Spreadsheet Viewer - ${selectedDocForPreview.file_name}`}
           onClose={() => setShowFullExcelModal(false)}
+          onDownload={() => downloadProtectedUpload(selectedDocForPreview.file_path, selectedDocForPreview.file_name).catch(() => alert('Could not download document. Please try again.'))}
         />
       )}
 

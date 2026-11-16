@@ -425,21 +425,33 @@ export default function DeptWorklist({ dept }) {
   const fetchWorklist = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const [wRes, uRes] = await Promise.all([
-        fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(dept)}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch(window.API_BASE + "/api/users", {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-      ]);
+      const wRes = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(dept)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       if (wRes.ok) setUnits(await wRes.json());
-      if (uRes.ok) setUsers(await uRes.json());
+    } catch (err) {
+      console.error('Failed to fetch worklist', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [dept, token]);
+
+  // Users list rarely changes: load once on mount, not on every orderUpdated event
+  useEffect(() => {
+    let cancelled = false;
+    fetch(window.API_BASE + "/api/users", {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setUsers(data);
+      })
+      .catch((err) => console.error('Failed to fetch users', err));
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => { fetchWorklist(); }, [fetchWorklist]);
 

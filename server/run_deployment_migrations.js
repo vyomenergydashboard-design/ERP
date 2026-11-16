@@ -1,10 +1,49 @@
 import pool from './db.js';
 
+/**
+ * Runs `fn` inside its own transaction exactly once per database, recording a marker
+ * row in system_settings (key/value/updated_at) in the same transaction. If the marker
+ * already exists, `fn` is skipped. Always leaves the client outside a transaction.
+ */
+async function runOnce(client, markerKey, fn) {
+  const existing = await client.query('SELECT 1 FROM system_settings WHERE key = $1', [markerKey]);
+  if (existing.rows.length > 0) return false;
+
+  await client.query('BEGIN');
+  try {
+    // Re-check under a row lock-free guard: ON CONFLICT handles concurrent boots.
+    const claim = await client.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+       ON CONFLICT (key) DO NOTHING RETURNING key`,
+      [markerKey, new Date().toISOString()]
+    );
+    if (claim.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+    await fn();
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  }
+}
+
 export async function runDeploymentMigrations(clientParam) {
   const client = clientParam || await pool.connect();
   const shouldRelease = !clientParam;
 
   try {
+    // Marker table for one-time migrations (also created by init.sql)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // 0. Ensure critical columns exist on order_units immediately and independently
     const criticalCols = [
       'po_override_unlinked BOOLEAN DEFAULT FALSE',
@@ -218,9 +257,8 @@ export async function runDeploymentMigrations(clientParam) {
         ('tray_status',     'Tray Status',     'Stores', 'Dropdown', true, 25),
         ('tray_start_date', 'Tray Start Date', 'Stores', 'Date',     true, 26),
         ('issued_date',     'Issued Date',     'Stores', 'Date',     true, 27)
-      ON CONFLICT (col_key) DO UPDATE SET 
-        label = EXCLUDED.label, 
-        category = EXCLUDED.category, 
+      ON CONFLICT (col_key) DO UPDATE SET
+        category = EXCLUDED.category,
         field_type = EXCLUDED.field_type;
 
       INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
@@ -230,7 +268,7 @@ export async function runDeploymentMigrations(clientParam) {
         ('all',        'tray_status',     true),
         ('all',        'tray_start_date', true),
         ('all',        'issued_date',     true)
-      ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+      ON CONFLICT (dept, col_key) DO NOTHING;
 
       INSERT INTO department_column_visibility (dept, col_key, is_visible)
       SELECT d.dept, c.col_key, false
@@ -243,41 +281,10 @@ export async function runDeploymentMigrations(clientParam) {
     const oldOrdersRes = await client.query("SELECT COUNT(*) FROM orders WHERE order_number LIKE 'ORD-%'");
     const oldOrdersCount = parseInt(oldOrdersRes.rows[0].count, 10);
 
+    // Order numbers are immutable (AGENTS.md §8.1): they appear on invoices, vendor POs
+    // and physical labels. Legacy ORD- numbers are reported, never renumbered.
     if (oldOrdersCount > 0) {
-      console.log(`[Deployment Migration] Found ${oldOrdersCount} old ORD- orders to migrate...`);
-      await client.query('BEGIN');
-
-      await client.query("UPDATE orders SET order_number = 'TEMP-' || order_number WHERE order_number LIKE 'ORD-%'");
-      const ordersToMigrate = await client.query("SELECT id, order_number, order_date, created_at FROM orders WHERE order_number LIKE 'TEMP-ORD-%' ORDER BY id ASC");
-
-      for (const order of ordersToMigrate.rows) {
-        const yr = order.order_date ? new Date(order.order_date).getFullYear() : (order.created_at ? new Date(order.created_at).getFullYear() : new Date().getFullYear());
-        const startYr = String(yr % 100).padStart(2, '0');
-        const endYr = String((yr + 1) % 100).padStart(2, '0');
-
-        let seq = 1;
-        const parts = order.order_number.replace(/^TEMP-ORD-/, '').split('-');
-        if (parts.length >= 2) {
-          seq = parseInt(parts[1], 10) || 1;
-        } else {
-          seq = parseInt(parts[0], 10) || 1;
-        }
-
-        const newOrdNum = `${startYr}${endYr}${String(seq).padStart(4, '0')}`;
-        await client.query("UPDATE orders SET order_number = $1 WHERE id = $2", [newOrdNum, order.id]);
-
-        // Update line item numbers
-        const lineItems = await client.query("SELECT id FROM order_line_items WHERE order_id = $1 ORDER BY id ASC", [order.id]);
-        let liIdx = 1;
-        for (const li of lineItems.rows) {
-          const newLiNum = `${newOrdNum}-${String(liIdx).padStart(2, '0')}`;
-          await client.query("UPDATE order_line_items SET line_item_number = $1 WHERE id = $2", [newLiNum, li.id]);
-          liIdx++;
-        }
-      }
-
-      await client.query('COMMIT');
-      console.log('[Deployment Migration] Order number migration completed.');
+      console.warn(`[Deployment Migration] Found ${oldOrdersCount} legacy ORD- order number(s). Automatic renumbering is disabled; leaving them unchanged.`);
     }
 
 
@@ -306,7 +313,9 @@ export async function runDeploymentMigrations(clientParam) {
     }
 
     // ── Safe Cleanup of Unused Dummy Panel Sizes (PC-01 to PC-06) ────────
+    // One-time only: gated by a system_settings marker so admin re-created sizes survive later boots.
     try {
+      await runOnce(client, 'migration_once:cleanup_dummy_panel_sizes_v1', async () => {
       const deletedDummySizes = await client.query(`
         DELETE FROM panel_size_masters 
         WHERE panel_code IN ('PC-01', 'PC-02', 'PC-03', 'PC-04', 'PC-05', 'PC-06') 
@@ -321,31 +330,35 @@ export async function runDeploymentMigrations(clientParam) {
       if (deletedDummySizes.rows.length > 0) {
         console.log(`[Deployment Migration] Cleaned up ${deletedDummySizes.rows.length} unused dummy panel sizes:`, deletedDummySizes.rows.map(r => r.panel_code).join(', '));
       }
+      });
     } catch (dummyErr) {
       console.error('[Deployment Migration] Dummy panel size cleanup warning:', dummyErr.message || dummyErr);
     }
 
     // ── Resilient Task Cleanup & Sales Department Realignment ──
     try {
-      console.log('[Deployment Migration] Cleaning up removed Sales tasks (Confirm Dispatch Date, Sales Clearance)...');
+      // 1. One-time removal of the retired 'Confirm Dispatch Date' / 'Sales Clearance' templates.
+      // Gated by a system_settings marker so an admin can re-create these tasks later and have
+      // them survive subsequent boots (AGENTS.md §8.9: admins own task_masters).
+      await runOnce(client, 'migration_once:remove_retired_sales_tasks_v1', async () => {
+        console.log('[Deployment Migration] One-time cleanup of removed Sales tasks (Confirm Dispatch Date, Sales Clearance)...');
+        const deletedMasters = await client.query(`
+          DELETE FROM task_masters
+          WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')
+          RETURNING id, name;
+        `);
 
-      // 1. Delete Confirm Dispatch Date and Sales Clearance from task_masters and step tables
-      const deletedMasters = await client.query(`
-        DELETE FROM task_masters 
-        WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')
-        RETURNING id, name;
-      `);
+        if (deletedMasters.rows.length > 0) {
+          const deletedIds = deletedMasters.rows.map(r => r.id);
+          await client.query('DELETE FROM order_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
+          await client.query('DELETE FROM unit_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
+          console.log(`[Deployment Migration] Removed ${deletedMasters.rows.length} unused Sales task templates and steps.`);
+        }
 
-      if (deletedMasters.rows.length > 0) {
-        const deletedIds = deletedMasters.rows.map(r => r.id);
-        await client.query('DELETE FROM order_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
-        await client.query('DELETE FROM unit_steps WHERE task_id = ANY($1::int[])', [deletedIds]);
-        console.log(`[Deployment Migration] Removed ${deletedMasters.rows.length} unused Sales task templates and steps.`);
-      }
-
-      // Also clean up by name in case step existed without task_id
-      await client.query("DELETE FROM order_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
-      await client.query("DELETE FROM unit_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
+        // Also clean up by name in case step existed without task_id
+        await client.query("DELETE FROM order_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
+        await client.query("DELETE FROM unit_steps WHERE dept = 'Sales' AND name IN ('Confirm Dispatch Date', 'Sales Clearance')");
+      });
 
       // 2. Ensure 'Upload PO' task master exists in Sales
       const uploadPoMaster = await client.query("SELECT id FROM task_masters WHERE dept = 'Sales' AND name = 'Upload PO'");
@@ -369,25 +382,29 @@ export async function runDeploymentMigrations(clientParam) {
         )
       `);
 
-      // 4. Any order with NO PO document uploaded must have its Upload PO milestone set to pending
-      await client.query(`
-        UPDATE order_steps os
-        SET status = 'pending', notes = 'Awaiting PO upload.'
-        FROM orders o
-        WHERE os.order_id = o.id
-          AND os.name = 'Upload PO'
+      // 4. REPORT ONLY: orders whose 'Upload PO' step is marked done but which have no PO document.
+      // Boot must not rewrite workflow state; fix these through the app (deriveUnitStatus) instead.
+      const staleUploadPo = await client.query(`
+        SELECT COUNT(*)::int AS count
+        FROM order_steps os
+        JOIN orders o ON os.order_id = o.id
+        WHERE os.name = 'Upload PO'
+          AND os.status <> 'pending'
           AND NOT EXISTS (
             SELECT 1 FROM documents d WHERE d.entity_type = 'Order' AND d.entity_id = o.id AND d.doc_type = 'PO'
           )
       `);
+      if (staleUploadPo.rows[0].count > 0) {
+        console.warn(`[Deployment Migration] ${staleUploadPo.rows[0].count} 'Upload PO' order step(s) are not pending although the order has no PO document. Not modified on boot; review manually.`);
+      }
 
-      // 5. Re-align orders and units: An order stays in Sales until Upload PO document is uploaded
-      // Any unit belonging to an order without a PO document must be in Sales
+      // 5. REPORT ONLY: units outside Sales whose order has no PO document / pending Upload PO.
+      // Boot must never move units or clear design confirmation (current_dept is derived only).
       const misalignedUnits = await client.query(`
-        UPDATE order_units ou
-        SET current_dept = 'Sales', status = 'Pending', design_confirmed = false, design_confirmed_at = NULL, design_confirmed_by = NULL
-        FROM orders o
-        WHERE ou.order_id = o.id
+        SELECT ou.id
+        FROM order_units ou
+        JOIN orders o ON ou.order_id = o.id
+        WHERE COALESCE(ou.current_dept, 'Sales') <> 'Sales'
           AND ou.hold_status NOT IN ('Hold', 'Cancelled')
           AND ou.status NOT IN ('Cancelled', 'Hold', 'On Hold')
           AND COALESCE(ou.sales_cleared, false) = false
@@ -406,12 +423,11 @@ export async function runDeploymentMigrations(clientParam) {
               SELECT 1 FROM order_steps os 
               WHERE os.order_id = o.id AND os.dept = 'Sales' AND os.name = 'Upload PO' AND os.status != 'done'
             )
-          )
-        RETURNING ou.id;
+          );
       `);
 
       if (misalignedUnits.rows.length > 0) {
-        console.log(`[Deployment Migration] Realignment complete: ${misalignedUnits.rows.length} units with pending POs restored to Sales.`);
+        console.warn(`[Deployment Migration] ${misalignedUnits.rows.length} unit(s) are past Sales while their order has no PO document / pending 'Upload PO'. Not moved on boot; review manually. Sample unit ids: ${misalignedUnits.rows.slice(0, 20).map(r => r.id).join(', ')}`);
       }
 
       // Ensure vendor_purchase_orders and vendor_purchase_order_units exist
@@ -438,6 +454,7 @@ export async function runDeploymentMigrations(clientParam) {
         );
 
         CREATE INDEX IF NOT EXISTS idx_vpo_units_serial ON vendor_purchase_order_units(unit_serial);
+        CREATE INDEX IF NOT EXISTS idx_vpo_units_vpo_id ON vendor_purchase_order_units(vendor_purchase_order_id);
         CREATE INDEX IF NOT EXISTS idx_vpo_order_uid ON vendor_purchase_orders(order_uid);
         CREATE INDEX IF NOT EXISTS idx_vpo_status ON vendor_purchase_orders(status);
 
@@ -478,19 +495,25 @@ export async function runDeploymentMigrations(clientParam) {
         ADD COLUMN IF NOT EXISTS pending_material_complete_date TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS handover_to_qc_date TIMESTAMPTZ;
 
-        ALTER TABLE order_units ALTER COLUMN mounting_start_date TYPE TIMESTAMPTZ USING mounting_start_date::TIMESTAMPTZ;
-        ALTER TABLE order_units ALTER COLUMN mounting_complete_date TYPE TIMESTAMPTZ USING mounting_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_units ALTER COLUMN wiring_start_date TYPE TIMESTAMPTZ USING wiring_start_date::TIMESTAMPTZ;
-        ALTER TABLE order_units ALTER COLUMN wiring_complete_date TYPE TIMESTAMPTZ USING wiring_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_units ALTER COLUMN pending_material_complete_date TYPE TIMESTAMPTZ USING pending_material_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_units ALTER COLUMN handover_to_qc_date TYPE TIMESTAMPTZ USING handover_to_qc_date::TIMESTAMPTZ;
-
-        ALTER TABLE order_line_items ALTER COLUMN mounting_start_date TYPE TIMESTAMPTZ USING mounting_start_date::TIMESTAMPTZ;
-        ALTER TABLE order_line_items ALTER COLUMN mounting_complete_date TYPE TIMESTAMPTZ USING mounting_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_line_items ALTER COLUMN wiring_start_date TYPE TIMESTAMPTZ USING wiring_start_date::TIMESTAMPTZ;
-        ALTER TABLE order_line_items ALTER COLUMN wiring_complete_date TYPE TIMESTAMPTZ USING wiring_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_line_items ALTER COLUMN pending_material_complete_date TYPE TIMESTAMPTZ USING pending_material_complete_date::TIMESTAMPTZ;
-        ALTER TABLE order_line_items ALTER COLUMN handover_to_qc_date TYPE TIMESTAMPTZ USING handover_to_qc_date::TIMESTAMPTZ;
+        -- Convert legacy DATE/TIMESTAMP production columns to TIMESTAMPTZ only when needed
+        -- (an unconditional ALTER ... TYPE rewrites the table and takes an exclusive lock on every boot).
+        DO $$
+        DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN
+            SELECT table_name, column_name
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name IN ('order_units', 'order_line_items')
+              AND column_name IN ('mounting_start_date', 'mounting_complete_date', 'wiring_start_date',
+                                  'wiring_complete_date', 'pending_material_complete_date', 'handover_to_qc_date')
+              AND data_type <> 'timestamp with time zone'
+          LOOP
+            EXECUTE format('ALTER TABLE %I ALTER COLUMN %I TYPE TIMESTAMPTZ USING %I::TIMESTAMPTZ',
+                           r.table_name, r.column_name, r.column_name);
+          END LOOP;
+        END $$;
 
         INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
           ('wiremen',                        'Wiremen',                   'Production', 'Dropdown', true, 28),
@@ -500,8 +523,7 @@ export async function runDeploymentMigrations(clientParam) {
           ('wiring_complete_date',           'Wiring Complete',           'Production', 'DateTime', true, 32),
           ('pending_material_complete_date', 'Pending Material Complete', 'Production', 'DateTime', true, 33),
           ('handover_to_qc_date',            'Handover to QC',            'Production', 'DateTime', true, 34)
-        ON CONFLICT (col_key) DO UPDATE SET 
-          label = EXCLUDED.label, 
+        ON CONFLICT (col_key) DO UPDATE SET
           category = EXCLUDED.category, 
           field_type = EXCLUDED.field_type;
 
@@ -520,7 +542,7 @@ export async function runDeploymentMigrations(clientParam) {
           ('all',        'wiring_complete_date',           true),
           ('all',        'pending_material_complete_date', true),
           ('all',        'handover_to_qc_date',            true)
-        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+        ON CONFLICT (dept, col_key) DO NOTHING;
 
         INSERT INTO department_column_visibility (dept, col_key, is_visible)
         SELECT d.dept, c.col_key, false
@@ -557,30 +579,44 @@ export async function runDeploymentMigrations(clientParam) {
         WHERE l.user_id = u.id AND l.username_snapshot IS NULL
       `);
 
-      // Drop existing foreign key on activity_logs(user_id) if it was ON DELETE CASCADE
+      // Inspect existing FKs on activity_logs(user_id) via pg_catalog (confdeltype 'n' = SET NULL)
       const fkRes = await client.query(`
-        SELECT tc.constraint_name 
-        FROM information_schema.table_constraints AS tc 
-        JOIN information_schema.key_column_usage AS kcu
-          ON tc.constraint_name = kcu.constraint_name
-          AND tc.table_schema = kcu.table_schema
-        WHERE tc.constraint_type = 'FOREIGN KEY' 
-          AND tc.table_name = 'activity_logs' 
-          AND kcu.column_name = 'user_id';
+        SELECT con.conname, con.confdeltype
+        FROM pg_constraint con
+        JOIN pg_class rel ON rel.oid = con.conrelid
+        JOIN pg_namespace nsp ON nsp.oid = rel.relnamespace
+        JOIN pg_attribute att ON att.attrelid = con.conrelid AND att.attnum = ANY(con.conkey)
+        WHERE con.contype = 'f'
+          AND nsp.nspname = current_schema()
+          AND rel.relname = 'activity_logs'
+          AND att.attname = 'user_id'
       `);
 
-      for (const row of fkRes.rows) {
-        await client.query(`ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS "${row.constraint_name}"`);
+      const alreadyCorrect = fkRes.rows.length === 1 && fkRes.rows[0].confdeltype === 'n';
+      if (!alreadyCorrect) {
+        await client.query('BEGIN');
+        try {
+          for (const row of fkRes.rows) {
+            await client.query(`ALTER TABLE activity_logs DROP CONSTRAINT IF EXISTS "${row.conname.replace(/"/g, '""')}"`);
+          }
+          // Null orphaned user references so the new FK can be validated
+          await client.query(`
+            UPDATE activity_logs l SET user_id = NULL
+            WHERE l.user_id IS NOT NULL
+              AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id = l.user_id)
+          `);
+          await client.query(`
+            ALTER TABLE activity_logs
+            ADD CONSTRAINT activity_logs_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+          `);
+          await client.query('COMMIT');
+          console.log('[Deployment Migration] activity_logs ON DELETE SET NULL foreign key established.');
+        } catch (fkTxErr) {
+          await client.query('ROLLBACK').catch(() => {});
+          throw fkTxErr;
+        }
       }
-
-      // Add resilient ON DELETE SET NULL foreign key constraint
-      await client.query(`
-        ALTER TABLE activity_logs 
-        ADD CONSTRAINT activity_logs_user_id_fkey 
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
-      `);
-
-      console.log('[Deployment Migration] activity_logs ON DELETE SET NULL foreign key established.');
     } catch (logFkErr) {
       console.warn('[Deployment Migration] activity_logs foreign key notice:', logFkErr.message);
     }
@@ -605,12 +641,11 @@ export async function runDeploymentMigrations(clientParam) {
           ('qc_receiving_date', 'QC Receiving Date', 'QC', 'DateTime', true, 35),
           ('qc_start_date',     'QC Start Date',     'QC', 'DateTime', true, 36),
           ('qc_complete_date',  'QC Complete Date',  'QC', 'DateTime', true, 37)
-        ON CONFLICT (col_key) DO UPDATE SET 
-          label = EXCLUDED.label, 
+        ON CONFLICT (col_key) DO UPDATE SET
           category = EXCLUDED.category, 
           field_type = EXCLUDED.field_type;
 
-        UPDATE column_masters SET category = 'QC', label = 'QC Status', field_type = 'Dropdown' WHERE col_key = 'qc_status';
+        UPDATE column_masters SET category = 'QC', field_type = 'Dropdown' WHERE col_key = 'qc_status';
 
         INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES
           ('QC',  'qc_receiving_date', true),
@@ -621,7 +656,7 @@ export async function runDeploymentMigrations(clientParam) {
           ('all', 'qc_start_date',     true),
           ('all', 'qc_complete_date',  true),
           ('all', 'qc_status',         true)
-        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+        ON CONFLICT (dept, col_key) DO NOTHING;
 
         INSERT INTO department_column_visibility (dept, col_key, is_visible)
         SELECT d.dept, c.col_key, false
@@ -658,8 +693,7 @@ export async function runDeploymentMigrations(clientParam) {
           ('dispatch_date',  'Dispatch Date',  'Dispatch', 'Date', true, 40),
           ('invoice_number', 'Invoice Number', 'Accounts', 'Text', true, 41),
           ('invoice_date',   'Invoice Date',   'Accounts', 'Date', true, 42)
-        ON CONFLICT (col_key) DO UPDATE SET 
-          label = EXCLUDED.label, 
+        ON CONFLICT (col_key) DO UPDATE SET
           category = EXCLUDED.category, 
           field_type = EXCLUDED.field_type;
 
@@ -670,7 +704,7 @@ export async function runDeploymentMigrations(clientParam) {
           ('all',      'dispatch_date',  true),
           ('all',      'invoice_number', true),
           ('all',      'invoice_date',   true)
-        ON CONFLICT (dept, col_key) DO UPDATE SET is_visible = EXCLUDED.is_visible;
+        ON CONFLICT (dept, col_key) DO NOTHING;
 
         INSERT INTO department_column_visibility (dept, col_key, is_visible)
         SELECT d.dept, c.col_key, false
@@ -692,6 +726,28 @@ export async function runDeploymentMigrations(clientParam) {
       console.log('[Deployment Migration] Dispatch (dispatch_date) and Accounts (invoice_number, invoice_date) columns established.');
     } catch (daErr) {
       console.error('[Deployment Migration] Dispatch and Accounts columns migration error:', daErr);
+    }
+
+    // 20. New units always start in Sales (deriveUnitStatus advances them; never written here)
+    try {
+      await client.query(`ALTER TABLE order_units ALTER COLUMN current_dept SET DEFAULT 'Sales'`);
+    } catch (defErr) {
+      console.warn('[Deployment Migration] current_dept default notice:', defErr.message);
+    }
+
+    // 21. One-time-in-effect legacy cleanup (idempotent): undo the old per-call
+    // "Auto-completed for Standard order" step completions. Does not call deriveUnitStatus;
+    // units are re-derived the next time they are touched through the app.
+    try {
+      const legacyAuto = await client.query(`
+        UPDATE unit_steps SET status = 'pending', notes = NULL
+        WHERE notes = 'Auto-completed for Standard order'
+      `);
+      if (legacyAuto.rowCount > 0) {
+        console.log(`[Deployment Migration] Reset ${legacyAuto.rowCount} legacy 'Auto-completed for Standard order' step(s) to pending.`);
+      }
+    } catch (legacyErr) {
+      console.warn('[Deployment Migration] Legacy Standard auto-complete cleanup notice:', legacyErr.message);
     }
 
     // 10. Allow material_description to be optional (DROP NOT NULL) & clear duplicate part numbers
@@ -717,6 +773,9 @@ export async function runDeploymentMigrations(clientParam) {
     console.error('[Deployment Migration Error]:', err);
   } finally {
     if (shouldRelease && client) {
+      // Defensive: never return a pooled client with an open/aborted transaction.
+      // (Outside a transaction ROLLBACK only emits a notice.)
+      try { await client.query('ROLLBACK'); } catch { /* ignore */ }
       client.release();
     }
   }

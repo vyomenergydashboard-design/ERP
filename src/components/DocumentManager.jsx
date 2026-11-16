@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { openProtectedUpload } from '../utils/protectedUploads';
 
 const DOC_TYPES = [
   'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
@@ -209,9 +210,11 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
                 <div className="doc-meta">
                   <span>{(doc.file_size / 1024).toFixed(1)} KB</span>
                   <a
-                    href={`${window.API_BASE}/uploads/${doc.file_path.split(/[\/\\]/).pop()}?token=${token}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.'));
+                    }}
                     className="doc-link"
                   >
                     View

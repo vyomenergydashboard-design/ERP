@@ -161,6 +161,7 @@ export default function ExcelSheetViewer({ url, fileName, title, onClose, onDown
               <a
                 href={url}
                 download={fileName || 'spreadsheet.xlsx'}
+                onClick={onDownload ? (e) => { e.preventDefault(); onDownload(); } : undefined}
                 className="vbtn"
                 style={{
                   fontSize: '12px',
@@ -287,6 +288,7 @@ export default function ExcelSheetViewer({ url, fileName, title, onClose, onDown
                 <a
                   href={url}
                   download={fileName || 'spreadsheet.xlsx'}
+                  onClick={onDownload ? (e) => { e.preventDefault(); onDownload(); } : undefined}
                   className="vbtn"
                   style={{
                     background: '#10b981',

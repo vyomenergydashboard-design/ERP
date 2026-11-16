@@ -10,9 +10,22 @@ import express from 'express';
 export default function createWiremanMastersRouter(pool, authorize) {
   const router = express.Router();
 
+  // Validate :id as a positive 32-bit integer before it reaches SQL
+  router.param('id', (req, res, next, rawId) => {
+    const idStr = String(rawId);
+    const parsed = Number(idStr);
+    if (!/^\d+$/.test(idStr) || !Number.isSafeInteger(parsed) || parsed <= 0 || parsed > 2147483647) {
+      return res.status(400).json({ error: 'Invalid wireman id' });
+    }
+    req.params.id = parsed;
+    next();
+  });
+
   // GET /api/wireman-masters
   // List all wiremen ordered alphabetically by name
-  router.get('/', authorize(), async (req, res) => {
+  // Restricted to the roles that assign wiremen. Other roles still see assigned
+  // names in the order table (stored on each unit); they just can't list the master.
+  router.get('/', authorize(['Admin', 'Manager', 'Production', 'Planning']), async (req, res) => {
     try {
       const result = await pool.query(
         'SELECT * FROM wireman_masters ORDER BY LOWER(TRIM(name)) ASC, id ASC'

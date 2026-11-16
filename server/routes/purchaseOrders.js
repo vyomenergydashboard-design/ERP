@@ -13,8 +13,27 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
   router.get('/', authorize(), async (req, res) => {
     try {
       const { search, status } = req.query;
-      let query = `
-        SELECT 
+      const params = [];
+      const where = [];
+
+      if (typeof status === 'string' && status.trim() && status !== 'All') {
+        params.push(status.trim());
+        where.push(`LOWER(COALESCE(vpo.status, 'Pending')) = LOWER($${params.length})`);
+      }
+      if (typeof search === 'string' && search.trim()) {
+        // Escape LIKE wildcards so the term is matched literally
+        const term = search.trim().replace(/[\\%_]/g, ch => `\\${ch}`);
+        params.push(`%${term}%`);
+        where.push(`EXISTS (
+          SELECT 1 FROM jsonb_array_elements(
+            CASE WHEN jsonb_typeof(vpo.pos) = 'array' THEN vpo.pos ELSE '[]'::jsonb END
+          ) AS p
+          WHERE COALESCE(p->>'poNumber', '') ILIKE $${params.length}
+        )`);
+      }
+
+      const query = `
+        SELECT
           vpo.id,
           vpo.order_uid,
           vpo.category,
@@ -34,26 +53,13 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
           ) AS serials
         FROM vendor_purchase_orders vpo
         LEFT JOIN vendor_purchase_order_units vpou ON vpou.vendor_purchase_order_id = vpo.id
+        ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         GROUP BY vpo.id
         ORDER BY vpo.created_at DESC
       `;
 
-      const ordersRes = await pool.query(query);
-      let results = ordersRes.rows;
-
-      // Optional server-side filtering if query params provided
-      if (status && status !== 'All') {
-        results = results.filter(o => (o.status || 'Pending').toLowerCase() === status.toLowerCase());
-      }
-      if (search && search.trim()) {
-        const term = search.trim().toLowerCase();
-        results = results.filter(o => {
-          const pos = Array.isArray(o.pos) ? o.pos : [];
-          return pos.some(p => (p.poNumber || '').toLowerCase().includes(term));
-        });
-      }
-
-      res.json(results);
+      const ordersRes = await pool.query(query, params);
+      res.json(ordersRes.rows);
     } catch (err) {
       console.error('Error fetching vendor purchase orders:', err);
       res.status(500).json({ error: 'Failed to fetch purchase orders' });
@@ -103,26 +109,29 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
       ]);
       const newOrder = orderRes.rows[0];
 
-      // Insert linked units
-      const insertUnitSql = `
-        INSERT INTO vendor_purchase_order_units (vendor_purchase_order_id, unit_serial, created_at)
-        VALUES ($1, $2, NOW())
-      `;
-      for (const s of serials) {
-        const serialNum = String(s.serialNumber || s.id || s).trim();
-        if (serialNum) {
-          await client.query(insertUnitSql, [newOrder.id, serialNum]);
-        }
+      // Insert linked units in a single statement
+      const serialList = serials
+        .map(s => String((s && typeof s === 'object') ? (s.serialNumber || s.id || '') : s).trim())
+        .filter(Boolean);
+      if (serialList.length > 0) {
+        await client.query(
+          `INSERT INTO vendor_purchase_order_units (vendor_purchase_order_id, unit_serial, created_at)
+           SELECT $1, s, NOW() FROM unnest($2::text[]) AS s`,
+          [newOrder.id, serialList]
+        );
       }
 
-      // Check purchase step auto-completion for newly linked serials
-      try {
-        const serialList = serials.map(s => String(s.serialNumber || s.id || s).trim()).filter(Boolean);
-        if (serialList.length > 0) {
-          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus);
+      // Best-effort purchase step auto-completion for newly linked serials.
+      // Runs under a savepoint so a failure cannot leave the transaction aborted before COMMIT.
+      if (serialList.length > 0) {
+        await client.query('SAVEPOINT vpo_create_autocomplete');
+        try {
+          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus, { by: 'serial' });
+          await client.query('RELEASE SAVEPOINT vpo_create_autocomplete');
+        } catch (autoErr) {
+          await client.query('ROLLBACK TO SAVEPOINT vpo_create_autocomplete');
+          console.warn('Purchase auto-completion warning on save:', autoErr);
         }
-      } catch (autoErr) {
-        console.warn('Purchase auto-completion warning on save:', autoErr);
       }
 
       await client.query('COMMIT');
@@ -131,9 +140,7 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
         success: true,
         order: {
           ...newOrder,
-          serials: serials.map(s => ({
-            serialNumber: String(s.serialNumber || s.id || s).trim()
-          }))
+          serials: serialList.map(serialNumber => ({ serialNumber }))
         }
       });
     } catch (err) {
@@ -200,7 +207,9 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
         order.id
       ]);
 
-      // Check auto-completion for all units linked to this vendor PO
+      // Best-effort auto-completion for all units linked to this vendor PO, under a savepoint
+      // so a failure cannot silently abort the transaction before COMMIT.
+      await client.query('SAVEPOINT vpo_status_autocomplete');
       try {
         const linkedUnitsRes = await client.query(
           'SELECT unit_serial FROM vendor_purchase_order_units WHERE vendor_purchase_order_id = $1',
@@ -208,9 +217,11 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
         );
         const serialList = linkedUnitsRes.rows.map(r => r.unit_serial).filter(Boolean);
         if (serialList.length > 0) {
-          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus);
+          await evaluatePurchaseAutoCompletion(serialList, client, deriveUnitStatus, { by: 'serial' });
         }
+        await client.query('RELEASE SAVEPOINT vpo_status_autocomplete');
       } catch (autoErr) {
+        await client.query('ROLLBACK TO SAVEPOINT vpo_status_autocomplete');
         console.warn('Purchase auto-completion warning on status update:', autoErr);
       }
 

@@ -11,14 +11,15 @@ import { useEffect } from 'react';
  * If multiple modals/dialogs are open, only the topmost modal (highest z-index / latest in DOM)
  * is closed. If no modal is open, Escape has no effect.
  */
+export const MODAL_OVERLAY_SELECTOR = '.modal-overlay.open, .bim-overlay, [data-modal="open"], [data-modal-overlay], dialog[open]';
+
 export function useGlobalModalEscape() {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key !== 'Escape') return;
 
       // Find all open modal overlays currently attached and visible in the document
-      const selector = '.modal-overlay.open, .bim-overlay, [data-modal="open"], [data-modal-overlay], dialog[open]';
-      const openOverlays = Array.from(document.querySelectorAll(selector)).filter((el) => {
+      const openOverlays = Array.from(document.querySelectorAll(MODAL_OVERLAY_SELECTOR)).filter((el) => {
         if (!el.isConnected) return false;
         const style = window.getComputedStyle(el);
         return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, memo } from 'react';
 import { createPortal } from 'react-dom';
 import TechnicalDocsModal from './TechnicalDocsModal';
 import DocumentPreviewModal from './DocumentPreviewModal';
@@ -21,6 +21,46 @@ import { ConfirmModal } from './ConfirmModal';
 import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
 import TableHorizontalScrollbar from './TableHorizontalScrollbar';
 import TableVerticalScrollbar from './TableVerticalScrollbar';
+import { PIPELINE } from '../data/planningData';
+import { MODAL_OVERLAY_SELECTOR } from '../hooks/useGlobalModalEscape';
+import { useStableCallback } from '../hooks/useStableCallback';
+import { openProtectedUpload, useSignedUploadUrl } from '../utils/protectedUploads';
+
+// Columns owned by a single department. In that department's view (and in 'all')
+// they are shown unless explicitly hidden; in any other department's view they
+// are shown only when explicitly enabled. purchase_cat_* columns are matched by prefix.
+const DEPT_OWNED_COLUMNS = {
+  Stores: ['tray_status', 'tray_start_date', 'issued_date'],
+  Production: [
+    'wiremen',
+    'mounting_start_date',
+    'mounting_complete_date',
+    'wiring_start_date',
+    'wiring_complete_date',
+    'pending_material_complete_date',
+    'handover_to_qc_date'
+  ],
+  QC: ['qc_receiving_date', 'qc_start_date', 'qc_complete_date', 'qc_status'],
+  Dispatch: ['dispatch_date'],
+  Accounts: ['invoice_number', 'invoice_date']
+};
+
+const COLUMN_OWNER_DEPT = new Map(
+  Object.entries(DEPT_OWNED_COLUMNS).flatMap(([dept, cols]) => cols.map(col => [col, dept]))
+);
+
+const getOwningDept = (colKey) => {
+  if (colKey.startsWith('purchase_cat_')) return 'Purchase';
+  return COLUMN_OWNER_DEPT.get(colKey) || null;
+};
+
+// Unit-level Production / QC / Dispatch / Accounts columns saved directly on order_units.
+const PRODUCTION_AND_QC_COLS = new Set([
+  ...DEPT_OWNED_COLUMNS.Production,
+  ...DEPT_OWNED_COLUMNS.QC,
+  ...DEPT_OWNED_COLUMNS.Dispatch,
+  ...DEPT_OWNED_COLUMNS.Accounts
+]);
 
 const TEXT_WRAPPABLE_COLS = new Set([
   'company_name',
@@ -157,6 +197,9 @@ const formatDateTimeForInput = (val) => {
 
 // DEFAULT_COL_WIDTHS and MIN_COL_WIDTHS imported from ./tableColumnSizing
 
+// Unsigned /uploads path for a document. It carries NO credentials: to open or
+// embed a file use openProtectedUpload / useSignedUploadUrl, which add a
+// short-lived download ticket.
 export const getDocUrl = (doc) => {
   if (!doc) return '#';
   let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
@@ -172,11 +215,13 @@ export const getDocUrl = (doc) => {
   }
   relPath = relPath.replace(/^\/+/, '');
 
-  const authToken = localStorage.getItem('token');
-  const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
   const baseUrl = window.API_BASE || '';
 
-  return `${baseUrl}/uploads/${relPath}${tokenParam}`;
+  return `${baseUrl}/uploads/${relPath}`;
+};
+
+const openUploadSafely = (doc) => {
+  openProtectedUpload(doc).catch(() => { /* already logged by openProtectedUpload */ });
 };
 
 function PanelSizeComboboxCell({ unit, panelSizeMasters, canEdit, onSave, onDelete }) {
@@ -752,7 +797,6 @@ function calculateUnitStatus(unit, currentFilter, userRole) {
   if (rawUnitStatus === 'dispatched' || isStatusDone(rawUnitStatus)) return 'Completed';
   if (unit.dept_steps?.some(s => String(s.status).toLowerCase() === 'blocked')) return 'Blocked';
 
-  const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
   const filterDeptIdx = PIPELINE.indexOf(currentFilter);
   const unitDeptIdx = PIPELINE.indexOf(unit.current_dept);
 
@@ -2073,7 +2117,7 @@ function renderCellContent({
                     subtitle: `Order: ${unit.order_number}${unit.company_name ? ` · ${unit.company_name}` : ''}`
                   });
                 } else {
-                  window.open(getDocUrl(unit.indent_file_path), '_blank');
+                  openUploadSafely(unit.indent_file_path);
                 }
               }}
               title={refTooltip}
@@ -4334,31 +4378,16 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return map;
   }, [customColumnDefs]);
 
-  const getDocUrl = (doc) => {
-    if (!doc) return '#';
-    let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
-    if (!pathStr) return '#';
-
-    pathStr = pathStr.replace(/\\/g, '/');
-    const uploadsIdx = pathStr.indexOf('uploads/');
-    let relPath = '';
-    if (uploadsIdx !== -1) {
-      relPath = pathStr.substring(uploadsIdx + 8);
-    } else {
-      relPath = pathStr.split('/').pop();
-    }
-    relPath = relPath.replace(/^\/+/, '');
-
-    const authToken = localStorage.getItem('token');
-    const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
-    const baseUrl = window.API_BASE || '';
-
-    return `${baseUrl}/uploads/${relPath}${tokenParam}`;
-  };
+  // Signed (ticketed) URL for the in-app PO / details document viewer.
+  const { url: poPdfViewerUrl, error: poPdfViewerUrlError } = useSignedUploadUrl(poPdfViewer);
+  useEffect(() => {
+    if (!poPdfViewerUrlError) return;
+    addToast(poPdfViewerUrlError.message || 'Unable to open document', 'error');
+    setPoPdfViewer(null);
+  }, [poPdfViewerUrlError, addToast]);
 
 
-
-  const handlePartNumberClick = async (unit) => {
+  const handlePartNumberClick = useStableCallback(async (unit) => {
     const pNum = unit.part_number;
     const match = partMasters.find(p =>
       p.part_number && pNum && p.part_number.trim().toLowerCase() === pNum.trim().toLowerCase()
@@ -4414,9 +4443,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       orderDocs
     });
     setShowDocsModal(true);
-  };
+  });
 
-  const handleConfirmDesignClassification = async (unit) => {
+  const handleConfirmDesignClassification = useStableCallback(async (unit) => {
     const targetUnitId = unit.unit_id || unit.id;
     if (!targetUnitId) return;
 
@@ -4494,16 +4523,19 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           }));
         }
       } else {
-        console.error('Failed to confirm design classification');
+        const errData = await res.json().catch(() => ({}));
+        console.error('Failed to confirm design classification:', errData.error || res.status);
+        addToast(errData.error || 'Failed to confirm design classification', 'error');
         fetchUnits(true);
       }
     } catch (err) {
       console.error('Error confirming design classification:', err);
+      addToast(err.message || 'Failed to confirm design classification', 'error');
       fetchUnits(true);
     }
-  };
+  });
 
-  const handleUnconfirmDesignClassification = async (unit) => {
+  const handleUnconfirmDesignClassification = useStableCallback(async (unit) => {
     const targetUnitId = unit.unit_id || unit.id;
     if (!targetUnitId) return;
 
@@ -4546,12 +4578,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             return u;
           }));
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        console.error('Failed to reset design confirmation:', errData.error || res.status);
+        addToast(errData.error || 'Failed to reset design confirmation', 'error');
+        fetchUnits(true);
       }
     } catch (err) {
       console.error('Error unconfirming design:', err);
+      addToast(err.message || 'Failed to reset design confirmation', 'error');
       fetchUnits(true);
     }
-  };
+  });
 
   const handleRequestUnconfirmDesign = useCallback((unit) => {
     const serial = unit.short_serial || unit.unit_serial || unit.unit_id;
@@ -4563,9 +4601,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       confirmText: 'Reset Sign-Off',
       onConfirm: () => handleUnconfirmDesignClassification(unit)
     });
-  }, [handleUnconfirmDesignClassification]);
+  }, [handleUnconfirmDesignClassification]); // stable identity (useStableCallback)
 
-  const handleTogglePurchaseCatNA = async (unit, colKey) => {
+  const handleTogglePurchaseCatNA = useStableCallback(async (unit, colKey) => {
     const catLabels = {
       purchase_cat_panel: 'Panel',
       purchase_cat_automation: 'Automation',
@@ -4662,30 +4700,35 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
       fetchUnits(true);
     }
+  });
+
+  // PUT JSON and throw (with the server's error message) on a non-OK response.
+  const putJson = async (url, body, fallbackError = 'Update failed') => {
+    const res = await fetch(url, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || data.message || `${fallbackError} (${res.status})`);
+    }
+    return res;
   };
 
-  const handleSaveInlineCell = async (unit, colKey, newValue) => {
-    const targetUnitId = unit.unit_id || unit.id;
+  // PUT /api/units/:id accepts either order_units.id or the unit_id serial; this
+  // view keys every row by `unit.unit_id || unit.id`, so use that everywhere.
+  const getUnitApiId = (u) => (u ? (u.unit_id || u.id) : null);
+
+  const handleSaveInlineCell = useStableCallback(async (unit, colKey, newValue) => {
+    const targetUnitId = getUnitApiId(unit);
     const customDef = customColumnDefs.find(c => c.col_key === colKey);
 
-    // Handle dedicated Production and QC columns
-    const PRODUCTION_AND_QC_COLS = [
-      'wiremen',
-      'mounting_start_date',
-      'mounting_complete_date',
-      'wiring_start_date',
-      'wiring_complete_date',
-      'pending_material_complete_date',
-      'handover_to_qc_date',
-      'qc_receiving_date',
-      'qc_start_date',
-      'qc_complete_date',
-      'qc_status',
-      'dispatch_date',
-      'invoice_number',
-      'invoice_date'
-    ];
-    if (PRODUCTION_AND_QC_COLS.includes(colKey)) {
+    // Handle dedicated Production / QC / Dispatch / Accounts columns
+    if (PRODUCTION_AND_QC_COLS.has(colKey)) {
       const selectedList = units.filter(u => isIdSelected(u.unit_id) || isIdSelected(u.id));
       const finalVal = newValue || null;
 
@@ -4708,24 +4751,17 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         setEditingCell(null);
 
         try {
-          await Promise.all(targetIds.map(uId => {
-            return fetch(`${window.API_BASE}/api/units/${uId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ [colKey]: finalVal })
-            });
-          }));
+          await Promise.all(targetIds.map(uId =>
+            putJson(`${window.API_BASE}/api/units/${uId}`, { [colKey]: finalVal }, `Failed to update ${colKey}`)
+          ));
           if (addToast) {
             const colLabel = allColumns.find(c => c.key === colKey)?.label || colKey.replace(/_/g, ' ');
             addToast(`Updated ${colLabel} for ${targetIds.length} serial${targetIds.length > 1 ? 's' : ''}`, 'success');
           }
-          fetchUnits(true);
         } catch (err) {
           console.error(`Failed to batch update ${colKey}:`, err);
           if (addToast) addToast(`Failed to update some serials: ${err.message}`, 'error');
+        } finally {
           fetchUnits(true);
         }
         return;
@@ -4742,25 +4778,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       try {
         if (targetUnitId) {
-          const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ [colKey]: finalVal })
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || `Failed to update ${colKey}`);
-          }
+          await putJson(`${window.API_BASE}/api/units/${targetUnitId}`, { [colKey]: finalVal }, `Failed to update ${colKey}`);
         }
-        fetchUnits(true);
       } catch (err) {
         console.error(`Failed to save ${colKey}:`, err);
         if (addToast) {
           addToast(err.message || `Failed to save ${colKey}`, 'error');
         }
+      } finally {
         fetchUnits(true);
       }
       return;
@@ -4881,25 +4906,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       try {
         if (targetUnitId) {
-          const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ [colKey]: newValue, ...extraUpdates, custom_fields: updatedCF })
-          });
-          if (!res.ok) {
-            const data = await res.json();
-            throw new Error(data.error || `Failed to update ${colKey}`);
-          }
+          await putJson(
+            `${window.API_BASE}/api/units/${targetUnitId}`,
+            { [colKey]: newValue, ...extraUpdates, custom_fields: updatedCF },
+            `Failed to update ${colKey}`
+          );
         }
-        fetchUnits(true);
       } catch (err) {
         console.error(`Failed to save ${colKey}:`, err);
         if (addToast) {
           addToast(err.message || `Failed to save ${colKey}`, 'error');
         }
+      } finally {
         fetchUnits(true);
       }
       return;
@@ -4930,25 +4948,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
         try {
           await Promise.all(targetsToUpdate.map(tUnit => {
-            const uId = tUnit.unit_id || tUnit.id;
+            const uId = getUnitApiId(tUnit);
             const currentCF = tUnit.custom_fields || {};
             const updatedCF = { ...currentCF, [colKey]: newValue };
-            return fetch(`${window.API_BASE}/api/units/${uId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({ custom_fields: updatedCF })
-            });
+            return putJson(`${window.API_BASE}/api/units/${uId}`, { custom_fields: updatedCF }, `Failed to update ${customDef.label || colKey}`);
           }));
           if (addToast) {
             addToast(`Updated ${customDef.label || colKey} for ${targetIds.length} serials`, 'success');
           }
-          fetchUnits(true);
         } catch (err) {
           console.error('Failed to batch save custom field:', err);
           if (addToast) addToast(`Failed to update some custom fields: ${err.message}`, 'error');
+        } finally {
           fetchUnits(true);
         }
         return;
@@ -4968,17 +4979,13 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       try {
         if (targetUnitId) {
-          await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ custom_fields: updatedCF })
-          });
+          await putJson(`${window.API_BASE}/api/units/${targetUnitId}`, { custom_fields: updatedCF }, `Failed to update ${customDef.label || colKey}`);
         }
       } catch (err) {
         console.error('Failed to save custom field:', err);
+        if (addToast) addToast(err.message || `Failed to save ${customDef.label || colKey}`, 'error');
+      } finally {
+        fetchUnits(true);
       }
       return;
     }
@@ -5003,23 +5010,16 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       setEditingCell(null);
 
       try {
-        await Promise.all(targetIds.map(uId => {
-          return fetch(`${window.API_BASE}/api/units/${uId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ delivery_date: newValue })
-          });
-        }));
+        await Promise.all(targetIds.map(uId =>
+          putJson(`${window.API_BASE}/api/units/${uId}`, { delivery_date: newValue }, 'Failed to update delivery date')
+        ));
         if (addToast) {
           addToast(`Updated delivery date for ${targetIds.length} serials`, 'success');
         }
-        fetchUnits(true);
       } catch (err) {
         console.error('Failed to batch update delivery_date:', err);
         if (addToast) addToast(`Failed to update delivery date: ${err.message}`, 'error');
+      } finally {
         fetchUnits(true);
       }
       return;
@@ -5049,78 +5049,27 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setEditingCell(null);
 
     try {
-      if (colKey === 'classification') {
-        const uId = unit.unit_id || unit.id;
-        if (uId) {
-          const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ classification: newValue })
-          });
-          if (res.ok) {
-            fetchUnits(true);
-          }
-        }
-      } else if (colKey === 'panel_type_size') {
-        const uId = unit.id || unit.unit_id;
-        if (uId) {
-          const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ panel_type_size: newValue })
-          });
-          if (!res.ok) {
-            console.error('Failed to update panel size', await res.text());
-          }
-        }
-      } else if (colKey === 'po_number') {
-        const uId = unit.id || unit.unit_id;
-        if (uId) {
-          await fetch(`${window.API_BASE}/api/units/${uId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ po_number: newValue })
-          });
+      if (colKey === 'classification' || colKey === 'panel_type_size' || colKey === 'po_number') {
+        if (targetUnitId) {
+          await putJson(`${window.API_BASE}/api/units/${targetUnitId}`, { [colKey]: newValue }, `Failed to update ${colKey}`);
         }
       } else if (colKey === 'material_description') {
         const liId = unit.line_item_id;
         const ordId = unit.order_id;
         if (liId && ordId) {
-          await fetch(`${window.API_BASE}/api/orders/${ordId}/line-items/${liId}`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ material_description: newValue })
-          });
+          await putJson(`${window.API_BASE}/api/orders/${ordId}/line-items/${liId}`, { material_description: newValue }, 'Failed to update description');
         }
       } else {
-        await fetch(`${window.API_BASE}/api/orders/${unit.order_id}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ [colKey]: newValue })
-        });
+        await putJson(`${window.API_BASE}/api/orders/${unit.order_id}`, { [colKey]: newValue }, `Failed to update ${colKey}`);
       }
-      // Silent refresh in background
-      fetchUnits(true);
     } catch (err) {
       console.error('Failed to update inline cell:', err);
+      if (addToast) addToast(err.message || `Failed to save ${colKey}`, 'error');
+    } finally {
+      // Silent refresh in background (also reverts the optimistic update on failure)
       fetchUnits(true);
     }
-  };
+  });
 
   useEffect(() => {
     fetchColumnVisibility();
@@ -5130,25 +5079,58 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     fetchVendorPurchaseOrders();
     fetchWiremenMasters();
 
-    const handleUpdate = () => {
-      fetchUnits(true);
+    // Coalesce bursts of update events (SSE + local dispatches) into one silent
+    // units refresh. Part / panel-size masters are not refetched here: this view
+    // unmounts while Masters or OrderCreationFlow is open and refetches them on
+    // remount, and TechnicalDocsModal refreshes part masters via its own callback.
+    let refreshTimer = null;
+    let refreshVendorPOs = false;
+    const scheduleRefresh = ({ vendorPOs = false } = {}) => {
+      if (vendorPOs) refreshVendorPOs = true;
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        fetchUnits(true);
+        if (refreshVendorPOs) {
+          refreshVendorPOs = false;
+          fetchVendorPurchaseOrders();
+        }
+      }, 250);
+    };
+
+    const isPurchaseRelated = (detail) => {
+      if (!detail || typeof detail !== 'object') return false;
+      if (String(detail.type || '').toLowerCase() === 'purchase') return true;
+      if (detail.dept === 'Purchase') return true;
+      return /purchase/i.test(String(detail.entity || '')) || /purchase/i.test(String(detail.action || ''));
+    };
+
+    const handleOrderUpdated = (e) => {
+      scheduleRefresh({ vendorPOs: isPurchaseRelated(e?.detail) });
+    };
+    const handleColumnMastersUpdated = () => {
       fetchColumnVisibility();
-      fetchPartMasters();
-      fetchPanelSizeMasters();
-      fetchVendorPurchaseOrders();
+      scheduleRefresh();
+    };
+    const handlePurchaseOrderEvent = () => {
+      scheduleRefresh({ vendorPOs: true });
+    };
+    const handleWiremenUpdated = () => {
       fetchWiremenMasters();
     };
-    window.addEventListener('orderUpdated', handleUpdate);
-    window.addEventListener('columnMastersUpdated', handleUpdate);
-    window.addEventListener('purchaseOrderStatusChanged', handleUpdate);
-    window.addEventListener('purchaseOrderSaved', handleUpdate);
-    window.addEventListener('wiremenUpdated', handleUpdate);
+
+    window.addEventListener('orderUpdated', handleOrderUpdated);
+    window.addEventListener('columnMastersUpdated', handleColumnMastersUpdated);
+    window.addEventListener('purchaseOrderStatusChanged', handlePurchaseOrderEvent);
+    window.addEventListener('purchaseOrderSaved', handlePurchaseOrderEvent);
+    window.addEventListener('wiremenUpdated', handleWiremenUpdated);
     return () => {
-      window.removeEventListener('orderUpdated', handleUpdate);
-      window.removeEventListener('columnMastersUpdated', handleUpdate);
-      window.removeEventListener('purchaseOrderStatusChanged', handleUpdate);
-      window.removeEventListener('purchaseOrderSaved', handleUpdate);
-      window.removeEventListener('wiremenUpdated', handleUpdate);
+      if (refreshTimer) clearTimeout(refreshTimer);
+      window.removeEventListener('orderUpdated', handleOrderUpdated);
+      window.removeEventListener('columnMastersUpdated', handleColumnMastersUpdated);
+      window.removeEventListener('purchaseOrderStatusChanged', handlePurchaseOrderEvent);
+      window.removeEventListener('purchaseOrderSaved', handlePurchaseOrderEvent);
+      window.removeEventListener('wiremenUpdated', handleWiremenUpdated);
     };
   }, [currentFilter]);
 
@@ -5160,7 +5142,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
       // If any modal overlay is active, let the modal's Escape handler take precedence
       const hasOpenModal = Boolean(
-        document.querySelector('.modal-overlay.open, .bim-overlay, [data-modal="open"], [data-modal-overlay], dialog[open]')
+        document.querySelector(`${MODAL_OVERLAY_SELECTOR}, .ord-docs-modal-overlay`)
       );
       if (hasOpenModal) return;
 
@@ -5228,102 +5210,18 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     } catch (err) { console.error(err); }
   };
 
-  const isColVisible = (colKey) => {
+  const isColVisible = useCallback((colKey) => {
     if (userHiddenColumns.has(colKey)) return false;
-    const isPurchaseCatCol = colKey.startsWith('purchase_cat_');
-    if (isPurchaseCatCol) {
-      if (currentFilter === 'Purchase') {
-        const deptMap = colVisibility['Purchase'];
-        return deptMap ? deptMap[colKey] !== false : true;
-      }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
-      return deptMap ? deptMap[colKey] === true : false;
-    }
 
-    const isStoresCol = ['tray_status', 'tray_start_date', 'issued_date'].includes(colKey);
-    if (isStoresCol) {
-      if (currentFilter === 'Stores') {
-        const deptMap = colVisibility['Stores'];
+    // Department-owned columns: shown by default in the owning dept's view and in
+    // 'all' (unless explicitly hidden there); hidden in every other view unless
+    // explicitly enabled for it.
+    const owningDept = getOwningDept(colKey);
+    if (owningDept) {
+      const deptMap = colVisibility[currentFilter];
+      if (currentFilter === owningDept || currentFilter === 'all') {
         return deptMap ? deptMap[colKey] !== false : true;
       }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
-      return deptMap ? deptMap[colKey] === true : false;
-    }
-
-    const isProductionCol = [
-      'wiremen',
-      'mounting_start_date',
-      'mounting_complete_date',
-      'wiring_start_date',
-      'wiring_complete_date',
-      'pending_material_complete_date',
-      'handover_to_qc_date'
-    ].includes(colKey);
-    if (isProductionCol) {
-      if (currentFilter === 'Production') {
-        const deptMap = colVisibility['Production'];
-        return deptMap ? deptMap[colKey] !== false : true;
-      }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
-      return deptMap ? deptMap[colKey] === true : false;
-    }
-
-    const isQcCol = [
-      'qc_receiving_date',
-      'qc_start_date',
-      'qc_complete_date',
-      'qc_status'
-    ].includes(colKey);
-    if (isQcCol) {
-      if (currentFilter === 'QC') {
-        const deptMap = colVisibility['QC'];
-        return deptMap ? deptMap[colKey] !== false : true;
-      }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
-      return deptMap ? deptMap[colKey] === true : false;
-    }
-
-    const isDispatchCol = ['dispatch_date'].includes(colKey);
-    if (isDispatchCol) {
-      if (currentFilter === 'Dispatch') {
-        const deptMap = colVisibility['Dispatch'];
-        return deptMap ? deptMap[colKey] !== false : true;
-      }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
-      return deptMap ? deptMap[colKey] === true : false;
-    }
-
-    const isAccountsCol = ['invoice_number', 'invoice_date'].includes(colKey);
-    if (isAccountsCol) {
-      if (currentFilter === 'Accounts') {
-        const deptMap = colVisibility['Accounts'];
-        return deptMap ? deptMap[colKey] !== false : true;
-      }
-      if (currentFilter === 'all') {
-        const allMap = colVisibility['all'];
-        return allMap ? allMap[colKey] !== false : true;
-      }
-      const deptMap = colVisibility[currentFilter];
       return deptMap ? deptMap[colKey] === true : false;
     }
 
@@ -5332,22 +5230,31 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (!deptMap) return true;
     const key = colKey === 'unit_serial' ? 'short_serial' : colKey;
     return deptMap[key] !== false;
-  };
+  }, [userHiddenColumns, colVisibility, currentFilter]);
 
+  // Only the most recent fetchUnits call may write to state, so a slow response
+  // for an older filter / earlier refresh can never overwrite newer data.
+  const fetchUnitsRequestIdRef = useRef(0);
   const fetchUnits = async (silent = false) => {
+    const requestId = ++fetchUnitsRequestIdRef.current;
     if (!silent) setIsLoading(true);
     try {
       const deptParam = currentFilter;
       const res = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(deptParam)}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        setUnits(await res.json());
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to load units (${res.status})`);
+      }
+      const data = await res.json();
+      if (requestId === fetchUnitsRequestIdRef.current) {
+        setUnits(data);
       }
     } catch (err) {
       console.error(err);
     } finally {
-      if (!silent) setIsLoading(false);
+      if (requestId === fetchUnitsRequestIdRef.current) setIsLoading(false);
     }
   };
 
@@ -5396,6 +5303,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return { holdCount: hold, cancelledCount: cancelled };
   }, [units, getUnitStatus]);
 
+  // Keep typing responsive on large tables: the filter re-runs at lower priority.
+  const deferredSearchTerm = useDeferredValue(searchTerm);
   const filtered = useMemo(() => {
     return units.filter(u => {
       const status = getUnitStatus(u);
@@ -5472,8 +5381,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         if (statusFilter === 'cancelled' && status !== 'Cancelled') return false;
       }
 
-      if (searchTerm) {
-        const q = searchTerm.toLowerCase();
+      if (deferredSearchTerm) {
+        const q = deferredSearchTerm.toLowerCase();
         const customMatches = Object.values(u.custom_fields || {}).some(
           val => val != null && String(val).toLowerCase().includes(q)
         );
@@ -5498,7 +5407,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
       return true;
     });
-  }, [units, activeTab, statCardFilter, priorityFilter, statusFilter, searchTerm, getUnitStatus]);
+  }, [units, activeTab, statCardFilter, priorityFilter, statusFilter, deferredSearchTerm, getUnitStatus]);
 
   const sorted = useMemo(() => {
     const customDef = customColumnMap.get(sortKey);
@@ -6816,7 +6725,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
                 panelSizeMasters={panelSizeMasters}
                 panelSizeMap={panelSizeMap}
                 customColumnDefs={customColumnDefs}
-                editingCell={editingCell}
+                editingCell={editingCell && editingCell.unitId === (unit.unit_id || unit.id) ? editingCell : null}
                 setEditingCell={setEditingCell}
                 onRowMouseDown={handleRowMouseDown}
                 onRowMouseEnter={handleRowMouseEnter}
@@ -6975,10 +6884,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       </div>
 
       {/* ── In-App Viewer for PO Document ── */}
-      {poPdfViewer && (
+      {poPdfViewer && poPdfViewerUrl && (
         <DocumentPreviewModal
           doc={poPdfViewer}
-          getDocUrl={getDocUrl}
+          url={poPdfViewerUrl}
           onClose={() => setPoPdfViewer(null)}
           extraActions={
             canUploadPo && poPdfViewer.unit ? (

@@ -26,7 +26,7 @@ const SettingsView = lazy(() => import('./components/Settings'));
 const Pdr03View = lazy(() => import('./components/Pdr03View'));
 import PageHeader from './components/layout/PageHeader';
 import ErrorBoundary from './components/ErrorBoundary';
-import { INITIAL_STEPS, fmtTime } from './data/planningData';
+import { fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
 import { useEventStream } from './hooks/useEventStream';
 
@@ -55,7 +55,6 @@ function Dashboard() {
     return 'all';
   });
   const [currentView, setCurrentView] = useState(() => localStorage.getItem('erp_currentView') || 'table'); // default to table
-  const [bomState, setBomState] = useState('Accept-Complete');
 
   useEffect(() => {
     localStorage.setItem('erp_currentView', currentView);
@@ -64,7 +63,6 @@ function Dashboard() {
   useEffect(() => {
     localStorage.setItem('erp_currentFilter', currentFilter);
   }, [currentFilter]);
-  const [designType, setDesignType] = useState('Standard');
   const [selectedStepId, setSelectedStepId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState(() => {
@@ -100,23 +98,14 @@ function Dashboard() {
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
   const token = localStorage.getItem('token');
 
-  // Auto-logout on 401
-  const authFetch = async (url, options = {}) => {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      navigate('/');
-      return null;
+  // Attach the bearer token; 401 handling is done globally by the fetch interceptor in main.jsx
+  const authFetch = (url, options = {}) => fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`
     }
-    return res;
-  };
+  });
 
   const fetchTaskMasters = async () => {
     if (!token) return;
@@ -133,7 +122,6 @@ function Dashboard() {
   useEffect(() => {
     syncProfile();
     fetchLogs();
-    fetchTaskMasters();
 
     const handleSetViewEvent = (e) => {
       if (typeof e.detail === 'string') {
@@ -158,6 +146,11 @@ function Dashboard() {
     window.addEventListener('setView', handleSetViewEvent);
     return () => window.removeEventListener('setView', handleSetViewEvent);
   }, []);
+
+  // Task masters are only needed by the Process Flow view
+  useEffect(() => {
+    if (currentView === 'flow') fetchTaskMasters();
+  }, [currentView]);
 
   useEffect(() => {
     if (selectedOrderId) {
@@ -210,37 +203,45 @@ function Dashboard() {
   // Fetch unit steps concurrently when selectedUnitId changes
   useEffect(() => {
     const targetUnitId = selectedUnitId;
-    if (targetUnitId && token) {
-      fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-        .then(async res => {
-          if (res.ok) setUnitSteps(await res.json());
-        })
-        .catch(console.error);
-    } else {
+    if (!targetUnitId || !token) {
       setUnitSteps([]);
+      return undefined;
     }
+    const controller = new AbortController();
+    fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+      signal: controller.signal
+    })
+      .then(async res => {
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!controller.signal.aborted) setUnitSteps(data);
+      })
+      .catch(err => {
+        if (err?.name !== 'AbortError') console.error(err);
+      });
+    return () => controller.abort();
   }, [selectedUnitId, token]);
 
   // Reactively fetch steps and order details when any step is updated
   useEffect(() => {
-    const handleOrderUpdate = () => {
-      if (selectedOrderId) {
-        fetchOrderSteps(selectedOrderId);
-        fetchOrderDetails(selectedOrderId);
-        fetchTaskMasters();
+    const handleOrderUpdate = (e) => {
+      if (!selectedOrderId) return;
+      // Only refetch for global/resync events or updates to the currently selected order
+      const changedOrderId = e?.detail?.orderId;
+      if (changedOrderId != null && String(changedOrderId) !== String(selectedOrderId)) return;
+      fetchOrderSteps(selectedOrderId);
+      fetchOrderDetails(selectedOrderId);
 
-        const targetUnitId = selectedUnitId;
-        if (targetUnitId && token) {
-          fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+      const targetUnitId = selectedUnitId;
+      if (targetUnitId && token) {
+        fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+          .then(async res => {
+            if (res.ok) setUnitSteps(await res.json());
           })
-            .then(async res => {
-              if (res.ok) setUnitSteps(await res.json());
-            })
-            .catch(console.error);
-        }
+          .catch(console.error);
       }
     };
     window.addEventListener('orderUpdated', handleOrderUpdate);
@@ -357,8 +358,7 @@ function Dashboard() {
       });
 
       if (res.ok) {
-        await fetchOrderSteps(selectedOrderId); // refresh steps
-        await fetchOrderDetails(selectedOrderId); // refresh order details
+        // The orderUpdated listener refetches steps, order details and unit steps
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
 
         if (selectedStep.special === 'qc' && data.status === 'blocked' && data.qcFailTarget) {
@@ -400,23 +400,6 @@ function Dashboard() {
     }
   };
 
-  const handleSetBomState = (state) => {
-    if (!['Admin', 'Manager', 'Accounts', 'Production'].includes(user.role)) {
-      alert('Unauthorized to change BOM status');
-      return;
-    }
-    setBomState(state);
-    logActivity('Stores', `BOM status updated → ${state}`, selectedOrderId);
-  };
-
-  const handleSetDesignType = (type) => {
-    if (!['Admin', 'Manager', 'Design'].includes(user.role)) {
-      alert('Unauthorized to change Design classification');
-      return;
-    }
-    setDesignType(type);
-    logActivity('Design', `Design classified as ${type}`, selectedOrderId);
-  };
 
   const orderLevelSteps = steps.filter(s => !s.order_unit_id);
   const combinedSteps = [...unitSteps, ...orderLevelSteps];
@@ -434,10 +417,6 @@ function Dashboard() {
             steps={combinedSteps}
             currentFilter={currentFilter}
             onFilterDept={setCurrentFilter}
-            bomState={bomState}
-            onSetBomState={handleSetBomState}
-            designType={designType}
-            onSetDesignType={handleSetDesignType}
             currentView={currentView}
             onSetView={navigateToView}
             userRole={user.role}

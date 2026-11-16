@@ -12,7 +12,7 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'Viewer' C
 
 CREATE TABLE IF NOT EXISTS activity_logs (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     dept TEXT,
     action_text TEXT NOT NULL,
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS order_units (
     line_item_id INTEGER REFERENCES order_line_items(id) ON DELETE CASCADE,
     unit_id TEXT UNIQUE NOT NULL,
     short_serial TEXT NOT NULL,
-    current_dept TEXT DEFAULT 'Planning',
+    current_dept TEXT DEFAULT 'Sales',
     status TEXT DEFAULT 'Pending',
     assigned_user INTEGER REFERENCES users(id),
     barcode TEXT,
@@ -222,6 +222,8 @@ ALTER TABLE order_units ADD COLUMN IF NOT EXISTS qc_complete_date TIMESTAMPTZ;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}'::jsonb;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_number TEXT;
 ALTER TABLE order_units ADD COLUMN IF NOT EXISTS po_doc_id INTEGER REFERENCES documents(id) ON DELETE SET NULL;
+-- New units always start in Sales; deriveUnitStatus advances them from there.
+ALTER TABLE order_units ALTER COLUMN current_dept SET DEFAULT 'Sales';
 
 -- System Settings (key-value store for admin-configurable DB-backed settings)
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -271,8 +273,6 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('planned_dispatch_date',  'Planned Dispatch',      'Planning', 'Date',     true, 14),
   ('priority',               'Priority',              'Order',    'Dropdown', true, 15),
   ('unit_status',            'Status',                'Unit',     'Dropdown', true, 16),
-  ('mounting_start_date',    'Mounting Start',        'Planning', 'Date',     true, 17),
-  ('mounting_complete_date', 'Mounting Complete',     'Planning', 'Date',     true, 18),
   ('wiring_assigned_date',   'Wiring Assigned',       'Planning', 'Date',     true, 19),
   ('wiring_expected_date',   'Wiring Expected',       'Planning', 'Date',     true, 20),
   ('expected_qc_date',       'Expected QC',           'Planning', 'Date',     true, 21),
@@ -295,9 +295,8 @@ INSERT INTO column_masters (col_key, label, category, field_type, is_system, sor
   ('dispatch_date',                  'Dispatch Date',             'Dispatch',   'Date',     true, 38),
   ('invoice_number',                 'Invoice Number',            'Accounts',   'Text',     true, 39),
   ('invoice_date',                   'Invoice Date',              'Accounts',   'Date',     true, 40)
-ON CONFLICT (col_key) DO UPDATE SET 
-  label = EXCLUDED.label, 
-  category = EXCLUDED.category, 
+ON CONFLICT (col_key) DO UPDATE SET
+  category = EXCLUDED.category,
   field_type = EXCLUDED.field_type;
 
 -- Seed default visibility (all visible for all departments)

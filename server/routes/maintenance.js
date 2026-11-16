@@ -15,6 +15,48 @@ import { generateDatabaseBackup } from '../services/databaseBackup.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** Base directory for emergency backups (configurable; defaults to server/backups). */
+const BACKUP_BASE_DIR = process.env.BACKUP_DIR || path.resolve(__dirname, '../backups');
+
+/**
+ * Writes a zip archive to `outPath`. `populate(archive)` adds entries.
+ * Resolves on the output stream's 'close'; rejects on archive errors, output stream
+ * errors, and archive warnings other than ENOENT.
+ */
+function writeZip(outPath, level, populate) {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const fail = (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    };
+    const output = fs.createWriteStream(outPath);
+    const archive = new ZipArchive({ zlib: { level } });
+    output.on('close', () => {
+      if (settled) return;
+      settled = true;
+      resolve(archive.pointer());
+    });
+    output.on('error', fail);
+    archive.on('error', fail);
+    archive.on('warning', (warn) => {
+      if (warn && warn.code === 'ENOENT') {
+        console.warn('[Factory Reset] Archive warning (ignored):', warn.message);
+      } else {
+        fail(warn);
+      }
+    });
+    archive.pipe(output);
+    try {
+      populate(archive);
+      archive.finalize();
+    } catch (err) {
+      fail(err);
+    }
+  });
+}
+
 export default function createMaintenanceRouter(pool, authorize) {
   const router = express.Router();
 
@@ -49,14 +91,7 @@ export default function createMaintenanceRouter(pool, authorize) {
 
       const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
       const backupFolderName = `EMERGENCY_BEFORE_RESET_${timestampStr}`;
-      const primaryBackupBase = process.env.BACKUP_DIR || (fs.existsSync('C:\\Users\\cerul\\Documents\\ERP_Backups') ? 'C:\\Users\\cerul\\Documents\\ERP_Backups' : null);
-
-      if (primaryBackupBase && fs.existsSync(primaryBackupBase)) {
-        backupFolder = path.join(primaryBackupBase, backupFolderName);
-      } else {
-        backupFolder = path.resolve(__dirname, '../backups', backupFolderName);
-      }
-
+      backupFolder = path.join(BACKUP_BASE_DIR, backupFolderName);
       fs.mkdirSync(backupFolder, { recursive: true });
 
       // Write database SQL dump
@@ -67,26 +102,14 @@ export default function createMaintenanceRouter(pool, authorize) {
       const uploadsDir = path.resolve(__dirname, '../uploads');
       const zipFilePath = path.join(backupFolder, 'uploads.zip');
       if (fs.existsSync(uploadsDir)) {
-        await new Promise((resolve, reject) => {
-          const output = fs.createWriteStream(zipFilePath);
-          const archive = new ZipArchive({ zlib: { level: 6 } });
-          output.on('close', resolve);
-          archive.on('error', reject);
-          archive.pipe(output);
+        await writeZip(zipFilePath, 6, (archive) => {
           archive.directory(uploadsDir, false);
-          archive.finalize();
         });
       }
 
       // Create a master single-zip bundle for easy one-click browser download
       const masterBundlePath = path.join(backupFolder, 'complete_emergency_backup.zip');
-      await new Promise((resolve, reject) => {
-        const output = fs.createWriteStream(masterBundlePath);
-        const archive = new ZipArchive({ zlib: { level: 4 } });
-        output.on('close', resolve);
-        archive.on('error', reject);
-        archive.pipe(output);
-
+      await writeZip(masterBundlePath, 4, (archive) => {
         if (fs.existsSync(sqlFilePath)) {
           archive.file(sqlFilePath, { name: backupResult.filename });
         }
@@ -101,8 +124,14 @@ export default function createMaintenanceRouter(pool, authorize) {
           `- uploads.zip : All physical documents, drawings, and BOMs\n`,
           { name: 'BACKUP_INFO.txt' }
         );
-        archive.finalize();
       });
+
+      // Abort before any destructive step unless the emergency backup really exists
+      const sqlStat = fs.existsSync(sqlFilePath) ? fs.statSync(sqlFilePath) : null;
+      const bundleStat = fs.existsSync(masterBundlePath) ? fs.statSync(masterBundlePath) : null;
+      if (!sqlStat || sqlStat.size === 0 || !bundleStat || bundleStat.size === 0) {
+        throw new Error('Emergency backup bundle is missing or empty; factory reset aborted before any data was deleted.');
+      }
 
       // Step B: Transactional wipe of operational data
       // Cascades cleanly from orders to order_line_items, order_units, order_steps, and unit_steps
@@ -209,12 +238,10 @@ export default function createMaintenanceRouter(pool, authorize) {
 
       // Sanitize folder string against directory traversal attacks
       const safeFolder = path.basename(String(folder).trim());
-      const primaryBackupBase = process.env.BACKUP_DIR || (fs.existsSync('C:\\Users\\cerul\\Documents\\ERP_Backups') ? 'C:\\Users\\cerul\\Documents\\ERP_Backups' : null);
-
-      const candidatePaths = [
-        primaryBackupBase ? path.join(primaryBackupBase, safeFolder, 'complete_emergency_backup.zip') : null,
+      const candidatePaths = Array.from(new Set([
+        path.join(BACKUP_BASE_DIR, safeFolder, 'complete_emergency_backup.zip'),
         path.resolve(__dirname, '../backups', safeFolder, 'complete_emergency_backup.zip')
-      ].filter(Boolean);
+      ]));
 
       let targetBundle = null;
       for (const p of candidatePaths) {

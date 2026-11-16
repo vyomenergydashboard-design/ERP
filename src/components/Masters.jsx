@@ -3,6 +3,7 @@ import { DEPTS } from '../data/planningData';
 import DocumentPreviewModal, { getDocumentType } from './DocumentPreviewModal';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect';
 import WiremanMasters from './WiremanMasters';
+import { resolveUploadPath, downloadProtectedUpload } from '../utils/protectedUploads';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -270,17 +271,12 @@ export default function Masters() {
     return `${day}-${month}-${year}`;
   };
 
+  // Unsigned /uploads URL. DocumentPreviewModal signs it with a short-lived ticket;
+  // links/buttons use openProtectedUpload / downloadProtectedUpload instead.
   const getDocUrl = (doc) => {
-    if (!doc) return '#';
-    let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
-    if (!pathStr) return '#';
-    pathStr = pathStr.replace(/\\/g, '/');
-    const uploadsIdx = pathStr.indexOf('uploads/');
-    let relPath = uploadsIdx !== -1 ? pathStr.substring(uploadsIdx + 8) : pathStr.split('/').pop();
-    relPath = relPath.replace(/^\/+/, '');
-    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-    const baseUrl = window.API_BASE || '';
-    return `${baseUrl}/uploads/${relPath}${tokenParam}`;
+    const relPath = resolveUploadPath(doc);
+    if (!relPath) return '#';
+    return `${window.API_BASE || ''}/uploads/${relPath}`;
   };
 
   useEffect(() => {
@@ -1383,8 +1379,8 @@ export default function Masters() {
                               onSelect={setPdfViewerDoc}
                             />
                             <a
-                              href={getDocUrl(part.bom)}
-                              download={part.bom.file_name}
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); downloadProtectedUpload(part.bom, part.bom.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                               title="Download BOM file"
                               style={{
                                 background: 'var(--bg3)',
@@ -2370,8 +2366,8 @@ export default function Masters() {
                           onSelect={setPdfViewerDoc}
                         />
                         <a
-                          href={getDocUrl(doc)}
-                          download={doc.file_name}
+                          href="#"
+                          onClick={(e) => { e.preventDefault(); downloadProtectedUpload(doc, doc.file_name).catch(() => alert('Could not download document. Please try again.')); }}
                           style={{
                             background: 'var(--bg2)',
                             border: '1px solid var(--border)',

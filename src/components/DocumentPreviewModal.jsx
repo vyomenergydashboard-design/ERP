@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ExcelSheetViewer from './ExcelSheetViewer';
+import { useSignedUploadUrl, openProtectedUpload, downloadProtectedUpload } from '../utils/protectedUploads';
 import {
   X, ExternalLink, Download, ZoomIn, ZoomOut, RotateCcw,
   Maximize2, FileText, AlertCircle, Loader2, Compass
@@ -89,20 +90,38 @@ function formatDMY(dateVal) {
  * - CAD (.dwg, .dxf, .step): Engineering file download card
  * - Other files: Clean preview fallback with direct download action
  */
-export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onDownload, extraActions }) {
-  if (!doc) return null;
-
-  const fileName = doc.file_name || doc.name || 'document';
-  const fileExt = fileName.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
-  const docType = getDocumentType(fileName);
-
-  // Resolve target download/preview URL
-  let resolvedUrl = url;
-  if (!resolvedUrl && getDocUrl) {
-    resolvedUrl = getDocUrl(doc);
-  } else if (!resolvedUrl) {
-    resolvedUrl = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.url || '');
+/**
+ * True when a URL/path points at the protected /uploads store and is not already
+ * carrying a download ticket. Such URLs must be signed on demand.
+ */
+function isProtectedUploadRef(ref) {
+  if (!ref || typeof ref !== 'string') return false;
+  if (/^(blob|data):/i.test(ref)) return false;
+  if (/[?&]ticket=/.test(ref)) return false;
+  const pathPart = ref.split(/[?#]/)[0].replace(/\\/g, '/');
+  if (/^https?:\/\//i.test(pathPart)) {
+    try {
+      const u = new URL(pathPart);
+      if (u.origin !== window.location.origin) return false;
+    } catch { return false; }
   }
+  return /(^|\/)uploads\//.test(pathPart);
+}
+
+export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onDownload, extraActions }) {
+  // Resolve the raw (unsigned) target URL / path
+  let rawUrl = url;
+  if (doc && !rawUrl && getDocUrl) {
+    rawUrl = getDocUrl(doc);
+  } else if (doc && !rawUrl) {
+    rawUrl = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.url || '');
+  }
+  if (rawUrl === '#') rawUrl = '';
+
+  // Uploads are protected: never embed a JWT; sign with a short-lived ticket instead.
+  const isProtected = isProtectedUploadRef(rawUrl);
+  const { url: signedUrl, loading: signing, error: signError } = useSignedUploadUrl(isProtected ? rawUrl : null);
+  const resolvedUrl = isProtected ? signedUrl : rawUrl;
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -115,15 +134,29 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  if (!doc) return null;
+
+  const fileName = doc.file_name || doc.name || 'document';
+  const fileExt = fileName.split('?')[0].split('#')[0].split('.').pop().toLowerCase();
+  const docType = getDocumentType(fileName);
+
+  // Fresh tickets on click (preview tickets expire after 60s)
+  const handleOpenTab = isProtected
+    ? (e) => { e.preventDefault(); openProtectedUpload(rawUrl).catch(() => alert('Could not open document. Please try again.')); }
+    : undefined;
+  const handleDownloadFile = isProtected
+    ? (e) => { e.preventDefault(); downloadProtectedUpload(rawUrl, fileName).catch(() => alert('Could not download document. Please try again.')); }
+    : undefined;
+
   // If it's an Excel spreadsheet or CSV, delegate to ExcelSheetViewer
-  if (docType === 'excel') {
+  if (docType === 'excel' && !(isProtected && !resolvedUrl)) {
     return (
       <ExcelSheetViewer
         url={resolvedUrl}
         fileName={fileName}
         title={doc.title || `Spreadsheet Viewer - ${fileName}`}
         onClose={onClose}
-        onDownload={onDownload}
+        onDownload={onDownload || (isProtected ? () => { downloadProtectedUpload(rawUrl, fileName).catch(() => alert('Could not download document. Please try again.')); } : undefined)}
       />
     );
   }
@@ -243,11 +276,12 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
           {/* Header Action Buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
             {extraActions}
-            {resolvedUrl && (
+            {(rawUrl || resolvedUrl) && (
               <>
                 <a
-                  href={resolvedUrl}
-                  target="_blank"
+                  href={isProtected ? '#' : resolvedUrl}
+                  onClick={handleOpenTab}
+                  target={isProtected ? undefined : '_blank'}
                   rel="noopener noreferrer"
                   className="vbtn"
                   style={{
@@ -268,8 +302,9 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
                   <span>Open Tab</span>
                 </a>
                 <a
-                  href={resolvedUrl}
-                  download={fileName}
+                  href={isProtected ? '#' : resolvedUrl}
+                  onClick={handleDownloadFile}
+                  download={isProtected ? undefined : fileName}
                   className="vbtn primary"
                   style={{
                     fontSize: '12px',
@@ -312,8 +347,22 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
 
         {/* Content Body Based on File Type */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
-          {docType === 'image' ? (
-            <ImageViewerPane url={resolvedUrl} fileName={fileName} doc={doc} />
+          {isProtected && !resolvedUrl ? (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: 'var(--text3, #94a3b8)' }}>
+              {signError && !signing ? (
+                <>
+                  <AlertCircle size={32} style={{ color: 'var(--red, #ef4444)' }} />
+                  <span style={{ fontSize: '13px' }}>Could not authorize document preview.</span>
+                </>
+              ) : (
+                <>
+                  <Loader2 size={32} className="animate-spin" style={{ color: 'var(--blue, #3b82f6)' }} />
+                  <span style={{ fontSize: '13px' }}>Loading document...</span>
+                </>
+              )}
+            </div>
+          ) : docType === 'image' ? (
+            <ImageViewerPane url={resolvedUrl} fileName={fileName} doc={doc} onDownloadClick={handleDownloadFile} />
           ) : docType === 'pdf' ? (
             <div style={{ flex: 1, position: 'relative', background: '#525659' }}>
               <iframe
@@ -329,6 +378,8 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
               docType={docType}
               doc={doc}
               url={resolvedUrl}
+              onDownloadClick={handleDownloadFile}
+              onOpenClick={handleOpenTab}
             />
           )}
         </div>
@@ -341,7 +392,7 @@ export default function DocumentPreviewModal({ doc, url, getDocUrl, onClose, onD
  * ImageViewerPane
  * Responsive canvas with zoom controls, pan-drag support, and technical dot grid.
  */
-function ImageViewerPane({ url, fileName, doc }) {
+function ImageViewerPane({ url, fileName, doc, onDownloadClick }) {
   const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -577,8 +628,9 @@ function ImageViewerPane({ url, fileName, doc }) {
             </div>
             {url && (
               <a
-                href={url}
-                download={fileName}
+                href={onDownloadClick ? '#' : url}
+                onClick={onDownloadClick}
+                download={onDownloadClick ? undefined : fileName}
                 className="vbtn primary"
                 style={{
                   display: 'inline-flex',
@@ -631,7 +683,7 @@ function ImageViewerPane({ url, fileName, doc }) {
  * UnsupportedFallbackPane
  * Clean, technical card for CAD, archive, or non-previewable formats.
  */
-function UnsupportedFallbackPane({ fileName, fileExt, docType, doc, url }) {
+function UnsupportedFallbackPane({ fileName, fileExt, docType, doc, url, onDownloadClick, onOpenClick }) {
   const isCad = docType === 'cad';
 
   return (
@@ -694,8 +746,9 @@ function UnsupportedFallbackPane({ fileName, fileExt, docType, doc, url }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {url && (
           <a
-            href={url}
-            download={fileName}
+            href={onDownloadClick ? '#' : url}
+            onClick={onDownloadClick}
+            download={onDownloadClick ? undefined : fileName}
             style={{
               padding: '10px 24px',
               background: isCad ? '#f59e0b' : 'var(--blue, #3b82f6)',
@@ -715,8 +768,9 @@ function UnsupportedFallbackPane({ fileName, fileExt, docType, doc, url }) {
         )}
         {url && (
           <a
-            href={url}
-            target="_blank"
+            href={onOpenClick ? '#' : url}
+            onClick={onOpenClick}
+            target={onOpenClick ? undefined : '_blank'}
             rel="noopener noreferrer"
             style={{
               padding: '10px 18px',

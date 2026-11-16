@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import DocumentPreviewModal from './DocumentPreviewModal';
+import { openProtectedUpload } from '../utils/protectedUploads';
 import {
   FileText, UploadCloud, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, ChevronUp, ChevronDown, Check, X, Layers
@@ -807,9 +808,8 @@ export default function TechnicalDocsModal({
                             <span>Preview</span>
                           </button>
                           <a
-                            href={getDocUrl(latestDrawing)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); openProtectedUpload(latestDrawing).catch(() => alert('Could not open document. Please try again.')); }}
                             className="vbtn"
                             style={{
                               background: '#3b82f6',
@@ -917,9 +917,8 @@ export default function TechnicalDocsModal({
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                     <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(revDoc.uploaded_at)}</span>
                                     <a
-                                      href={getDocUrl(revDoc)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      href="#"
+                                      onClick={(e) => { e.preventDefault(); openProtectedUpload(revDoc).catch(() => alert('Could not open document. Please try again.')); }}
                                       style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }}
                                       title="Download this revision"
                                     >
@@ -1050,9 +1049,8 @@ export default function TechnicalDocsModal({
                             <span>Preview</span>
                           </button>
                           <a
-                            href={getDocUrl(latestBom)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); openProtectedUpload(latestBom).catch(() => alert('Could not open document. Please try again.')); }}
                             className="vbtn"
                             style={{
                               background: '#10b981',
@@ -1160,9 +1158,8 @@ export default function TechnicalDocsModal({
                                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                     <span style={{ color: 'var(--text3)', fontSize: '10px' }}>{formatDateDMY(revDoc.uploaded_at)}</span>
                                     <a
-                                      href={getDocUrl(revDoc)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      href="#"
+                                      onClick={(e) => { e.preventDefault(); openProtectedUpload(revDoc).catch(() => alert('Could not open document. Please try again.')); }}
                                       style={{ color: '#10b981', display: 'flex', alignItems: 'center' }}
                                       title="Download this revision"
                                     >
@@ -1432,9 +1429,8 @@ export default function TechnicalDocsModal({
                             <span>Preview</span>
                           </button>
                           <a
-                            href={getDocUrl(latestCustomDrawing)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); openProtectedUpload(latestCustomDrawing).catch(() => alert('Could not open document. Please try again.')); }}
                             className="vbtn"
                             style={{
                               background: '#3b82f6',
@@ -1551,9 +1547,8 @@ export default function TechnicalDocsModal({
                                       <Eye size={12} />
                                     </button>
                                     <a
-                                      href={getDocUrl(doc)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      href="#"
+                                      onClick={(e) => { e.preventDefault(); openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.')); }}
                                       style={{ color: '#60a5fa', display: 'flex', alignItems: 'center' }}
                                       title="Download revision"
                                     >
@@ -1691,9 +1686,8 @@ export default function TechnicalDocsModal({
                             <span>Preview</span>
                           </button>
                           <a
-                            href={getDocUrl(latestCustomBom)}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); openProtectedUpload(latestCustomBom).catch(() => alert('Could not open document. Please try again.')); }}
                             className="vbtn"
                             style={{
                               background: '#10b981',
@@ -1810,9 +1804,8 @@ export default function TechnicalDocsModal({
                                       <Eye size={12} />
                                     </button>
                                     <a
-                                      href={getDocUrl(doc)}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
+                                      href="#"
+                                      onClick={(e) => { e.preventDefault(); openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.')); }}
                                       style={{ color: '#10b981', display: 'flex', alignItems: 'center' }}
                                       title="Download revision"
                                     >
@@ -1865,7 +1858,6 @@ export default function TechnicalDocsModal({
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {customSpecs.map((doc) => {
-                      const docUrl = getDocUrl(doc);
                       return (
                         <div
                           key={`custom-spec-${doc.id}`}
@@ -1917,9 +1909,8 @@ export default function TechnicalDocsModal({
                               <span>Preview</span>
                             </button>
                             <a
-                              href={docUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href="#"
+                              onClick={(e) => { e.preventDefault(); openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.')); }}
                               className="vbtn"
                               style={{
                                 background: '#a855f7',
@@ -1996,7 +1987,6 @@ export default function TechnicalDocsModal({
               {showOtherDocs && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {otherOrderDocs.map((doc) => {
-                    const docUrl = getDocUrl(doc);
                     return (
                       <div
                         key={`other-${doc.id}`}
@@ -2071,9 +2061,8 @@ export default function TechnicalDocsModal({
                             <span>Preview</span>
                           </button>
                           <a
-                            href={docUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                            href="#"
+                            onClick={(e) => { e.preventDefault(); openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.')); }}
                             className="vbtn"
                             style={{
                               fontSize: '11px',

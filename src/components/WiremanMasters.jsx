@@ -419,6 +419,7 @@ export default function WiremanMasters({ token, user }) {
       {/* Add / Edit Modal */}
       {showModal && (
         <div
+          data-modal-overlay
           style={{
             position: 'fixed',
             inset: 0,
@@ -450,6 +451,8 @@ export default function WiremanMasters({ token, user }) {
                 {editingId ? 'Edit Wireman' : 'Add New Wireman'}
               </h3>
               <button
+                type="button"
+                aria-label="Close"
                 onClick={closeModal}
                 style={{
                   background: 'none',

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, FolderOpen, RefreshCw, FileText, Download, Trash2, Calendar, User } from 'lucide-react';
+import { openProtectedUpload, downloadProtectedUpload } from '../utils/protectedUploads';
 
 const DOC_TYPES = [
   'All', 'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
@@ -472,17 +473,17 @@ export default function DocumentDirectory() {
                           <tbody>
                             {order.docs.map(doc => {
                               const canDelete = doc.uploaded_by === user.id || ['admin', 'manager'].includes(user.role?.toLowerCase());
-                              const fileNameOnDisk = doc.file_path.split(/[\/\\]/).pop();
-                              const downloadUrl = `${window.API_BASE}/uploads/${fileNameOnDisk}?token=${token}`;
 
                               return (
                                 <tr key={doc.id} className="doc-row" style={{ borderBottom: '1px solid var(--border)' }}>
                                   {/* Document Name */}
                                   <td style={{ padding: '12px' }}>
-                                    <a 
-                                      href={downloadUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
+                                    <a
+                                      href="#"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        openProtectedUpload(doc).catch(() => alert('Could not open document. Please try again.'));
+                                      }}
                                       style={{ color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 500 }}
                                       className="doc-file-link"
                                     >
@@ -550,8 +551,11 @@ export default function DocumentDirectory() {
                                   <td style={{ padding: '12px', textAlign: 'right' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                                       <a 
-                                        href={downloadUrl} 
-                                        download={doc.file_name}
+                                        href="#"
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          downloadProtectedUpload(doc, doc.file_name).catch(() => alert('Could not download document. Please try again.'));
+                                        }}
                                         style={{
                                           background: 'rgba(255, 255, 255, 0.05)',
                                           border: '1px solid var(--border)',

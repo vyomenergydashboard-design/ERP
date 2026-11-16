@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import DocumentManager from './DocumentManager';
+import { openProtectedUpload } from '../utils/protectedUploads';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 import { FileText, ExternalLink, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 
@@ -487,7 +488,6 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                           const badgeColor = isDrawing ? '#60a5fa' : '#34d399';
                           const badgeBg = isDrawing ? 'rgba(59,130,246,0.15)' : 'rgba(16,185,129,0.15)';
                           const badgeBorder = isDrawing ? 'rgba(59,130,246,0.3)' : 'rgba(16,185,129,0.3)';
-                          const docDownloadUrl = `${window.API_BASE}/uploads/${mdoc.file_path.split(/[\/\\]/).pop()}?token=${token}`;
 
                           return (
                             <div key={`smdoc-${mdoc.id}`} style={{
@@ -518,9 +518,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                                 </div>
                               </div>
                               <a
-                                href={docDownloadUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); openProtectedUpload(mdoc).catch(() => alert('Could not open document. Please try again.')); }}
                                 className="vbtn"
                                 style={{
                                   fontSize: 11, padding: '4px 10px', display: 'flex', alignItems: 'center', gap: 5,
@@ -557,9 +556,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
                                 </span>
                               </div>
                               <a
-                                href={`${window.API_BASE}/uploads/${odoc.file_path.split(/[\/\\]/).pop()}?token=${token}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                                href="#"
+                                onClick={(e) => { e.preventDefault(); openProtectedUpload(odoc).catch(() => alert('Could not open document. Please try again.')); }}
                                 style={{ fontSize: 11, color: '#60a5fa', textDecoration: 'none', marginLeft: 8 }}
                               >
                                 View

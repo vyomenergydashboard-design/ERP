@@ -71,6 +71,26 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
+// Canonical department order. Frontend mirror: DEPTS in src/data/planningData.js — keep in sync.
+const PIPELINE = Object.freeze(['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts']);
+
+// Every authenticated role that may perform write operations (everyone except read-only Viewer).
+const OPERATOR_ROLES = Object.freeze(['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts']);
+
+// Best-effort removal of multer-written files for a rejected upload request.
+const cleanupUploadedFiles = (files) => {
+  let list = [];
+  if (Array.isArray(files)) list = files;
+  else if (files && typeof files.path === 'string') list = [files]; // req.file (single)
+  else if (files && typeof files === 'object') list = Object.values(files).flat(); // upload.fields map
+  for (const f of list) {
+    if (!f || !f.path) continue;
+    fs.unlink(f.path, (err) => {
+      if (err && err.code !== 'ENOENT') console.warn('Failed to remove rejected upload:', f.path, err.message);
+    });
+  }
+};
+
 const DEFAULT_STEPS = [
   { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order', is_mandatory: true },
   {
@@ -328,7 +348,7 @@ const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
 
 const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
   const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, ou.tray_start_date, ou.issued_date, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
+    `SELECT ou.current_dept, ou.status, ou.line_item_id, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, ou.tray_start_date, ou.issued_date, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
      FROM order_units ou
      JOIN orders o ON ou.order_id = o.id
      WHERE ou.id = $1`,
@@ -364,14 +384,6 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
     );
     return;
   }
-
-  // Clean up any legacy bulk auto-completed notes and reset them back to pending
-  await clientOrPool.query(
-    `UPDATE unit_steps 
-     SET status = 'pending', notes = NULL 
-     WHERE order_unit_id = $1 AND notes = 'Auto-completed for Standard order'`,
-    [unitId]
-  );
 
   // Check individual panel PO resolution
   const isSalesCleared = row.sales_cleared === true;
@@ -485,13 +497,12 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
 
             newStatus = statusMap[firstIncomplete.dept] || 'Production';
 
-            // HARD SAFETY GATE: Without BOTH Drawing and BOM, no panel can go to next department (Purchase, Stores, Planning, etc.)
-            const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
+            // HARD SAFETY GATE: Without Drawing AND BOM AND Design confirmation, no panel can go to next department (Purchase, Stores, Planning, etc.)
             let deptIdx = PIPELINE.indexOf(newDept);
             const designIdx = PIPELINE.indexOf('Design');
             if (deptIdx > designIdx) {
               const docInfo = await evaluateUnitDesignDocuments(clientOrPool, unitId);
-              if (!docInfo.hasDrawing || !docInfo.hasBom) {
+              if (!docInfo.hasDrawing || !docInfo.hasBom || !docInfo.designConfirmed) {
                 newDept = 'Design';
                 newStatus = 'Design';
                 deptIdx = designIdx;
@@ -527,15 +538,8 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
     sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept).catch(console.error);
   }
 
-  const lineItemRes = await clientOrPool.query(
-    `SELECT line_item_id FROM order_units WHERE id = $1`,
-    [unitId]
-  );
-  if (lineItemRes.rows.length > 0) {
-    const lineItemId = lineItemRes.rows[0].line_item_id;
-    if (lineItemId) {
-      await syncLineItemStatusFromUnits(lineItemId, clientOrPool);
-    }
+  if (row.line_item_id) {
+    await syncLineItemStatusFromUnits(row.line_item_id, clientOrPool);
   }
 };
 
@@ -997,16 +1001,44 @@ const sanitizeOriginalFileName = (originalName) => {
   return base.replace(/[^a-zA-Z0-9._-]/g, '_');
 };
 
-const BLOCKED_EXTENSIONS = new Set([
-  '.exe', '.bat', '.cmd', '.sh', '.bash', '.php', '.phtml', '.pl', '.cgi',
-  '.js', '.mjs', '.vbs', '.ps1', '.jar', '.apk', '.msi', '.com', '.scr',
-  '.hta', '.html', '.htm', '.svg'
-]);
+// Upload allowlist: extension -> accepted MIME types. Anything not listed is rejected.
+// HTML/SVG/scripts/executables are intentionally absent.
+const OCTET = 'application/octet-stream';
+const ZIP_MIMES = ['application/zip', 'application/x-zip-compressed', 'application/x-zip', 'multipart/x-zip'];
+const ALLOWED_UPLOAD_TYPES = Object.freeze({
+  '.pdf': ['application/pdf', 'application/x-pdf', OCTET],
+  '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', ...ZIP_MIMES, OCTET],
+  '.xls': ['application/vnd.ms-excel', 'application/msexcel', 'application/x-msexcel', 'application/x-excel', OCTET],
+  '.csv': ['text/csv', 'application/csv', 'text/plain', 'text/comma-separated-values', 'application/vnd.ms-excel', OCTET],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', ...ZIP_MIMES, OCTET],
+  '.doc': ['application/msword', OCTET],
+  '.txt': ['text/plain', OCTET],
+  '.png': ['image/png'],
+  '.jpg': ['image/jpeg', 'image/pjpeg'],
+  '.jpeg': ['image/jpeg', 'image/pjpeg'],
+  '.webp': ['image/webp'],
+  '.dwg': ['image/vnd.dwg', 'image/x-dwg', 'application/acad', 'application/x-acad', 'application/autocad_dwg', 'application/dwg', 'application/x-dwg', 'drawing/dwg', OCTET],
+  '.dxf': ['image/vnd.dxf', 'image/x-dxf', 'application/dxf', 'application/x-dxf', 'text/plain', OCTET],
+  '.step': ['application/step', 'model/step', 'application/x-step', 'text/plain', OCTET],
+  '.stp': ['application/step', 'model/step', 'application/x-step', 'text/plain', OCTET],
+  '.zip': [...ZIP_MIMES, OCTET],
+});
+
+const uploadRejection = (message) => {
+  const err = new Error(message);
+  err.code = 'UPLOAD_TYPE_REJECTED';
+  return err;
+};
 
 const uploadFileFilter = (req, file, cb) => {
   const ext = path.extname(file.originalname || '').toLowerCase();
-  if (BLOCKED_EXTENSIONS.has(ext)) {
-    return cb(new Error(`File extension '${ext}' is not permitted for security reasons.`));
+  const allowedMimes = ALLOWED_UPLOAD_TYPES[ext];
+  if (!allowedMimes) {
+    return cb(uploadRejection(`File type '${ext || 'unknown'}' is not permitted. Allowed: ${Object.keys(ALLOWED_UPLOAD_TYPES).join(', ')}`));
+  }
+  const mime = String(file.mimetype || '').toLowerCase();
+  if (!allowedMimes.includes(mime)) {
+    return cb(uploadRejection(`MIME type '${mime || 'unknown'}' does not match file extension '${ext}'.`));
   }
   cb(null, true);
 };
@@ -1057,9 +1089,20 @@ const parseOrderCounter = (numStr) => {
 
 const parseLiCounter = parseOrderCounter;
 
+// Serialises order-number / unit-serial allocation across concurrent transactions.
+// Must be called with a transaction client after BEGIN; the lock is released at COMMIT/ROLLBACK.
+const ORDER_NUMBER_LOCK_KEY = 726270001;
+const lockSerialAllocation = async (client) => {
+  await client.query('SELECT pg_advisory_xact_lock($1)', [ORDER_NUMBER_LOCK_KEY]);
+};
+
 const generateOrderNumber = async (client) => {
+  if (!client || client === pool) {
+    throw new Error('generateOrderNumber requires a transaction client');
+  }
   const year = new Date().getFullYear();
-  const db = client || pool;
+  const db = client;
+  await lockSerialAllocation(db);
 
   const orderRes = await db.query("SELECT MAX(order_number) as max_ord FROM orders WHERE order_number NOT LIKE 'TEMP-%'");
   const unitRes = await db.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
@@ -1079,13 +1122,11 @@ const generateOrderNumber = async (client) => {
 };
 
 // Middleware for RBAC
-const authorize = (roles = [], options = {}) => {
+const authorize = (roles = []) => {
   return (req, res, next) => {
     let token = null;
     if (req.headers.authorization) {
       token = req.headers.authorization.split(' ')[1];
-    } else if (options.allowQueryToken && req.query.token) {
-      token = req.query.token;
     }
 
     if (!token) return res.status(401).json({ error: 'No token provided in Authorization header' });
@@ -1127,7 +1168,7 @@ app.use('/api/admin/backup', createBackupRouter(pool, authorize));
 app.use('/api/admin/maintenance', createMaintenanceRouter(pool, authorize));
 
 // Real-time Server-Sent Events stream for multi-user synchronization
-initEventStream(app, authorize);
+initEventStream(app, authorize, JWT_SECRET);
 
 // Auth Routes
 app.post('/api/auth/signup', authorize(['Admin']), async (req, res) => {
@@ -1521,12 +1562,10 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
 
       if (isNaN(uPrice) || uPrice < 0 || uPrice > 9999999999999.99) {
         await client.query('ROLLBACK');
-        client.release();
         return res.status(400).json({ error: "Unit price must be a valid number between 0 and 9,999,999,999,999.99." });
       }
       if (isNaN(tPrice) || tPrice < 0 || tPrice > 9999999999999.99) {
         await client.query('ROLLBACK');
-        client.release();
         return res.status(400).json({ error: "Total price must be a valid number between 0 and 9,999,999,999,999.99." });
       }
     }
@@ -1767,102 +1806,44 @@ app.delete('/api/orders/:id', authorize(['Admin']), async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Check if the order exists
-    const orderCheck = await client.query('SELECT order_number FROM orders WHERE id = $1', [id]);
+    // 1. Lock the order row (order numbers / unit serials are immutable: NEVER resequence on delete)
+    const orderCheck = await client.query('SELECT id, order_number FROM orders WHERE id = $1 FOR UPDATE', [id]);
     if (orderCheck.rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Order not found' });
     }
     const orderNumberToDelete = orderCheck.rows[0].order_number;
 
-    // Log action to activity logs
+    // 2. Log action to activity logs
     await client.query(
       `INSERT INTO activity_logs (user_id, action_text, dept) VALUES ($1, $2, $3)`,
       [req.user.id, `Deleted order: ${orderNumberToDelete} (ID: ${id})`, 'Admin']
     );
 
-    // 2. Delete the order (Foreign key cascades delete line items, units, steps)
+    // 3. Remove polymorphic documents for the order, its units and its steps.
+    //    'Step' entity ids are shared between order_steps and unit_steps, so a Step document is only
+    //    removed when its id cannot belong to a step of another order.
+    await client.query(
+      `DELETE FROM documents d
+        WHERE (d.entity_type = 'Order' AND d.entity_id = $1)
+           OR (d.entity_type = 'Unit' AND d.entity_id IN (SELECT id FROM order_units WHERE order_id = $1))
+           OR (d.entity_type = 'Step'
+               AND (d.entity_id IN (SELECT id FROM order_steps WHERE order_id = $1)
+                    OR d.entity_id IN (SELECT us.id FROM unit_steps us JOIN order_units ou ON us.order_unit_id = ou.id WHERE ou.order_id = $1))
+               AND d.entity_id NOT IN (SELECT id FROM order_steps WHERE order_id <> $1)
+               AND d.entity_id NOT IN (SELECT us.id FROM unit_steps us JOIN order_units ou ON us.order_unit_id = ou.id WHERE ou.order_id <> $1))`,
+      [id]
+    );
+
+    // 4. Delete the order (FK cascades delete line items, units, unit steps, order steps)
     await client.query('DELETE FROM orders WHERE id = $1', [id]);
 
-    // 3. Resequence remaining orders
-    // A. Temporarily prefix remaining orders and units to avoid unique key violations during sequential updates
-    await client.query("UPDATE orders SET order_number = 'TEMP-' || order_number");
-    await client.query("UPDATE order_units SET unit_id = 'TEMP-' || unit_id");
-
-    // B. Determine starting counter from system settings
-    const settingRes = await client.query("SELECT value FROM system_settings WHERE key = 'order_number_start' LIMIT 1");
-    let globalLineItemCounter = settingRes.rows.length > 0 ? parseInt(settingRes.rows[0].value) || 1 : 1;
-    let globalUnitCounter = globalLineItemCounter;
-
-    // C. Get all remaining orders in ascending order of creation (by ID)
-    const remainingOrdersRes = await client.query("SELECT id, order_number, order_date, created_at FROM orders ORDER BY id ASC");
-    const remainingOrders = remainingOrdersRes.rows;
-
-    let currentOrderSeq = 1;
-    let lastFYYear = null;
-    let globalUnitSeq = 1;
-
-    for (const order of remainingOrders) {
-      let year = new Date().getFullYear();
-      let cleanNum = String(order.order_number).replace(/^TEMP-/, '');
-
-      if (cleanNum.startsWith('ORD-')) {
-        const parts = cleanNum.split('-');
-        if (parts.length >= 2 && parts[1].length === 4) {
-          const yr = parseInt(parts[1]);
-          if (!isNaN(yr)) year = yr;
-        }
-      } else if (/^\d{8,}$/.test(cleanNum)) {
-        const yy = parseInt(cleanNum.substring(0, 2), 10);
-        if (!isNaN(yy)) year = 2000 + yy;
-      } else if (order.order_date) {
-        year = new Date(order.order_date).getFullYear();
-      } else if (order.created_at) {
-        year = new Date(order.created_at).getFullYear();
-      }
-
-      if (lastFYYear !== null && lastFYYear !== year) {
-        currentOrderSeq = 1;
-      }
-      lastFYYear = year;
-
-      const newOrderNumber = formatOrderNumber(year, currentOrderSeq);
-
-      // Update Order Number
-      await client.query("UPDATE orders SET order_number = $1 WHERE id = $2", [newOrderNumber, order.id]);
-
-      // Update Line Items for this Order
-      const liRes = await client.query("SELECT id, quantity FROM order_line_items WHERE order_id = $1 ORDER BY id ASC", [order.id]);
-      let itemIdx = 1;
-      for (const li of liRes.rows) {
-        const assignedLiNumber = `${newOrderNumber}-${String(itemIdx).padStart(2, '0')}`;
-        await client.query(
-          "UPDATE order_line_items SET line_item_number = $1 WHERE id = $2",
-          [assignedLiNumber, li.id]
-        );
-        itemIdx++;
-      }
-
-      // Update Units for this Order
-      const unitsRes = await client.query("SELECT id FROM order_units WHERE order_id = $1 ORDER BY id ASC", [order.id]);
-      for (const unit of unitsRes.rows) {
-        const newUnitSerial = formatOrderNumber(year, globalUnitSeq);
-        await client.query(
-          "UPDATE order_units SET unit_id = $1, short_serial = $1 WHERE id = $2",
-          [newUnitSerial, unit.id]
-        );
-        globalUnitSeq++;
-      }
-
-      currentOrderSeq++;
-    }
-
     await client.query('COMMIT');
-    res.json({ message: 'Order deleted and remaining orders resequenced successfully' });
+    res.json({ message: `Order ${orderNumberToDelete} deleted successfully` });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('Order deletion/resequencing error:', err);
-    res.status(500).json({ error: 'Failed to delete and resequence orders' });
+    console.error('Order deletion error:', err);
+    res.status(500).json({ error: 'Failed to delete order' });
   } finally {
     client.release();
   }
@@ -2191,6 +2172,7 @@ app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sale
       if (!isNaN(yy)) year = 2000 + yy;
     }
 
+    await lockSerialAllocation(client);
     const maxUnitRes = await client.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
     let max_unit_seq = parseOrderCounter(maxUnitRes.rows[0]?.max_unit);
     let order_seq = parseOrderCounter(order.order_number);
@@ -2359,7 +2341,7 @@ app.post('/api/orders/:id/hold/resume', authorize(['Admin', 'Manager', 'Sales'])
   }
 });
 
-app.get('/api/diagnostic-status', async (req, res) => {
+app.get('/api/diagnostic-status', authorize(['Admin']), async (req, res) => {
   try {
     const colRes = await pool.query(`
       SELECT column_name FROM information_schema.columns 
@@ -2619,6 +2601,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
       const order_number = order.order_number;
       const order_seq = parseOrderCounter(order_number);
 
+      await lockSerialAllocation(client);
       const maxGlobalUnitRes = await client.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
       let max_unit_seq = parseOrderCounter(maxGlobalUnitRes.rows[0]?.max_unit);
       let globalUnitCounter = Math.max(max_unit_seq > 0 ? max_unit_seq + 1 : 1, order_seq);
@@ -3074,6 +3057,42 @@ const resolveCustomFieldValues = async (customFields, orderId, unitId = null, pr
   return results;
 };
 
+// Explicit allowlist of business columns a task custom field (datakey) may write.
+// Workflow/identity columns (current_dept, status, design_confirmed*, sales_cleared*, hold_*, cancelled_*,
+// po_override_unlinked, order_number, unit_id, short_serial, line_item_number, ids, FKs, custom_fields)
+// are deliberately excluded. Table and column names are only ever interpolated from this map.
+const CUSTOM_FIELD_WRITABLE_COLUMNS = Object.freeze({
+  orders: new Set([
+    'po_number', 'order_date', 'delivery_date', 'planned_dispatch_date', 'priority', 'classification',
+    'packaging_type', 'end_client_name', 'project_name', 'reference_number', 'gst_number', 'notes',
+    'wiring_assigned_date', 'wiring_expected_date', 'expected_qc_date', 'qc_date', 'qc_status',
+  ]),
+  order_line_items: new Set([
+    'material_description', 'part_number', 'panel_type_size', 'delivery_date', 'unit', 'unit_price',
+    'total_price', 'notes', 'project_name', 'tag', 'panel_code', 'panel_ip_rating',
+    'planned_dispatch_date', 'wiring_assigned_date', 'wiring_expected_date', 'expected_qc_date',
+    'qc_status', 'qc_date', 'mounting_start_date', 'mounting_complete_date', 'tray_status',
+    'tray_start_date', 'issued_date', 'wiremen', 'wiring_start_date', 'wiring_complete_date',
+    'pending_material_complete_date', 'handover_to_qc_date', 'qc_receiving_date', 'qc_start_date',
+    'qc_complete_date', 'dispatch_date', 'invoice_number', 'invoice_date',
+  ]),
+  order_units: new Set([
+    'po_number', 'panel_type_size', 'classification', 'tag', 'panel_code', 'panel_ip_rating',
+    'planned_dispatch_date', 'wiring_assigned_date', 'wiring_expected_date', 'expected_qc_date',
+    'qc_status', 'qc_date', 'mounting_start_date', 'mounting_complete_date', 'tray_status',
+    'tray_start_date', 'issued_date', 'wiremen', 'wiring_start_date', 'wiring_complete_date',
+    'pending_material_complete_date', 'handover_to_qc_date', 'qc_receiving_date', 'qc_start_date',
+    'qc_complete_date', 'dispatch_date', 'invoice_number', 'invoice_date',
+  ]),
+});
+
+// Datakey prefixes (as offered in Masters DATAKEY_OPTIONS) mapped to their target table.
+const CUSTOM_FIELD_PREFIX_TABLE = Object.freeze({
+  orders: 'orders', order: 'orders', o: 'orders',
+  li: 'order_line_items', line_item: 'order_line_items', order_line_items: 'order_line_items',
+  unit: 'order_units', units: 'order_units', ou: 'order_units', order_units: 'order_units',
+});
+
 const propagateCustomFieldsToDB = async (customFields, orderId, unitId = null, client = pool) => {
   if (!customFields || !Array.isArray(customFields) || customFields.length === 0) {
     return;
@@ -3093,64 +3112,36 @@ const propagateCustomFieldsToDB = async (customFields, orderId, unitId = null, c
     }
   }
 
+  const targetIds = {
+    orders: resolvedOrderId || null,
+    order_line_items: lineItemId || null,
+    order_units: unitId || null,
+  };
+
   for (const f of customFields) {
-    if (!f.datakey || f.value === undefined || f.value === null) continue;
+    if (!f || typeof f.datakey !== 'string' || f.value === undefined || f.value === null) continue;
     const rawKey = f.datakey.trim();
-    if (rawKey.startsWith('docs.')) continue;
+    if (!rawKey || rawKey.startsWith('docs.')) continue;
 
-    const key = rawKey.includes('.') ? rawKey.split('.').slice(-1)[0] : rawKey;
-    const value = f.value;
+    const parts = rawKey.split('.');
+    const column = parts[parts.length - 1].toLowerCase();
+    const prefix = parts.length > 1 ? parts[0].toLowerCase() : null;
+    const prefixedTable = prefix ? CUSTOM_FIELD_PREFIX_TABLE[prefix] : null;
 
-    // Check if key is a column in orders table
-    const orderColsRes = await client.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND column_name = $1`,
-      [key.toLowerCase()]
-    );
-    if (orderColsRes.rows.length > 0 && resolvedOrderId) {
-      let valToSave = value;
-      if (f.type === 'Yes/No') {
-        valToSave = value === true || String(value).toLowerCase() === 'yes';
-      }
-      await client.query(
-        `UPDATE orders SET ${key.toLowerCase()} = $1 WHERE id = $2`,
-        [valToSave, resolvedOrderId]
-      );
-      continue;
+    // Explicit prefix → only that table; otherwise the legacy precedence orders → line items → units.
+    const candidateTables = prefixedTable ? [prefixedTable] : ['orders', 'order_line_items', 'order_units'];
+    const table = candidateTables.find(t => CUSTOM_FIELD_WRITABLE_COLUMNS[t].has(column) && targetIds[t]);
+    if (!table) continue;
+
+    let valToSave = f.value;
+    if (f.type === 'Yes/No') {
+      valToSave = f.value === true || String(f.value).toLowerCase() === 'yes';
     }
-
-    // Check if key is a column in order_line_items table
-    const liColsRes = await client.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'order_line_items' AND column_name = $1`,
-      [key.toLowerCase()]
+    // table/column come exclusively from CUSTOM_FIELD_WRITABLE_COLUMNS above
+    await client.query(
+      `UPDATE ${table} SET ${column} = $1 WHERE id = $2`,
+      [valToSave, targetIds[table]]
     );
-    if (liColsRes.rows.length > 0 && lineItemId) {
-      let valToSave = value;
-      if (f.type === 'Yes/No') {
-        valToSave = value === true || String(value).toLowerCase() === 'yes';
-      }
-      await client.query(
-        `UPDATE order_line_items SET ${key.toLowerCase()} = $1 WHERE id = $2`,
-        [valToSave, lineItemId]
-      );
-      continue;
-    }
-
-    // Check if key is a column in order_units table
-    const unitColsRes = await client.query(
-      `SELECT column_name FROM information_schema.columns WHERE table_name = 'order_units' AND column_name = $1`,
-      [key.toLowerCase()]
-    );
-    if (unitColsRes.rows.length > 0 && unitId) {
-      let valToSave = value;
-      if (f.type === 'Yes/No') {
-        valToSave = value === true || String(value).toLowerCase() === 'yes';
-      }
-      await client.query(
-        `UPDATE order_units SET ${key.toLowerCase()} = $1 WHERE id = $2`,
-        [valToSave, unitId]
-      );
-      continue;
-    }
   }
 };
 
@@ -3284,12 +3275,17 @@ app.get('/api/orders/:id/steps', authorize(), async (req, res) => {
   }
 });
 
-app.post('/api/orders/:id/steps', authorize(), async (req, res) => {
+app.post('/api/orders/:id/steps', authorize(OPERATOR_ROLES), async (req, res) => {
   const { taskId } = req.body;
   try {
     const taskResult = await pool.query('SELECT * FROM task_masters WHERE id = $1', [taskId]);
     if (taskResult.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
     const task = taskResult.rows[0];
+
+    // Department operators may only add tasks for their own department (mirrors FlowView UI gating)
+    if (!['Admin', 'Manager'].includes(req.user.role) && task.dept !== req.user.role) {
+      return res.status(403).json({ error: 'Forbidden: You can only add tasks for your own department.' });
+    }
 
     // Copy field definitions (without values) from task master
     let fieldDefs = [];
@@ -3310,19 +3306,25 @@ app.post('/api/orders/:id/steps', authorize(), async (req, res) => {
   }
 });
 
-app.put('/api/orders/:orderId/steps/reorder', authorize(), async (req, res) => {
+app.put('/api/orders/:orderId/steps/reorder', authorize(OPERATOR_ROLES), async (req, res) => {
   const { orderedIds } = req.body; // Array of step IDs in the new order
   if (!orderedIds || !Array.isArray(orderedIds)) return res.status(400).json({ error: 'orderedIds array required' });
+  const ids = orderedIds.map(v => Number(v));
+  if (ids.some(v => !Number.isInteger(v) || v <= 0)) {
+    return res.status(400).json({ error: 'orderedIds must contain positive integer step IDs' });
+  }
 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    for (let i = 0; i < orderedIds.length; i++) {
-      await client.query(
-        'UPDATE order_steps SET step_order = $1 WHERE id = $2 AND order_id = $3',
-        [i, orderedIds[i], req.params.orderId]
-      );
-    }
+    // step_order is 0-based to match the previous per-step loop
+    await client.query(
+      `UPDATE order_steps s
+          SET step_order = v.ord - 1
+         FROM unnest($1::int[]) WITH ORDINALITY AS v(id, ord)
+        WHERE s.id = v.id AND s.order_id = $2`,
+      [ids, req.params.orderId]
+    );
     await client.query('COMMIT');
     res.json({ message: 'Steps reordered successfully' });
   } catch (err) {
@@ -3334,42 +3336,88 @@ app.put('/api/orders/:orderId/steps/reorder', authorize(), async (req, res) => {
   }
 });
 
+// Order-level Design gate: every active (non-cancelled) panel of the order must have Drawing AND BOM AND
+// Design confirmation before an order-level Release Documents step may be marked done.
+const evaluateOrderDesignGate = async (clientOrPool, orderId) => {
+  const unitsRes = await clientOrPool.query(
+    `SELECT id, unit_id FROM order_units WHERE order_id = $1 AND COALESCE(hold_status, '') <> 'Cancelled' ORDER BY id`,
+    [orderId]
+  );
+  const failing = [];
+  for (const u of unitsRes.rows) {
+    const info = await evaluateUnitDesignDocuments(clientOrPool, u.id);
+    if (!info.hasDrawing || !info.hasBom || !info.designConfirmed) {
+      const missing = [];
+      if (!info.hasDrawing) missing.push('Drawing');
+      if (!info.hasBom) missing.push('BOM');
+      if (!info.designConfirmed) missing.push('Design confirmation');
+      failing.push({ unitId: u.id, unit: u.unit_id, missing });
+    }
+  }
+  return { ok: failing.length === 0, failing };
+};
+
+const isReleaseDocumentsStep = (s) =>
+  Boolean(s) && s.dept === 'Design' && (s.name === 'Release Documents' || s.special === 'design');
+
 app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
   if (await isOrderOnHold(req.params.orderId)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
   const { status, notes, dispatchDate, custom_fields } = req.body;
   const updated = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  const client = await pool.connect();
   try {
+    await client.query('BEGIN');
+
     // Fetch step details to verify permissions
-    const stepRes = await pool.query('SELECT dept FROM order_steps WHERE id = $1 AND order_id = $2', [req.params.stepId, req.params.orderId]);
-    if (stepRes.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
+    const stepRes = await client.query(
+      'SELECT dept, name, special FROM order_steps WHERE id = $1 AND order_id = $2 FOR UPDATE',
+      [req.params.stepId, req.params.orderId]
+    );
+    if (stepRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Step not found' });
+    }
     const step = stepRes.rows[0];
 
     const canEdit = ['Admin', 'Manager'].includes(req.user.role) || step.dept === req.user.role;
     if (!canEdit) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Forbidden: You are not authorized to update this task.' });
     }
 
     // Upstream validation: block marking 'done' if upstream depts are incomplete
     if (status === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-      const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
       const myIndex = PIPELINE.indexOf(step.dept);
       if (myIndex > 0) {
         const upstreamDepts = PIPELINE.slice(0, myIndex);
-        const blockingRes = await pool.query(
+        const blockingRes = await client.query(
           `SELECT DISTINCT dept FROM order_steps WHERE order_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
           [req.params.orderId, upstreamDepts]
         );
         if (blockingRes.rows.length > 0) {
           const blocking = blockingRes.rows.map(r => r.dept).join(', ');
+          await client.query('ROLLBACK');
           return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
         }
       }
     }
 
+    // Mandatory Design gate on an order-level Release Documents step
+    if (status === 'done' && isReleaseDocumentsStep(step)) {
+      const gate = await evaluateOrderDesignGate(client, req.params.orderId);
+      if (!gate.ok) {
+        const detail = gate.failing.slice(0, 5).map(f => `${f.unit || f.unitId}: ${f.missing.join(', ')}`).join('; ');
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          error: `Cannot complete Release Documents: Drawing, BOM and Design confirmation are required for every panel (${detail}${gate.failing.length > 5 ? '; …' : ''}).`
+        });
+      }
+    }
+
     if (custom_fields) {
-      await propagateCustomFieldsToDB(custom_fields, req.params.orderId, null, pool);
+      await propagateCustomFieldsToDB(custom_fields, req.params.orderId, null, client);
     }
 
     let cfJson = null;
@@ -3377,13 +3425,16 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
       cfJson = JSON.stringify(custom_fields);
     }
 
-    const result = await pool.query(
+    const result = await client.query(
       'UPDATE order_steps SET status = $1, notes = $2, dispatch_date = $3, updated = $4, custom_fields = COALESCE($5, custom_fields) WHERE id = $6 AND order_id = $7 RETURNING *',
       [status, notes, dispatchDate || null, updated, cfJson, req.params.stepId, req.params.orderId]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Step not found' });
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Step not found' });
+    }
 
-    await pool.query(
+    await client.query(
       `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
       [req.user.id, req.params.orderId, step.dept, `Updated step "${result.rows[0].name}" (Status: ${status})`]
     );
@@ -3398,35 +3449,39 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
         }
       }
       if (!resolvedClassification) {
-        const oCheck = await pool.query('SELECT classification FROM orders WHERE id = $1', [req.params.orderId]);
+        const oCheck = await client.query('SELECT classification FROM orders WHERE id = $1', [req.params.orderId]);
         if (oCheck.rows.length > 0) {
           resolvedClassification = oCheck.rows[0].classification;
         }
       }
 
       if (resolvedClassification && resolvedClassification.toLowerCase() === 'standard' && status === 'done') {
-        const step2Res = await pool.query(
-          `SELECT id, status, notes FROM order_steps 
-           WHERE order_id = $1 AND dept = 'Design' 
-             AND (name = 'Release Documents' OR special = 'design') 
+        const step2Res = await client.query(
+          `SELECT id, status, notes FROM order_steps
+           WHERE order_id = $1 AND dept = 'Design'
+             AND (name = 'Release Documents' OR special = 'design')
            LIMIT 1`,
           [req.params.orderId]
         );
-        if (step2Res.rows.length > 0) {
-          const step2 = step2Res.rows[0];
-          const autoNote = 'Auto-completed: Standard master drawings & BOM applied.';
-          const finalNotes = step2.notes ? step2.notes : autoNote;
-          await pool.query(
-            `UPDATE order_steps 
-             SET status = 'done', notes = $1, updated = $2 
-             WHERE id = $3`,
-            [finalNotes, updated, step2.id]
-          );
-          await pool.query(
-            `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
-             VALUES ($1, $2, 'Design', $3)`,
-            [req.user.id, req.params.orderId, `Order: Step "Release Documents" auto-completed (Standard Panel)`]
-          );
+        if (step2Res.rows.length > 0 && step2Res.rows[0].status !== 'done') {
+          // Same mandatory gate as a manual completion: Drawing + BOM + Design confirmation for every panel
+          const gate = await evaluateOrderDesignGate(client, req.params.orderId);
+          if (gate.ok) {
+            const step2 = step2Res.rows[0];
+            const autoNote = 'Auto-completed: Standard master drawings & BOM applied.';
+            const finalNotes = step2.notes ? step2.notes : autoNote;
+            await client.query(
+              `UPDATE order_steps
+               SET status = 'done', notes = $1, updated = $2
+               WHERE id = $3`,
+              [finalNotes, updated, step2.id]
+            );
+            await client.query(
+              `INSERT INTO activity_logs (user_id, order_id, dept, action_text)
+               VALUES ($1, $2, 'Design', $3)`,
+              [req.user.id, req.params.orderId, `Order: Step "Release Documents" auto-completed (Standard Panel)`]
+            );
+          }
         }
       }
     }
@@ -3436,32 +3491,36 @@ app.put('/api/orders/:orderId/steps/:stepId', authorize(), async (req, res) => {
       const target = qcFailTarget === 'design' ? 'Design' : 'Production';
       const remark = target === 'Design' ? 'Returned from QC — design re-check needed' : 'Returned from QC — rework required';
 
-      await pool.query(
-        `UPDATE order_steps 
-         SET status = 'inprogress', notes = $1, updated = $2 
+      await client.query(
+        `UPDATE order_steps
+         SET status = 'inprogress', notes = $1, updated = $2
          WHERE order_id = $3 AND dept = $4`,
         [remark, updated, req.params.orderId, target]
       );
 
-      await pool.query(
-        `INSERT INTO activity_logs (user_id, order_id, dept, action_text) 
+      await client.query(
+        `INSERT INTO activity_logs (user_id, order_id, dept, action_text)
          VALUES ($1, $2, 'QC', $3)`,
         [req.user.id, req.params.orderId, `QC FAIL → returned to ${target} for ${target === 'Design' ? 're-check' : 'rework'}`]
       );
     }
 
-    await updateOrderQCStatusFromSteps(req.params.orderId, pool);
+    await updateOrderQCStatusFromSteps(req.params.orderId, client);
 
     // Re-evaluate unit statuses for all units in this order (e.g. when Sales completes Upload PO)
-    const unitsForOrder = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [req.params.orderId]);
+    const unitsForOrder = await client.query('SELECT id FROM order_units WHERE order_id = $1', [req.params.orderId]);
     for (const u of unitsForOrder.rows) {
-      await deriveUnitStatus(u.id, pool);
+      await deriveUnitStatus(u.id, client);
     }
 
+    await client.query('COMMIT');
     res.json(result.rows[0]);
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error(err);
     res.status(500).json({ error: 'Failed to update step' });
+  } finally {
+    client.release();
   }
 });
 
@@ -4281,8 +4340,17 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
       const orderUnitsRes = await client.query('SELECT id, short_serial FROM order_units WHERE order_id = $1 ORDER BY id ASC', [step.order_id]);
       targetUnits = orderUnitsRes.rows;
     } else if (scope === 'selected' && Array.isArray(targetUnitIds) && targetUnitIds.length > 0) {
-      const selectedRes = await client.query('SELECT id, short_serial FROM order_units WHERE id = ANY($1::int[]) ORDER BY id ASC', [targetUnitIds]);
+      const selectedIds = targetUnitIds.map(v => Number(v)).filter(v => Number.isInteger(v) && v > 0);
+      // Only units belonging to the same order as the step being edited may be targeted
+      const selectedRes = await client.query(
+        'SELECT id, short_serial FROM order_units WHERE id = ANY($1::int[]) AND order_id = $2 ORDER BY id ASC',
+        [selectedIds, step.order_id]
+      );
       targetUnits = selectedRes.rows;
+      if (targetUnits.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'None of the selected units belong to this order.' });
+      }
     } else {
       targetUnits = [{ id: parseInt(req.params.unitId), short_serial: step.short_serial }];
     }
@@ -4400,13 +4468,12 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
       // Upstream validation: block marking 'done' if upstream depts are incomplete
       if (newStatus === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-        const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
         const myIndex = PIPELINE.indexOf(step.dept);
         if (myIndex > 0) {
           const upstreamDepts = PIPELINE.slice(0, myIndex);
           const blockingRes = await client.query(
-            `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = $1 AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
-            [req.params.unitId, upstreamDepts]
+            `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = ANY($1::int[]) AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
+            [targetUnits.map(tu => Number(tu.id)), upstreamDepts]
           );
           if (blockingRes.rows.length > 0) {
             const blocking = blockingRes.rows.map(r => r.dept).join(', ');
@@ -4416,14 +4483,16 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
         }
       }
 
-      // Mandatory Drawing + BOM gate: Release Documents cannot be completed if Drawing or BOM is missing
+      // Mandatory Design gate: Release Documents cannot be completed without Drawing AND BOM AND Design confirmation
       if (newStatus === 'done' && step.dept === 'Design' && (step.name === 'Release Documents' || step.name.toLowerCase().includes('release'))) {
         for (const tu of targetUnits) {
           const docInfo = await evaluateUnitDesignDocuments(client, tu.id);
-          if (!docInfo.hasDrawing || !docInfo.hasBom) {
+          if (!docInfo.hasDrawing || !docInfo.hasBom || !docInfo.designConfirmed) {
             await client.query('ROLLBACK');
             return res.status(400).json({
-              error: 'Cannot complete task: Both Drawing and BOM must be uploaded before this panel can leave Design.'
+              error: !docInfo.hasDrawing || !docInfo.hasBom
+                ? 'Cannot complete task: Both Drawing and BOM must be uploaded before this panel can leave Design.'
+                : 'Cannot complete task: Design must be confirmed before this panel can leave Design.'
             });
           }
         }
@@ -4555,11 +4624,14 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 });
 
 
-app.put('/api/units/:id/status', authorize(), async (req, res) => {
+app.put('/api/units/:id/status', authorize(['Admin', 'Manager']), async (req, res) => {
   if (await isUnitOnHold(req.params.id)) {
     return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
   }
-  const { status } = req.body;
+  const status = typeof req.body.status === 'string' ? req.body.status.trim() : '';
+  if (!status) {
+    return res.status(400).json({ error: 'status must be a non-empty string' });
+  }
   try {
     const result = await pool.query(
       'UPDATE order_units SET status = $1 WHERE id = $2 RETURNING *',
@@ -5250,7 +5322,7 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       try {
         const pUnits = await pool.query("SELECT id FROM order_units WHERE current_dept = 'Purchase'");
         if (pUnits.rows.length > 0) {
-          await evaluatePurchaseAutoCompletion(pUnits.rows.map(r => r.id), pool, deriveUnitStatus);
+          await evaluatePurchaseAutoCompletion(pUnits.rows.map(r => r.id), pool, deriveUnitStatus, { by: 'id' });
         }
       } catch (evalErr) {
         console.warn('evaluatePurchaseAutoCompletion warn in dept-worklist:', evalErr);
@@ -5644,38 +5716,46 @@ app.put('/api/companies/:id', authorize(['Admin', 'Manager', 'Sales']), async (r
   }
 });
 
-app.post('/api/documents/upload', authorize(), upload.array('files', 20), async (req, res) => {
+app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files', 20), async (req, res) => {
   const { entity_type, entity_id, doc_type } = req.body;
+  const savedDocs = [];
+  // Remove files multer already wrote to disk when the request is rejected before any DB row references them
+  const rejectUpload = (statusCode, error) => {
+    cleanupUploadedFiles(req.files);
+    return res.status(statusCode).json({ error });
+  };
   try {
+    if (!req.files || req.files.length === 0) {
+      return rejectUpload(400, 'No files uploaded.');
+    }
     if (entity_type === 'Order') {
       if (await isOrderOnHold(entity_id)) {
-        return res.status(400).json({ error: 'Order is currently on hold. Document uploads are disabled.' });
+        return rejectUpload(400, 'Order is currently on hold. Document uploads are disabled.');
       }
     } else if (entity_type === 'Unit') {
       if (await isUnitOnHold(entity_id)) {
-        return res.status(400).json({ error: 'Order is currently on hold. Document uploads are disabled.' });
+        return rejectUpload(400, 'Order is currently on hold. Document uploads are disabled.');
       }
     }
     if (doc_type === 'PO') {
       const canUploadPo = ['Sales', 'Admin', 'Manager'].includes(req.user.role);
       if (!canUploadPo) {
-        return res.status(403).json({ error: 'Forbidden: Only Sales, Admin, and Manager roles can upload PO documents.' });
+        return rejectUpload(403, 'Forbidden: Only Sales, Admin, and Manager roles can upload PO documents.');
       }
     }
     if (doc_type === 'PO' || doc_type === 'Quotation') {
       if (req.files.length > 1) {
-        return res.status(400).json({ error: `${doc_type} can only be a single file.` });
+        return rejectUpload(400, `${doc_type} can only be a single file.`);
       }
       const existing = await pool.query(
         'SELECT id FROM documents WHERE entity_type = $1 AND entity_id = $2 AND doc_type = $3 LIMIT 1',
         [entity_type, entity_id, doc_type]
       );
       if (existing.rows.length > 0) {
-        return res.status(400).json({ error: `A ${doc_type} already exists. Delete it first.` });
+        return rejectUpload(400, `A ${doc_type} already exists. Delete it first.`);
       }
     }
 
-    const savedDocs = [];
     let hasPO = false;
     let orderIdForLog = null;
     if (entity_type === 'Order') {
@@ -5768,6 +5848,7 @@ app.post('/api/documents/upload', authorize(), upload.array('files', 20), async 
     res.status(201).json(savedDocs);
   } catch (err) {
     console.error(err);
+    if (savedDocs.length === 0) cleanupUploadedFiles(req.files);
     res.status(500).json({ error: 'Failed to upload documents' });
   }
 });
@@ -5977,7 +6058,7 @@ app.post('/api/units/batch-purchase-na', authorize(['Purchase', 'Stores', 'Sales
     }
 
     if (updatedIds.length > 0) {
-      await evaluatePurchaseAutoCompletion(updatedIds, client, deriveUnitStatus);
+      await evaluatePurchaseAutoCompletion(updatedIds, client, deriveUnitStatus, { by: 'id' });
     }
 
     await client.query('COMMIT');
@@ -6486,22 +6567,11 @@ app.delete('/api/documents/:id', authorize(), async (req, res) => {
 
 app.get('/api/task_masters', authorize(), async (req, res) => {
   try {
-    const result = await pool.query(`
-      SELECT * FROM task_masters 
-      ORDER BY 
-        CASE dept
-          WHEN 'Sales' THEN 1
-          WHEN 'Design' THEN 2
-          WHEN 'Purchase' THEN 3
-          WHEN 'Stores' THEN 4
-          WHEN 'Production' THEN 5
-          WHEN 'QC' THEN 6
-          WHEN 'Dispatch' THEN 7
-          WHEN 'Accounts' THEN 8
-          ELSE 9
-        END ASC,
-        id ASC
-    `);
+    // Unknown departments sort last (array_position returns NULL; NULLS LAST is the ASC default)
+    const result = await pool.query(
+      `SELECT * FROM task_masters ORDER BY array_position($1::text[], dept) ASC, id ASC`,
+      [[...PIPELINE]]
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -6534,7 +6604,6 @@ app.post('/api/task_masters', authorize(['Admin']), async (req, res) => {
     // SELECTIVE TASK ADDITION:
     // Only apply the new task to active orders/units currently in this department or upstream.
     // NEVER apply retroactively to orders that have already passed this department or completed/cancelled!
-    const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
     const deptIdx = PIPELINE.indexOf(dept);
     const eligibleDepts = deptIdx >= 0 ? PIPELINE.slice(0, deptIdx + 1) : [dept];
 
@@ -7375,13 +7444,25 @@ const authorizeUploadDownload = (req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
 
-  // 1. Authorization: Bearer header
+  // 1. Authorization: Bearer header (the user must still exist)
   if (req.headers.authorization) {
     const token = req.headers.authorization.split(' ')[1];
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).json({ error: 'Unauthorized' });
-      req.user = decoded;
-      return next();
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    jwt.verify(token, JWT_SECRET, async (err, decoded) => {
+      if (err || !decoded || decoded.sub === 'download' || !decoded.id) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      try {
+        const userRes = await pool.query('SELECT id, role FROM users WHERE id = $1', [decoded.id]);
+        if (userRes.rows.length === 0) {
+          return res.status(401).json({ error: 'Unauthorized: User does not exist' });
+        }
+        req.user = { ...decoded, role: userRes.rows[0].role };
+        return next();
+      } catch (dbErr) {
+        console.error('Upload download auth DB check failed:', dbErr);
+        return res.status(500).json({ error: 'Internal server error during authorization' });
+      }
     });
     return;
   }
@@ -7406,17 +7487,6 @@ const authorizeUploadDownload = (req, res, next) => {
     return;
   }
 
-  // 3. Fallback for backwards compatibility with existing direct links: ?token=...
-  if (req.query.token) {
-    const legacyToken = req.query.token;
-    jwt.verify(legacyToken, JWT_SECRET, (err, decoded) => {
-      if (err) return res.status(401).json({ error: 'Unauthorized' });
-      req.user = decoded;
-      return next();
-    });
-    return;
-  }
-
   return res.status(401).json({ error: 'Unauthorized: No authorization header or valid download ticket provided' });
 };
 
@@ -7429,7 +7499,13 @@ app.use('/uploads', authorizeUploadDownload, express.static(path.join(__dirname,
 app.use((err, req, res, next) => {
   console.error('SERVER ERROR:', err);
   if (err instanceof multer.MulterError) {
+    cleanupUploadedFiles(req.files || req.file);
     return res.status(400).json({ error: `Upload error: ${err.message}` });
+  }
+  if (err && err.code === 'UPLOAD_TYPE_REJECTED') {
+    // Multer may already have written earlier files of a multi-file request
+    cleanupUploadedFiles(req.files || req.file);
+    return res.status(400).json({ error: err.message });
   }
   res.status(500).json({ error: err.message || 'Internal server error' });
 });

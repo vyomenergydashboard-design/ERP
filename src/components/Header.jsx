@@ -1,8 +1,24 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { LogOut, User, Search, Sun, Moon, Menu, Clock } from 'lucide-react';
 
-export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
+// Isolated so the 1-second tick only re-renders the clock, not the whole header.
+function HeaderClock() {
   const [time, setTime] = useState(() => new Date().toLocaleTimeString('en-IN'));
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTime(new Date().toLocaleTimeString('en-IN'));
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return (
+    <div className="clock-wrapper">
+      <Clock size={12} className="clock-icon" />
+      <span>{time}</span>
+    </div>
+  );
+}
+
+export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) {
   const [orders, setOrders] = useState([]);
   const [selectedOrderId, setSelectedOrderId] = useState(() => localStorage.getItem('erp_selectedOrderId') || '');
   const [selectedUnitId, setSelectedUnitId] = useState(() => localStorage.getItem('erp_selectedUnitId') || '');
@@ -51,10 +67,6 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   };
 
   useEffect(() => {
-    const id = setInterval(() => {
-      setTime(new Date().toLocaleTimeString('en-IN'));
-    }, 1000);
-
     // Fetch orders for everyone
     fetchOrders();
 
@@ -94,7 +106,6 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
     window.addEventListener('erpSettingsUpdated', handleSettingsUpdate);
 
     return () => {
-      clearInterval(id);
       window.removeEventListener('setView', handleSetView);
       window.removeEventListener('orderUpdated', handleUpdate);
       document.removeEventListener("mousedown", handleClickOutside);
@@ -334,10 +345,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
       </div>
 
       <div className="header-right">
-        <div className="clock-wrapper">
-          <Clock size={12} className="clock-icon" />
-          <span>{time}</span>
-        </div>
+        <HeaderClock />
         <button
           onClick={toggleTheme}
           title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}

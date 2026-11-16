@@ -1,29 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin, Eye, FileText } from 'lucide-react';
+import { openProtectedUpload } from '../utils/protectedUploads';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
-
-const getDocUrl = (doc) => {
-  if (!doc) return '#';
-  let pathStr = typeof doc === 'string' ? doc : (doc.file_path || doc.filePath || doc.file_name || '');
-  if (!pathStr) return '#';
-
-  pathStr = pathStr.replace(/\\/g, '/');
-  const uploadsIdx = pathStr.indexOf('uploads/');
-  let relPath = '';
-  if (uploadsIdx !== -1) {
-    relPath = pathStr.substring(uploadsIdx + 8);
-  } else {
-    relPath = pathStr.split('/').pop();
-  }
-  relPath = relPath.replace(/^\/+/, '');
-
-  const authToken = localStorage.getItem('token');
-  const tokenParam = authToken ? `?token=${encodeURIComponent(authToken)}` : '';
-  const baseUrl = window.API_BASE || '';
-
-  return `${baseUrl}/uploads/${relPath}${tokenParam}`;
-};
 
 const DEFAULT_COLUMNS = [
   'sr_no',
@@ -596,12 +575,9 @@ export default function PlanningModule() {
           hasPdf ? 'Click to open PO Document' : null
         ].filter(Boolean).join('\n');
         if (hasPdf) {
-          const docUrl = getDocUrl(order.po_file_path);
           return (
             <a
-              href={docUrl}
-              target="_blank"
-              rel="noreferrer"
+              href="#"
               title={poTooltip}
               style={{
                 color: 'var(--blue)',
@@ -611,7 +587,7 @@ export default function PlanningModule() {
                 alignItems: 'center',
                 gap: 5
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openProtectedUpload(order.po_file_path).catch(() => alert('Could not open document. Please try again.')); }}
             >
               <FileText size={12} style={{ flexShrink: 0 }} />
               <span>{poNum || 'View PO'}</span>
@@ -635,12 +611,9 @@ export default function PlanningModule() {
           order.indent_file_path ? 'Click to open Details document' : null
         ].filter(Boolean).join('\n');
         if (order.indent_file_path) {
-          const docUrl = getDocUrl(order.indent_file_path);
           return (
             <a
-              href={docUrl}
-              target="_blank"
-              rel="noreferrer"
+              href="#"
               title={refTooltip}
               style={{
                 color: '#f59e0b',
@@ -650,7 +623,7 @@ export default function PlanningModule() {
                 alignItems: 'center',
                 gap: 4
               }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); openProtectedUpload(order.indent_file_path).catch(() => alert('Could not open document. Please try again.')); }}
             >
               <FileText size={12} style={{ flexShrink: 0 }} />
               <span>{combined || order.indent_file_name || 'Details'}</span>
@@ -902,6 +875,25 @@ export default function PlanningModule() {
     return () => window.removeEventListener('columnMastersUpdated', handleMastersUpdate);
   }, []);
 
+  // Refresh (debounced 300ms) when any order/unit/step changes, locally or via SSE.
+  // A ref keeps the listener pointed at the latest fetchPlanningData closure.
+  const fetchPlanningDataRef = useRef(null);
+  useEffect(() => {
+    let debounceTimer = null;
+    const handleOrderUpdated = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        if (fetchPlanningDataRef.current) fetchPlanningDataRef.current();
+      }, 300);
+    };
+    window.addEventListener('orderUpdated', handleOrderUpdated);
+    return () => {
+      window.removeEventListener('orderUpdated', handleOrderUpdated);
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, []);
+
   const fetchColumnMasters = async () => {
     try {
       const res = await fetch(window.API_BASE + "/api/column-masters", {
@@ -935,6 +927,7 @@ export default function PlanningModule() {
       setLoading(false);
     }
   };
+  fetchPlanningDataRef.current = fetchPlanningData;
 
   const handleEditClick = (order) => {
     if (!canEdit) return;
