@@ -1,0 +1,13 @@
+# Frontend dev image (Vite). Dependencies are installed at build time into /node_modules,
+# one level above /app, so the bind-mounted source at /app still resolves them. The
+# production frontend image is ./Dockerfile (build + nginx).
+FROM node:20-alpine
+
+WORKDIR /
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund && npm cache clean --force
+ENV PATH=/node_modules/.bin:$PATH
+
+WORKDIR /app
+EXPOSE 5173
+CMD ["npm", "run", "dev"]

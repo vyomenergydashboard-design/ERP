@@ -936,6 +936,18 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
+// Unauthenticated liveness check for Docker / load balancers. Registered before the
+// request logger so frequent probes don't flood the logs. Reveals nothing but up/down.
+app.get('/api/health', async (req, res) => {
+  try {
+    await pool.query('SELECT 1');
+    res.json({ status: 'ok' });
+  } catch {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
+
 app.use((req, res, next) => {
   console.log(`[REQUEST] ${req.method} ${req.url}`);
   next();

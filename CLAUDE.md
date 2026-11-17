@@ -14,6 +14,12 @@ The notes below add what AGENTS.md does not cover.
 # Full dev stack (Postgres on host port 5433, backend :5000, Vite :5173)
 docker-compose up erp-dev backend db
 
+# Dependencies are baked into the images (no npm install on start). After changing
+# package.json / package-lock.json (root or server/), rebuild:
+docker-compose up -d --build backend erp-dev
+# Source is bind-mounted, so code edits need only a restart (backend) or nothing (Vite HMR).
+# Backend health: GET /api/health (unauthenticated, used by the Docker healthcheck).
+
 # Backend only (auto-runs init.sql + run_deployment_migrations.js on boot)
 cd server && node index.js
 
