@@ -206,8 +206,9 @@ export async function runDeploymentMigrations(clientParam) {
     `);
 
 
-    // Backfill unit planning fields if null
-    await client.query(`
+    // Backfill unit planning fields if null — one-time only, so dates a user later
+    // clears on a unit are not silently restored from the line item on every boot.
+    await runOnce(client, 'migration_once:backfill_unit_planning_fields_v1', () => client.query(`
       UPDATE order_units ou
       SET 
         planned_dispatch_date = COALESCE(ou.planned_dispatch_date, oli.planned_dispatch_date),
@@ -219,9 +220,9 @@ export async function runDeploymentMigrations(clientParam) {
         mounting_start_date = COALESCE(ou.mounting_start_date, oli.mounting_start_date),
         mounting_complete_date = COALESCE(ou.mounting_complete_date, oli.mounting_complete_date)
       FROM order_line_items oli
-      WHERE ou.line_item_id = oli.id 
+      WHERE ou.line_item_id = oli.id
         AND ou.planned_dispatch_date IS NULL;
-    `);
+    `));
 
 
     // Ensure column_masters label for short_serial is 'Serial No.'
@@ -739,13 +740,15 @@ export async function runDeploymentMigrations(clientParam) {
     // "Auto-completed for Standard order" step completions. Does not call deriveUnitStatus;
     // units are re-derived the next time they are touched through the app.
     try {
-      const legacyAuto = await client.query(`
-        UPDATE unit_steps SET status = 'pending', notes = NULL
-        WHERE notes = 'Auto-completed for Standard order'
-      `);
-      if (legacyAuto.rowCount > 0) {
-        console.log(`[Deployment Migration] Reset ${legacyAuto.rowCount} legacy 'Auto-completed for Standard order' step(s) to pending.`);
-      }
+      await runOnce(client, 'migration_once:reset_legacy_standard_autocomplete_v1', async () => {
+        const legacyAuto = await client.query(`
+          UPDATE unit_steps SET status = 'pending', notes = NULL
+          WHERE notes = 'Auto-completed for Standard order'
+        `);
+        if (legacyAuto.rowCount > 0) {
+          console.log(`[Deployment Migration] Reset ${legacyAuto.rowCount} legacy 'Auto-completed for Standard order' step(s) to pending.`);
+        }
+      });
     } catch (legacyErr) {
       console.warn('[Deployment Migration] Legacy Standard auto-complete cleanup notice:', legacyErr.message);
     }
@@ -759,12 +762,15 @@ export async function runDeploymentMigrations(clientParam) {
     }
 
     try {
-      const clearRes = await client.query(`
-        UPDATE order_line_items 
-        SET material_description = NULL 
-        WHERE LOWER(TRIM(material_description)) = LOWER(TRIM(part_number));
-      `);
-      console.log(`[Deployment Migration] Cleared duplicate part numbers from material_description in ${clearRes.rowCount} rows.`);
+      // One-time cleanup; new rows are already de-duplicated on insert.
+      await runOnce(client, 'migration_once:clear_duplicate_material_description_v1', async () => {
+        const clearRes = await client.query(`
+          UPDATE order_line_items
+          SET material_description = NULL
+          WHERE LOWER(TRIM(material_description)) = LOWER(TRIM(part_number));
+        `);
+        console.log(`[Deployment Migration] Cleared duplicate part numbers from material_description in ${clearRes.rowCount} rows.`);
+      });
     } catch (clearErr) {
       console.error('[Deployment Migration] Error clearing duplicate part numbers from material_description:', clearErr);
     }

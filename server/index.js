@@ -18,6 +18,10 @@ import { evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletio
 import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js';
 import { initEventStream, broadcastEvent } from './services/eventStream.js';
 import { safeEvaluateCondition } from './services/safeConditionEvaluator.js';
+import { installAfterCommitHooks, runAfterCommit } from './services/afterCommit.js';
+
+// Emails and other side effects queued inside a transaction run only after COMMIT.
+installAfterCommitHooks(pool);
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -133,7 +137,12 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+));
+
 const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nextDept) => {
+  const esc = escapeHtml;
   const emailSubject = `[Vyom ERP] Handover: ${prevDept} finished, ${nextDept} can start - Unit ${unitIdStr}`;
 
   let recipientEmails = [];
@@ -158,28 +167,28 @@ const sendDepartmentHandoverEmail = async (unitIdStr, shortSerial, prevDept, nex
         <span style="color: #64748b; font-size: 13px;">Task Transfer Notification</span>
       </div>
       <p style="font-size: 15px; color: #334155; line-height: 1.6;">
-        Hello team <strong>${nextDept}</strong>,
+        Hello team <strong>${esc(nextDept)}</strong>,
       </p>
       <p style="font-size: 15px; color: #334155; line-height: 1.6;">
-        This is to notify you that the department <strong>${prevDept}</strong> has completed their assigned tasks for unit <strong>${unitIdStr}</strong> (Serial: <strong>${shortSerial}</strong>).
+        This is to notify you that the department <strong>${esc(prevDept)}</strong> has completed their assigned tasks for unit <strong>${esc(unitIdStr)}</strong> (Serial: <strong>${esc(shortSerial)}</strong>).
       </p>
       <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #f59e0b;">
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <tr>
             <td style="padding: 4px 0; color: #64748b; width: 140px;"><strong>Unit ID:</strong></td>
-            <td style="padding: 4px 0; color: #1e293b; font-family: monospace;">${unitIdStr}</td>
+            <td style="padding: 4px 0; color: #1e293b; font-family: monospace;">${esc(unitIdStr)}</td>
           </tr>
           <tr>
             <td style="padding: 4px 0; color: #64748b;"><strong>Serial No.:</strong></td>
-            <td style="padding: 4px 0; color: #1e293b;">${shortSerial}</td>
+            <td style="padding: 4px 0; color: #1e293b;">${esc(shortSerial)}</td>
           </tr>
           <tr>
             <td style="padding: 4px 0; color: #64748b;"><strong>Previous Dept:</strong></td>
-            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #0f766e;">${prevDept} (Completed)</td>
+            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #0f766e;">${esc(prevDept)} (Completed)</td>
           </tr>
           <tr>
             <td style="padding: 4px 0; color: #64748b;"><strong>Next Active Dept:</strong></td>
-            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #b45309;">${nextDept} (Pending Your Action)</td>
+            <td style="padding: 4px 0; color: #1e293b; font-weight: 600; color: #b45309;">${esc(nextDept)} (Pending Your Action)</td>
           </tr>
         </table>
       </div>
@@ -539,7 +548,8 @@ const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => 
   );
 
   if (oldDept && oldDept !== newDept && newDept !== 'Planning' && !isSystemSeeding && !suppressEmail) {
-    sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept).catch(console.error);
+    // Deferred until the caller's transaction commits (runs immediately when called with the pool).
+    runAfterCommit(clientOrPool, () => sendDepartmentHandoverEmail(unit_id_str, short_serial, oldDept, newDept));
   }
 
   if (row.line_item_id) {
@@ -903,7 +913,6 @@ const initDB = async () => {
   }
 };
 
-initDB();
 
 // ---------------- Security Headers Middleware ----------------
 app.use((req, res, next) => {
@@ -1069,6 +1078,11 @@ const formatOrderNumber = (year, counter) => {
   const yr = year || new Date().getFullYear();
   const startYr = String(yr % 100).padStart(2, '0');
   const endYr = String((yr + 1) % 100).padStart(2, '0');
+  // The format has exactly 4 counter digits and parseOrderCounter reads the last 4.
+  // Past 9999 numbers would wrap and collide with issued serials, so fail loudly instead.
+  if (counter > 9999) {
+    throw new Error(`Order/serial counter would exceed 9999 (next: ${counter}); the numbering format must be extended before more orders can be created.`);
+  }
   return `${startYr}${endYr}${String(counter).padStart(4, '0')}`;
 };
 
@@ -1134,6 +1148,23 @@ const findBlockingUpstreamDepts = async (db, unitIds, dept) => {
     [unitIds, PIPELINE.slice(0, myIndex)]
   );
   return blockingRes.rows.map(r => r.dept);
+};
+
+// Runs a best-effort step inside a transaction. On failure only this step is rolled
+// back (via a savepoint) and a warning is logged, so the surrounding transaction stays
+// usable — matching the old "warn and continue" behaviour of non-transactional code.
+// `name` must be a plain SQL identifier.
+const tryInSavepoint = async (client, name, fn) => {
+  await client.query(`SAVEPOINT ${name}`);
+  try {
+    const result = await fn();
+    await client.query(`RELEASE SAVEPOINT ${name}`);
+    return result;
+  } catch (err) {
+    await client.query(`ROLLBACK TO SAVEPOINT ${name}`);
+    console.warn(`[${name}] step failed and was rolled back:`, err.message || err);
+    return undefined;
+  }
 };
 
 // Middleware for RBAC
@@ -4681,10 +4712,17 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     dispatch_date, invoice_number, invoice_date
   } = req.body;
 
+  // All writes below are one transaction: a validation error part-way through
+  // (the early `return res.status(400)` paths) rolls back earlier writes.
+  let client = null;
+  let committed = false;
   try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+
     const numId = !isNaN(Number(id)) ? Number(id) : -1;
-    const checkUnit = await pool.query(
-      'SELECT id, order_id, line_item_id, unit_id, tray_status, tray_start_date, issued_date, dispatch_date, invoice_number FROM order_units WHERE id = $1 OR unit_id = $2',
+    const checkUnit = await client.query(
+      'SELECT id, order_id, line_item_id, unit_id, tray_status, tray_start_date, issued_date, dispatch_date, invoice_number, qc_receiving_date, qc_start_date FROM order_units WHERE id = $1 OR unit_id = $2',
       [numId, String(id)]
     );
     if (checkUnit.rows.length === 0) {
@@ -4700,7 +4738,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     // Admin/Manager update of Customer Reference Number on parent order (without touching serial numbers)
     if (reference_number !== undefined) {
       const cleanRef = (reference_number && typeof reference_number === 'string' && reference_number.trim()) ? reference_number.trim() : null;
-      await pool.query('UPDATE orders SET reference_number = $1 WHERE id = $2', [cleanRef, unit.order_id]);
+      await client.query('UPDATE orders SET reference_number = $1 WHERE id = $2', [cleanRef, unit.order_id]);
     }
 
     if (panel_type_size !== undefined) {
@@ -4709,7 +4747,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
 
       // Also keep line item in sync if unit is linked to a line item
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET panel_type_size = $1 WHERE id = $2', [panel_type_size || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET panel_type_size = $1 WHERE id = $2', [panel_type_size || null, unit.line_item_id]);
       }
     }
 
@@ -4739,7 +4777,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
 
       // Keep line item in sync if unit is linked to a line item
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET tag = $1 WHERE id = $2', [cleanTag, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET tag = $1 WHERE id = $2', [cleanTag, unit.line_item_id]);
       }
     }
 
@@ -4858,7 +4896,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`wiremen = $${idx++}`);
       values.push(cleanWiremen);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET wiremen = $1 WHERE id = $2', [cleanWiremen, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET wiremen = $1 WHERE id = $2', [cleanWiremen, unit.line_item_id]);
       }
     }
 
@@ -4866,7 +4904,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`mounting_start_date = $${idx++}`);
       values.push(mounting_start_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET mounting_start_date = $1 WHERE id = $2', [mounting_start_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET mounting_start_date = $1 WHERE id = $2', [mounting_start_date || null, unit.line_item_id]);
       }
     }
 
@@ -4874,7 +4912,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`mounting_complete_date = $${idx++}`);
       values.push(mounting_complete_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET mounting_complete_date = $1 WHERE id = $2', [mounting_complete_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET mounting_complete_date = $1 WHERE id = $2', [mounting_complete_date || null, unit.line_item_id]);
       }
     }
 
@@ -4882,7 +4920,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`wiring_start_date = $${idx++}`);
       values.push(wiring_start_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET wiring_start_date = $1 WHERE id = $2', [wiring_start_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET wiring_start_date = $1 WHERE id = $2', [wiring_start_date || null, unit.line_item_id]);
       }
     }
 
@@ -4890,7 +4928,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`wiring_complete_date = $${idx++}`);
       values.push(wiring_complete_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET wiring_complete_date = $1 WHERE id = $2', [wiring_complete_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET wiring_complete_date = $1 WHERE id = $2', [wiring_complete_date || null, unit.line_item_id]);
       }
     }
 
@@ -4898,7 +4936,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`pending_material_complete_date = $${idx++}`);
       values.push(pending_material_complete_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET pending_material_complete_date = $1 WHERE id = $2', [pending_material_complete_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET pending_material_complete_date = $1 WHERE id = $2', [pending_material_complete_date || null, unit.line_item_id]);
       }
     }
 
@@ -4906,23 +4944,23 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`handover_to_qc_date = $${idx++}`);
       values.push(handover_to_qc_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET handover_to_qc_date = $1 WHERE id = $2', [handover_to_qc_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET handover_to_qc_date = $1 WHERE id = $2', [handover_to_qc_date || null, unit.line_item_id]);
       }
       if (handover_to_qc_date) {
         const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        await pool.query(
+        await client.query(
           `UPDATE unit_steps 
            SET status = 'done', notes = 'Handover to QC completed', updated = $1 
            WHERE order_unit_id = $2 AND dept = 'Production' AND status != 'done'`,
           [updatedStr, realId]
         );
       } else if (handover_to_qc_date === null || handover_to_qc_date === '') {
-        const qcStarted = await pool.query(
+        const qcStarted = await client.query(
           `SELECT 1 FROM unit_steps WHERE order_unit_id = $1 AND dept = 'QC' AND status != 'pending' LIMIT 1`,
           [realId]
         );
         if (qcStarted.rows.length === 0 && !checkUnit.rows[0]?.qc_receiving_date && !checkUnit.rows[0]?.qc_start_date) {
-          await pool.query(
+          await client.query(
             `UPDATE unit_steps 
              SET status = 'pending', notes = NULL 
              WHERE order_unit_id = $1 AND dept = 'Production' AND notes = 'Handover to QC completed'`,
@@ -4936,7 +4974,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`qc_receiving_date = $${idx++}`);
       values.push(qc_receiving_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET qc_receiving_date = $1 WHERE id = $2', [qc_receiving_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET qc_receiving_date = $1 WHERE id = $2', [qc_receiving_date || null, unit.line_item_id]);
       }
     }
 
@@ -4944,7 +4982,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`qc_start_date = $${idx++}`);
       values.push(qc_start_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET qc_start_date = $1 WHERE id = $2', [qc_start_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET qc_start_date = $1 WHERE id = $2', [qc_start_date || null, unit.line_item_id]);
       }
     }
 
@@ -4952,7 +4990,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`qc_complete_date = $${idx++}`);
       values.push(qc_complete_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET qc_complete_date = $1 WHERE id = $2', [qc_complete_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET qc_complete_date = $1 WHERE id = $2', [qc_complete_date || null, unit.line_item_id]);
       }
     }
 
@@ -4960,34 +4998,34 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`qc_status = $${idx++}`);
       values.push(qc_status || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET qc_status = $1 WHERE id = $2', [qc_status || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET qc_status = $1 WHERE id = $2', [qc_status || null, unit.line_item_id]);
       }
       const normQcStatus = String(qc_status || '').trim().toLowerCase();
       if (normQcStatus === 'handover to packing') {
         const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        await pool.query(
+        await client.query(
           `UPDATE unit_steps 
            SET status = 'done', notes = 'Handover to packing completed', updated = $1 
            WHERE order_unit_id = $2 AND dept = 'QC' AND status != 'done'`,
           [updatedStr, realId]
         );
         if (unit.order_id) {
-          await updateOrderQCStatusFromSteps(unit.order_id, pool);
+          await updateOrderQCStatusFromSteps(unit.order_id, client);
         }
       } else {
-        const dispatchStarted = await pool.query(
+        const dispatchStarted = await client.query(
           `SELECT 1 FROM unit_steps WHERE order_unit_id = $1 AND dept IN ('Dispatch', 'Accounts') AND status != 'pending' LIMIT 1`,
           [realId]
         );
         if (dispatchStarted.rows.length === 0 && !unit.dispatch_date && !unit.invoice_number) {
-          await pool.query(
+          await client.query(
             `UPDATE unit_steps 
              SET status = 'pending', notes = NULL 
              WHERE order_unit_id = $1 AND dept = 'QC' AND notes = 'Handover to packing completed'`,
             [realId]
           );
           if (unit.order_id) {
-            await updateOrderQCStatusFromSteps(unit.order_id, pool);
+            await updateOrderQCStatusFromSteps(unit.order_id, client);
           }
         }
       }
@@ -4997,11 +5035,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`dispatch_date = $${idx++}`);
       values.push(dispatch_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET dispatch_date = $1 WHERE id = $2', [dispatch_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET dispatch_date = $1 WHERE id = $2', [dispatch_date || null, unit.line_item_id]);
       }
       if (dispatch_date) {
         const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        await pool.query(
+        await client.query(
           `UPDATE unit_steps 
            SET status = 'done', notes = 'Dispatch completed', updated = $1 
            WHERE order_unit_id = $2 AND dept = 'Dispatch' AND status != 'done'`,
@@ -5014,11 +5052,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`invoice_number = $${idx++}`);
       values.push(invoice_number ? String(invoice_number).trim() : null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET invoice_number = $1 WHERE id = $2', [invoice_number ? String(invoice_number).trim() : null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET invoice_number = $1 WHERE id = $2', [invoice_number ? String(invoice_number).trim() : null, unit.line_item_id]);
       }
       if (invoice_number && String(invoice_number).trim()) {
         const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-        await pool.query(
+        await client.query(
           `UPDATE unit_steps 
            SET status = 'done', notes = $1, updated = $2 
            WHERE order_unit_id = $3 AND dept = 'Accounts' AND status != 'done'`,
@@ -5031,7 +5069,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
       updates.push(`invoice_date = $${idx++}`);
       values.push(invoice_date || null);
       if (unit.line_item_id) {
-        await pool.query('UPDATE order_line_items SET invoice_date = $1 WHERE id = $2', [invoice_date || null, unit.line_item_id]);
+        await client.query('UPDATE order_line_items SET invoice_date = $1 WHERE id = $2', [invoice_date || null, unit.line_item_id]);
       }
     }
 
@@ -5067,48 +5105,38 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (updates.length > 0) {
       updates.push('updated_at = NOW()');
       values.push(realId);
-      const result = await pool.query(
+      const result = await client.query(
         `UPDATE order_units SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
         values
       );
       updatedUnit = result.rows[0];
     } else {
-      const refreshedUnit = await pool.query('SELECT * FROM order_units WHERE id = $1', [realId]);
+      const refreshedUnit = await client.query('SELECT * FROM order_units WHERE id = $1', [realId]);
       updatedUnit = refreshedUnit.rows[0];
     }
 
     if (custom_fields !== undefined) {
-      try {
-        await evaluatePurchaseAutoCompletion([realId], pool, deriveUnitStatus);
-      } catch (pcErr) {
-        console.warn('evaluatePurchaseAutoCompletion warn in update unit:', pcErr);
-      }
+      await tryInSavepoint(client, 'unit_update_purchase_auto', () =>
+        evaluatePurchaseAutoCompletion([realId], client, deriveUnitStatus));
     }
 
     if (tray_status !== undefined || tray_start_date !== undefined || issued_date !== undefined) {
-      try {
-        await evaluateStoresAutoCompletion([realId], pool, deriveUnitStatus);
-      } catch (stErr) {
-        console.warn('evaluateStoresAutoCompletion warn in update unit:', stErr);
-      }
+      await tryInSavepoint(client, 'unit_update_stores_auto', () =>
+        evaluateStoresAutoCompletion([realId], client, deriveUnitStatus));
     }
 
     if (classification !== undefined) {
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-      await pool.query(
+      await client.query(
         `UPDATE unit_steps 
          SET status = 'pending', notes = 'Classification updated; pending Design re-confirmation.', updated = $1 
          WHERE order_unit_id = $2 AND dept = 'Design' 
            AND (name = 'Review & Classify' OR name ILIKE '%classify%')`,
         [updatedStr, realId]
       );
-      await syncUnitDesignDocumentStatus(pool, realId, req.user.id);
+      await syncUnitDesignDocumentStatus(client, realId, req.user.id);
     } else {
-      try {
-        await deriveUnitStatus(realId, pool);
-      } catch (dErr) {
-        console.warn('deriveUnitStatus warn in update unit:', dErr);
-      }
+      await tryInSavepoint(client, 'unit_update_derive', () => deriveUnitStatus(realId, client));
     }
 
     let logAction = `Updated unit ${unit.unit_id}`;
@@ -5118,10 +5146,13 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     if (reference_number !== undefined) logAction += ` ref: "${reference_number}"`;
     if (tag !== undefined) logAction += ` tag: "${tag}"`;
 
-    await pool.query(
+    await client.query(
       'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
       [req.user.id, req.user.role, logAction, unit.order_id]
     );
+
+    await client.query('COMMIT');
+    committed = true;
 
     broadcastEvent({
       type: 'ORDER_UPDATED',
@@ -5136,6 +5167,11 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
   } catch (err) {
     console.error('Failed to update unit:', err);
     res.status(500).json({ error: 'Failed to update unit' });
+  } finally {
+    if (client) {
+      if (!committed) await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
   }
 });
 
@@ -5760,6 +5796,8 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
     cleanupUploadedFiles(req.files);
     return res.status(statusCode).json({ error });
   };
+  let client = null;
+  let committed = false;
   try {
     if (!req.files || req.files.length === 0) {
       return rejectUpload(400, 'No files uploaded.');
@@ -5792,17 +5830,20 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
       }
     }
 
+    client = await pool.connect();
+    await client.query('BEGIN');
+
     let hasPO = false;
     let orderIdForLog = null;
     if (entity_type === 'Order') {
       orderIdForLog = entity_id;
     } else if (entity_type === 'Unit') {
-      const unitRes = await pool.query('SELECT order_id FROM order_units WHERE id = $1', [entity_id]);
+      const unitRes = await client.query('SELECT order_id FROM order_units WHERE id = $1', [entity_id]);
       orderIdForLog = unitRes.rows[0]?.order_id || null;
     }
 
     for (const file of req.files) {
-      const result = await pool.query(
+      const result = await client.query(
         `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
         [entity_type, entity_id, doc_type || 'General', file.originalname, file.path, file.size, file.mimetype, req.user.id]
@@ -5811,7 +5852,7 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
       if (doc_type === 'PO') {
         hasPO = true;
       }
-      await pool.query(
+      await client.query(
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
         [req.user.id, orderIdForLog, req.user.role, `Uploaded document "${file.originalname}" (${doc_type || 'General'})`]
       );
@@ -5820,31 +5861,27 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
     if (hasPO && entity_type === 'Order') {
       const poNum = req.body.po_number;
       if (poNum && poNum.trim()) {
-        await pool.query('UPDATE orders SET po_number = $1 WHERE id = $2', [poNum.trim(), entity_id]);
+        await client.query('UPDATE orders SET po_number = $1 WHERE id = $2', [poNum.trim(), entity_id]);
       } else if (req.files && req.files.length > 0) {
         const defaultName = req.files[0].originalname.replace(/\.[^/.]+$/, '').trim();
-        await pool.query(
+        await client.query(
           `UPDATE orders SET po_number = $1 WHERE id = $2 AND (po_number IS NULL OR po_number = '')`,
           [defaultName, entity_id]
         );
       }
 
       const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-      await pool.query(
+      await client.query(
         `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
         ['PO uploaded via Documents.', updatedStr, entity_id]
       );
-      await pool.query(
+      await client.query(
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
         [req.user.id, entity_id, 'Sales', 'Completed: Upload PO (System Auto-Check on Upload)']
       );
-      const uRes = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
+      const uRes = await client.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
       for (const u of uRes.rows) {
-        try {
-          await deriveUnitStatus(u.id, pool);
-        } catch (dErr) {
-          console.warn('deriveUnitStatus warn in upload doc PO:', dErr);
-        }
+        await tryInSavepoint(client, 'upload_order_po_derive', () => deriveUnitStatus(u.id, client));
       }
     }
 
@@ -5852,40 +5889,45 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
       const poDoc = savedDocs[0];
       const poNum = req.body.po_number;
       if (poNum && poNum.trim()) {
-        await pool.query(
+        await client.query(
           'UPDATE order_units SET po_doc_id = $1, po_number = $2, po_override_unlinked = false WHERE id = $3',
           [poDoc.id, poNum.trim(), entity_id]
         );
       } else {
-        await pool.query(
+        await client.query(
           'UPDATE order_units SET po_doc_id = $1, po_override_unlinked = false WHERE id = $2',
           [poDoc.id, entity_id]
         );
       }
-      try {
-        await deriveUnitStatus(entity_id, pool);
-      } catch (dErr) {
-        console.warn('deriveUnitStatus warn in upload unit PO:', dErr);
-      }
+      await tryInSavepoint(client, 'upload_unit_po_derive', () => deriveUnitStatus(entity_id, client));
     }
 
     const isDesignDoc = ['drawing', 'bom', 'bill of materials'].includes(String(doc_type || '').toLowerCase());
     if (isDesignDoc) {
       if (entity_type === 'Unit') {
-        await syncUnitDesignDocumentStatus(pool, entity_id, req.user.id);
+        await syncUnitDesignDocumentStatus(client, entity_id, req.user.id);
       } else if (entity_type === 'Order') {
-        const uList = await pool.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
+        const uList = await client.query('SELECT id FROM order_units WHERE order_id = $1', [entity_id]);
         for (const u of uList.rows) {
-          await syncUnitDesignDocumentStatus(pool, u.id, req.user.id);
+          await syncUnitDesignDocumentStatus(client, u.id, req.user.id);
         }
       }
     }
 
+    await client.query('COMMIT');
+    committed = true;
+
     res.status(201).json(savedDocs);
   } catch (err) {
     console.error(err);
-    if (savedDocs.length === 0) cleanupUploadedFiles(req.files);
+    // Nothing was committed, so no document row references these files.
+    if (!committed) cleanupUploadedFiles(req.files);
     res.status(500).json({ error: 'Failed to upload documents' });
+  } finally {
+    if (client) {
+      if (!committed) await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
   }
 });
 
@@ -5907,6 +5949,8 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     return res.status(400).json({ error: 'At least one serial number must be selected.' });
   }
 
+  let client = null;
+  let committed = false;
   try {
     if (typeof unit_ids === 'string') {
       try {
@@ -5934,8 +5978,11 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
       return res.status(400).json({ error: 'Only PDF files are allowed for PO document upload.' });
     }
 
+    client = await pool.connect();
+    await client.query('BEGIN');
+
     // Verify units exist
-    const unitRes = await pool.query(
+    const unitRes = await client.query(
       'SELECT ou.id, ou.order_id, ou.unit_id FROM order_units ou WHERE ou.id = ANY($1::int[])',
       [unit_ids]
     );
@@ -5951,7 +5998,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     const cleanPo = po_number.trim();
 
     // 1. Insert into documents table (linked to the first unit or entity_type = 'Unit')
-    const docRes = await pool.query(
+    const docRes = await client.query(
       `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
       ['Unit', firstUnit.id, 'PO', req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
@@ -5959,7 +6006,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     const savedDoc = docRes.rows[0];
 
     // 2. Update order_units table for all selected unit IDs
-    await pool.query(
+    await client.query(
       `UPDATE order_units
        SET po_number = $1, po_doc_id = $2, po_override_unlinked = false
        WHERE id = ANY($3::int[])`,
@@ -5970,11 +6017,11 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     const orderIds = [...new Set(unitRes.rows.map(u => u.order_id).filter(Boolean))];
     if (orderIds.length > 0) {
       for (const ordId of orderIds) {
-        const totalUnitsRes = await pool.query('SELECT COUNT(*) as total FROM order_units WHERE order_id = $1', [ordId]);
+        const totalUnitsRes = await client.query('SELECT COUNT(*) as total FROM order_units WHERE order_id = $1', [ordId]);
         const totalUnits = parseInt(totalUnitsRes.rows[0]?.total || 0);
         const selectedUnitsInOrder = unitRes.rows.filter(u => u.order_id === ordId).length;
 
-        const unitsWithoutPoRes = await pool.query(
+        const unitsWithoutPoRes = await client.query(
           `SELECT COUNT(*) as cnt FROM order_units 
            WHERE order_id = $1 
              AND (po_number IS NULL OR po_number = '' OR (po_doc_id IS NULL AND po_override_unlinked = true))
@@ -5985,15 +6032,15 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
 
         // Only update order-level PO if all units of this order are included or have POs
         if (selectedUnitsInOrder >= totalUnits || allUnitsHavePo) {
-          await pool.query(
+          await client.query(
             `UPDATE orders SET po_number = $1 WHERE id = $2 AND (po_number IS NULL OR po_number = '')`,
             [cleanPo, ordId]
           );
 
           // Ensure Order-level document entry exists so order documents list shows PO copy
-          const checkOrdDoc = await pool.query("SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1", [ordId]);
+          const checkOrdDoc = await client.query("SELECT id FROM documents WHERE entity_type = 'Order' AND entity_id = $1 AND doc_type = 'PO' LIMIT 1", [ordId]);
           if (checkOrdDoc.rows.length === 0) {
-            await pool.query(
+            await client.query(
               `INSERT INTO documents (entity_type, entity_id, doc_type, file_name, file_path, file_size, mime_type, uploaded_by)
                VALUES ('Order', $1, 'PO', $2, $3, $4, $5, $6)`,
               [ordId, req.file.originalname, req.file.path, req.file.size, req.file.mimetype, req.user.id]
@@ -6002,7 +6049,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
 
           // Auto-resolve 'Upload PO' milestone in order_steps
           const updatedStr = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
-          await pool.query(
+          await client.query(
             `UPDATE order_steps SET status = 'done', notes = $1, updated = $2 WHERE order_id = $3 AND name = 'Upload PO'`,
             [`PO #${cleanPo} uploaded.`, updatedStr, ordId]
           );
@@ -6013,21 +6060,20 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     // 4. Re-derive unit status for all affected units so they transition out of Sales gating
     const sortedUnitIds = [...unit_ids].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
     for (const uId of sortedUnitIds) {
-      try {
-        await deriveUnitStatus(uId, pool);
-      } catch (dErr) {
-        console.warn('deriveUnitStatus warn in batch-po:', dErr);
-      }
+      await tryInSavepoint(client, 'batch_po_derive', () => deriveUnitStatus(uId, client));
     }
 
     // 5. Activity log for affected orders
     const serialList = unitRes.rows.map(u => u.unit_id).join(', ');
     for (const ordId of orderIds) {
-      await pool.query(
+      await client.query(
         `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
         [req.user.id, ordId, 'Sales', `Attached PO #${cleanPo} (${req.file.originalname}) to serials: ${serialList}`]
       );
     }
+
+    await client.query('COMMIT');
+    committed = true;
 
     res.status(200).json({
       success: true,
@@ -6044,6 +6090,11 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
       try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
     res.status(500).json({ error: 'Failed to upload PO for selected serials: ' + (err.message || err) });
+  } finally {
+    if (client) {
+      if (!committed) await client.query('ROLLBACK').catch(() => {});
+      client.release();
+    }
   }
 });
 
@@ -7665,8 +7716,14 @@ const seedSayaUser = async () => {
   }
 };
 
-seedSayaUser().catch(console.error);
+// Finish schema setup and migrations before accepting requests, so no request
+// runs against a half-migrated database. Both steps log and continue on error.
+const startServer = async () => {
+  await initDB();
+  await seedSayaUser().catch(console.error);
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+};
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+startServer();
