@@ -4,7 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "node run_tests.js"
   },
   "dependencies": {
     "archiver": "^8.0.0",

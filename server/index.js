@@ -19,6 +19,7 @@ import { evaluateStoresAutoCompletion } from './services/storesAutoCompletion.js
 import { initEventStream, broadcastEvent } from './services/eventStream.js';
 import { safeEvaluateCondition } from './services/safeConditionEvaluator.js';
 import { installAfterCommitHooks, runAfterCommit } from './services/afterCommit.js';
+import { DEFAULT_STEPS } from './data/defaultTaskMasters.js';
 
 // Emails and other side effects queued inside a transaction run only after COMMIT.
 installAfterCommitHooks(pool);
@@ -99,33 +100,6 @@ const cleanupUploadedFiles = (files) => {
   }
 };
 
-const DEFAULT_STEPS = [
-  { dept: 'Sales', name: 'Upload PO', sub: 'Customer PO + specs', special: 'sales', requires_upload: true, default_doc_type: 'PO', level: 'order', is_mandatory: true },
-  {
-    dept: 'Design',
-    name: 'Review & Classify',
-    sub: 'Standard / Non-Standard',
-    special: null,
-    requires_upload: false,
-    default_doc_type: 'General',
-    level: 'unit',
-    custom_fields: [
-      { id: 'classification', label: 'Classification', type: 'Dropdown', options: ['Standard', 'Non-Standard'], datakey: 'classification' }
-    ]
-  },
-  { dept: 'Design', name: 'Release Documents', sub: 'Panel Layout + Electrical Design + BOM', special: 'design', requires_upload: true, default_doc_type: 'Drawing', level: 'unit' },
-  { dept: 'Purchase', name: 'Receive Shortfall', sub: 'From Stores after BOM check', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Purchase', name: 'Procure Materials', sub: 'Raise PO to supplier', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Stores', name: 'Stock Check vs BOM', sub: 'Verify availability', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Stores', name: 'Material Status', sub: 'Allotted → Acceptance → Accept-complete', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Stores', name: 'Inform Purchase', sub: 'Send shortfall list', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Planning', name: 'Production Plan', sub: 'Per day capacity', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'Production', name: 'Manufacture', sub: 'Fitter (mechanical) + Wireman (electrical)', special: null, requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'QC', name: 'Receive Panel', sub: 'Test & inspect', special: 'qc', requires_upload: false, default_doc_type: 'General', level: 'unit' },
-  { dept: 'QC', name: 'QC Decision', sub: 'Pass → Dispatch | Fail → Rework/Redesign', special: 'qc', requires_upload: true, default_doc_type: 'QC Report', level: 'unit' },
-  { dept: 'Dispatch', name: 'Ready for Dispatch', sub: 'QC cleared panels', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'unit' },
-  { dept: 'Accounts', name: 'Invoice & Dispatch Note', sub: 'Billing & documentation', special: null, requires_upload: true, default_doc_type: 'Dispatch Document', level: 'unit' }
-];
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.ethereal.email',
@@ -1165,6 +1139,15 @@ const tryInSavepoint = async (client, name, fn) => {
     console.warn(`[${name}] step failed and was rolled back:`, err.message || err);
     return undefined;
   }
+};
+
+// Takes row locks on the given parent orders (in id order) at the start of a transaction.
+// Requests that touch units of the same order then queue instead of deadlocking on the
+// shared orders / order_line_items rows (e.g. QC batch bar firing parallel unit updates).
+const lockOrders = async (client, orderIds) => {
+  const ids = [...new Set(orderIds.map(Number).filter(Number.isInteger))].sort((a, b) => a - b);
+  if (ids.length === 0) return;
+  await client.query('SELECT id FROM orders WHERE id = ANY($1::int[]) ORDER BY id FOR UPDATE', [ids]);
 };
 
 // Middleware for RBAC
@@ -4730,6 +4713,7 @@ app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Pla
     }
     const unit = checkUnit.rows[0];
     const realId = unit.id;
+    await lockOrders(client, [unit.order_id]);
 
     const updates = [];
     const values = [];
@@ -5841,6 +5825,7 @@ app.post('/api/documents/upload', authorize(OPERATOR_ROLES), upload.array('files
       const unitRes = await client.query('SELECT order_id FROM order_units WHERE id = $1', [entity_id]);
       orderIdForLog = unitRes.rows[0]?.order_id || null;
     }
+    if (orderIdForLog) await lockOrders(client, [orderIdForLog]);
 
     for (const file of req.files) {
       const result = await client.query(
@@ -5993,6 +5978,8 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
       }
       return res.status(404).json({ error: 'No matching units found.' });
     }
+
+    await lockOrders(client, unitRes.rows.map(u => u.order_id));
 
     const firstUnit = unitRes.rows[0];
     const cleanPo = po_number.trim();

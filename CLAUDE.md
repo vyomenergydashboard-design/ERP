@@ -23,13 +23,18 @@ npm run build
 npm run check        # scripts/verify_codebase.js — Babel AST scan for undeclared identifiers in src/
 ```
 
-**Tests**: there is no test runner. Each `server/test_*.js` is a standalone script that runs against a **live backend and live DB**. Run a single one with:
+**Tests**: each `server/test_*.js` is a standalone script that runs against a **live backend and live DB**. `server/run_tests.js` runs them in sequence:
 
 ```bash
-node server/test_sales_to_design_gate.js
+cd server && npm test                    # all except the two that write backup files
+cd server && npm test -- po_system qc    # only files whose name contains a word
+cd server && npm test -- --all           # include test_maintenance_api / test_backup_and_audit
+node server/test_sales_to_design_gate.js # a single file
 ```
 
-Test defaults: `DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_db`, `API_BASE=http://localhost:5000`, and `JWT_SECRET=supersecret` (which matches docker-compose). The tests mint their own JWTs and insert and delete rows whose order numbers are prefixed with `TEST-...`. That means the backend must be running and the JWT secret must match. Never point a test at a production DB.
+Test defaults: `DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_db`, `API_BASE=http://localhost:5000`, and `JWT_SECRET` must equal the backend's (set in `.env`; the backend refuses to start without one). On an empty database, run `server/scripts/seed_ci_fixtures.js` first (needs `ALLOW_FIXTURE_SEED=1`): the tests expect the default task masters, company location 1, users 27 (Sales) and 31 (Design), and at least one order with units. A fresh install intentionally seeds only the `Upload PO` task master (admins build the rest), so the fixture script adds the defaults from `server/data/defaultTaskMasters.js` for test databases only.
+
+**CI**: `.github/workflows/ci.yml` runs `npm run check`, the frontend build and a backend syntax check, then starts the backend against a fresh Postgres, seeds fixtures, and runs `npm test`. The tests mint their own JWTs and insert and delete rows whose order numbers are prefixed with `TEST-...`. That means the backend must be running and the JWT secret must match. Never point a test at a production DB.
 
 `vite.config.js` proxies `/api` and `/uploads` to `http://backend:5000`, the Docker service name. If you run Vite natively outside Docker, that target won't resolve unless you change it.
 

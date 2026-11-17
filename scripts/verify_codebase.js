@@ -21,7 +21,13 @@ const globalAllowList = new Set([
   'prompt', 'URL', 'Blob', 'FileReader', 'FormData', 'Event', 'CustomEvent',
   'navigator', 'location', 'history', 'requestAnimationFrame', 'cancelAnimationFrame',
   'Intl', 'Infinity', 'undefined', 'NaN', 'HTMLElement', 'HTMLInputElement', 'HTMLDivElement',
-  'Element', 'Node', 'File', 'FileList', 'Headers', 'Request', 'Response', 'process'
+  'Element', 'Node', 'File', 'FileList', 'Headers', 'Request', 'Response', 'process',
+  // Standard browser / JS globals that were missing (caused false "undeclared" failures)
+  'AbortController', 'AbortSignal', 'EventSource', 'ResizeObserver', 'IntersectionObserver',
+  'MutationObserver', 'getComputedStyle', 'matchMedia', 'structuredClone', 'queueMicrotask',
+  'globalThis', 'Symbol', 'WeakMap', 'WeakSet', 'BigInt', 'TextEncoder', 'TextDecoder',
+  'ArrayBuffer', 'Uint8Array', 'DOMParser', 'Image', 'crypto', 'performance', 'screen',
+  'isFinite', 'encodeURI', 'decodeURI', 'TypeError', 'RangeError', 'Reflect', 'Proxy'
 ]);
 
 let errorCount = 0;
