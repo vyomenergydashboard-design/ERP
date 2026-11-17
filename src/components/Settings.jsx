@@ -15,6 +15,7 @@ export default function SettingsView() {
   // Order Numbering (DB-backed)
   const [orderNumberStart, setOrderNumberStart] = useState('1');
   const [ordersExist, setOrdersExist] = useState(true); // default to locked until confirmed
+  const [nextOrderNumber, setNextOrderNumber] = useState('');
   const [orderSettingError, setOrderSettingError] = useState('');
   const [orderSettingSaving, setOrderSettingSaving] = useState(false);
   const [orderSettingSuccess, setOrderSettingSuccess] = useState(false);
@@ -42,6 +43,7 @@ export default function SettingsView() {
       .then(data => {
         if (data.order_number_start) setOrderNumberStart(data.order_number_start);
         setOrdersExist(!!data._orders_exist);
+        setNextOrderNumber(data._next_order_number || '');
       })
       .catch(() => {});
   };
@@ -400,7 +402,13 @@ export default function SettingsView() {
               </p>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg3)', border: `1px solid ${ordersExist ? 'var(--border)' : '#f59e0b'}`, borderRadius: '8px', padding: '8px 14px' }}>
+                {ordersExist ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: '8px', padding: '8px 14px' }}>
+                  <span style={{ color: 'var(--text3)', fontSize: '13px', whiteSpace: 'nowrap' }}>Next order number</span>
+                  <span style={{ color: 'var(--text)', fontSize: '15px', fontWeight: '700' }}>{nextOrderNumber || '—'}</span>
+                </div>
+                ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg3)', border: '1px solid #f59e0b', borderRadius: '8px', padding: '8px 14px' }}>
                   <span style={{ color: 'var(--text3)', fontSize: '13px', whiteSpace: 'nowrap' }}>
                     {`${String(new Date().getFullYear() % 100).padStart(2, '0')}${String((new Date().getFullYear() + 1) % 100).padStart(2, '0')}`}
                   </span>
@@ -422,6 +430,7 @@ export default function SettingsView() {
                     }}
                   />
                 </div>
+                )}
 
                 {ordersExist ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#94a3b8', fontSize: '13px' }}>

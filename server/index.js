@@ -1096,14 +1096,10 @@ const lockSerialAllocation = async (client) => {
   await client.query('SELECT pg_advisory_xact_lock($1)', [ORDER_NUMBER_LOCK_KEY]);
 };
 
-const generateOrderNumber = async (client) => {
-  if (!client || client === pool) {
-    throw new Error('generateOrderNumber requires a transaction client');
-  }
+// Computes the next order number without locking. Used directly only for read-only
+// previews (e.g. Settings); allocation must go through generateOrderNumber.
+const computeNextOrderNumber = async (db) => {
   const year = new Date().getFullYear();
-  const db = client;
-  await lockSerialAllocation(db);
-
   const orderRes = await db.query("SELECT MAX(order_number) as max_ord FROM orders WHERE order_number NOT LIKE 'TEMP-%'");
   const unitRes = await db.query("SELECT MAX(unit_id) as max_unit FROM order_units WHERE unit_id NOT LIKE 'TEMP-%'");
 
@@ -1119,6 +1115,14 @@ const generateOrderNumber = async (client) => {
   }
 
   return formatOrderNumber(year, nextNum);
+};
+
+const generateOrderNumber = async (client) => {
+  if (!client || client === pool) {
+    throw new Error('generateOrderNumber requires a transaction client');
+  }
+  await lockSerialAllocation(client);
+  return computeNextOrderNumber(client);
 };
 
 // Middleware for RBAC
@@ -1508,6 +1512,7 @@ app.get('/api/system-settings', authorize(['Admin']), async (req, res) => {
     // Check if any orders exist (to lock the order_number_start field)
     const ordersCount = await pool.query('SELECT COUNT(*) as cnt FROM orders');
     settings._orders_exist = parseInt(ordersCount.rows[0].cnt) > 0;
+    settings._next_order_number = await computeNextOrderNumber(pool);
 
     res.json(settings);
   } catch (err) {
