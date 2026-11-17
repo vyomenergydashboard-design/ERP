@@ -62,7 +62,7 @@ async function runSeed({ isDryRun = true } = {}) {
     throw new Error(`Excel file not found at: ${EXCEL_PATH}`);
   }
 
-  const wb = XLSX.readFile(EXCEL_PATH);
+  const wb = XLSX.read(fs.readFileSync(EXCEL_PATH)); // xlsx 0.20 ESM build has no fs
   const sheetName = wb.SheetNames[0];
   const ws = wb.Sheets[sheetName];
   const rawRows = XLSX.utils.sheet_to_json(ws);

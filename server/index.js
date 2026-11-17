@@ -1044,6 +1044,8 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   fileFilter: uploadFileFilter,
+  // Browsers send file names as UTF-8; multer's default (latin1) garbles e.g. "ñ" or Hindi names.
+  defParamCharset: 'utf8',
   limits: { fileSize: 20 * 1024 * 1024 } // 20MB total limit
 });
 
@@ -2434,7 +2436,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
   let detectedSheet = '';
   let detectedHeaders = [];
   try {
-    const wb = XLSX.readFile(req.file.path);
+    const wb = XLSX.read(fs.readFileSync(req.file.path)); // xlsx 0.20 ESM build has no fs, so read the buffer here
 
     // Prefer "Import Template" sheet, otherwise try first sheet
     const sheetName = wb.SheetNames.includes('Import Template')
