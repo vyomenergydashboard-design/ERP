@@ -69,7 +69,11 @@ let isSystemSeeding = false;
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start without it.');
+  process.exit(1);
+}
 
 // Canonical department order. Frontend mirror: DEPTS in src/data/planningData.js — keep in sync.
 const PIPELINE = Object.freeze(['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts']);
@@ -925,6 +929,10 @@ const envAllowedOrigins = process.env.ALLOWED_ORIGINS
   : [];
 const allowedOrigins = [...defaultAllowedOrigins, ...envAllowedOrigins];
 
+// Behind a single reverse proxy (nginx): take the client IP from X-Forwarded-For
+// so the login rate limiter counts per user, not per proxy.
+app.set('trust proxy', 1);
+
 app.use(cors({
   origin: (origin, callback) => {
     // 1. Allow non-browser requests (tools, curl, server-to-server)
@@ -935,18 +943,9 @@ app.use(cors({
       return callback(null, true);
     }
 
-    // 3. Allow any IPv4 / IPv6 host (e.g. AWS Lightsail http://3.108.60.202:5173, LAN 192.168.x.x, 10.x.x.x)
-    try {
-      const parsed = new URL(origin);
-      const isIp = /^(\d{1,3}\.){3}\d{1,3}$/.test(parsed.hostname) || parsed.hostname.includes(':');
-      const isLocal = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-      if (isIp || isLocal) {
-        return callback(null, true);
-      }
-    } catch (e) { }
-
-    // 4. Default allow origin dynamically to prevent blocking valid user access
-    callback(null, true);
+    // 3. Unknown origin: omit CORS headers (no error). Same-origin traffic through
+    //    nginx / the Vite proxy is unaffected; add extra origins via ALLOWED_ORIGINS.
+    callback(null, false);
   },
   credentials: true,
   exposedHeaders: ['Content-Disposition']
@@ -1125,6 +1124,18 @@ const generateOrderNumber = async (client) => {
   return computeNextOrderNumber(client);
 };
 
+// Returns the upstream departments (before `dept` in PIPELINE) that still have
+// unfinished unit_steps for the given unit ids. Empty array means OK to complete.
+const findBlockingUpstreamDepts = async (db, unitIds, dept) => {
+  const myIndex = PIPELINE.indexOf(dept);
+  if (myIndex <= 0 || unitIds.length === 0) return [];
+  const blockingRes = await db.query(
+    `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = ANY($1::int[]) AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
+    [unitIds, PIPELINE.slice(0, myIndex)]
+  );
+  return blockingRes.rows.map(r => r.dept);
+};
+
 // Middleware for RBAC
 const authorize = (roles = []) => {
   return (req, res, next) => {
@@ -1263,9 +1274,13 @@ app.get('/api/logs', authorize(), async (req, res) => {
       ORDER BY l.timestamp DESC
     `;
     const params = [];
-    if (limit !== 'all') {
+    // Only Admin may fetch the full log or more than 1000 rows.
+    const isAdmin = req.user.role === 'Admin';
+    if (!(limit === 'all' && isAdmin)) {
+      const parsed = parseInt(limit, 10);
+      const requested = parsed > 0 ? parsed : 1000;
       queryText += ` LIMIT $1`;
-      params.push(parseInt(limit) || 1000);
+      params.push(isAdmin ? requested : Math.min(requested, 1000));
     }
 
     const result = await pool.query(queryText, params);
@@ -1317,7 +1332,9 @@ app.delete('/api/logs', authorize(['Admin']), async (req, res) => {
 
 app.get('/api/users', authorize(), async (req, res) => {
   try {
-    const result = await pool.query('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC');
+    // Non-admins only need names/roles (step assignment); emails stay Admin-only.
+    const columns = req.user.role === 'Admin' ? 'id, username, email, role, created_at' : 'id, username, role';
+    const result = await pool.query(`SELECT ${columns} FROM users ORDER BY created_at DESC`);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -4473,18 +4490,10 @@ app.put('/api/units/:unitId/steps/:stepId', authorize(), async (req, res) => {
 
       // Upstream validation: block marking 'done' if upstream depts are incomplete
       if (newStatus === 'done' && !['Admin', 'Manager'].includes(req.user.role)) {
-        const myIndex = PIPELINE.indexOf(step.dept);
-        if (myIndex > 0) {
-          const upstreamDepts = PIPELINE.slice(0, myIndex);
-          const blockingRes = await client.query(
-            `SELECT DISTINCT dept FROM unit_steps WHERE order_unit_id = ANY($1::int[]) AND dept = ANY($2::text[]) AND status NOT IN ('done')`,
-            [targetUnits.map(tu => Number(tu.id)), upstreamDepts]
-          );
-          if (blockingRes.rows.length > 0) {
-            const blocking = blockingRes.rows.map(r => r.dept).join(', ');
-            await client.query('ROLLBACK');
-            return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking}.` });
-          }
+        const blocking = await findBlockingUpstreamDepts(client, targetUnits.map(tu => Number(tu.id)), step.dept);
+        if (blocking.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking.join(', ')}.` });
         }
       }
 
@@ -5278,9 +5287,31 @@ app.put('/api/planning/line-items/:lineItemId/bulk-units-status', authorize(['Ad
   const { dept, status } = req.body;
   if (!dept || !status) return res.status(400).json({ error: 'dept and status are required' });
 
+  const VALID_STEP_STATUSES = ['pending', 'inprogress', 'done', 'blocked', 'review', 'hold', 'cancelled'];
+  if (!VALID_STEP_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STEP_STATUSES.join(', ')}.` });
+  }
+  if (!PIPELINE.includes(dept)) {
+    return res.status(400).json({ error: 'Invalid department.' });
+  }
+  const isPrivileged = ['Admin', 'Manager'].includes(req.user.role);
+  if (!isPrivileged && dept !== req.user.role) {
+    return res.status(403).json({ error: `You can only bulk-update ${req.user.role} steps.` });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+
+    // 0. Same upstream gate as single-step completion
+    if (status === 'done' && !isPrivileged) {
+      const liUnits = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [req.params.lineItemId]);
+      const blocking = await findBlockingUpstreamDepts(client, liUnits.rows.map(r => Number(r.id)), dept);
+      if (blocking.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: `Cannot complete: upstream departments not finished yet — ${blocking.join(', ')}.` });
+      }
+    }
 
     // 1. Update all unit steps for this line item and department
     await client.query(
@@ -7608,19 +7639,26 @@ const seedSayaUser = async () => {
     // Seed default Admin user ONLY if the users table is completely empty (0 users exist)
     const userCountRes = await pool.query('SELECT COUNT(*) FROM users');
     const userCount = parseInt(userCountRes.rows[0].count, 10);
+    // The password comes from INITIAL_ADMIN_PASSWORD; there is no hardcoded default.
     if (userCount === 0) {
-      console.log('No users found in database. Seeding initial default Admin user...');
-      await pool.query(
-        `INSERT INTO users (username, email, password, role) 
-         VALUES ($1, $2, $3, $4)`,
-        [
-          'admin',
-          'admin@absolutemotion.in',
-          '$2a$10$pM5q2/qZtJkKoLjQ3McavedSnylKyzJqHsQSPyhWFN.WKYluU8vSK',
-          'Admin'
-        ]
-      );
-      console.log('Initial Admin user successfully seeded.');
+      const initialPassword = process.env.INITIAL_ADMIN_PASSWORD;
+      if (!initialPassword) {
+        console.warn('No users found and INITIAL_ADMIN_PASSWORD is not set — skipping Admin seed. Set it and restart to create the first Admin.');
+      } else {
+        console.log('No users found in database. Seeding initial Admin user from INITIAL_ADMIN_PASSWORD...');
+        const hashed = await bcrypt.hash(initialPassword, 10);
+        await pool.query(
+          `INSERT INTO users (username, email, password, role)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            'admin',
+            process.env.INITIAL_ADMIN_EMAIL || 'admin@absolutemotion.in',
+            hashed,
+            'Admin'
+          ]
+        );
+        console.log('Initial Admin user successfully seeded.');
+      }
     }
   } catch (err) {
     console.warn('Could not auto-seed user Saya (database may still be starting up):', err.message);

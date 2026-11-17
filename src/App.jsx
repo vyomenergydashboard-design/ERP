@@ -41,6 +41,9 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+const ADMIN_ONLY_VIEWS = ['users', 'logs', 'settings'];
+const KNOWN_VIEWS = ['board', 'planning', 'flow', 'table', 'orders', 'documents', 'new-order', 'import', 'masters', 'worklist', ...ADMIN_ONLY_VIEWS];
+
 function Dashboard() {
   useEventStream();
   const [steps, setSteps] = useState([]);
@@ -97,6 +100,16 @@ function Dashboard() {
 
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('user') || '{}'));
   const token = localStorage.getItem('token');
+  const isAdmin = user.role === 'Admin';
+
+  // Admin-only views (mirrors ADMIN_NAV in Sidenav). A stale or hand-edited
+  // erp_currentView must not open them for other roles; unknown views reset too.
+  useEffect(() => {
+    const allowed = KNOWN_VIEWS.includes(currentView) || currentView.startsWith('form-');
+    if (!allowed || (ADMIN_ONLY_VIEWS.includes(currentView) && !isAdmin)) {
+      setCurrentView('table');
+    }
+  }, [currentView, isAdmin]);
 
   // Attach the bearer token; 401 handling is done globally by the fetch interceptor in main.jsx
   const authFetch = (url, options = {}) => fetch(url, {
@@ -598,9 +611,9 @@ function Dashboard() {
               ) : currentView === 'masters' ? (
                 <Masters />
               ) : currentView === 'logs' ? (
-                <LogsView />
+                isAdmin ? <LogsView /> : null
               ) : currentView === 'settings' ? (
-                <SettingsView />
+                isAdmin ? <SettingsView /> : null
               ) : currentView === 'worklist' ? (
                 <DeptWorklist dept={user.role} />
               ) : currentView === 'form-pdr-03' ? (
@@ -633,9 +646,9 @@ function Dashboard() {
                     Return to Table View
                   </button>
                 </div>
-              ) : (
+              ) : currentView === 'users' && isAdmin ? (
                 <UserManagement />
-              )}
+              ) : null}
 
             </Suspense>
           </ErrorBoundary>
