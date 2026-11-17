@@ -87,8 +87,11 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     fetch(window.API_BASE + "/api/companies", {
       headers: { 'Authorization': `Bearer ${token}` }
     })
-      .then(res => res.json())
-      .then(data => setCompanies(data))
+      .then(res => {
+        if (!res.ok) throw new Error(`Loading companies failed (HTTP ${res.status})`);
+        return res.json();
+      })
+      .then(data => setCompanies(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
 
     fetch(window.API_BASE + "/api/part-number-masters", {

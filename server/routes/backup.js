@@ -7,6 +7,7 @@
 
 import express from 'express';
 import { generateDatabaseBackup } from '../services/databaseBackup.js';
+import { publicErrorMessage } from '../services/httpErrors.js';
 
 export default function createBackupRouter(pool, authorize) {
   const router = express.Router();
@@ -40,7 +41,7 @@ export default function createBackupRouter(pool, authorize) {
 
     } catch (err) {
       console.error('[Database Backup Error]:', err);
-      return res.status(500).json({ error: 'Failed to generate database backup: ' + err.message });
+      return res.status(500).json({ error: publicErrorMessage(err, 'Failed to generate database backup') });
     }
   });
 

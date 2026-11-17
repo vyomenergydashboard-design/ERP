@@ -54,8 +54,9 @@ ERP/
 │   ├── db.js                 # PostgreSQL connection pool configuration
 │   ├── init.sql              # Core schema definition, default tables, constraints, seed
 │   ├── run_deployment_migrations.js # Dynamic schema updates executed during startup
-│   ├── realign_unit_serials_to_orders.js # Serial numbering script (Caution: see Risky Areas)
-│   ├── test_po_system.js     # Integration test suite for PO hierarchy
+│   ├── run_tests.js          # Runs all test_*.js (`npm test` in server/)
+│   ├── test_*.js             # Integration test suites (live backend + DB)
+│   ├── scripts/              # seed_ci_fixtures.js, cleanup_orphan_uploads.js, Excel seeding
 │   └── uploads/              # Local disk storage for uploaded documents
 └── src/
     ├── main.jsx              # React DOM entry point, window.API_BASE, fetch interceptor
@@ -147,6 +148,9 @@ docker-compose --profile prod up --build -d
 
 ### Testing Commands
 ```bash
+# Run every suite in sequence with a summary (from server/; see CLAUDE.md for options)
+cd server && npm test
+
 # Run backend PO hierarchy and integration test suite
 node server/test_po_system.js
 
@@ -239,7 +243,7 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
 1. **Order Number Immutability (DO NOT Resequence):**
    - Historical order numbers and unit serials are shared on external customer invoices, vendor POs, and physical metal labels.
    - Deleting an order must NEVER renumber, resequence, or update existing order numbers or unit serials.
-   - Avoid executing `realign_unit_serials_to_orders.js` against active production databases.
+   - Never run serial re-numbering scripts (e.g. the retired `realign_unit_serials_to_orders.js`, no longer tracked in git) against active production databases.
 
 2. **Database Truncation Guardrail:**
    - In `server/index.js`, ensure `TRUNCATE TABLE task_masters` is never invoked automatically on boot. All migrations must be additive and non-destructive.
@@ -256,7 +260,7 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
    - Avoid passing JWTs in URL query parameters (`?token=...`). Use Authorization headers or short-lived download tickets to prevent token exposure in logs and browser history.
 
 6. **Monolithic Code Decomposition:**
-   - `server/index.js` (~6,000 lines) and `AllOrdersTableView.jsx` (~6,000 lines) are high-risk files.
+   - `server/index.js` (~7,700 lines) and `AllOrdersTableView.jsx` (~7,000 lines) are high-risk files.
    - When adding new capabilities, do NOT continue appending to these monoliths. Extract new logic into separate modular files (e.g. `server/routes/...` or focused subcomponents in `src/components/...`).
 
 7. **Drawing and BOM Mandatory Gate for Department Advancement:**

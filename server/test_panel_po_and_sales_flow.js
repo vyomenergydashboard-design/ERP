@@ -9,6 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 const API_BASE = process.env.API_BASE || 'http://localhost:5000';
 
 async function runTests() {
+  const createdOrderIds = []; // cleaned up in finally
   console.log('--- Starting Panel PO and Sales Flow Tests ---');
 
   try {
@@ -59,6 +60,7 @@ async function runTests() {
     const createData = await createRes.json();
     assert(createRes.status === 201, `Order creation returned 201 (got ${createRes.status})`);
     const testOrderId = createData.order.id;
+    createdOrderIds.push(testOrderId);
 
     // Fetch the 2 created units
     const unitsRes = await pool.query(
@@ -161,6 +163,7 @@ async function runTests() {
     });
     const createData2 = await createRes2.json();
     const testOrderId2 = createData2.order.id;
+    createdOrderIds.push(testOrderId2);
 
     const unitsRes2 = await pool.query(
       'SELECT id, unit_id, current_dept, status FROM order_units WHERE order_id = $1 ORDER BY id ASC',
@@ -258,6 +261,7 @@ async function runTests() {
       body: createForm5
     });
     const order5 = (await createRes5.json()).order;
+    createdOrderIds.push(order5.id);
     const unit5Res = await pool.query('SELECT id, current_dept FROM order_units WHERE order_id = $1', [order5.id]);
     const unit5 = unit5Res.rows[0];
     assert(unit5.current_dept === 'Sales', 'Unit 5 starts in Sales');
@@ -315,6 +319,23 @@ async function runTests() {
     console.error('✗ Test failed:', err.message);
     process.exit(1);
   } finally {
+    // Remove the orders this test created (documents are polymorphic, so delete them explicitly).
+    if (createdOrderIds.length > 0) {
+      try {
+        const units = await pool.query('SELECT id FROM order_units WHERE order_id = ANY($1::int[])', [createdOrderIds]);
+        const unitIds = units.rows.map(r => r.id);
+        await pool.query("DELETE FROM documents WHERE (entity_type = 'Order' AND entity_id = ANY($1::int[])) OR (entity_type = 'Unit' AND entity_id = ANY($2::int[]))", [createdOrderIds, unitIds]);
+        await pool.query('DELETE FROM unit_steps WHERE order_unit_id = ANY($1::int[])', [unitIds]);
+        await pool.query('DELETE FROM order_steps WHERE order_id = ANY($1::int[])', [createdOrderIds]);
+        await pool.query('DELETE FROM order_units WHERE order_id = ANY($1::int[])', [createdOrderIds]);
+        await pool.query('DELETE FROM order_line_items WHERE order_id = ANY($1::int[])', [createdOrderIds]);
+        await pool.query('DELETE FROM activity_logs WHERE order_id = ANY($1::int[])', [createdOrderIds]);
+        await pool.query('DELETE FROM orders WHERE id = ANY($1::int[])', [createdOrderIds]);
+        console.log(`Cleaned up test orders: ${createdOrderIds.join(', ')}`);
+      } catch (cleanupErr) {
+        console.warn('Cleanup of test orders failed:', cleanupErr.message);
+      }
+    }
     await pool.end();
   }
 }

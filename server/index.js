@@ -20,6 +20,7 @@ import { initEventStream, broadcastEvent } from './services/eventStream.js';
 import { safeEvaluateCondition } from './services/safeConditionEvaluator.js';
 import { installAfterCommitHooks, runAfterCommit } from './services/afterCommit.js';
 import { DEFAULT_STEPS } from './data/defaultTaskMasters.js';
+import { publicErrorMessage } from './services/httpErrors.js';
 
 // Emails and other side effects queued inside a transaction run only after COMMIT.
 installAfterCommitHooks(pool);
@@ -2286,7 +2287,7 @@ app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sale
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Failed to add line item to order:', err);
-    res.status(500).json({ error: err.message || 'Failed to add line item to order' });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to add line item to order') });
   } finally {
     client.release();
   }
@@ -2395,7 +2396,8 @@ app.get('/api/diagnostic-status', authorize(['Admin']), async (req, res) => {
       unitsCount: unitsCount.rows[0].count,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('Realign pipeline stats failed:', err);
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to load pipeline counts') });
   }
 });
 
@@ -2421,7 +2423,7 @@ app.post('/api/orders/realign-pipeline', authorize(['Admin', 'Manager']), async 
     res.json({ success: true, message: 'Pipeline successfully realigned. Units without PO restored to Sales.' });
   } catch (err) {
     console.error('Failed to realign pipeline:', err);
-    res.status(500).json({ error: 'Failed to realign pipeline: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to realign pipeline') });
   }
 });
 
@@ -2780,7 +2782,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
     } catch (err) {
       await client.query('ROLLBACK');
       console.error(`Import error for PO ${po_number}:`, err);
-      errors.push({ po_number, error: err.message });
+      errors.push({ po_number, error: publicErrorMessage(err, 'Server error while importing this order') });
     } finally {
       client.release();
     }
@@ -5694,7 +5696,7 @@ app.post('/api/companies', authorize(['Admin', 'Manager', 'Sales']), async (req,
   } catch (err) {
     await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Failed to create company: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to create company') });
   } finally {
     client.release();
   }
@@ -5768,7 +5770,7 @@ app.put('/api/companies/:id', authorize(['Admin', 'Manager', 'Sales']), async (r
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Failed to update company:', err);
-    res.status(500).json({ error: 'Failed to update company: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to update company') });
   } finally {
     client.release();
   }
@@ -6078,7 +6080,7 @@ app.post('/api/units/batch-po', authorize(['Sales', 'Admin', 'Manager']), upload
     if (req.file && fs.existsSync(req.file.path)) {
       try { fs.unlinkSync(req.file.path); } catch (e) { }
     }
-    res.status(500).json({ error: 'Failed to upload PO for selected serials: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to upload PO for selected serials') });
   } finally {
     if (client) {
       if (!committed) await client.query('ROLLBACK').catch(() => {});
@@ -6203,7 +6205,7 @@ app.delete('/api/units/:id/po-document', authorize(['Sales', 'Admin', 'Manager']
     res.json({ success: true, message: 'PO document removed successfully.' });
   } catch (err) {
     console.error('Error removing unit PO document:', err);
-    res.status(500).json({ error: 'Failed to remove PO document: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to remove PO document') });
   }
 });
 
@@ -6239,7 +6241,7 @@ app.post('/api/units/:id/sales-clear', authorize(['Sales', 'Admin', 'Manager']),
     res.json({ success: true, message: `Panel ${unit.unit_id} cleared from Sales.` });
   } catch (err) {
     console.error('Error clearing panel from Sales:', err);
-    res.status(500).json({ error: 'Failed to clear panel from Sales: ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to clear panel from Sales') });
   }
 });
 
@@ -6401,7 +6403,7 @@ app.post('/api/units/hold-action', authorize(['Admin', 'Manager', 'Sales', 'Plan
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Error performing unit hold action:', err);
-    res.status(500).json({ error: 'Failed to process panel ' + action + ': ' + (err.message || err) });
+    res.status(500).json({ error: publicErrorMessage(err, 'Failed to process panel ' + action) });
   } finally {
     client.release();
   }
@@ -7583,7 +7585,7 @@ app.use((err, req, res, next) => {
     cleanupUploadedFiles(req.files || req.file);
     return res.status(400).json({ error: err.message });
   }
-  res.status(500).json({ error: err.message || 'Internal server error' });
+  res.status(500).json({ error: publicErrorMessage(err, 'Internal server error') });
 });
 
 // Auto-seed Admin User 'Saya' if not present

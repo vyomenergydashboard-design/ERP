@@ -25,24 +25,24 @@ Empower admins to freely add, edit, and delete task templates in Task Masters ac
 ## 3. Task List
 
 ### Phase 1: Task Masters Deletion & Addition Mechanics
-- [ ] **Task 1: Clean Removal of "Confirm Dispatch Date" & "Sales Clearance"**
+- [x] **Task 1: Clean Removal of "Confirm Dispatch Date" & "Sales Clearance"**
   - Delete "Confirm Dispatch Date" and "Sales Clearance" from `task_masters` and active steps.
   - Remove from `run_deployment_migrations.js`.
   - Remove `CORE_PROTECTED_TASKS` block in `server/index.js` and `Masters.jsx`.
-- [ ] **Task 2: Non-Advancing Task Deletion in `server/index.js`**
+- [x] **Task 2: Non-Advancing Task Deletion in `server/index.js`**
   - Update `DELETE /api/task_masters/:id` to remove the task without shifting orders' current departments.
-- [ ] **Task 3: Selective Task Addition in `server/index.js`**
+- [x] **Task 3: Selective Task Addition in `server/index.js`**
   - Update `POST /api/task_masters` to only apply new tasks to orders currently in that department, never to downstream/completed orders.
 
 ### Phase 2: Pipeline State Machine & Sales Department Retention
-- [ ] **Task 4: Dynamic Department Progression & Sales Retention (`deriveUnitStatus`)**
+- [x] **Task 4: Dynamic Department Progression & Sales Retention (`deriveUnitStatus`)**
   - Enforce that orders in Sales remain in Sales while "Upload PO" (or any Sales order step) is pending.
   - Units transition to Design only once Sales steps are done.
-- [ ] **Task 5: Self-Healing Migration & Production Realignment**
+- [x] **Task 5: Self-Healing Migration & Production Realignment**
   - Update `run_deployment_migrations.js` to ensure clean state and correct department positioning on boot.
 
 ### Phase 3: Verification & Checkpoint
-- [ ] **Task 6: Verification Tests & Production Build**
+- [x] **Task 6: Verification Tests & Production Build**
   - Verify task deletion does not shift order departments.
   - Verify task addition does not affect downstream orders.
   - Run PO system tests and `npm run build`.

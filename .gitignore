@@ -60,3 +60,10 @@ staged-review.txt
 .claude/settings.local.json
 .claude/worktrees/
 
+
+# Local AI-tool folders and retired scripts (kept on disk, not tracked)
+.agent/
+.agents/
+.impeccable/
+docs/superpowers/
+server/archive/

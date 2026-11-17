@@ -4,6 +4,25 @@ import DocumentManager from './DocumentManager';
 import { openProtectedUpload } from '../utils/protectedUploads';
 import { FileText, ExternalLink, Download, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 
+// Reloads a unit's steps after a change. Returns null (and keeps the current list on screen)
+// if the reload fails, instead of treating an error response as the step list.
+const fetchUnitStepsSafe = async (unitId, token) => {
+  try {
+    const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) {
+      console.warn(`Reloading steps for unit ${unitId} failed (HTTP ${res.status})`);
+      return null;
+    }
+    const data = await res.json();
+    return Array.isArray(data) ? data : null;
+  } catch (err) {
+    console.warn(`Reloading steps for unit ${unitId} failed:`, err);
+    return null;
+  }
+};
+
 
 function StatusBadge({ status }) {
   const { cls, label } = STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending;
@@ -91,13 +110,11 @@ export default function FlowView({
         body: JSON.stringify(body)
       });
       if (res.ok) {
-        const freshSteps = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }).then(r => r.json());
-        setUnitSteps(freshSteps);
-
-        const updatedStep = freshSteps.find(s => s.id === stepId);
-        setEditingUnitStep(updatedStep);
+        const freshSteps = await fetchUnitStepsSafe(unitId, token);
+        if (freshSteps) {
+          setUnitSteps(freshSteps);
+          setEditingUnitStep(freshSteps.find(s => s.id === stepId));
+        }
 
         if (onStepsChanged) onStepsChanged();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId } }));
@@ -123,10 +140,8 @@ export default function FlowView({
       });
       if (res.ok) {
         if (selectedUnitId) {
-          const freshSteps = await fetch(`${window.API_BASE}/api/units/${selectedUnitId}/steps`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).then(r => r.json());
-          setUnitSteps(freshSteps);
+          const freshSteps = await fetchUnitStepsSafe(selectedUnitId, token);
+          if (freshSteps) setUnitSteps(freshSteps);
         }
         if (onStepsChanged) onStepsChanged();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: ordId } }));
@@ -159,10 +174,8 @@ export default function FlowView({
       });
       if (res.ok) {
         if (selectedUnitId) {
-          const freshSteps = await fetch(`${window.API_BASE}/api/units/${unit.id || selectedUnitId}/steps`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).then(r => r.json());
-          setUnitSteps(freshSteps);
+          const freshSteps = await fetchUnitStepsSafe(unit.id || selectedUnitId, token);
+          if (freshSteps) setUnitSteps(freshSteps);
         }
         if (onStepsChanged) onStepsChanged();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId || selectedOrder?.id } }));
@@ -197,10 +210,8 @@ export default function FlowView({
       if (res.ok) {
         setPanelActionModal({ isOpen: false, action: 'hold', unit: null, reason: '', scope: 'selected' });
         if (selectedUnitId) {
-          const freshSteps = await fetch(`${window.API_BASE}/api/units/${selectedUnitId}/steps`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          }).then(r => r.json());
-          setUnitSteps(freshSteps);
+          const freshSteps = await fetchUnitStepsSafe(selectedUnitId, token);
+          if (freshSteps) setUnitSteps(freshSteps);
         }
         if (onStepsChanged) onStepsChanged();
         window.dispatchEvent(new CustomEvent('orderUpdated', { detail: { orderId: selectedOrderId || selectedOrder?.id } }));

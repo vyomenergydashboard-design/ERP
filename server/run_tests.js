@@ -13,7 +13,9 @@
 import { spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import pg from 'pg';
 import { fileURLToPath } from 'url';
+import { listUploadFiles, findOrphanUploads, deleteUploads } from './scripts/cleanup_orphan_uploads.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -52,6 +54,40 @@ const runOne = (file) => new Promise((resolve) => {
   });
 });
 
+// Tests upload sample files and delete their rows, but not the files. Remember what was
+// there before so afterwards we can remove only files created during this run that no
+// row references. (If the backend runs elsewhere, nothing new appears here: no-op.)
+const uploadsBefore = new Set(listUploadFiles());
+const runStartedAt = new Date();
+
+const cleanupTestUploads = async () => {
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db'
+  });
+  try {
+    // Tests delete their orders/units, but `documents` is polymorphic (no FK cascade), so
+    // their document rows are left pointing at nothing. Remove such rows created in this run.
+    const dangling = await pool.query(
+      `DELETE FROM documents d
+       WHERE d.uploaded_at >= $1
+         AND ((d.entity_type = 'Order' AND NOT EXISTS (SELECT 1 FROM orders o WHERE o.id = d.entity_id))
+           OR (d.entity_type = 'Unit' AND NOT EXISTS (SELECT 1 FROM order_units u WHERE u.id = d.entity_id)))`,
+      [runStartedAt]
+    );
+    if (dangling.rowCount > 0) console.log(`\nRemoved ${dangling.rowCount} document row(s) whose test order/unit was deleted.`);
+
+    const created = listUploadFiles().filter((name) => !uploadsBefore.has(name));
+    if (created.length === 0) return;
+    const orphans = await findOrphanUploads(pool, { candidates: created });
+    const deleted = deleteUploads(orphans);
+    console.log(`\nRemoved ${deleted} upload file(s) left behind by tests (${created.length - orphans.length} still referenced, kept).`);
+  } catch (err) {
+    console.warn(`\nCould not clean up test uploads: ${err.message}`);
+  } finally {
+    await pool.end();
+  }
+};
+
 const results = [];
 for (const file of tests) {
   process.stdout.write(`▶ ${file} ... `);
@@ -65,6 +101,8 @@ for (const r of failed) {
   console.log(`\n──── ${r.file} output (last 40 lines) ────`);
   console.log(r.output.trimEnd().split('\n').slice(-40).join('\n'));
 }
+
+await cleanupTestUploads();
 
 console.log(`\n${results.length - failed.length}/${results.length} test files passed.`);
 process.exit(failed.length > 0 ? 1 : 0);

@@ -39,13 +39,20 @@ export default function SettingsView() {
     fetch(window.API_BASE + '/api/system-settings', {
       headers: { Authorization: `Bearer ${currentToken}` }
     })
-      .then(r => r.json())
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(data => {
         if (data.order_number_start) setOrderNumberStart(data.order_number_start);
         setOrdersExist(!!data._orders_exist);
         setNextOrderNumber(data._next_order_number || '');
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Field stays locked (ordersExist defaults to true); tell the admin why the values are missing.
+        console.error('Failed to load system settings:', err);
+        setOrderSettingError('Could not load order numbering settings. Refresh to try again.');
+      });
   };
 
   useEffect(() => {

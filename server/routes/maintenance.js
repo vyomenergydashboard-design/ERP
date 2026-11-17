@@ -11,6 +11,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { ZipArchive } from 'archiver';
 import { generateDatabaseBackup } from '../services/databaseBackup.js';
+import { publicErrorMessage } from '../services/httpErrors.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -219,7 +220,7 @@ export default function createMaintenanceRouter(pool, authorize) {
     } catch (err) {
       await client.query('ROLLBACK');
       console.error('[Factory Reset Error]:', err);
-      return res.status(500).json({ error: 'Failed to perform factory reset: ' + err.message });
+      return res.status(500).json({ error: publicErrorMessage(err, 'Failed to perform factory reset') });
     } finally {
       client.release();
     }
@@ -265,7 +266,7 @@ export default function createMaintenanceRouter(pool, authorize) {
 
     } catch (downloadErr) {
       console.error('[Backup Download Error]:', downloadErr);
-      return res.status(500).json({ error: 'Failed to download emergency backup: ' + downloadErr.message });
+      return res.status(500).json({ error: publicErrorMessage(downloadErr, 'Failed to download emergency backup') });
     }
   });
 
