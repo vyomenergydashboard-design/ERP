@@ -61,6 +61,7 @@ The department order is the `PIPELINE` array (`Sales → Design → Purchase →
 
 ### Frontend
 - `src/main.jsx` sets `window.API_BASE = ''`, so the app uses relative URLs that go through the Vite or Nginx proxy. It also installs a global fetch interceptor that logs the user out on a 401.
+- Call the backend with `apiFetch('/api/...', options)` from `src/api/client.js`: it prefixes `window.API_BASE`, adds the `Authorization` header from `localStorage`, and returns the normal `Response` (check `res.ok` as usual). Don't hand-write `Authorization` headers. Only login (no token yet) and ticket-based file downloads use plain `fetch`.
 - `src/App.jsx` handles routing, view tabs, and session sync. `AllOrdersTableView.jsx` is the main per-department table. Its dept-specific column sets and batch bars (`ProductionBatchBar`, `QcBatchBar`) are where most department UI changes land.
 - Bulk order import works from an Excel template (`BulkImportModal`, `OrderImport`, using `xlsx` on both client and server).
 

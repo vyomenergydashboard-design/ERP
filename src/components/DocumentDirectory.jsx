@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, FolderOpen, RefreshCw, FileText, Download, Trash2, Calendar, User } from 'lucide-react';
 import { openProtectedUpload, downloadProtectedUpload } from '../utils/protectedUploads';
 import { isPrivileged } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 const DOC_TYPES = [
   'All', 'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
@@ -25,9 +26,7 @@ export default function DocumentDirectory() {
   const fetchDirectory = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(window.API_BASE + "/api/documents/directory", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/documents/directory");
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -43,9 +42,8 @@ export default function DocumentDirectory() {
     e.stopPropagation();
     if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/documents/${docId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         // Remove document from state

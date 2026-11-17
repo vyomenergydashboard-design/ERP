@@ -5,6 +5,7 @@ import PanelSizeSearchSelect from './PanelSizeSearchSelect';
 import WiremanMasters from './WiremanMasters';
 import { resolveUploadPath, downloadProtectedUpload } from '../utils/protectedUploads';
 import { isPrivileged } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -290,9 +291,7 @@ export default function Masters() {
 
   const fetchPanelSizes = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/panel-size-masters", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/panel-size-masters");
       if (res.ok) {
         setPanelSizes(await res.json());
       }
@@ -316,9 +315,9 @@ export default function Masters() {
         comments: (panelSizeForm.comments || '').trim(),
         description: (panelSizeForm.comments || '').trim()
       };
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
       if (res.ok) {
@@ -336,9 +335,8 @@ export default function Masters() {
   const handleDeletePanelSize = async (id) => {
     if (!window.confirm('Delete this Panel Size Master?')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/panel-size-masters/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/panel-size-masters/${id}`, {
+        method: 'DELETE'
       });
       if (res.ok) fetchPanelSizes();
       else alert('Failed to delete Panel Size Master');
@@ -347,9 +345,7 @@ export default function Masters() {
 
   const fetchPartNumberMasters = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/part-number-masters", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/part-number-masters");
       if (res.ok) {
         setPartMasters(await res.json());
       }
@@ -364,9 +360,9 @@ export default function Masters() {
         ? `${window.API_BASE}/api/part-number-masters/${editingPartId}`
         : `${window.API_BASE}/api/part-number-masters`;
       const method = editingPartId ? 'PUT' : 'POST';
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(partFormData)
       });
       if (res.ok) {
@@ -377,9 +373,8 @@ export default function Masters() {
           const drawBody = new FormData();
           drawBody.append('file', newPartDrawingFile);
           drawBody.append('doc_type', 'Drawing');
-          await fetch(`${window.API_BASE}/api/part-number-masters/${savedPart.id}/documents`, {
+          await apiFetch(`/api/part-number-masters/${savedPart.id}/documents`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
             body: drawBody
           });
         }
@@ -389,9 +384,8 @@ export default function Masters() {
           const bomBody = new FormData();
           bomBody.append('file', newPartBomFile);
           bomBody.append('doc_type', 'BOM');
-          await fetch(`${window.API_BASE}/api/part-number-masters/${savedPart.id}/documents`, {
+          await apiFetch(`/api/part-number-masters/${savedPart.id}/documents`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
             body: bomBody
           });
         }
@@ -412,9 +406,8 @@ export default function Masters() {
   const handleDeletePartMaster = async (id) => {
     if (!window.confirm('Are you sure you want to delete this Part Number Master? All associated drawings and BOMs will also be deleted.')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/part-number-masters/${id}`, {
+        method: 'DELETE'
       });
       if (res.ok) fetchPartNumberMasters();
       else {
@@ -442,9 +435,8 @@ export default function Masters() {
     formData.append('doc_type', activeUploadTarget.docType);
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters/${activeUploadTarget.part.id}/documents`, {
+      const res = await apiFetch(`/api/part-number-masters/${activeUploadTarget.part.id}/documents`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
 
@@ -467,9 +459,7 @@ export default function Masters() {
 
   const fetchColumnMasters = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/column-masters", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/column-masters");
       if (res.ok) {
         const data = await res.json();
         setColumns(data.columns || []);
@@ -517,9 +507,9 @@ export default function Masters() {
   const handleCreateColumn = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch(window.API_BASE + "/api/column-masters", {
+      const res = await apiFetch("/api/column-masters", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(colFormData)
       });
       if (res.ok) {
@@ -537,9 +527,8 @@ export default function Masters() {
   const handleDeleteColumn = async (colId) => {
     if (!window.confirm('Delete this custom column master?')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/column-masters/${colId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/column-masters/${colId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         fetchColumnMasters();
@@ -555,9 +544,9 @@ export default function Masters() {
   const handleSaveVisibility = async () => {
     setSavingVisibility(true);
     try {
-      const res = await fetch(window.API_BASE + "/api/column-masters/visibility", {
+      const res = await apiFetch("/api/column-masters/visibility", {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ visibilityByDept })
       });
       if (res.ok) {
@@ -607,18 +596,14 @@ export default function Masters() {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/companies", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/companies");
       if (res.ok) setCompanies(await res.json());
     } catch (err) { console.error(err); }
   };
 
   const fetchTasks = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/task_masters", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/task_masters");
       if (res.ok) setTasks(await res.json());
     } catch (err) { console.error(err); }
   };
@@ -669,9 +654,9 @@ export default function Masters() {
     const url = isEdit ? `${window.API_BASE}/api/companies/${editingCompanyId}` : `${window.API_BASE}/api/companies`;
     const method = isEdit ? 'PUT' : 'POST';
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(companyFormData)
       });
       if (res.ok) {
@@ -703,9 +688,9 @@ export default function Masters() {
     }));
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...taskFormData, custom_fields: fieldDefs, order_fields: taskFormData.order_fields || [] })
       });
       if (res.ok) {
@@ -777,9 +762,8 @@ export default function Masters() {
   const handleDeleteTaskClick = async (taskId) => {
     if (!window.confirm('Are you sure you want to delete this task?')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/task_masters/${taskId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/task_masters/${taskId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         fetchTasks();

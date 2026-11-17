@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, Database, RefreshCw, FileText } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 export default function LogsView() {
   const [logs, setLogs] = useState([]);
@@ -16,9 +17,7 @@ export default function LogsView() {
   const fetchLogs = async (currentLimit = limit) => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/logs?limit=${currentLimit}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/logs?limit=${currentLimit}`);
       if (res.ok) {
         const data = await res.json();
         setLogs(data);

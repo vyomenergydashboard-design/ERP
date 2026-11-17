@@ -5,6 +5,7 @@ import Button from './common/Button';
 import SearchInput from './common/SearchInput';
 import StatusBadge from './feedback/StatusBadge';
 import { isPrivileged, hasRole } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
@@ -426,9 +427,7 @@ export default function DeptWorklist({ dept }) {
   const fetchWorklist = useCallback(async (silent = false) => {
     if (!silent) setLoading(true); else setRefreshing(true);
     try {
-      const wRes = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(dept)}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const wRes = await apiFetch(`/api/dept-worklist/${encodeURIComponent(dept)}`);
       if (wRes.ok) setUnits(await wRes.json());
     } catch (err) {
       console.error('Failed to fetch worklist', err);
@@ -441,9 +440,7 @@ export default function DeptWorklist({ dept }) {
   // Users list rarely changes: load once on mount, not on every orderUpdated event
   useEffect(() => {
     let cancelled = false;
-    fetch(window.API_BASE + "/api/users", {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch("/api/users")
       .then(async (res) => {
         if (!res.ok) return;
         const data = await res.json();
@@ -467,9 +464,9 @@ export default function DeptWorklist({ dept }) {
     const targetUnit = units.find(u => u.unit_id === unitId || u.id === unitId);
     const targetStep = (targetUnit?.dept_steps || []).find(s => s.id === stepId);
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
+      const res = await apiFetch(`/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           status: newStatus,
           last_updated_at: targetStep?.updated_at || targetUnit?.updated_at

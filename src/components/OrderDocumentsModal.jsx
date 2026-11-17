@@ -9,6 +9,7 @@ import {
   Maximize2, Minimize2, ZoomIn, ZoomOut, RotateCcw,
   FileSpreadsheet, Image as ImageIcon, Plus, Layers
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 function formatFileSize(bytes) {
   if (!bytes || bytes === 0) return '0 B';
@@ -79,9 +80,7 @@ export default function OrderDocumentsModal({
     setLoading(true);
     setErrorMessage('');
     try {
-      const res = await fetch(`${window.API_BASE}/api/documents/Order/${orderId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/documents/Order/${orderId}`);
       if (res.ok) {
         const data = await res.json();
         const docsList = Array.isArray(data) ? data : [];
@@ -253,9 +252,8 @@ export default function OrderDocumentsModal({
 
     try {
       if (isReplacement && existingDocId) {
-        const delRes = await fetch(`${window.API_BASE}/api/documents/${existingDocId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
+        const delRes = await apiFetch(`/api/documents/${existingDocId}`, {
+          method: 'DELETE'
         });
         if (!delRes.ok) {
           const errData = await delRes.json().catch(() => ({}));
@@ -277,9 +275,8 @@ export default function OrderDocumentsModal({
         formData.append('files', file);
       });
 
-      const res = await fetch(`${window.API_BASE}/api/documents/upload`, {
+      const res = await apiFetch(`/api/documents/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -320,9 +317,8 @@ export default function OrderDocumentsModal({
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      const res = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await apiFetch(`/api/documents/${docId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         if (selectedDocForPreview?.id === docId) {

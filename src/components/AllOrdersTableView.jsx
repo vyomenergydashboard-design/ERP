@@ -26,6 +26,7 @@ import { MODAL_OVERLAY_SELECTOR } from '../hooks/useGlobalModalEscape';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { openProtectedUpload, useSignedUploadUrl } from '../utils/protectedUploads';
 import { hasRole, TABLE_EDIT_ROLES } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 // Columns owned by a single department. In that department's view (and in 'all')
 // they are shown unless explicitly hidden; in any other department's view they
@@ -4260,9 +4261,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const fetchVendorPurchaseOrders = async () => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
+      const res = await apiFetch(`/api/purchase-orders`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -4324,9 +4323,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const fetchPartMasters = async () => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/part-number-masters`);
       if (res.ok) {
         setPartMasters(await res.json());
       }
@@ -4335,9 +4332,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const fetchPanelSizeMasters = async () => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/panel-size-masters`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/panel-size-masters`);
       if (res.ok) {
         setPanelSizeMasters(await res.json());
       }
@@ -4346,9 +4341,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const fetchWiremenMasters = async () => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/wireman-masters`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
+      const res = await apiFetch(`/api/wireman-masters`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -4399,18 +4392,14 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     try {
       if (targetUnitId) {
-        const resUnit = await fetch(`${window.API_BASE}/api/documents/Unit/${targetUnitId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const resUnit = await apiFetch(`/api/documents/Unit/${targetUnitId}`);
         if (resUnit.ok) {
           const uDocs = await resUnit.json();
           orderDocs = [...orderDocs, ...(Array.isArray(uDocs) ? uDocs : [uDocs])];
         }
       }
       if (unit.order_id) {
-        const res = await fetch(`${window.API_BASE}/api/documents/Order/${unit.order_id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/documents/Order/${unit.order_id}`);
         if (res.ok) {
           const oDocs = await res.json();
           orderDocs = [...orderDocs, ...(Array.isArray(oDocs) ? oDocs : [oDocs])];
@@ -4479,11 +4468,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }));
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}/design-confirm`, {
+      const res = await apiFetch(`/api/units/${targetUnitId}/design-confirm`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       if (res.ok) {
@@ -4555,11 +4543,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     }));
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}/design-unconfirm`, {
+      const res = await apiFetch(`/api/units/${targetUnitId}/design-unconfirm`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         }
       });
       if (res.ok) {
@@ -4656,11 +4643,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     // 4. Persist to backend via batch endpoint
     try {
       const targetIdsList = targetUnits.map(u => u.unit_id || u.id);
-      const res = await fetch(`${window.API_BASE}/api/units/batch-purchase-na`, {
+      const res = await apiFetch(`/api/units/batch-purchase-na`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           unit_ids: targetIdsList,
@@ -4676,11 +4662,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
           const cf = { ...(tu.custom_fields || {}) };
           if (nextVal === 'NA') cf[colKey] = 'NA';
           else delete cf[colKey];
-          return fetch(`${window.API_BASE}/api/units/${tuId}`, {
+          return apiFetch(`/api/units/${tuId}`, {
             method: 'PUT',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ custom_fields: cf })
           });
@@ -4705,11 +4690,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   // PUT JSON and throw (with the server's error message) on a non-OK response.
   const putJson = async (url, body, fallbackError = 'Update failed') => {
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(body)
     });
@@ -5182,9 +5166,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
   const fetchColumnVisibility = async () => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/column-masters`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/column-masters`);
       if (res.ok) {
         const data = await res.json();
         setColVisibility(data.visibilityByDept || {});
@@ -5241,9 +5223,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     if (!silent) setIsLoading(true);
     try {
       const deptParam = currentFilter;
-      const res = await fetch(`${window.API_BASE}/api/dept-worklist/${encodeURIComponent(deptParam)}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/dept-worklist/${encodeURIComponent(deptParam)}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Failed to load units (${res.status})`);
@@ -5580,9 +5560,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       formData.append('po_number', poNumber);
       formData.append('unit_ids', JSON.stringify(Array.from(selectedUnitIds)));
 
-      const res = await fetch(`${window.API_BASE}/api/units/batch-po`, {
+      const res = await apiFetch(`/api/units/batch-po`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -5634,9 +5613,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       onConfirm: async () => {
         const uId = unit.id || unit.unit_id;
         try {
-          const res = await fetch(`${window.API_BASE}/api/units/${uId}/po-document`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
+          const res = await apiFetch(`/api/units/${uId}/po-document`, {
+            method: 'DELETE'
           });
           const data = await res.json();
           if (!res.ok) {
@@ -5735,11 +5713,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         const targetId = u.unit_id || u.id;
         const uId = String(targetId);
         const payload = updatesByUnitId[uId];
-        return fetch(`${window.API_BASE}/api/units/${targetId}`, {
+        return apiFetch(`/api/units/${targetId}`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify(payload)
         });
@@ -5773,11 +5750,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     try {
       const promises = targetIds.map(uId => {
-        return fetch(`${window.API_BASE}/api/units/${uId}`, {
+        return apiFetch(`/api/units/${uId}`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ [colKey]: finalVal })
         });
@@ -5816,11 +5792,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
     try {
       const promises = targetIds.map(uId => {
-        return fetch(`${window.API_BASE}/api/units/${uId}`, {
+        return apiFetch(`/api/units/${uId}`, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {})
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ qc_status: finalVal })
         });
@@ -5869,11 +5844,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             return u;
           }));
 
-          const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
+          const res = await apiFetch(`/api/units/${uId}`, {
             method: 'PUT',
             headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ panel_type_size: null })
           });
@@ -6959,11 +6933,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
 
             // Persist to backend without touching unit serial numbers
             const uId = editingRefTagUnit.id || editingRefTagUnit.unit_id;
-            const res = await fetch(`${window.API_BASE}/api/units/${uId}`, {
+            const res = await apiFetch(`/api/units/${uId}`, {
               method: 'PUT',
               headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
+                'Content-Type': 'application/json'
               },
               body: JSON.stringify({ reference_number, tag })
             });

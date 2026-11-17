@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiFetch } from '../api/client';
 
 /**
  * Helpers for opening / embedding files served from /uploads without putting the
@@ -57,11 +58,10 @@ export async function getSignedUploadUrl(docOrPath) {
   if (!rel) throw new Error('No file path to open');
 
   const token = localStorage.getItem('token');
-  const res = await fetch(`${window.API_BASE}/api/documents/ticket`, {
+  const res = await apiFetch(`/api/documents/ticket`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: JSON.stringify({ file: rel.split('/').pop() }),
   });

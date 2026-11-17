@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { LogOut, User, Search, Sun, Moon, Menu, Clock } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 // Isolated so the 1-second tick only re-renders the clock, not the whole header.
 function HeaderClock() {
@@ -135,9 +136,7 @@ export default function Header({ onLogout, onToggleSidebar, sidenavCollapsed }) 
   const fetchOrders = async () => {
     if (!token) return;
     try {
-      const res = await fetch(window.API_BASE + "/api/orders", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/orders");
       if (res.ok) {
         const data = await res.json();
         setOrders(data);

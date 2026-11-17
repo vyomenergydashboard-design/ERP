@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { apiFetch } from '../api/client';
 
 function DaysChip({ deliveryDate }) {
   if (!deliveryDate) return <span style={{ color: 'var(--text3)' }}>—</span>;
@@ -66,7 +67,7 @@ function AggregateStats({ activeStatFilter, onSelectStatFilter }) {
   const token = localStorage.getItem('token');
 
   useEffect(() => {
-    fetch(window.API_BASE + "/api/board", { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch("/api/board")
       .then((r) => (r.ok ? r.json() : []))
       .then((orders) => {
         const today = new Date();

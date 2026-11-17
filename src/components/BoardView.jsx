@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Filter, Search, X } from 'lucide-react';
 import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
+import { apiFetch } from '../api/client';
 
 function StatusBadge({ status }) {
   const { cls, label } = STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending;
@@ -31,9 +32,7 @@ export default function BoardView({ currentFilter, userRole, onSetView, statCard
 
   const fetchBoard = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/board", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/board");
       if (res.ok) {
         setOrders(await res.json());
       }

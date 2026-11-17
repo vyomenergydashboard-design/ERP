@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import PartNumberSearchSelect from './PartNumberSearchSelect.jsx';
 import AddPartMasterModal from './AddPartMasterModal.jsx';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect.jsx';
+import { apiFetch } from '../api/client';
 
 const getTodayDateStr = () => {
   const today = new Date();
@@ -84,9 +85,7 @@ export default function OrderCreationFlow({ onOrderCreated }) {
   const [partModalInitialQuery, setPartModalInitialQuery] = useState('');
 
   useEffect(() => {
-    fetch(window.API_BASE + "/api/companies", {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch("/api/companies")
       .then(res => {
         if (!res.ok) throw new Error(`Loading companies failed (HTTP ${res.status})`);
         return res.json();
@@ -94,16 +93,12 @@ export default function OrderCreationFlow({ onOrderCreated }) {
       .then(data => setCompanies(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
 
-    fetch(window.API_BASE + "/api/part-number-masters", {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch("/api/part-number-masters")
       .then(res => res.json())
       .then(data => setPartMasters(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
 
-    fetch(window.API_BASE + "/api/panel-size-masters", {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch("/api/panel-size-masters")
       .then(res => res.json())
       .then(data => setPanelSizeMasters(Array.isArray(data) ? data : []))
       .catch(err => console.error(err));
@@ -307,11 +302,8 @@ export default function OrderCreationFlow({ onOrderCreated }) {
     }
 
     try {
-      const res = await fetch(window.API_BASE + "/api/orders", {
+      const res = await apiFetch("/api/orders", {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: data
       });
 

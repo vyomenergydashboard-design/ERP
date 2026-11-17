@@ -4,14 +4,13 @@ import DocumentManager from './DocumentManager';
 import { openProtectedUpload } from '../utils/protectedUploads';
 import { FileText, ExternalLink, Download, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 import { isPrivileged } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 // Reloads a unit's steps after a change. Returns null (and keeps the current list on screen)
 // if the reload fails, instead of treating an error response as the step list.
 const fetchUnitStepsSafe = async (unitId, token) => {
   try {
-    const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
+    const res = await apiFetch(`/api/units/${unitId}/steps`);
     if (!res.ok) {
       console.warn(`Reloading steps for unit ${unitId} failed (HTTP ${res.status})`);
       return null;
@@ -81,9 +80,7 @@ export default function FlowView({
   useEffect(() => {
     if (editingUnitStep?.order_unit_id) {
       setIsLoadingRefDocs(true);
-      fetch(`${window.API_BASE}/api/units/${editingUnitStep.order_unit_id}/reference-documents`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      apiFetch(`/api/units/${editingUnitStep.order_unit_id}/reference-documents`)
         .then(res => res.ok ? res.json() : null)
         .then(data => setUnitRefDocs(data))
         .catch(err => {
@@ -102,11 +99,10 @@ export default function FlowView({
     if (!unitId) return;
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps/${stepId}`, {
+      const res = await apiFetch(`/api/units/${unitId}/steps/${stepId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
       });
@@ -133,11 +129,8 @@ export default function FlowView({
     const ordId = selectedOrderId || selectedOrder?.id;
     if (!ordId) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${ordId}/hold/resume`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiFetch(`/api/orders/${ordId}/hold/resume`, {
+        method: 'POST'
       });
       if (res.ok) {
         if (selectedUnitId) {
@@ -159,11 +152,10 @@ export default function FlowView({
   const handleResumeUnitDirect = async (unit) => {
     if (!unit) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/hold-action`, {
+      const res = await apiFetch(`/api/units/hold-action`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           unit_ids: [unit.id || unit.unit_id],
@@ -193,11 +185,10 @@ export default function FlowView({
   const handlePanelAction = async () => {
     if (!panelActionModal.unit || !panelActionModal.action) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/hold-action`, {
+      const res = await apiFetch(`/api/units/hold-action`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           unit_ids: [panelActionModal.unit.id || panelActionModal.unit.unit_id],
@@ -244,11 +235,10 @@ export default function FlowView({
   const handleUpdateClassification = async (newClassification) => {
     if (!selectedOrder?.id) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/classification`, {
+      const res = await apiFetch(`/api/orders/${selectedOrder.id}/classification`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ classification: newClassification })
       });
@@ -399,9 +389,7 @@ export default function FlowView({
 
   useEffect(() => {
     if (propTaskMasters && propTaskMasters.length > 0) return;
-    fetch(window.API_BASE + "/api/task_masters", {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
+    apiFetch("/api/task_masters")
       .then(async res => {
         if (res.ok) {
           const data = await res.json();
@@ -414,9 +402,9 @@ export default function FlowView({
   const handleAddTask = async (taskId) => {
     if (!taskId || !selectedOrderId) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps`, {
+      const res = await apiFetch(`/api/orders/${selectedOrderId}/steps`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ taskId })
       });
       if (res.ok) {
@@ -469,9 +457,9 @@ export default function FlowView({
     const orderedIds = newOrder.map(s => s.id);
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/reorder`, {
+      const res = await apiFetch(`/api/orders/${selectedOrderId}/steps/reorder`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ orderedIds })
       });
       if (res.ok && onStepsChanged) {

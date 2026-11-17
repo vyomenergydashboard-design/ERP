@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Search, Edit2, CheckCircle2, AlertCircle, X, ChevronLeft, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight, GripVertical, ArrowUpDown, ChevronUp, Pin, Eye, FileText } from 'lucide-react';
 import { openProtectedUpload } from '../utils/protectedUploads';
+import { apiFetch } from '../api/client';
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
@@ -896,9 +897,7 @@ export default function PlanningModule() {
 
   const fetchColumnMasters = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/column-masters", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/column-masters");
       if (res.ok) {
         const data = await res.json();
         const planningVis = data.visibilityByDept?.['Planning'] || {};
@@ -915,9 +914,7 @@ export default function PlanningModule() {
 
   const fetchPlanningData = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/planning", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/planning");
       if (res.ok) {
         setOrders(await res.json());
       }
@@ -972,11 +969,10 @@ export default function PlanningModule() {
         ? `${window.API_BASE}/api/planning/units/${editingOrder.specific_unit_id}`
         : `${window.API_BASE}/api/planning/line-items/${editingOrder.line_item_id}`;
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(editForm)
       });
@@ -1243,11 +1239,10 @@ export default function PlanningModule() {
 
     setLoading(true);
     try {
-      const res = await fetch(window.API_BASE + "/api/planning/line-items/bulk", {
+      const res = await apiFetch("/api/planning/line-items/bulk", {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           lineItemIds: selectedRowIds,
@@ -1332,11 +1327,10 @@ export default function PlanningModule() {
           ? `${window.API_BASE}/api/planning/units/${unitId}`
           : `${window.API_BASE}/api/planning/line-items/${lineItemId}`;
 
-        const res = await fetch(endpoint, {
+        const res = await apiFetch(endpoint, {
           method: 'PUT',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({ custom_fields: updatedCustom })
         });
@@ -1382,11 +1376,10 @@ export default function PlanningModule() {
         ? `${window.API_BASE}/api/planning/units/${unitId}`
         : `${window.API_BASE}/api/planning/line-items/${lineItemId}`;
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updateForm)
       });

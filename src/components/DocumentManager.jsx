@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { openProtectedUpload } from '../utils/protectedUploads';
+import { apiFetch } from '../api/client';
 
 const DOC_TYPES = [
   'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
@@ -25,9 +26,7 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   useEffect(() => {
     const fetchDocs = async () => {
       try {
-        const res = await fetch(`${window.API_BASE}/api/documents/${entityType}/${entityId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/documents/${entityType}/${entityId}`);
         if (res.ok) {
           const data = await res.json();
           setDocs(data);
@@ -65,9 +64,8 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
     formData.append('doc_type', selectedType);
     files.forEach(file => formData.append('files', file));
     try {
-      const res = await fetch(window.API_BASE + "/api/documents/upload", {
+      const res = await apiFetch("/api/documents/upload", {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
         body: formData
       });
       if (res.ok) {
@@ -115,9 +113,8 @@ export default function DocumentManager({ entityType, entityId, initialDocs = []
   const handleDeleteDoc = async (docId) => {
     if (!window.confirm('Delete this document?')) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/documents/${docId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         const newDocs = docs.filter(d => d.id !== docId);

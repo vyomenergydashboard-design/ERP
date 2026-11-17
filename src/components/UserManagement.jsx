@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Shield, Check, X, Loader2, UserPlus, Mail, Lock, User, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { ALL_ROLES } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -36,9 +37,7 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/users", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/users");
       const data = await res.json();
       if (res.ok) setUsers(data);
     } catch (err) {
@@ -59,11 +58,10 @@ export default function UserManagement() {
     }
     try {
       const { confirmPassword, ...signupData } = newUser;
-      const res = await fetch(window.API_BASE + "/api/auth/signup", {
+      const res = await apiFetch("/api/auth/signup", {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(signupData)
       });
@@ -87,11 +85,10 @@ export default function UserManagement() {
   const handleUpdateRole = async (userId, newRole) => {
     setUpdatingId(userId);
     try {
-      const res = await fetch(`${window.API_BASE}/api/users/${userId}/role`, {
+      const res = await apiFetch(`/api/users/${userId}/role`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ role: newRole })
       });
@@ -132,11 +129,10 @@ export default function UserManagement() {
     }
     try {
       const { confirmPassword, ...updateData } = editUserForm;
-      const res = await fetch(`${window.API_BASE}/api/users/${editingUser.id}`, {
+      const res = await apiFetch(`/api/users/${editingUser.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(updateData)
       });
@@ -160,11 +156,8 @@ export default function UserManagement() {
     setDeletingUser(true);
     setDeleteError('');
     try {
-      const res = await fetch(`${window.API_BASE}/api/users/${userToDelete.id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiFetch(`/api/users/${userToDelete.id}`, {
+        method: 'DELETE'
       });
       const data = await res.json();
       if (res.ok) {

@@ -4,6 +4,7 @@ import BulkImportModal from './BulkImportModal';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 import { isPrivileged, hasRole, OPERATOR_ROLES } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 export default function OrderList({ initialSelectedId, onSelectOrder }) {
   const [orders, setOrders] = useState([]);
@@ -76,9 +77,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const fetchCompanies = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/companies", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/companies");
       if (res.ok) {
         setCompaniesList(await res.json());
       }
@@ -109,11 +108,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
     e.preventDefault();
     setIsSubmittingEdit(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${editingOrderDetails.id}`, {
+      const res = await apiFetch(`/api/orders/${editingOrderDetails.id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(editOrderForm)
       });
@@ -140,11 +138,8 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
       return;
     }
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiFetch(`/api/orders/${orderId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         alert('Order deleted and remaining orders resequenced successfully!');
@@ -182,11 +177,11 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
     e.preventDefault();
     setIsSubmittingLineItemEdit(true);
     try {
-      const res = await fetch(
-        `${window.API_BASE}/api/orders/${selectedOrder.id}/line-items/${editingLineItem.id}`,
+      const res = await apiFetch(
+        `/api/orders/${selectedOrder.id}/line-items/${editingLineItem.id}`,
         {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(editLineItemForm),
         }
       );
@@ -239,11 +234,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
     if (!selectedOrder) return;
     setIsSubmittingAddLineItem(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/line-items`, {
+      const res = await apiFetch(`/api/orders/${selectedOrder.id}/line-items`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(addLineItemForm)
       });
@@ -266,11 +260,8 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const handleHoldAction = async (action) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/hold/${action}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiFetch(`/api/orders/${selectedOrder.id}/hold/${action}`, {
+        method: 'POST'
       });
       if (res.ok) {
         await fetchOrderDetails(selectedOrder.id);
@@ -293,11 +284,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
     if (!bulkDept || !bulkStatus) return;
     setBulkSubmitting(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/planning/line-items/${bulkUpdateLi.id}/bulk-units-status`, {
+      const res = await apiFetch(`/api/planning/line-items/${bulkUpdateLi.id}/bulk-units-status`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ dept: bulkDept, status: bulkStatus })
       });
@@ -348,9 +338,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/users", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/users");
       if (res.ok) {
         setUsers(await res.json());
       }
@@ -361,9 +349,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const fetchUnitSteps = async (unitId) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/steps`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/units/${unitId}/steps`);
       if (res.ok) {
         setUnitSteps(await res.json());
       }
@@ -374,11 +360,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const updateUnitStep = async (stepId, body) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${selectedUnit.id}/steps/${stepId}`, {
+      const res = await apiFetch(`/api/units/${selectedUnit.id}/steps/${stepId}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(body)
       });
@@ -412,9 +397,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch(window.API_BASE + "/api/orders", {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch("/api/orders");
       if (res.ok) {
         const data = await res.json();
         setOrders(data);
@@ -428,9 +411,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const fetchOrderDetails = async (id) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/orders/${id}`);
       if (res.ok) {
         const data = await res.json();
         setSelectedOrder(data);
@@ -470,11 +451,10 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
 
   const updateUnitStatus = async (unitId, newStatus) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/units/${unitId}/status`, {
+      const res = await apiFetch(`/api/units/${unitId}/status`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ status: newStatus })
       });

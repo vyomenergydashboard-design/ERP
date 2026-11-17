@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { UserCheck, Search, Plus, Pencil, Trash2, X, Briefcase } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 export default function WiremanMasters({ token, user }) {
   const [wiremen, setWiremen] = useState([]);
@@ -19,9 +20,7 @@ export default function WiremanMasters({ token, user }) {
   const fetchWiremen = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/wireman-masters`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/wireman-masters`);
       if (res.ok) {
         const data = await res.json();
         setWiremen(Array.isArray(data) ? data : []);
@@ -94,11 +93,10 @@ export default function WiremanMasters({ token, user }) {
       
       const method = editingId ? 'PUT' : 'POST';
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           name: trimmedName,
@@ -126,9 +124,8 @@ export default function WiremanMasters({ token, user }) {
     setActionNotice(null);
 
     try {
-      const res = await fetch(`${window.API_BASE}/api/wireman-masters/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await apiFetch(`/api/wireman-masters/${id}`, {
+        method: 'DELETE'
       });
 
       if (res.ok) {

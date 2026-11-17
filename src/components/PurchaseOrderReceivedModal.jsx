@@ -20,6 +20,7 @@ import {
   Clock,
   ArrowRight
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 const CATEGORY_CONFIG = {
   'Panel': {
@@ -230,9 +231,7 @@ export default function PurchaseOrderReceivedModal({ isOpen, onClose, onStatusUp
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
+      const res = await apiFetch(`/api/purchase-orders`);
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -401,11 +400,10 @@ export default function PurchaseOrderReceivedModal({ isOpen, onClose, onStatusUp
     // 2. Persist to API
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/purchase-orders/${encodeURIComponent(orderId)}/status`, {
+      const res = await apiFetch(`/api/purchase-orders/${encodeURIComponent(orderId)}/status`, {
         method: 'PATCH',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           status: newStatus,

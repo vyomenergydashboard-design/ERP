@@ -4,6 +4,7 @@ import { openProtectedUpload } from '../utils/protectedUploads';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 import { FileText, ExternalLink, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
 import { isPrivileged } from '../data/roles';
+import { apiFetch } from '../api/client';
 
 // Ensure dates are always in yyyy-MM-dd format for <input type="date">
 const toDateInput = (val) => {
@@ -52,9 +53,7 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
     }
 
     if (step?.order_unit_id) {
-      fetch(`${window.API_BASE}/api/units/${step.order_unit_id}/reference-documents`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      apiFetch(`/api/units/${step.order_unit_id}/reference-documents`)
         .then(res => res.ok ? res.json() : null)
         .then(data => setUnitRefDocs(data))
         .catch(err => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal.jsx';
 import { UploadCloud, FileText, Check, AlertCircle, X } from 'lucide-react';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect.jsx';
+import { apiFetch } from '../api/client';
 
 export default function AddPartMasterModal({
   isOpen,
@@ -30,9 +31,7 @@ export default function AddPartMasterModal({
   useEffect(() => {
     if (isOpen && (!panelSizeMasters || panelSizeMasters.length === 0)) {
       const token = localStorage.getItem('token');
-      fetch(`${window.API_BASE}/api/panel-size-masters`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      apiFetch(`/api/panel-size-masters`)
         .then(res => res.json())
         .then(data => setFetchedPanelSizes(Array.isArray(data) ? data : []))
         .catch(err => console.error('Failed to load panel sizes in modal:', err));
@@ -71,11 +70,10 @@ export default function AddPartMasterModal({
 
     try {
       // 1. Create Part Number Master
-      const res = await fetch(`${window.API_BASE}/api/part-number-masters`, {
+      const res = await apiFetch(`/api/part-number-masters`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(formData)
       });
@@ -94,9 +92,8 @@ export default function AddPartMasterModal({
         drawBody.append('file', drawingFile);
         drawBody.append('doc_type', 'Drawing');
         try {
-          const drawRes = await fetch(`${window.API_BASE}/api/part-number-masters/${createdPart.id}/documents`, {
+          const drawRes = await apiFetch(`/api/part-number-masters/${createdPart.id}/documents`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
             body: drawBody
           });
           if (drawRes.ok) {
@@ -115,9 +112,8 @@ export default function AddPartMasterModal({
         bomBody.append('file', bomFile);
         bomBody.append('doc_type', 'BOM');
         try {
-          const bomRes = await fetch(`${window.API_BASE}/api/part-number-masters/${createdPart.id}/documents`, {
+          const bomRes = await apiFetch(`/api/part-number-masters/${createdPart.id}/documents`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
             body: bomBody
           });
           if (bomRes.ok) {

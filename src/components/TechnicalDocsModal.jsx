@@ -5,6 +5,7 @@ import {
   FileText, UploadCloud, Trash2, ExternalLink, AlertCircle, Plus, FileCheck, Loader2,
   Eye, History, Download, Upload, CheckSquare, Square, Paperclip, Info, ChevronUp, ChevronDown, Check, X, Layers
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 export default function TechnicalDocsModal({
   selectedPart,
@@ -80,9 +81,8 @@ export default function TechnicalDocsModal({
       formData.append('doc_type', docType);
       files.forEach(f => formData.append('files', f));
 
-      const upRes = await fetch(`${window.API_BASE}/api/documents/upload`, {
+      const upRes = await apiFetch(`/api/documents/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -252,11 +252,10 @@ export default function TechnicalDocsModal({
       let partId = selectedPart.partId;
 
       if (!partId) {
-        const createRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
+        const createRes = await apiFetch(`/api/part-number-masters`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             part_number: selectedPart.partNumber,
@@ -269,9 +268,7 @@ export default function TechnicalDocsModal({
           const created = await createRes.json();
           partId = created.id;
         } else {
-          const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          const listRes = await apiFetch(`/api/part-number-masters`);
           if (listRes.ok) {
             const list = await listRes.json();
             const found = list.find(p => p.part_number?.trim().toLowerCase() === selectedPart.partNumber?.trim().toLowerCase());
@@ -288,9 +285,8 @@ export default function TechnicalDocsModal({
       formData.append('doc_type', docTypeToUpload);
       filesToUpload.forEach(f => formData.append('files', f));
 
-      const upRes = await fetch(`${window.API_BASE}/api/part-number-masters/${partId}/documents`, {
+      const upRes = await apiFetch(`/api/part-number-masters/${partId}/documents`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -299,9 +295,7 @@ export default function TechnicalDocsModal({
         throw new Error(errData.error || `Failed to upload ${docTypeToUpload}`);
       }
 
-      const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const listRes = await apiFetch(`/api/part-number-masters`);
       if (listRes.ok) {
         const freshList = await listRes.json();
         const updated = freshList.find(p => p.id === partId || p.part_number?.trim().toLowerCase() === selectedPart.partNumber?.trim().toLowerCase());
@@ -359,9 +353,8 @@ export default function TechnicalDocsModal({
       formData.append('doc_type', docTypeToUpload);
       filesToUpload.forEach(f => formData.append('files', f));
 
-      const upRes = await fetch(`${window.API_BASE}/api/documents/upload`, {
+      const upRes = await apiFetch(`/api/documents/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: formData
       });
 
@@ -390,14 +383,11 @@ export default function TechnicalDocsModal({
   const handleDeleteMasterDoc = async (docId) => {
     if (!window.confirm('Are you sure you want to delete this document revision?')) return;
     try {
-      const delRes = await fetch(`${window.API_BASE}/api/part-number-masters/${selectedPart.partId}/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      const delRes = await apiFetch(`/api/part-number-masters/${selectedPart.partId}/documents/${docId}`, {
+        method: 'DELETE'
       });
       if (delRes.ok) {
-        const listRes = await fetch(`${window.API_BASE}/api/part-number-masters`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const listRes = await apiFetch(`/api/part-number-masters`);
         if (listRes.ok) {
           const freshList = await listRes.json();
           const updated = freshList.find(p => p.id === selectedPart.partId || p.part_number?.trim().toLowerCase() === selectedPart.partNumber?.trim().toLowerCase());
@@ -427,9 +417,8 @@ export default function TechnicalDocsModal({
   const handleDeleteOrderDoc = async (docId) => {
     if (!window.confirm('Are you sure you want to delete this document?')) return;
     try {
-      const delRes = await fetch(`${window.API_BASE}/api/documents/${docId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
+      const delRes = await apiFetch(`/api/documents/${docId}`, {
+        method: 'DELETE'
       });
       if (delRes.ok) {
         onUpdateSelectedPart(prev => ({

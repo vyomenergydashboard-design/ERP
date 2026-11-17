@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { apiFetch } from '../api/client';
 
 export default function OrderImport({ onImportComplete }) {
   const [file, setFile] = useState(null);
@@ -35,9 +36,8 @@ export default function OrderImport({ onImportComplete }) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch(window.API_BASE + "/api/orders/import", {
+      const res = await apiFetch("/api/orders/import", {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
         body: fd,
       });
       const data = await res.json();

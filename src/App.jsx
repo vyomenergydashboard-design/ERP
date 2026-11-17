@@ -30,6 +30,7 @@ import { fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
 import { useEventStream } from './hooks/useEventStream';
 import { isDepartmentRole } from './data/roles';
+import { apiFetch } from './api/client';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -112,14 +113,8 @@ function Dashboard() {
     }
   }, [currentView, isAdmin]);
 
-  // Attach the bearer token; 401 handling is done globally by the fetch interceptor in main.jsx
-  const authFetch = (url, options = {}) => fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`
-    }
-  });
+  // apiFetch adds the bearer token; 401 handling is done globally by the fetch interceptor in main.jsx
+  const authFetch = apiFetch;
 
   const fetchTaskMasters = async () => {
     if (!token) return;
@@ -222,8 +217,7 @@ function Dashboard() {
       return undefined;
     }
     const controller = new AbortController();
-    fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
-      headers: { 'Authorization': `Bearer ${token}` },
+    apiFetch(`/api/units/${targetUnitId}/steps`, {
       signal: controller.signal
     })
       .then(async res => {
@@ -249,9 +243,7 @@ function Dashboard() {
 
       const targetUnitId = selectedUnitId;
       if (targetUnitId && token) {
-        fetch(`${window.API_BASE}/api/units/${targetUnitId}/steps`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+        apiFetch(`/api/units/${targetUnitId}/steps`)
           .then(async res => {
             if (res.ok) setUnitSteps(await res.json());
           })
@@ -365,9 +357,9 @@ function Dashboard() {
 
   const handleSaveStep = async (data) => {
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/${selectedStepId}`, {
+      const res = await apiFetch(`/api/orders/${selectedOrderId}/steps/${selectedStepId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
 
@@ -398,9 +390,8 @@ function Dashboard() {
   const handleDeleteStep = async (stepId) => {
     if (!window.confirm("Are you sure you want to permanently delete this task from the order's flow?")) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrderId}/steps/${stepId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      const res = await apiFetch(`/api/orders/${selectedOrderId}/steps/${stepId}`, {
+        method: 'DELETE'
       });
       if (res.ok) {
         setIsModalOpen(false);

@@ -3,6 +3,7 @@ import { DEPTS } from '../data/planningData';
 import { Clock, ChevronLeft } from 'lucide-react';
 import EditRefTagModal from './EditRefTagModal.jsx';
 import { openProtectedUpload } from '../utils/protectedUploads';
+import { apiFetch } from '../api/client';
 
 function relativeTime(isoString) {
   if (!isoString) return null;
@@ -26,11 +27,10 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
   const handleClassificationChange = async (newVal) => {
     if (!selectedOrder?.id) return;
     try {
-      const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}/classification`, {
+      const res = await apiFetch(`/api/orders/${selectedOrder.id}/classification`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ classification: newVal })
       });
@@ -285,11 +285,10 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
           onSave={async ({ reference_number, tag }) => {
             const targetUnitId = selectedStep?.id || selectedStep?.unit_id || selectedOrder.units?.[0]?.id || selectedOrder.units?.[0]?.unit_id;
             if (targetUnitId) {
-              const res = await fetch(`${window.API_BASE}/api/units/${targetUnitId}`, {
+              const res = await apiFetch(`/api/units/${targetUnitId}`, {
                 method: 'PUT',
                 headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ reference_number, tag })
               });
@@ -298,11 +297,10 @@ export default function RightPanel({ selectedStep, activityLog, selectedOrder, i
                 throw new Error(errData.error || 'Failed to save Reference & Tag');
               }
             } else {
-              const res = await fetch(`${window.API_BASE}/api/orders/${selectedOrder.id}`, {
+              const res = await apiFetch(`/api/orders/${selectedOrder.id}`, {
                 method: 'PUT',
                 headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`
+                  'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ reference_number })
               });

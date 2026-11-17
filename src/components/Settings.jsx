@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings, Save, RefreshCw, Sliders, ShieldAlert, CheckCircle, Hash, Lock, AlertTriangle, X } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 export default function SettingsView() {
   const [companyName, setCompanyName] = useState(() => localStorage.getItem('erp_company_name') || 'Vyom Process Flow');
@@ -35,10 +36,7 @@ export default function SettingsView() {
   const [resetModalError, setResetModalError] = useState('');
 
   const fetchSettings = () => {
-    const currentToken = localStorage.getItem('token');
-    fetch(window.API_BASE + '/api/system-settings', {
-      headers: { Authorization: `Bearer ${currentToken}` }
-    })
+    apiFetch('/api/system-settings')
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -81,9 +79,9 @@ export default function SettingsView() {
     }
     setOrderSettingSaving(true);
     try {
-      const res = await fetch(window.API_BASE + '/api/system-settings', {
+      const res = await apiFetch('/api/system-settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_number_start: num })
       });
       const data = await res.json();
@@ -128,11 +126,7 @@ export default function SettingsView() {
     setMaintenanceSuccess('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/admin/backup`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const res = await apiFetch(`/api/admin/backup`);
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -174,11 +168,8 @@ export default function SettingsView() {
     setMaintenanceSuccess('');
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/logs`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const res = await apiFetch(`/api/logs`, {
+        method: 'DELETE'
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -214,12 +205,10 @@ export default function SettingsView() {
     setIsResetting(true);
     setResetModalError('');
     try {
-      const currentToken = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/admin/maintenance/factory-reset`, {
+      const res = await apiFetch(`/api/admin/maintenance/factory-reset`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentToken}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           confirmation: 'FACTORY RESET',
@@ -243,11 +232,7 @@ export default function SettingsView() {
       // Automatically trigger direct browser download to personal computer
       if (data.downloadUrl) {
         try {
-          const downloadRes = await fetch(`${window.API_BASE}${data.downloadUrl}`, {
-            headers: {
-              'Authorization': `Bearer ${currentToken}`
-            }
-          });
+          const downloadRes = await apiFetch(`${window.API_BASE}${data.downloadUrl}`);
           if (downloadRes.ok) {
             const blob = await downloadRes.blob();
             const url = window.URL.createObjectURL(blob);

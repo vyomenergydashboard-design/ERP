@@ -17,6 +17,7 @@ import {
   Calendar,
   AlertCircle
 } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 /**
  * PurchaseNewOrderModal
@@ -303,9 +304,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
     const fetchDbOrders = async () => {
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {}
-        });
+        const res = await apiFetch(`/api/purchase-orders`);
         if (res.ok) {
           const data = await res.json();
           if (Array.isArray(data) && data.length > 0) {
@@ -451,9 +450,7 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
         try {
           setIsLoadingUnits(true);
           const token = localStorage.getItem('token');
-          const res = await fetch(`${window.API_BASE}/api/dept-worklist/all`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {}
-          });
+          const res = await apiFetch(`/api/dept-worklist/all`);
           if (res.ok) {
             const data = await res.json();
             if (isMounted && Array.isArray(data)) {
@@ -736,11 +733,10 @@ export default function PurchaseNewOrderModal({ isOpen, onClose, existingUnits =
     try {
       // 1. Post to PostgreSQL database backend
       const token = localStorage.getItem('token');
-      const res = await fetch(`${window.API_BASE}/api/purchase-orders`, {
+      const res = await apiFetch(`/api/purchase-orders`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           category,

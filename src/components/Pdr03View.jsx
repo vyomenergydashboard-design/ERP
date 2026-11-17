@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, X, Printer, RefreshCw, ArrowRight, FileText } from 'lucide-react';
+import { apiFetch } from '../api/client';
 
 export default function Pdr03View({ onNavigateToView, userRole }) {
   const [units, setUnits] = useState([]);
@@ -18,9 +19,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
   const fetchAllUnits = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${window.API_BASE}/api/dept-worklist/all`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`/api/dept-worklist/all`);
       if (res.ok) {
         const data = await res.json();
         setUnits(data);
@@ -44,9 +43,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
     }
     const fetchSteps = async () => {
       try {
-        const res = await fetch(`${window.API_BASE}/api/units/${selectedUnit.unit_id}/steps`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/units/${selectedUnit.unit_id}/steps`);
         if (res.ok) {
           const steps = await res.json();
           setUnitSteps(steps);
@@ -66,9 +63,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
     }
     const fetchDocs = async () => {
       try {
-        const res = await fetch(`${window.API_BASE}/api/units/${selectedUnit.unit_id}/reference-documents`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await apiFetch(`/api/units/${selectedUnit.unit_id}/reference-documents`);
         if (res.ok) {
           const docs = await res.json();
           setReferenceDocs(docs);

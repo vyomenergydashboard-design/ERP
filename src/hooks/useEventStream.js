@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { apiFetch } from '../api/client';
 
 const MIN_RETRY_MS = 1000;
 const MAX_RETRY_MS = 15000;
@@ -74,10 +75,9 @@ export function useEventStream() {
 
       try {
         // Obtain a short-lived single-use ticket to avoid exposing the JWT in URL query strings
-        const ticketRes = await fetch(`${window.API_BASE}/api/events/ticket`, {
+        const ticketRes = await apiFetch(`/api/events/ticket`, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
           }
         });
