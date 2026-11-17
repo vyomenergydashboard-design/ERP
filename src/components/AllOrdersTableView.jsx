@@ -25,6 +25,7 @@ import { PIPELINE } from '../data/planningData';
 import { MODAL_OVERLAY_SELECTOR } from '../hooks/useGlobalModalEscape';
 import { useStableCallback } from '../hooks/useStableCallback';
 import { openProtectedUpload, useSignedUploadUrl } from '../utils/protectedUploads';
+import { hasRole, TABLE_EDIT_ROLES } from '../data/roles';
 
 // Columns owned by a single department. In that department's view (and in 'all')
 // they are shown unless explicitly hidden; in any other department's view they
@@ -4169,7 +4170,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     return localStorage.getItem('userRole') || 'Sales';
   })();
   const roleUpper = (userRole || '').trim().toUpperCase();
-  const canEdit = ['ADMIN', 'MANAGER', 'DESIGN', 'SALES', 'PRODUCTION', 'STORES', 'PURCHASE', 'QC', 'DISPATCH', 'ACCOUNTS'].includes(roleUpper);
+  const canEdit = hasRole(userRole, TABLE_EDIT_ROLES); // Planning intentionally read-only here
   const canEditPurchaseNA = ['ADMIN', 'MANAGER', 'PURCHASE', 'STORES', 'DESIGN', 'SALES'].includes(roleUpper);
   const canEditPanelSize = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);
   const canManageDocs = ['ADMIN', 'MANAGER', 'DESIGN'].includes(roleUpper);

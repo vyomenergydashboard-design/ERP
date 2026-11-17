@@ -3,6 +3,7 @@ import DocumentManager from './DocumentManager';
 import BulkImportModal from './BulkImportModal';
 import OrderDocumentsModal from './OrderDocumentsModal';
 import { STATUS_BADGE_MAP } from '../data/planningData';
+import { isPrivileged, hasRole, OPERATOR_ROLES } from '../data/roles';
 
 export default function OrderList({ initialSelectedId, onSelectOrder }) {
   const [orders, setOrders] = useState([]);
@@ -656,7 +657,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
                       <span style={{ fontSize: '11px', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontWeight: '600' }}>
                         Hold Requested
                       </span>
-                      {['admin', 'manager'].includes(currentUser.role?.toLowerCase()) && (
+                      {isPrivileged(currentUser.role) && (
                         <>
                           <button
                             type="button"
@@ -829,7 +830,7 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
                             Ref/Tag: {(selectedOrder.reference_number && li.tag) ? `${selectedOrder.reference_number}/${li.tag}` : (selectedOrder.reference_number || li.tag)}
                           </span>
                         )}
-                        {['admin', 'manager', 'production', 'sales', 'design', 'purchase', 'stores', 'qc', 'dispatch', 'accounts', 'planning'].includes(currentUser.role?.toLowerCase()) && (
+                        {hasRole(currentUser.role, OPERATOR_ROLES) && (
                           <button
                             className="vbtn"
                             style={{ padding: '2px 8px', fontSize: '10px', background: '#2563eb', border: 'none', borderRadius: '4px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', height: '22px' }}
@@ -930,13 +931,13 @@ export default function OrderList({ initialSelectedId, onSelectOrder }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     {[...unitSteps].sort((a, b) => {
-                      if (['admin', 'manager'].includes(currentUser.role?.toLowerCase())) return 0;
+                      if (isPrivileged(currentUser.role)) return 0;
                       if (a.dept?.toLowerCase() === currentUser.role?.toLowerCase() && b.dept?.toLowerCase() !== currentUser.role?.toLowerCase()) return -1;
                       if (b.dept?.toLowerCase() === currentUser.role?.toLowerCase() && a.dept?.toLowerCase() !== currentUser.role?.toLowerCase()) return 1;
                       return 0;
                     }).map(step => {
                       const isExpanded = expandedStepId === step.id;
-                      const canEditStep = (['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase() || step.assigned_user_id === currentUser.id) && selectedOrder?.hold_status !== 'Approved';
+                      const canEditStep = (isPrivileged(currentUser.role) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase() || step.assigned_user_id === currentUser.id) && selectedOrder?.hold_status !== 'Approved';
                       const assignedUser = users.find(u => u.id === step.assigned_user_id);
 
                       let stepCustomFields = [];

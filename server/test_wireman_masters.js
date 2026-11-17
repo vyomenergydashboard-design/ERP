@@ -105,12 +105,13 @@ async function runTests() {
     });
     assert.strictEqual(planGetRes.status, 200, 'Planning user must be able to view wiremen');
 
-    // Sales role cannot read (user restricted to Admin, Manager, Production, Planning)
+    // Any logged-in role can read the list (the Table View shows wiremen names to everyone);
+    // create/update/delete stay Admin-only (asserted below).
     const salesGetRes = await fetch(`${API_BASE}/api/wireman-masters`, {
       headers: { 'Authorization': `Bearer ${salesToken}` }
     });
-    assert.strictEqual(salesGetRes.status, 403, 'Sales role must be forbidden from reading wiremen (403)');
-    console.log('  Passed: Read access restricted to Admin, Manager, Production, Planning');
+    assert.strictEqual(salesGetRes.status, 200, 'Sales role must be able to read wiremen');
+    console.log('  Passed: Read access open to all logged-in roles');
 
     // Verify alphabetical ordering
     const testWiremen = wiremenList.filter(w => w.name.startsWith('TEST_WIREMAN_'));

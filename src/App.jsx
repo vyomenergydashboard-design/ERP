@@ -29,6 +29,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { fmtTime } from './data/planningData';
 import useGlobalModalEscape from './hooks/useGlobalModalEscape';
 import { useEventStream } from './hooks/useEventStream';
+import { isDepartmentRole } from './data/roles';
 
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem('token');
@@ -52,7 +53,7 @@ function Dashboard() {
     const saved = localStorage.getItem('erp_currentFilter');
     if (saved) return saved;
     const u = JSON.parse(localStorage.getItem('user') || '{}');
-    if (u.role && !['Admin', 'Manager', 'Viewer'].includes(u.role)) {
+    if (u.role && isDepartmentRole(u.role)) {
       return u.role;
     }
     return 'all';

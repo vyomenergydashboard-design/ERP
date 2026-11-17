@@ -4,6 +4,7 @@ import DocumentPreviewModal, { getDocumentType } from './DocumentPreviewModal';
 import PanelSizeSearchSelect from './PanelSizeSearchSelect';
 import WiremanMasters from './WiremanMasters';
 import { resolveUploadPath, downloadProtectedUpload } from '../utils/protectedUploads';
+import { isPrivileged } from '../data/roles';
 
 const FIELD_TYPES = ['Text', 'Number', 'Date', 'Date & Time', 'Yes/No', 'Dropdown'];
 
@@ -255,7 +256,7 @@ export default function Masters() {
 
   const token = localStorage.getItem('token');
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditMasters = !user.role || ['admin', 'manager'].includes(user.role?.toLowerCase());
+  const canEditMasters = !user.role || isPrivileged(user.role);
   const canEditClients = !user.role || ['admin', 'manager', 'sales'].includes(user.role?.toLowerCase());
   const canEditPartMaster = !user.role || ['admin', 'manager', 'design', 'sales'].includes(user.role?.toLowerCase());
   const isDesignUser = (user.role || '').trim().toLowerCase() === 'design';

@@ -3,6 +3,7 @@ import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
 import DocumentManager from './DocumentManager';
 import { openProtectedUpload } from '../utils/protectedUploads';
 import { FileText, ExternalLink, Download, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
+import { isPrivileged } from '../data/roles';
 
 // Reloads a unit's steps after a change. Returns null (and keeps the current list on screen)
 // if the reload fails, instead of treating an error response as the step list.
@@ -61,7 +62,7 @@ export default function FlowView({
     scope: 'selected'
   });
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEditUnitStep = editingUnitStep ? (['Admin', 'Manager'].includes(userRole) || editingUnitStep.dept === userRole || editingUnitStep.assigned_user_id === currentUser.id) : false;
+  const canEditUnitStep = editingUnitStep ? (isPrivileged(userRole) || editingUnitStep.dept === userRole || editingUnitStep.assigned_user_id === currentUser.id) : false;
   const [unitModalActiveTab, setUnitModalActiveTab] = useState('details');
   const [unitDocCount, setUnitDocCount] = useState(0);
   const [unitRefDocs, setUnitRefDocs] = useState(null);
@@ -484,7 +485,7 @@ export default function FlowView({
 
   const depts = useMemo(() => {
     const sorted = [...DEPTS].sort((a, b) => {
-      if (['Admin', 'Manager'].includes(userRole)) return 0;
+      if (isPrivileged(userRole)) return 0;
       if (a.id === userRole) return -1;
       if (b.id === userRole) return 1;
       return 0;
@@ -721,7 +722,7 @@ export default function FlowView({
           {depts.map((dept) => {
             const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
             const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
-            const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
+            const canEdit = !selectedUnitId && (isPrivileged(userRole) || dept.id === userRole);
 
             const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
 
@@ -763,7 +764,7 @@ export default function FlowView({
                   {deptSteps.map((step, i) => {
                     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
                     const isUnitStep = !!step.order_unit_id;
-                    const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
+                    const canEditStep = isPrivileged(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
                     const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
                     const isStepHold = step.status === 'hold' || (selectedUnit && selectedUnit.hold_step_id === step.id);
                     const isStepCancelled = step.status === 'cancelled' || (selectedUnit && selectedUnit.cancelled_step_id === step.id);
@@ -856,7 +857,7 @@ export default function FlowView({
           {depts.map((dept) => {
             const deptSteps = activeSteps.filter((s) => s.dept === dept.id);
             const hasBlocked = deptSteps.some((s) => s.status === 'blocked');
-            const canEdit = !selectedUnitId && (['Admin', 'Manager'].includes(userRole) || dept.id === userRole);
+            const canEdit = !selectedUnitId && (isPrivileged(userRole) || dept.id === userRole);
 
             const availableTasks = taskMasters.filter(t => t.dept === dept.id && !deptSteps.some(s => s.task_id === t.id));
 
@@ -946,7 +947,7 @@ export default function FlowView({
                   {deptSteps.map((step, i) => {
                     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
                     const isUnitStep = !!step.order_unit_id;
-                    const canEditStep = ['Admin', 'Manager'].includes(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
+                    const canEditStep = isPrivileged(userRole) || step.dept === userRole || (isUnitStep && step.assigned_user_id === currentUser.id);
                     const canDrag = !isUnitStep && !selectedUnitId && canEditStep;
                     const isStepHold = step.status === 'hold' || (selectedUnit && selectedUnit.hold_step_id === step.id);
                     const isStepCancelled = step.status === 'cancelled' || (selectedUnit && selectedUnit.cancelled_step_id === step.id);

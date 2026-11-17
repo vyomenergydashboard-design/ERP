@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { isDepartmentRole } from '../data/roles';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -38,7 +39,7 @@ export default function Login() {
       if (data.user?.role) {
         localStorage.setItem('userRole', data.user.role);
       }
-      if (data.user?.role && !['Admin', 'Manager', 'Viewer'].includes(data.user.role)) {
+      if (data.user?.role && isDepartmentRole(data.user.role)) {
         localStorage.setItem('erp_currentFilter', data.user.role);
       }
       navigate('/dashboard');

@@ -20,6 +20,7 @@ import { initEventStream, broadcastEvent } from './services/eventStream.js';
 import { safeEvaluateCondition } from './services/safeConditionEvaluator.js';
 import { installAfterCommitHooks, runAfterCommit } from './services/afterCommit.js';
 import { DEFAULT_STEPS } from './data/defaultTaskMasters.js';
+import { PIPELINE, ALL_ROLES, OPERATOR_ROLES, PIPELINE_SQL_ARRAY, deptOrderSql } from './data/workflow.js';
 import { publicErrorMessage } from './services/httpErrors.js';
 
 // Emails and other side effects queued inside a transaction run only after COMMIT.
@@ -80,12 +81,6 @@ if (!JWT_SECRET) {
   console.error('FATAL: JWT_SECRET environment variable is not set. Refusing to start without it.');
   process.exit(1);
 }
-
-// Canonical department order. Frontend mirror: DEPTS in src/data/planningData.js — keep in sync.
-const PIPELINE = Object.freeze(['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts']);
-
-// Every authenticated role that may perform write operations (everyone except read-only Viewer).
-const OPERATOR_ROLES = Object.freeze(['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts']);
 
 // Best-effort removal of multer-written files for a rejected upload request.
 const cleanupUploadedFiles = (files) => {
@@ -807,18 +802,7 @@ const initDB = async () => {
       SELECT * FROM task_masters 
       WHERE is_mandatory = true 
       ORDER BY 
-        CASE dept
-          WHEN 'Sales' THEN 1
-          WHEN 'Design' THEN 2
-          WHEN 'Purchase' THEN 3
-          WHEN 'Stores' THEN 4
-          WHEN 'Planning' THEN 5
-          WHEN 'Production' THEN 6
-          WHEN 'QC' THEN 7
-          WHEN 'Dispatch' THEN 8
-          WHEN 'Accounts' THEN 9
-          ELSE 10
-        END ASC,
+        ${deptOrderSql('dept')} ASC,
         id ASC
     `);
     const tasks = dbTasks.rows.length > 0 ? dbTasks.rows : DEFAULT_STEPS;
@@ -1373,7 +1357,7 @@ app.get('/api/users', authorize(), async (req, res) => {
 
 app.patch('/api/users/:id/role', authorize(['Admin']), async (req, res) => {
   const { role } = req.body;
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'];
+  const VALID_ROLES = ALL_ROLES;
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -1451,7 +1435,7 @@ app.put('/api/users/:id', authorize(['Admin']), async (req, res) => {
     return res.status(400).json({ error: 'Username, email, and role are required' });
   }
 
-  const VALID_ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'];
+  const VALID_ROLES = ALL_ROLES;
   if (!VALID_ROLES.includes(role)) {
     return res.status(400).json({ error: 'Invalid role' });
   }
@@ -1681,18 +1665,7 @@ app.post('/api/orders', authorize(['Admin', 'Manager', 'Sales']), upload.any(), 
       SELECT * FROM task_masters 
       WHERE is_mandatory = true 
       ORDER BY 
-        CASE dept
-          WHEN 'Sales' THEN 1
-          WHEN 'Design' THEN 2
-          WHEN 'Purchase' THEN 3
-          WHEN 'Stores' THEN 4
-          WHEN 'Planning' THEN 5
-          WHEN 'Production' THEN 6
-          WHEN 'QC' THEN 7
-          WHEN 'Dispatch' THEN 8
-          WHEN 'Accounts' THEN 9
-          ELSE 10
-        END ASC,
+        ${deptOrderSql('dept')} ASC,
         id ASC
     `);
     let tasks = tasksResult.rows;
@@ -2248,18 +2221,7 @@ app.post('/api/orders/:orderId/line-items', authorize(['Admin', 'Manager', 'Sale
       SELECT * FROM task_masters 
       WHERE is_mandatory = true AND level = 'unit'
       ORDER BY 
-        CASE dept
-          WHEN 'Sales' THEN 1
-          WHEN 'Design' THEN 2
-          WHEN 'Purchase' THEN 3
-          WHEN 'Stores' THEN 4
-          WHEN 'Planning' THEN 5
-          WHEN 'Production' THEN 6
-          WHEN 'QC' THEN 7
-          WHEN 'Dispatch' THEN 8
-          WHEN 'Accounts' THEN 9
-          ELSE 10
-        END ASC,
+        ${deptOrderSql('dept')} ASC,
         id ASC
     `);
     let unitTasks = tasksResult.rows;
@@ -2728,18 +2690,7 @@ app.post('/api/orders/import', authorize(['Sales', 'Admin', 'Manager']), upload.
         SELECT * FROM task_masters 
         WHERE is_mandatory = true 
         ORDER BY 
-          CASE dept
-            WHEN 'Sales' THEN 1
-            WHEN 'Design' THEN 2
-            WHEN 'Purchase' THEN 3
-            WHEN 'Stores' THEN 4
-            WHEN 'Planning' THEN 5
-            WHEN 'Production' THEN 6
-            WHEN 'QC' THEN 7
-            WHEN 'Dispatch' THEN 8
-            WHEN 'Accounts' THEN 9
-            ELSE 10
-          END ASC,
+          ${deptOrderSql('dept')} ASC,
           id ASC
       `);
       let tasks = tasksResult.rows;
@@ -4695,7 +4646,7 @@ app.put('/api/units/:id/status', authorize(['Admin', 'Manager']), async (req, re
   }
 });
 
-app.put('/api/units/:id', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Planning', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts']), async (req, res) => {
+app.put('/api/units/:id', authorize(OPERATOR_ROLES), async (req, res) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ error: 'Valid unit ID is required' });
@@ -5553,8 +5504,8 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         ) AS order_done_step_count,
         CASE 
           WHEN $1 != 'all' AND (
-            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
-            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+            array_position(${PIPELINE_SQL_ARRAY}, ou.current_dept) >
+            array_position(${PIPELINE_SQL_ARRAY}, $1)
             OR (ou.status IN ('Dispatched', 'Completed') AND $1 != 'Accounts')
           )
           THEN true 
@@ -5562,8 +5513,8 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
         END AS is_downstream,
         CASE 
           WHEN $1 != 'all' AND (
-            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
-            array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+            array_position(${PIPELINE_SQL_ARRAY}, ou.current_dept) >
+            array_position(${PIPELINE_SQL_ARRAY}, $1)
             OR ou.status IN ('Dispatched', 'Completed')
             OR (
               ou.current_dept = $1 AND NOT EXISTS (
@@ -5611,8 +5562,8 @@ app.get('/api/dept-worklist/:dept', authorize(), async (req, res) => {
       WHERE $1 = 'all' 
          OR ou.current_dept = $1 
          OR (
-           array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], ou.current_dept) >
-           array_position(ARRAY['Sales','Design','Purchase','Stores','Planning','Production','QC','Dispatch','Accounts']::text[], $1)
+           array_position(${PIPELINE_SQL_ARRAY}, ou.current_dept) >
+           array_position(${PIPELINE_SQL_ARRAY}, $1)
          )
          OR ou.status IN ('Dispatched', 'Completed')
          OR ou.hold_status IN ('Hold', 'Cancelled')
@@ -6257,7 +6208,7 @@ app.post('/api/units/:id/sales-clear', authorize(['Sales', 'Admin', 'Manager']),
   }
 });
 
-app.post('/api/units/hold-action', authorize(['Admin', 'Manager', 'Sales', 'Planning', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts']), async (req, res) => {
+app.post('/api/units/hold-action', authorize(OPERATOR_ROLES), async (req, res) => {
   const { unit_ids, action, reason, scope, order_id } = req.body;
   if (!['hold', 'cancel', 'resume'].includes(action)) {
     return res.status(400).json({ error: "Invalid action. Must be 'hold', 'cancel', or 'resume'." });
@@ -6894,7 +6845,7 @@ app.post('/api/column-masters', authorize(['Admin']), async (req, res) => {
     const newCol = result.rows[0];
 
     // Seed default visibility (true) for all departments
-    const depts = ['Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Planning'];
+    const depts = PIPELINE;
     for (const d of depts) {
       await pool.query(
         `INSERT INTO department_column_visibility (dept, col_key, is_visible) VALUES ($1, $2, true) ON CONFLICT DO NOTHING`,
@@ -7130,7 +7081,8 @@ app.delete('/api/part-number-masters/:id', authorize(['Admin', 'Manager', 'Desig
 });
 
 // ── PANEL SIZE MASTERS API ──
-app.get('/api/panel-size-masters', authorize(['Admin', 'Manager', 'Design', 'Sales', 'Production', 'Planning', 'Viewer']), async (req, res) => {
+// Read access for every logged-in user (reference data shown in the Table View).
+app.get('/api/panel-size-masters', authorize(), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM panel_size_masters ORDER BY id ASC');
     const rows = result.rows.map(r => ({
@@ -7630,7 +7582,7 @@ const seedSayaUser = async () => {
 
       INSERT INTO department_column_visibility (dept, col_key, is_visible)
       SELECT d.dept, c.col_key, true
-      FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+      FROM unnest(${PIPELINE_SQL_ARRAY}) AS d(dept)
       CROSS JOIN (SELECT col_key FROM column_masters WHERE col_key IN ('panel_code', 'panel_ip_rating', 'panel_comments')) c
       ON CONFLICT (dept, col_key) DO NOTHING;
 
@@ -7683,10 +7635,11 @@ const seedSayaUser = async () => {
     `);
 
     // Auto-migrate role constraints at boot to revert Planning default
-    await pool.query('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check');
+    // One statement, so there is no window without the constraint.
     await pool.query(`
-      ALTER TABLE users ADD CONSTRAINT users_role_check 
-      CHECK (role IN ('Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Viewer', 'Planning'))
+      ALTER TABLE users
+        DROP CONSTRAINT IF EXISTS users_role_check,
+        ADD CONSTRAINT users_role_check CHECK (role IN (${ALL_ROLES.map(r => `'${r}'`).join(', ')}))
     `);
     await pool.query("ALTER TABLE users ALTER COLUMN role SET DEFAULT 'Viewer'");
 

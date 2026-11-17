@@ -4,6 +4,7 @@ import PageHeader from './layout/PageHeader';
 import Button from './common/Button';
 import SearchInput from './common/SearchInput';
 import StatusBadge from './feedback/StatusBadge';
+import { isPrivileged, hasRole } from '../data/roles';
 
 const PRIORITY_CONFIG = {
   Urgent: { color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
@@ -87,8 +88,8 @@ function UnitRow({ unit, dept, onStepStatusChange, users, currentUser }) {
 
   const getCanEditStep = (step) => {
     if (isHold || isCancelled) return false;
-    if (unit.is_downstream && !['admin', 'manager'].includes(currentUser.role?.toLowerCase())) return false;
-    return ['admin', 'manager'].includes(currentUser.role?.toLowerCase()) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
+    if (unit.is_downstream && !isPrivileged(currentUser.role)) return false;
+    return isPrivileged(currentUser.role) || step.dept?.toLowerCase() === currentUser.role?.toLowerCase();
   };
 
   const rowBorder = isCancelled ? '#ef4444' : isHold ? '#f59e0b' : hasBlocked ? 'var(--red)' : isCompleted ? 'var(--green)' : 'transparent';
@@ -369,7 +370,7 @@ export default function DeptWorklist({ dept }) {
   };
   const token = localStorage.getItem('token');
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const canEdit = ['admin', 'manager', dept?.toLowerCase()].includes(currentUser.role?.toLowerCase());
+  const canEdit = isPrivileged(currentUser.role) || hasRole(currentUser.role, [dept]);
   const deptColor = DEPT_COLORS[dept] || '#6366f1';
   const tableContainerRef = useRef(null);
 

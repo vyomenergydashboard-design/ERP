@@ -25,7 +25,8 @@ export default function createWiremanMastersRouter(pool, authorize) {
   // List all wiremen ordered alphabetically by name
   // Restricted to the roles that assign wiremen. Other roles still see assigned
   // names in the order table (stored on each unit); they just can't list the master.
-  router.get('/', authorize(['Admin', 'Manager', 'Production', 'Planning']), async (req, res) => {
+  // Read access for every logged-in user: the Table View shows wiremen names to all roles.
+  router.get('/', authorize(), async (req, res) => {
     try {
       const result = await pool.query(
         'SELECT * FROM wireman_masters ORDER BY LOWER(TRIM(name)) ASC, id ASC'

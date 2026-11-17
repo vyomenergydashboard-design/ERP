@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, FolderOpen, RefreshCw, FileText, Download, Trash2, Calendar, User } from 'lucide-react';
 import { openProtectedUpload, downloadProtectedUpload } from '../utils/protectedUploads';
+import { isPrivileged } from '../data/roles';
 
 const DOC_TYPES = [
   'All', 'General', 'PO', 'Quotation', 'BOM', 'Drawing', 'QC Report', 'Dispatch Document', 'Photo'
@@ -472,7 +473,7 @@ export default function DocumentDirectory() {
                           </thead>
                           <tbody>
                             {order.docs.map(doc => {
-                              const canDelete = doc.uploaded_by === user.id || ['admin', 'manager'].includes(user.role?.toLowerCase());
+                              const canDelete = doc.uploaded_by === user.id || isPrivileged(user.role);
 
                               return (
                                 <tr key={doc.id} className="doc-row" style={{ borderBottom: '1px solid var(--border)' }}>

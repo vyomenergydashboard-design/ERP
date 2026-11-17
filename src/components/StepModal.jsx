@@ -3,6 +3,7 @@ import DocumentManager from './DocumentManager';
 import { openProtectedUpload } from '../utils/protectedUploads';
 import { STATUS_BADGE_MAP } from '../data/planningData';
 import { FileText, ExternalLink, CheckCircle2, AlertCircle, Layers } from 'lucide-react';
+import { isPrivileged } from '../data/roles';
 
 // Ensure dates are always in yyyy-MM-dd format for <input type="date">
 const toDateInput = (val) => {
@@ -29,8 +30,8 @@ export default function StepModal({ step, isOpen, onClose, onSave, onDelete, use
 
   const token = localStorage.getItem('token');
 
-  const canEditStructure = ['Admin', 'Manager'].includes(userRole);
-  const canEditStep = step ? (['Admin', 'Manager'].includes(userRole) || step.dept === userRole) && selectedOrder?.hold_status !== 'Approved' : false;
+  const canEditStructure = isPrivileged(userRole);
+  const canEditStep = step ? (isPrivileged(userRole) || step.dept === userRole) && selectedOrder?.hold_status !== 'Approved' : false;
 
   useEffect(() => {
     if (step) {

@@ -1,4 +1,5 @@
 import pool from './db.js';
+import { PIPELINE_SQL_ARRAY } from './data/workflow.js';
 
 /**
  * Runs `fn` inside its own transaction exactly once per database, recording a marker
@@ -239,7 +240,7 @@ export async function runDeploymentMigrations(clientParam) {
 
       INSERT INTO department_column_visibility (dept, col_key, is_visible)
       SELECT d.dept, c.col_key, true
-      FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('Planning')) AS d(dept)
+      FROM unnest(${PIPELINE_SQL_ARRAY}) AS d(dept)
       CROSS JOIN (SELECT col_key FROM column_masters WHERE col_key IN ('panel_code', 'panel_ip_rating', 'panel_comments')) c
       ON CONFLICT (dept, col_key) DO NOTHING;
 

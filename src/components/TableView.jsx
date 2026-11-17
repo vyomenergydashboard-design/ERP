@@ -1,4 +1,5 @@
 import { DEPTS, STATUS_BADGE_MAP } from '../data/planningData';
+import { isPrivileged } from '../data/roles';
 
 function StatusBadge({ status }) {
   const { cls, label } = STATUS_BADGE_MAP[status] || STATUS_BADGE_MAP.pending;
@@ -9,7 +10,7 @@ export default function TableView({ steps, currentFilter, onOpenModal, userRole 
   const filtered = (currentFilter === 'all' ? steps : steps.filter((s) => s.dept === currentFilter))
     .slice()
     .sort((a, b) => {
-      if (['Admin', 'Manager'].includes(userRole)) return 0;
+      if (isPrivileged(userRole)) return 0;
       if (a.dept === userRole && b.dept !== userRole) return -1;
       if (b.dept === userRole && a.dept !== userRole) return 1;
       return 0;

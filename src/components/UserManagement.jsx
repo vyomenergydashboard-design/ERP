@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Users, Shield, Check, X, Loader2, UserPlus, Mail, Lock, User, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { ALL_ROLES } from '../data/roles';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);
@@ -27,7 +28,7 @@ export default function UserManagement() {
 
   const token = localStorage.getItem('token');
 
-  const ROLES = ['Admin', 'Manager', 'Sales', 'Design', 'Purchase', 'Stores', 'Production', 'QC', 'Dispatch', 'Accounts', 'Planning', 'Viewer'];
+  const ROLES = ALL_ROLES;
 
   useEffect(() => {
     fetchUsers();
