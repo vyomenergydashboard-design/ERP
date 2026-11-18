@@ -38,9 +38,11 @@ delete the branch.
 `part-number-masters` → `routes/partNumberMasters.js` (its 3 document routes used to sit after the
 panel-size routes; they now register with the rest of the router, which is safe because the
 prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`, `task_masters` →
-`routes/taskMasters.js`, `column-masters` → `routes/columnMasters.js`. `index.js` is now ~5,770
-lines. Next routers: `logs` + `users` + `system-settings` (note: `system-settings` uses
-`computeNextOrderNumber` from `services/orderNumbers.js`).
+`routes/taskMasters.js`, `column-masters` → `routes/columnMasters.js`, `logs` → `routes/logs.js`,
+`users` → `routes/users.js`, `system-settings` → `routes/systemSettings.js` (`/api/auth/*` stays in
+`index.js` with `loginRateLimiter` for now). `index.js` is now ~5,475 lines. Next router:
+`documents` (5 routes; uses `upload`, `cleanupUploadedFiles`, holds, `tryInSavepoint`, `lockOrders`,
+`syncUnitDesignDocumentStatus`).
 Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
