@@ -122,10 +122,21 @@ Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `
 
 ### Task D — Split `src/components/AllOrdersTableView.jsx`
 
-**State:** ~7,000 lines. Main component starts ~line 3686 (≈3,350 lines, ~50 `useState`,
-~26 `useEffect`); `renderCellContent` is one ~1,500-line function; several components are defined
-inside the file: `PanelSizeComboboxCell` (~line 227, ~530 lines), `PoUploadModal`, `PoUploadBar`,
-`StoresBatchTrayStatusBar` (~2870–3685), `TableRow` (custom `memo` comparator ~2843).
+**Progress:** steps 1 and 2 are done (code moved verbatim, only `import` / `export` lines added).
+`AllOrdersTableView.jsx` went from 7,006 to ~3,355 lines and now holds only the main component
+(~50 `useState`, ~26 `useEffect`). New modules in `src/components/allOrdersTable/`:
+`columns.js` (`DEPT_OWNED_COLUMNS`, `COLUMN_OWNER_DEPT`, `getOwningDept`, `PRODUCTION_AND_QC_COLS`,
+`TEXT_WRAPPABLE_COLS`, `BASE_COLUMNS`, `DEFAULT_COLUMN_KEYS`), `statusStyles.js` (`PRIORITY_ORDER`,
+`PRIORITY_STYLES`, `STATUS_STYLES`), `dates.js` (date type checks and formatters), `uploads.js`
+(`getDocUrl`, `openUploadSafely`), `status.js` (`isStatusDone`, `isStatusInProgress`,
+`calculateUnitStatus`), `tooltips.js` (`getCellTooltip`), and one default-exported component per
+file: `PanelSizeComboboxCell.jsx`, `TableRow.jsx` (custom `memo` comparator untouched, stale-callback
+bug still there), `PoUploadModal.jsx`, `PoUploadBar.jsx`, `StoresBatchTrayStatusBar.jsx`.
+`renderCellContent` (~1,500 lines) was moved whole into `renderCellContent.jsx` because `TableRow`
+needs it and it needs `PanelSizeComboboxCell`; leaving it in the main file would create an import
+cycle. Splitting it up is step 3 (next). `calculateOptimalColumnWidth` was already in
+`tableColumnSizing.js`. `getDocUrl` is no longer a named export of `AllOrdersTableView.jsx` (nothing
+imported it). Not yet browser-smoked.
 
 **Approach (small, verifiable steps):**
 1. Move module-level constants/helpers (`DEPT_OWNED_COLUMNS`, `PRODUCTION_AND_QC_COLS`,
