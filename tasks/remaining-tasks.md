@@ -55,8 +55,18 @@ read/checked only in `index.js`; its five routes used to be interleaved with `un
 register together, which is safe because the prefixes are disjoint), `planning` →
 `routes/planning.js` (5 routes; `bulk-units-status` used to sit among the `units` routes; keep
 `/line-items/bulk` before `/line-items/:lineItemId`; `PUT /api/orders/:id/planning` stays with
-`orders`). `index.js` is now ~4,590 lines. Next router: `units` (12 routes — the most connected
-group after `orders`; `dept-worklist` and `board` are single routes still inline too).
+`orders`), `units` → `routes/units.js` (12 routes in three blocks that now register together;
+needs only `services/` and `data/` imports — no `index.js`-local helpers). `index.js` is now
+~2,890 lines. Next router: `orders` (20 routes; `evaluateOrderDesignGate` / `isReleaseDocumentsStep`
+move with it). Still inline afterwards: `auth` (+ `loginRateLimiter`), `template` (+
+`templateHandler`), `dept-worklist`, `board`, `diagnostic-status`, `health`, `/uploads`
+(+ `authorizeUploadDownload`).
+
+Found while probing (pre-existing, not changed): `POST /api/units/:id/design-confirm` only refuses
+when the unit has unfinished *unit-level* Sales steps. A unit still in Sales because its PO /
+order-level `Upload PO` is missing can be pre-confirmed (200; `design_confirmed` set). It still
+cannot advance, because `deriveUnitStatus` keeps it in Sales, but AGENTS.md §8 says this call should
+return 400 while Sales clearances are pending. Owner to decide whether to tighten the guard.
 Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
@@ -140,6 +150,7 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 | No ESLint / Prettier | repo | `npm run check` is the only static check. |
 | nginx: no TLS/HSTS/CSP | `nginx.conf` | Depends on how production is exposed. |
 | Default DB credentials `postgres/postgres` | `docker-compose.yml` | Port 5433 is public by owner's choice. |
+| Some tests ignore `DATABASE_URL` / `API_BASE` | `server/tests/` | Five tests import `../db.js`, which uses `DB_NAME` (deadlock_immunity, jsonb_merge_integrity, multiple_wiremen, optimistic_concurrency_control, purchase_auto_completion), and `test_purchase_auto_completion.js` hard-codes `http://localhost:5000/api/units/batch-purchase-na`. Inside the dev backend container these always reach `erp_db`, whatever `DATABASE_URL` says. In a "fresh DB" run next to the dev backend, that hard-coded call sends throwaway-DB unit ids to the dev backend. Fix: use `API_BASE` and `DATABASE_URL` everywhere (or a shared test helper). Until then use the isolated recipe in §4. |
 
 ---
 
@@ -147,18 +158,25 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 
 - **Backend integration tests:** `npm test` in `server/` (runs all `test_*.js`, cleans up uploads
   and dangling document rows it created). Run inside the container with the env shown in §2.
-- **Fresh-database run** (what CI does): create a throwaway DB `erp_ci`, start a second backend on
-  port 5055 against it, seed fixtures, run the suite, drop the DB:
+- **Fresh-database run** (what CI does): a throwaway DB `erp_ci` served by its **own container**,
+  whose PID 1 listens on port 5000 with `DB_NAME=erp_ci`. Every way a test reaches the backend or DB
+  then points at `erp_ci`: `API_BASE`, `DATABASE_URL`, `../db.js` (`DB_NAME`) and the hard-coded
+  `localhost:5000` (see §3). Don't run the suite inside the dev `backend` container against a second
+  port: those tests would still hit `erp_db`. Run from the repo root:
   ```bash
   docker-compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS erp_ci WITH (FORCE)" -c "CREATE DATABASE erp_ci"
-  docker-compose exec -T -d -e DB_NAME=erp_ci -e PORT=5055 -e INITIAL_ADMIN_PASSWORD=ci-admin-pass -e SMTP_USER= backend sh -c "exec node index.js > /tmp/ci_backend.log 2>&1"
-  E="-e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_ci -e API_BASE=http://localhost:5055"
-  docker-compose exec -T $E -e ALLOW_FIXTURE_SEED=1 -e ADMIN_PASSWORD=ci-admin-pass backend node scripts/seed_ci_fixtures.js
-  docker-compose exec -T $E backend npm test
+  docker run -d --name erp-ci --network erp_default -v "$PWD/server:/app" --tmpfs /app/node_modules -w /app \
+    -e DB_HOST=db -e DB_USER=postgres -e DB_PASSWORD=postgres -e DB_NAME=erp_ci -e DB_PORT=5432 \
+    -e SMTP_USER= -e INITIAL_ADMIN_PASSWORD=ci-admin-pass \
+    -e JWT_SECRET="$(docker-compose exec -T backend printenv JWT_SECRET)" vyom-erp-backend
+  # wait until: docker exec erp-ci wget -qO- http://127.0.0.1:5000/api/health
+  E="-e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_ci -e API_BASE=http://localhost:5000"
+  docker exec $E -e ALLOW_FIXTURE_SEED=1 -e ADMIN_PASSWORD=ci-admin-pass erp-ci node scripts/seed_ci_fixtures.js
+  docker exec $E erp-ci npm test
+  docker rm -f erp-ci && docker-compose exec -T db psql -U postgres -c "DROP DATABASE erp_ci WITH (FORCE)"
   ```
-  Stop the extra backend **by PID** afterwards (`pgrep node` inside the container; PID 1 is the
-  main backend) — a second start on 5055 fails with EADDRINUSE and silently leaves the old process
-  serving stale code.
+  Sanity check: `SELECT count(*) FROM activity_logs` on `erp_db` should be the same before and after.
+  (On Windows Git Bash, prefix `MSYS_NO_PATHCONV=1` and use a `C:/...` path for `-v`.)
 - **Browser smoke tests:** `scripts/e2e/README.md` (headless Edge, every role × every view,
   before/after diff, write-path test).
 
