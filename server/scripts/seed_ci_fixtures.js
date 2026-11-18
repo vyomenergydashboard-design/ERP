@@ -1,5 +1,5 @@
 /**
- * Seeds the minimum data the integration tests (server/test_*.js) expect on a FRESH database:
+ * Seeds the minimum data the integration tests (server/tests/test_*.js) expect on a FRESH database:
  *   - the default task_masters workflow (a fresh install only has 'Upload PO' by design)
  *   - company + company_location with id 1 (tests create orders against location 1)
  *   - one order with a few units, created through the real API (some tests reuse existing units)

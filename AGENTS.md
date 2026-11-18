@@ -55,8 +55,8 @@ ERP/
 │   ├── db.js                 # PostgreSQL connection pool configuration
 │   ├── init.sql              # Core schema definition, default tables, constraints, seed
 │   ├── run_deployment_migrations.js # Dynamic schema updates executed during startup
-│   ├── run_tests.js          # Runs all test_*.js (`npm test` in server/)
-│   ├── test_*.js             # Integration test suites (live backend + DB)
+│   ├── run_tests.js          # Runs all tests/test_*.js (`npm test` in server/)
+│   ├── tests/                # Integration test suites: test_*.js (live backend + DB)
 │   ├── scripts/              # seed_ci_fixtures.js, cleanup_orphan_uploads.js, Excel seeding
 │   └── uploads/              # Local disk storage for uploaded documents
 └── src/
@@ -153,16 +153,16 @@ docker-compose --profile prod up --build -d
 cd server && npm test
 
 # Run backend PO hierarchy and integration test suite
-node server/test_po_system.js
+node server/tests/test_po_system.js
 
 # Run task masters lifecycle & non-advancing deletion test suite
-node server/test_task_masters_lifecycle.js
+node server/tests/test_task_masters_lifecycle.js
 
 # Run Sales-to-Design gate test suite
-node server/test_sales_to_design_gate.js
+node server/tests/test_sales_to_design_gate.js
 
 # Run security and hardening verification suite
-node server/test_security_hardening.js
+node server/tests/test_security_hardening.js
 ```
 
 ---

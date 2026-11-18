@@ -377,10 +377,10 @@ try {
 }
 
 # 2. Authenticated health probe via test suite
-node server/test_po_system.js
+node server/tests/test_po_system.js
 ```
 *Expected Result:*
-- `node server/test_po_system.js` runs against `http://localhost:5000` and reports `44 / 44 PASSED`.
+- `node server/tests/test_po_system.js` runs against `http://localhost:5000` and reports `44 / 44 PASSED`.
 
 ---
 

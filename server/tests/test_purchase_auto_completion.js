@@ -1,6 +1,6 @@
-import pool from './db.js';
+import pool from '../db.js';
 import jwt from 'jsonwebtoken';
-import { checkUnitPurchaseCategoriesStatus, evaluatePurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
+import { checkUnitPurchaseCategoriesStatus, evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
 
 async function runTests() {
   console.log('====================================================');

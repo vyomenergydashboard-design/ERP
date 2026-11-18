@@ -1,5 +1,5 @@
 /**
- * Runs the integration test scripts (server/test_*.js) one after another and prints a summary.
+ * Runs the integration test scripts (server/tests/test_*.js) one after another and prints a summary.
  *
  * These tests talk to a LIVE backend and database (see CLAUDE.md). Never point them at production.
  *
@@ -18,6 +18,7 @@ import { fileURLToPath } from 'url';
 import { listUploadFiles, findOrphanUploads, deleteUploads } from './scripts/cleanup_orphan_uploads.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const testsDir = path.join(__dirname, 'tests');
 
 // These write emergency/backup bundles to server/backups, so they only run with --all.
 const SIDE_EFFECT_TESTS = new Set(['test_maintenance_api.js', 'test_backup_and_audit.js']);
@@ -27,7 +28,7 @@ const args = process.argv.slice(2);
 const includeAll = args.includes('--all');
 const filters = args.filter((a) => !a.startsWith('--'));
 
-const tests = fs.readdirSync(__dirname)
+const tests = fs.readdirSync(testsDir)
   .filter((f) => /^test_.*\.js$/.test(f))
   .filter((f) => includeAll || !SIDE_EFFECT_TESTS.has(f))
   .filter((f) => filters.length === 0 || filters.some((word) => f.includes(word)))
@@ -41,7 +42,7 @@ if (tests.length === 0) {
 const runOne = (file) => new Promise((resolve) => {
   const started = Date.now();
   let output = '';
-  const child = spawn(process.execPath, [path.join(__dirname, file)], { cwd: __dirname, env: process.env });
+  const child = spawn(process.execPath, [path.join(testsDir, file)], { cwd: __dirname, env: process.env });
   const timer = setTimeout(() => {
     output += `\n[run_tests] Timed out after ${TIMEOUT_MS / 1000}s`;
     child.kill('SIGKILL');

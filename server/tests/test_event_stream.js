@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import jwt from 'jsonwebtoken';
-import { initEventStream, broadcastEvent } from './services/eventStream.js';
+import { initEventStream, broadcastEvent } from '../services/eventStream.js';
 
 async function runEventStreamTest() {
   console.log('====================================================');

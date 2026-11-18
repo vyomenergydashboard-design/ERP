@@ -39,7 +39,7 @@ jobs:
       - name: Backend syntax check
         working-directory: server
         run: |
-          for f in index.js db.js run_deployment_migrations.js run_tests.js routes/*.js services/*.js scripts/*.js data/*.js; do
+          for f in index.js db.js run_deployment_migrations.js run_tests.js routes/*.js services/*.js scripts/*.js data/*.js tests/*.js; do
             node --check "$f"
           done
 

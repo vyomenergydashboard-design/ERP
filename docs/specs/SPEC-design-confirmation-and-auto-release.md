@@ -29,7 +29,7 @@ Specifically:
 - **Lint / Syntax Check:** `npm run check`
 - **Run Backend:** `cd server && node index.js`
 - **Run Frontend Dev:** `npm run dev`
-- **Run Verification Tests:** `node server/test_po_system.js`
+- **Run Verification Tests:** `node server/tests/test_po_system.js`
 
 ---
 
@@ -213,7 +213,7 @@ app.post('/api/units/:id/design-confirm', authorize(['Admin', 'Manager', 'Design
 2. **Schema & Migration Test:**
    - Verify that `server/run_deployment_migrations.js` adds columns idempotently without affecting active orders or serial counters.
 3. **Automated PO Hierarchy & Workflow Suite:**
-   - Run `node server/test_po_system.js` to ensure core order ingestion and step assignment remain healthy.
+   - Run `node server/tests/test_po_system.js` to ensure core order ingestion and step assignment remain healthy.
 4. **End-to-End Workflow Verification:**
    - **Test Case 1 (Standard Panel with Full Docs):** Part number has both Drawing & BOM. Click `Confirm` → Step 1 becomes `done`, Step 2 becomes `done`.
    - **Test Case 2 (Standard Panel with Partial Docs):** Part number has Drawing but no BOM. Click `Confirm` → Step 1 becomes `done`, Step 2 becomes `inprogress`. Upload BOM → Step 2 flips to `done`.

@@ -7,8 +7,8 @@
  * 3. Log preservation (ON DELETE SET NULL, historical records survive user deletion)
  */
 
-import pool from './db.js';
-import { generateDatabaseBackup } from './services/databaseBackup.js';
+import pool from '../db.js';
+import { generateDatabaseBackup } from '../services/databaseBackup.js';
 
 async function runTests() {
   console.log('====================================================');

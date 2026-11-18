@@ -59,7 +59,7 @@ Unlike generic manufacturing ERPs that treat production as linear inventory batc
 - Active pipeline state engine (`deriveUnitStatus`) in [server/services/unitStatus.js](server/services/unitStatus.js).
 - Confirmed design confirmation statement of intent in [docs/specs/design-confirmation-intent.md](docs/specs/design-confirmation-intent.md).
 - Architectural guardrails and operational specifications in [AGENTS.md](AGENTS.md).
-- Regression test suites in [server/test_design_confirmation.js](server/test_design_confirmation.js), [server/test_sales_to_design_gate.js](server/test_sales_to_design_gate.js), and [server/test_po_system.js](server/test_po_system.js).
+- Regression test suites in [server/tests/test_design_confirmation.js](server/tests/test_design_confirmation.js), [server/tests/test_sales_to_design_gate.js](server/tests/test_sales_to_design_gate.js), and [server/tests/test_po_system.js](server/tests/test_po_system.js).
 
 ## Product Principles
 

@@ -1,7 +1,7 @@
 import assert from 'assert';
 import jwt from 'jsonwebtoken';
 import pg from 'pg';
-import { generateDatabaseBackup } from './services/databaseBackup.js';
+import { generateDatabaseBackup } from '../services/databaseBackup.js';
 
 const { Pool } = pg;
 const connectionString = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db';

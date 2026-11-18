@@ -63,7 +63,7 @@ Then list every issue, ordered **High → Medium → Low**, using this template:
 // drop-in replacement using the project's conventions
 ```
 
-**Notes:** any trade-offs, required follow-up changes in other files, or the test to run (e.g. `node server/test_po_system.js`).
+**Notes:** any trade-offs, required follow-up changes in other files, or the test to run (e.g. `node server/tests/test_po_system.js`).
 ---
 
 Guidelines:
@@ -71,4 +71,4 @@ Guidelines:
 - The improved version must be complete enough to paste in, not pseudo-code.
 - Prefer fewer, high-value findings over many nitpicks. Group repeated instances of the same issue into one entry and list the other locations.
 - Severity scale: High means a bug risk, a security problem, or a measurable slowdown; Medium means a maintainability issue that is likely to cause bugs; Low means style or polish.
-- End with a short **"Suggested order of fixes"** list and the relevant `server/test_*.js` suites to run afterwards.
+- End with a short **"Suggested order of fixes"** list and the relevant `server/tests/test_*.js` suites to run afterwards.

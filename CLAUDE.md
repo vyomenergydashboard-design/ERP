@@ -29,13 +29,13 @@ npm run build
 npm run check        # scripts/verify_codebase.js — Babel AST scan for undeclared identifiers in src/
 ```
 
-**Tests**: each `server/test_*.js` is a standalone script that runs against a **live backend and live DB**. `server/run_tests.js` runs them in sequence:
+**Tests**: each `server/tests/test_*.js` is a standalone script that runs against a **live backend and live DB**. `server/run_tests.js` runs them in sequence:
 
 ```bash
 cd server && npm test                    # all except the two that write backup files
 cd server && npm test -- po_system qc    # only files whose name contains a word
 cd server && npm test -- --all           # include test_maintenance_api / test_backup_and_audit
-node server/test_sales_to_design_gate.js # a single file
+node server/tests/test_sales_to_design_gate.js # a single file
 ```
 
 Test defaults: `DATABASE_URL=postgresql://postgres:postgres@localhost:5433/erp_db`, `API_BASE=http://localhost:5000`, and `JWT_SECRET` must equal the backend's (set in `.env`; the backend refuses to start without one). On an empty database, run `server/scripts/seed_ci_fixtures.js` first (needs `ALLOW_FIXTURE_SEED=1`): the tests expect the default task masters, company location 1, users 27 (Sales) and 31 (Design), and at least one order with units. A fresh install intentionally seeds only the `Upload PO` task master (admins build the rest), so the fixture script adds the defaults from `server/data/defaultTaskMasters.js` for test databases only.

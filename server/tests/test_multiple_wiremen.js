@@ -1,5 +1,5 @@
 import assert from 'assert';
-import pool from './db.js';
+import pool from '../db.js';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';

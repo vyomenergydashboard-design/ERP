@@ -136,7 +136,7 @@ async function runSecurityTests() {
     console.log('\n[TEST 3] Verifying Short-Lived Download Ticket System...');
 
     // Create a dummy test file in uploads/
-    const uploadsDir = path.join(__dirname, 'uploads');
+    const uploadsDir = path.join(__dirname, '..', 'uploads');
     if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
     const testFileName = `sec-test-${Date.now()}.txt`;
     const testFilePath = path.join(uploadsDir, testFileName);
@@ -178,7 +178,7 @@ async function runSecurityTests() {
     
     // Dynamically test the safeEvaluateCondition implementation from server/index.js (or test helper)
     // We import index.js or verify via endpoint test
-    const { safeEvaluateCondition } = await import('./services/safeConditionEvaluator.js');
+    const { safeEvaluateCondition } = await import('../services/safeConditionEvaluator.js');
     
     // Normal cases
     assert.strictEqual(safeEvaluateCondition("$val === 'Yes'", 'Yes'), true, 'Should match equal string');
