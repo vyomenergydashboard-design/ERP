@@ -10,17 +10,26 @@ delete the branch.
 
 ## 1. Done so far (all on `main`)
 
+`main`'s history was rewritten on 2026-11-18 (git filter-repo stripped a committed `.env`, dumps,
+uploads and other junk; same file contents, new hashes). The hashes below are the new ones; the
+old→new map is kept outside the repo in `ERP-local-archive/commit-map.txt`. Never push anything
+built on the pre-rewrite history.
+
 | Commit | What |
 |---|---|
-| `fed1d84` | Settings shows the real next order number |
-| `bafcc7c` | P0 security: CORS allowlist, required `JWT_SECRET`, no `admin123` seed, role fixes, `trust proxy` |
-| `6a87158` | P1 data integrity: transactions on 3 big routes, emails after COMMIT, startup waits for migrations, run-once boot migrations |
-| `3980753` | Same-order deadlock fix (`lockOrders`), `npm test` runner, CI workflow, fixture seeding |
-| `015ab48` | `xlsx` 0.20.3 (SheetJS CDN) + `multer` 2.5.0, UTF-8 upload names |
-| `48dda8c` | Cleanups: orphan-upload script, safe error messages, fetch `res.ok` checks, untracked AI-tool folders, docs |
-| `5895460` | Docker: deps baked into images, healthchecks, restart policies, Postgres pinned to 18, `/api/health` |
-| `02cf54a` | **Task A** — single source for departments/roles (`server/data/workflow.js`, `src/data/roles.js`) |
-| `6bf7bcb` | **Task B** — shared `apiFetch` (`src/api/client.js`), 134 calls migrated |
+| `fabd56d` | Settings shows the real next order number |
+| `8ca810d` | P0 security: CORS allowlist, required `JWT_SECRET`, no `admin123` seed, role fixes, `trust proxy` |
+| `072a0d5` | P1 data integrity: transactions on 3 big routes, emails after COMMIT, startup waits for migrations, run-once boot migrations |
+| `dabfd0b` | Same-order deadlock fix (`lockOrders`), `npm test` runner, CI workflow, fixture seeding |
+| `8623f4c` | `xlsx` 0.20.3 (SheetJS CDN) + `multer` 2.5.0, UTF-8 upload names |
+| `9a8fa67` | Cleanups: orphan-upload script, safe error messages, fetch `res.ok` checks, untracked AI-tool folders, docs |
+| `898478e` | Docker: deps baked into images, healthchecks, restart policies, Postgres pinned to 18, `/api/health` |
+| `5e5f24f` | **Task A** — single source for departments/roles (`server/data/workflow.js`, `src/data/roles.js`) |
+| `200ad84` | **Task B** — shared `apiFetch` (`src/api/client.js`), 134 calls migrated |
+| `0921483` | Handoff notes and the headless-Edge smoke harness (`scripts/e2e/`) |
+| `55198e2` | **Task C step 1** — shared helpers into `server/services/` |
+| `2e5a437`, `2f9abbb`, `261fdaa` | **Task C step 2** — companies, part-number / panel-size, task / column masters, logs / users / system-settings routers |
+| `fa522ad`, `07b4d1b`, `1e18f61` | Repo cleanup (another session): stale files removed, docs reorganised, unused deps dropped, tests moved to `server/tests/` |
 
 ---
 
@@ -40,9 +49,11 @@ panel-size routes; they now register with the rest of the router, which is safe 
 prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`, `task_masters` →
 `routes/taskMasters.js`, `column-masters` → `routes/columnMasters.js`, `logs` → `routes/logs.js`,
 `users` → `routes/users.js`, `system-settings` → `routes/systemSettings.js` (`/api/auth/*` stays in
-`index.js` with `loginRateLimiter` for now). `index.js` is now ~5,475 lines. Next router:
-`documents` (5 routes; uses `upload`, `cleanupUploadedFiles`, holds, `tryInSavepoint`, `lockOrders`,
-`syncUnitDesignDocumentStatus`).
+`index.js` with `loginRateLimiter` for now), `documents` → `routes/documents.js`
+(`createDocumentsRouter(pool, authorize, JWT_SECRET)`; the secret signs download tickets and stays
+read/checked only in `index.js`; its five routes used to be interleaved with `units` routes and now
+register together, which is safe because the prefixes are disjoint). `index.js` is now ~5,180 lines.
+Next router: `planning` (5 routes, plus `PUT /api/orders/:id/planning`, which belongs to `orders`).
 Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
