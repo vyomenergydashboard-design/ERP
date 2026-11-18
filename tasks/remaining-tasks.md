@@ -1,6 +1,6 @@
 # Remaining Tasks — Handoff for Next Sessions
 
-Last updated: 2026-11-17. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
+Last updated: 2026-11-18. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
 AGENTS.md rules still apply: no code changes unless asked, **no commits/pushes unless the user
 explicitly says so**. The user's workflow so far: one task at a time → verify → user says
 "commit, merge into main and push" → commit on a short-lived branch, fast-forward `main`, push,
@@ -28,7 +28,18 @@ delete the branch.
 
 ### Task C — Move routes out of `server/index.js`
 
-**State:** `server/index.js` is ~7,700 lines with **84 routes**. Only `routes/backup.js`,
+**Progress:** step 1 (shared helpers → `server/services/`) is done: `unitStatus.js`
+(`deriveUnitStatus`, `syncLineItemStatusFromUnits`, `evaluateUnitDesignDocuments`,
+`syncUnitDesignDocumentStatus`, `updateOrderQCStatusFromSteps`, `findBlockingUpstreamDepts`,
+`setSystemSeeding`), `holds.js`, `notifications.js`, `uploads.js` (`upload`,
+`cleanupUploadedFiles`), `orderNumbers.js`, `transactions.js` (`tryInSavepoint`, `lockOrders`),
+`customFields.js`. Routers import these directly. `index.js` is now ~6,600 lines. Next: step 2,
+starting with `companies`. Still in `index.js` and route-group-local (move with their router):
+`evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
+`authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
+and is passed to each router factory.
+
+**State:** `server/index.js` was ~7,700 lines with **84 routes**. Only `routes/backup.js`,
 `maintenance.js`, `purchaseOrders.js`, `wiremanMasters.js` exist. Route groups still inline:
 `/api/orders` (20), `/api/units` (12), `/api/part-number-masters` (7), `/api/users` (5),
 `/api/planning` (5), `/api/documents` (5), `/api/column-masters` (5), `/api/task_masters` (4),
@@ -156,6 +167,15 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 - Tests and probes that upload files write into the shared `server/uploads`; clean up afterwards.
 - The Excel import and order creation on `erp_db` consume real dev order numbers — use the
   throwaway `erp_ci` database for anything that creates orders.
+- **Verifying a worktree without touching the running stack** (used for Task C step 1): run the
+  `vyom-erp-backend` image with the worktree's `server/` mounted at `/app` (plus
+  `--tmpfs /app/node_modules`) on the `erp_default` network, and a `vyom-erp-dev` container with the
+  worktree mounted and `--add-host backend:<that container's IP>` on another host port. `vite.config.js`
+  pins `server.hmr.clientPort` to 5173, so a second Vite must override it (wrapper config passed via
+  `--config`); otherwise every page logs a WebSocket error and pages randomly reload mid-smoke.
+  Then `APP_URL=http://localhost:<port> node scripts/e2e/smoke.mjs <label>`.
+- In a container whose main process is `node index.js`, stop extra backends with `pgrep -x node`
+  (skip PID 1) — `pgrep -f "node index.js"` also matches the `sh -c` running the kill loop.
 
 ---
 

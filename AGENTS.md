@@ -50,7 +50,8 @@ ERP/
 ├── .env.example              # Template environment configuration (DO NOT commit secrets)
 ├── server/
 │   ├── package.json          # Backend dependencies and node scripts
-│   ├── index.js              # Primary Express monolith (API routes, migrations, auth, email)
+│   ├── index.js              # Primary Express monolith (API routes, migrations, auth)
+│   ├── services/             # Shared backend logic (deriveUnitStatus, holds, uploads, emails, ...)
 │   ├── db.js                 # PostgreSQL connection pool configuration
 │   ├── init.sql              # Core schema definition, default tables, constraints, seed
 │   ├── run_deployment_migrations.js # Dynamic schema updates executed during startup
