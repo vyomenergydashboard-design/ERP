@@ -37,8 +37,10 @@ delete the branch.
 `createXRouter(pool, authorize)` mounted where its routes were: `companies` → `routes/companies.js`,
 `part-number-masters` → `routes/partNumberMasters.js` (its 3 document routes used to sit after the
 panel-size routes; they now register with the rest of the router, which is safe because the
-prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`. `index.js` is now
-~6,100 lines. Next router: `column-masters` + `task_masters`.
+prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`, `task_masters` →
+`routes/taskMasters.js`, `column-masters` → `routes/columnMasters.js`. `index.js` is now ~5,770
+lines. Next routers: `logs` + `users` + `system-settings` (note: `system-settings` uses
+`computeNextOrderNumber` from `services/orderNumbers.js`).
 Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
