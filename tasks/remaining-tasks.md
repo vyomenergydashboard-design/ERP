@@ -33,8 +33,13 @@ delete the branch.
 `syncUnitDesignDocumentStatus`, `updateOrderQCStatusFromSteps`, `findBlockingUpstreamDepts`,
 `setSystemSeeding`), `holds.js`, `notifications.js`, `uploads.js` (`upload`,
 `cleanupUploadedFiles`), `orderNumbers.js`, `transactions.js` (`tryInSavepoint`, `lockOrders`),
-`customFields.js`. Routers import these directly. `index.js` is now ~6,600 lines. Next: step 2,
-starting with `companies`. Still in `index.js` and route-group-local (move with their router):
+`customFields.js`. Routers import these directly. Step 2 has started — extracted so far, each
+`createXRouter(pool, authorize)` mounted where its routes were: `companies` → `routes/companies.js`,
+`part-number-masters` → `routes/partNumberMasters.js` (its 3 document routes used to sit after the
+panel-size routes; they now register with the rest of the router, which is safe because the
+prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`. `index.js` is now
+~6,100 lines. Next router: `column-masters` + `task_masters`.
+Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
 and is passed to each router factory.
