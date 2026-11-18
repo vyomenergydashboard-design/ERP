@@ -30,11 +30,11 @@ Unlike generic manufacturing ERPs that treat production as linear inventory batc
 
 - **Environment:** High-paced industrial manufacturing shop floor, engineering design offices, and procurement desks. Fast desktop scanning and dense data visibility are critical.
 - **Rituals & Workflows:**
-  - Daily production and wiring scheduling via Gantt-style planning grids ([PlanningModule.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/PlanningModule.jsx)).
-  - Multi-level table inspection ([AllOrdersTableView.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/AllOrdersTableView.jsx)) filtering across orders, line items, and unit serials.
-  - Department worklists ([DeptWorklist.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/DeptWorklist.jsx)) displaying actionable unit queues.
-  - Technical document inspection ([TechnicalDocsModal.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/TechnicalDocsModal.jsx), [OrderDocumentsModal.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/OrderDocumentsModal.jsx)) comparing PDF engineering schematics and Excel BOM revisions.
-  - Department task execution modals ([StepModal.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/StepModal.jsx)) and quick-action classification/confirmation bars.
+  - Daily production and wiring scheduling via Gantt-style planning grids ([PlanningModule.jsx](src/components/PlanningModule.jsx)).
+  - Multi-level table inspection ([AllOrdersTableView.jsx](src/components/AllOrdersTableView.jsx)) filtering across orders, line items, and unit serials.
+  - Department worklists ([DeptWorklist.jsx](src/components/DeptWorklist.jsx)) displaying actionable unit queues.
+  - Technical document inspection ([TechnicalDocsModal.jsx](src/components/TechnicalDocsModal.jsx), [OrderDocumentsModal.jsx](src/components/OrderDocumentsModal.jsx)) comparing PDF engineering schematics and Excel BOM revisions.
+  - Department task execution modals ([StepModal.jsx](src/components/StepModal.jsx)) and quick-action classification/confirmation bars.
 
 ## Capabilities and Constraints
 
@@ -55,11 +55,11 @@ Unlike generic manufacturing ERPs that treat production as linear inventory batc
 
 ## Evidence on Hand
 
-- Core database schema and seed data in [server/init.sql](file:///c:/Users/cerul/Documents/ERP/server/init.sql).
-- Active pipeline state engine in [server/index.js](file:///c:/Users/cerul/Documents/ERP/server/index.js#L320).
-- Confirmed design confirmation statement of intent in [docs/intent/design-confirmation.md](file:///c:/Users/cerul/Documents/ERP/docs/intent/design-confirmation.md).
-- Architectural guardrails and operational specifications in [AGENTS.md](file:///c:/Users/cerul/Documents/ERP/AGENTS.md).
-- Regression test suites in [server/test_design_confirmation.js](file:///c:/Users/cerul/Documents/ERP/server/test_design_confirmation.js), [server/test_sales_to_design_gate.js](file:///c:/Users/cerul/Documents/ERP/server/test_sales_to_design_gate.js), and [server/test_po_system.js](file:///c:/Users/cerul/Documents/ERP/server/test_po_system.js).
+- Core database schema and seed data in [server/init.sql](server/init.sql).
+- Active pipeline state engine (`deriveUnitStatus`) in [server/services/unitStatus.js](server/services/unitStatus.js).
+- Confirmed design confirmation statement of intent in [docs/specs/design-confirmation-intent.md](docs/specs/design-confirmation-intent.md).
+- Architectural guardrails and operational specifications in [AGENTS.md](AGENTS.md).
+- Regression test suites in [server/test_design_confirmation.js](server/test_design_confirmation.js), [server/test_sales_to_design_gate.js](server/test_sales_to_design_gate.js), and [server/test_po_system.js](server/test_po_system.js).
 
 ## Product Principles
 
@@ -70,5 +70,5 @@ Unlike generic manufacturing ERPs that treat production as linear inventory batc
 
 ## Accessibility & Inclusion
 
-- Keyboard navigability across dense tabular rows and modals via `Escape` key listeners ([useGlobalModalEscape.js](file:///c:/Users/cerul/Documents/ERP/src/hooks/useGlobalModalEscape.js)).
+- Keyboard navigability across dense tabular rows and modals via `Escape` key listeners ([useGlobalModalEscape.js](src/hooks/useGlobalModalEscape.js)).
 - High-contrast visual cues (distinct color + iconography + text labels) for color-blind friendly status differentiation on the shop floor.

@@ -69,8 +69,7 @@ The department order is the `PIPELINE` array (`Sales → Design → Purchase →
 
 ## Other context files
 - `PRODUCT.md`, `DESIGN.md`: product intent and UI design language.
-- `SPEC-*.md`: feature specs (design confirmation/auto-release, non-standard panel docs).
+- `docs/specs/`: feature specs and statements of intent (design confirmation/auto-release, non-standard panel docs). `docs/design/` holds the PRD-03 form reference image and `docs/samples/` a filled sample of the Excel order-import template.
 - `tasks/remaining-tasks.md`: **start here in a new session** — what's done, the remaining refactor tasks (C: split `server/index.js`, D: split `AllOrdersTableView.jsx`), known issues, owner decisions and verification steps.
-- `tasks/plan.md`, `tasks/todo.md`: earlier (completed) task-masters work plan.
 - `scripts/e2e/`: headless-Edge browser smoke tests for the running dev stack (see its README).
 - `docs/BACKUP_AND_RECOVERY_GUIDE.md`: the backup/restore procedure.

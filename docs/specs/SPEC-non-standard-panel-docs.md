@@ -5,7 +5,7 @@ Support both **Technical Drawings** and **Bill of Materials (BOM)** for **Non-St
 
 ### User Stories
 - **Design Engineers & Admins:** Can upload, replace with new revisions (R0, R1...), preview, and delete custom Drawings and BOMs for any Non-Standard panel unit.
-- **Stores & Purchase:** Can inspect, preview via in-browser [ExcelSheetViewer](file:///c:/Users/cerul/Documents/ERP/src/components/ExcelSheetViewer.jsx), and download the custom BOM for procurement and kit allocation without requiring a catalog part number.
+- **Stores & Purchase:** Can inspect, preview via in-browser [ExcelSheetViewer](../../src/components/ExcelSheetViewer.jsx), and download the custom BOM for procurement and kit allocation without requiring a catalog part number.
 - **Production & QC:** Can view and preview both technical drawings and BOMs during assembly and inspection without risk of using obsolete revisions.
 
 ---
@@ -28,7 +28,7 @@ Support both **Technical Drawings** and **Bill of Materials (BOM)** for **Non-St
 
 ```
 ERP/
-├── SPEC-non-standard-panel-docs.md  # This formal specification
+├── docs/specs/SPEC-non-standard-panel-docs.md  # This formal specification
 ├── server/
 │   ├── index.js                     # /api/documents/upload, /api/documents/:id, /api/units/:unitId/reference-documents
 │   └── init.sql                     # Core documents table definition

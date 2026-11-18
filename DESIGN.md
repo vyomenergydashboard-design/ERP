@@ -222,7 +222,7 @@ The form language is disciplined, technical, and durable:
 - **Active Navigation State:** Left-hand 3px solid flame border (`#f97316`), warm tint background (`rgba(249, 115, 22, 0.12)`), text `#fb923c`.
 
 ### Signature Component: The Engineering Gate Indicator
-- In [StepModal.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/StepModal.jsx) and [AllOrdersTableView.jsx](file:///c:/Users/cerul/Documents/ERP/src/components/AllOrdersTableView.jsx), technical documents (Customer PO, Engineering Drawing, BOM) and design confirmation gates are rendered with dedicated lock/check icons:
+- In [StepModal.jsx](src/components/StepModal.jsx) and [AllOrdersTableView.jsx](src/components/AllOrdersTableView.jsx), technical documents (Customer PO, Engineering Drawing, BOM) and design confirmation gates are rendered with dedicated lock/check icons:
   - **Locked/Missing:** Amber or red outlined pill indicating mandatory upload required.
   - **Unlocked/Verified:** Emerald pill with clickable document preview link and auditor timestamp.
 

@@ -38,9 +38,9 @@ Specifically:
 ```
 ERP/
 ├── docs/
-│   └── intent/
-│       └── design-confirmation.md      # Confirmed statement of intent
-├── SPEC-design-confirmation-and-auto-release.md # This specification
+│   └── specs/
+│       ├── design-confirmation-intent.md                # Confirmed statement of intent
+│       └── SPEC-design-confirmation-and-auto-release.md # This specification
 ├── server/
 │   ├── run_deployment_migrations.js    # Additive migration for order_units design confirmation columns
 │   └── index.js                        # Confirmation endpoint, document presence evaluator, query enrichments
@@ -57,7 +57,7 @@ ERP/
 
 ### 5.1 Database Schema (Additive & Non-Destructive)
 
-In [server/run_deployment_migrations.js](file:///c:/Users/cerul/Documents/ERP/server/run_deployment_migrations.js):
+In [server/run_deployment_migrations.js](../../server/run_deployment_migrations.js):
 ```sql
 ALTER TABLE order_units
 ADD COLUMN IF NOT EXISTS design_confirmed BOOLEAN DEFAULT FALSE,
@@ -67,7 +67,7 @@ ADD COLUMN IF NOT EXISTS design_confirmed_by INTEGER REFERENCES users(id);
 
 ### 5.2 Backend API & Workflow Logic
 
-In [server/index.js](file:///c:/Users/cerul/Documents/ERP/server/index.js):
+In [server/index.js](../../server/index.js):
 
 1. **`GET /api/orders` & `GET /api/units` Query Enrichment:**
    - Include `ou.design_confirmed`, `ou.design_confirmed_at`, `ou.design_confirmed_by`, and `u_conf.name as design_confirmed_by_name` (via LEFT JOIN on `users u_conf ON ou.design_confirmed_by = u_conf.id`).
