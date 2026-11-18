@@ -52,8 +52,11 @@ prefixes are disjoint), `panel-size-masters` → `routes/panelSizeMasters.js`, `
 `index.js` with `loginRateLimiter` for now), `documents` → `routes/documents.js`
 (`createDocumentsRouter(pool, authorize, JWT_SECRET)`; the secret signs download tickets and stays
 read/checked only in `index.js`; its five routes used to be interleaved with `units` routes and now
-register together, which is safe because the prefixes are disjoint). `index.js` is now ~5,180 lines.
-Next router: `planning` (5 routes, plus `PUT /api/orders/:id/planning`, which belongs to `orders`).
+register together, which is safe because the prefixes are disjoint), `planning` →
+`routes/planning.js` (5 routes; `bulk-units-status` used to sit among the `units` routes; keep
+`/line-items/bulk` before `/line-items/:lineItemId`; `PUT /api/orders/:id/planning` stays with
+`orders`). `index.js` is now ~4,590 lines. Next router: `units` (12 routes — the most connected
+group after `orders`; `dept-worklist` and `board` are single routes still inline too).
 Still in `index.js` and route-group-local (move with their router):
 `evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
 `authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
