@@ -73,3 +73,18 @@ scripts/e2e/node_modules/
 scripts/e2e/tokens.json
 scripts/e2e/shots/
 scripts/e2e/result-*.json
+
+# Local AI-tool lock file (the skills folders themselves are untracked)
+skills-lock.json
+
+# Never commit secrets, database dumps or key material (see AGENTS.md section 8)
+/*.sql
+*.dump
+*.bak
+*.pem
+*.key
+
+# OS and tool noise
+Thumbs.db
+desktop.ini
+.vite/

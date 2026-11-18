@@ -6,7 +6,6 @@ Dockerfile
 docker-compose.yml
 .dockerignore
 README.md
-planning_module.html
 
 # Local secrets, data and generated files
 .env

@@ -10,19 +10,15 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.103.1",
     "lucide-react": "^0.436.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.1",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "zustand": "^5.0.15"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@babel/parser": "^7.29.14",
     "@babel/traverse": "^7.29.14",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
     "vite": "^5.4.0"
   }

@@ -90,7 +90,7 @@ ERP/
 
 ### Frontend
 - **Runtime & Bundler:** React 18.3, Vite 5.4
-- **Routing & State:** `react-router-dom` (v6.26), local state + `zustand` (v5.0)
+- **Routing & State:** `react-router-dom` (v6.26), local React state
 - **UI Components & Icons:** `lucide-react` (v0.436)
 - **Spreadsheet Parsing:** `xlsx` (v0.18.5)
 - **Styles:** Vanilla CSS with scoped CSS variables and dark-mode tokens (`src/index.css`)
@@ -288,3 +288,7 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
     - Agents must NEVER run `git commit` or `git push` on their own initiative or autonomously upon completing a task.
     - Git commits and pushes may ONLY be performed when the user explicitly gives a direct instruction to do so (e.g., "commit this", "make a commit", "push to origin").
     - All work must remain as uncommitted working tree modifications so the user can inspect, test, and approve the changes before any commit is created.
+
+12. **Never Commit Secrets, Dumps or Local Artifacts:**
+    - Never commit `.env` files, database dumps (`*.sql` other than `server/init.sql`), `server/uploads/` contents, backups, browser profiles (Edge/Chrome user-data folders) or generated listings. These are in `.gitignore`; keep scratch work and automation profiles outside the repository.
+    - If one is committed by mistake, treat any credentials in it as exposed: rotate them and remove the file from history, not only from the latest commit.
