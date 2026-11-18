@@ -59,11 +59,17 @@ register together, which is safe because the prefixes are disjoint), `planning` 
 needs only `services/` and `data/` imports — no `index.js`-local helpers), `orders` →
 `routes/orders.js` (20 routes in four blocks that now register together in their original relative
 order; `evaluateOrderDesignGate` / `isReleaseDocumentsStep` moved with them as module-level helpers;
-`/:orderId/steps/reorder` still precedes `/:orderId/steps/:stepId`). `index.js` is now ~1,200 lines.
-Still inline (small, optional follow-ups): `auth` (+ `loginRateLimiter`), `template` (+
-`templateHandler`), `dept-worklist`, `board`, `diagnostic-status`, `health`, `/uploads`
-(+ `authorizeUploadDownload`), plus startup (`initDB`, `seedSayaUser`, `startServer`) and the error
-handler.
+`/:orderId/steps/reorder` still precedes `/:orderId/steps/:stepId`). The last five small groups are
+moved too, each mounted where its first route was: `auth` → `routes/auth.js`
+(`createAuthRouter(pool, authorize, JWT_SECRET)`; `loginRateLimiter`, `loginAttempts` and the two
+constants moved with it, nothing else used them), `diagnostic-status` → `routes/diagnostics.js`,
+`board` → `routes/board.js`, `dept-worklist` → `routes/deptWorklist.js` (imports
+`evaluatePurchaseAutoCompletion` and `deriveUnitStatus` itself), `template` → `routes/template.js`
+(`createTemplateRouter()`, no `authorize`, as before; `templateHandler` moved with it). The route
+table (95 registrations) is identical before and after. **Task C is complete:** `index.js` is now
+~570 lines. What is left inline on purpose: `/api/health` (must stay before the request logger), the
+`authorize` middleware, `/uploads` (+ `authorizeUploadDownload`), the error handler, and startup
+(`initDB`, `seedSayaUser`, `startServer`).
 
 Pre-existing behaviours seen while probing `orders` (not changed): creating an order whose line item
 has no `unit_price` fails with 500 (NOT NULL) instead of a 400; `PUT /api/orders/:id/planning` sets
@@ -75,10 +81,9 @@ when the unit has unfinished *unit-level* Sales steps. A unit still in Sales bec
 order-level `Upload PO` is missing can be pre-confirmed (200; `design_confirmed` set). It still
 cannot advance, because `deriveUnitStatus` keeps it in Sales, but AGENTS.md §8 says this call should
 return 400 while Sales clearances are pending. Owner to decide whether to tighten the guard.
-Still in `index.js` and route-group-local (move with their router):
-`evaluateOrderDesignGate` / `isReleaseDocumentsStep` (orders), `templateHandler` (template),
-`authorizeUploadDownload` (uploads), `loginRateLimiter` (auth); `authorize` stays in `index.js`
-and is passed to each router factory.
+Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `authorize` stays in
+`index.js` and is passed to each router factory. (`evaluateOrderDesignGate` /
+`isReleaseDocumentsStep`, `templateHandler` and `loginRateLimiter` now live in their routers.)
 
 **State:** `server/index.js` was ~7,700 lines with **84 routes**. Only `routes/backup.js`,
 `maintenance.js`, `purchaseOrders.js`, `wiremanMasters.js` exist. Route groups still inline:
