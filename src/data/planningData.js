@@ -3,16 +3,16 @@ export const DEPTS = [
   { id: 'Design',     color: 'var(--purple)', label: 'Design',     sub: 'Engineering' },
   { id: 'Purchase',   color: 'var(--orange)', label: 'Purchase',   sub: 'Procurement' },
   { id: 'Stores',     color: 'var(--green)',  label: 'Stores',     sub: 'Stock & Issue' },
-  { id: 'Planning',   color: 'var(--text3)',  label: 'Planning',   sub: 'Scheduling' },
   { id: 'Production', color: 'var(--red)',    label: 'Production', sub: 'Manufacturing' },
   { id: 'QC',         color: 'var(--blue)',   label: 'QC',         sub: 'Quality Control' },
   { id: 'Dispatch',   color: 'var(--text2)',  label: 'Dispatch',   sub: 'Logistics' },
   { id: 'Accounts',   color: 'var(--text2)',  label: 'Accounts',   sub: 'Billing' },
 ];
 
-// Department order. MUST match the server-side PIPELINE array in server/index.js
-// (Sales → Design → Purchase → Stores → Planning → Production → QC → Dispatch → Accounts).
-export const PIPELINE = DEPTS.map(d => d.id);
+// Department order. MUST match the server-side PIPELINE in server/data/workflow.js.
+// Planning is a pipeline stage/role but is intentionally NOT listed in DEPTS (no UI department
+// column/tab); it is kept here so role lists and stage ordering stay aligned with the backend.
+export const PIPELINE = ['Sales', 'Design', 'Purchase', 'Stores', 'Planning', 'Production', 'QC', 'Dispatch', 'Accounts'];
 
 export const INITIAL_STEPS = [
   // Sales
