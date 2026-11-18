@@ -56,11 +56,19 @@ register together, which is safe because the prefixes are disjoint), `planning` 
 `routes/planning.js` (5 routes; `bulk-units-status` used to sit among the `units` routes; keep
 `/line-items/bulk` before `/line-items/:lineItemId`; `PUT /api/orders/:id/planning` stays with
 `orders`), `units` → `routes/units.js` (12 routes in three blocks that now register together;
-needs only `services/` and `data/` imports — no `index.js`-local helpers). `index.js` is now
-~2,890 lines. Next router: `orders` (20 routes; `evaluateOrderDesignGate` / `isReleaseDocumentsStep`
-move with it). Still inline afterwards: `auth` (+ `loginRateLimiter`), `template` (+
+needs only `services/` and `data/` imports — no `index.js`-local helpers), `orders` →
+`routes/orders.js` (20 routes in four blocks that now register together in their original relative
+order; `evaluateOrderDesignGate` / `isReleaseDocumentsStep` moved with them as module-level helpers;
+`/:orderId/steps/reorder` still precedes `/:orderId/steps/:stepId`). `index.js` is now ~1,200 lines.
+Still inline (small, optional follow-ups): `auth` (+ `loginRateLimiter`), `template` (+
 `templateHandler`), `dept-worklist`, `board`, `diagnostic-status`, `health`, `/uploads`
-(+ `authorizeUploadDownload`).
+(+ `authorizeUploadDownload`), plus startup (`initDB`, `seedSayaUser`, `startServer`) and the error
+handler.
+
+Pre-existing behaviours seen while probing `orders` (not changed): creating an order whose line item
+has no `unit_price` fails with 500 (NOT NULL) instead of a 400; `PUT /api/orders/:id/planning` sets
+`end_client_name` to NULL when the field is not sent; changing an order's classification only applies
+to units created afterwards (existing units keep theirs).
 
 Found while probing (pre-existing, not changed): `POST /api/units/:id/design-confirm` only refuses
 when the unit has unfinished *unit-level* Sales steps. A unit still in Sales because its PO /
