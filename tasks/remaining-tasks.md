@@ -134,9 +134,26 @@ file: `PanelSizeComboboxCell.jsx`, `TableRow.jsx` (custom `memo` comparator unto
 bug still there), `PoUploadModal.jsx`, `PoUploadBar.jsx`, `StoresBatchTrayStatusBar.jsx`.
 `renderCellContent` (~1,500 lines) was moved whole into `renderCellContent.jsx` because `TableRow`
 needs it and it needs `PanelSizeComboboxCell`; leaving it in the main file would create an import
-cycle. Splitting it up is step 3 (next). `calculateOptimalColumnWidth` was already in
+cycle. `calculateOptimalColumnWidth` was already in
 `tableColumnSizing.js`. `getDocUrl` is no longer a named export of `AllOrdersTableView.jsx` (nothing
-imported it). Not yet browser-smoked.
+imported it). Steps 1-2 were browser-smoked (98/98 identical) before landing (967697d).
+
+Step 3 is done: `renderCellContent.jsx` (1,519 → 74 lines) is now a dispatcher. It keeps the same
+signature and the five values it computes up front (`statusStyle`, `priority`, `priorityStyle`,
+`isOverdue`, `effectiveUnitId`), puts everything in one `ctx` object and calls the column family's
+renderer from `CELL_RENDERERS` (a `Map`, so a custom column named e.g. `constructor` can't hit an
+`Object` prototype key). Anything not in the map goes to `renderCustomCell`, as the old `default`
+did. The family modules in `allOrdersTable/cells/` each hold the original `case` blocks unchanged
+inside the same `switch (colKey)`: `orderCells` (order #, serial, client, type, priority, status,
+delivery), `salesCells` (PO #, ref / tag), `panelCells` (part number, panel code / size / IP /
+comments), `purchaseCells`, `storesCells` (tray), `productionCells` (wiremen, production and QC
+stage dates), `qcCells` (QC status), `dispatchCells` (dispatch / invoice), `customCells` (the old
+`default`). Each exports its `*_CELL_KEYS`, which must equal its `case` labels. Every case ends in
+`return`/`throw` (no fall-through), so grouping them is behaviour-preserving.
+Verified: rendered HTML of every table cell for each role and every Admin department filter
+(184,144 cells, page size "all", status "all") was identical before and after, and two "before"
+runs were identical too, so the comparison has no noise. Next: step 4 (state hooks) only if
+wanted, and the `TableRow` memo fix below (separate task).
 
 **Approach (small, verifiable steps):**
 1. Move module-level constants/helpers (`DEPT_OWNED_COLUMNS`, `PRODUCTION_AND_QC_COLS`,
@@ -150,7 +167,9 @@ imported it). Not yet browser-smoked.
 **Known bug to fix while there:** the `TableRow` `memo` comparator ignores callback props, so
 `handleRowMouseDown` can see a stale `displayedUnits` (shift-click range selection may select the
 wrong rows after filtering/sorting). Fix by including the callbacks or making them stable
-(`useStableCallback` already exists in `src/hooks/`).
+(`useStableCallback` already exists in `src/hooks/`). The comparator (now in
+`allOrdersTable/TableRow.jsx`) also ignores `panelSizeMap`, `showSelection`, `canUploadPo`,
+`canConfirmDesign` and the `onConfirmDesign*` / `onRequestUnconfirmDesign` callbacks, so cover those too.
 
 **Verify after every step:** `npm run check`, `npm run build`, browser smoke for all roles
 (identical results), plus a targeted interaction script for the cells touched (open table as the
