@@ -67,3 +67,9 @@ staged-review.txt
 .impeccable/
 docs/superpowers/
 server/archive/
+
+# Browser smoke-test harness outputs (scripts/e2e)
+scripts/e2e/node_modules/
+scripts/e2e/tokens.json
+scripts/e2e/shots/
+scripts/e2e/result-*.json
