@@ -1811,7 +1811,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     setActiveRowId(prev => (prev === unitId || String(prev) === String(unitId)) ? null : unitId);
   }, []);
 
-  const handleRowMouseDown = useCallback((unitId, idx, e) => {
+  // Stable identity (useStableCallback): TableRow's memo comparator ignores callback props, so a row
+  // that doesn't re-render after a sort/filter would otherwise keep a handler whose closure still
+  // has the old displayedUnits, and Shift/drag selection would pick rows by their old positions.
+  const handleRowMouseDown = useStableCallback((unitId, idx, e) => {
     if (e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return;
     if (e.target.closest('button') || e.target.closest('select') || e.target.closest('a') || e.target.closest('.modal-overlay')) return;
 
@@ -1855,9 +1858,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       else next.delete(unitId);
       return next;
     });
-  }, [displayedUnits, selectedUnitIds, isIdSelected]);
+  });
 
-  const handleRowMouseEnter = useCallback((unitId, idx, e) => {
+  const handleRowMouseEnter = useStableCallback((unitId, idx, e) => {
     if (!isDraggingSelectRef.current || dragStartIdxRef.current === null) return;
 
     const start = Math.min(dragStartIdxRef.current, idx);
@@ -1874,7 +1877,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       }
       return next;
     });
-  }, [displayedUnits]);
+  });
 
   const handleToggleSelectAll = useCallback(() => {
     const displayedIds = displayedUnits.map(u => u.unit_id);

@@ -164,12 +164,24 @@ wanted, and the `TableRow` memo fix below (separate task).
    into small cell components or a lookup table.
 4. Only then consider state extraction (custom hooks for data loading, selection, column layout).
 
-**Known bug to fix while there:** the `TableRow` `memo` comparator ignores callback props, so
-`handleRowMouseDown` can see a stale `displayedUnits` (shift-click range selection may select the
-wrong rows after filtering/sorting). Fix by including the callbacks or making them stable
-(`useStableCallback` already exists in `src/hooks/`). The comparator (now in
-`allOrdersTable/TableRow.jsx`) also ignores `panelSizeMap`, `showSelection`, `canUploadPo`,
-`canConfirmDesign` and the `onConfirmDesign*` / `onRequestUnconfirmDesign` callbacks, so cover those too.
+**Fixed: range selection after re-sorting.** The `TableRow` `memo` comparator ignores callback
+props, so a row that did not re-render after a sort / filter kept an old `onRowMouseDown` /
+`onRowMouseEnter` whose closure had the old `displayedUnits`. Shift-click and drag selection then
+picked rows by their old positions (reproduced: Sales view re-sorted by Priority, rows 1-137 gave
+7 wrong rows and missed 7). `handleRowMouseDown` and `handleRowMouseEnter` now use
+`useStableCallback`: a stable identity that always calls the latest closure, so the comparator can
+keep ignoring callbacks without making all rows re-render. `scripts/e2e/selection.mjs` is the
+regression test. It failed on the old code and passes now; see `scripts/e2e/README.md`.
+Checked and deliberately left unchanged, because no stale behaviour is possible today:
+- The other row callbacks. `handleSingleUnitPoClick`, `handleDeleteUnitPoDoc` and
+  `handleDeletePanelSize` close over `canUploadPo` / `canEditPanelSize`, which are constant per
+  session, state setters, and `fetchUnits`, whose only captured value is `currentFilter`, which the
+  comparator compares. The rest are `useCallback(..., [])` or already `useStableCallback`.
+- The ignored data props. `showSelection` and `stickyLeftMap` follow `currentFilter`, `visibleCols`,
+  `columnWidths` and `pinnedKeys`; `panelSizeMap` follows `panelSizeMasters`; `canUploadPo` and
+  `canConfirmDesign` are constant per role.
+If any of those inputs start depending on other state, wrap the handler in `useStableCallback` or
+add the prop to the comparator.
 
 **Verify after every step:** `npm run check`, `npm run build`, browser smoke for all roles
 (identical results), plus a targeted interaction script for the cells touched (open table as the

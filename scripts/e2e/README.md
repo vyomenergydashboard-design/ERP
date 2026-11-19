@@ -43,6 +43,18 @@ disk (known bug, see `tasks/remaining-tasks.md`); clean it with
 `node server/scripts/cleanup_orphan_uploads.js --since=<today> --delete` (run in the backend
 container).
 
+## Range-selection test
+
+`node scripts/e2e/selection.mjs [filters]` (default `QC,Dispatch,Accounts,Sales,Production,Stores,Purchase`)
+is a regression test for the `TableRow` stale-callback bug. As Admin, it opens a view that has
+row selection and re-sorts it in the app (header clicks) until some row keeps its position while
+rows above it change. It then Shift-clicks, and separately drags, from row 1 to that row, and
+checks that exactly the rows displayed in between are selected. It is read-only (selection is
+client-side state). Exit code 0 = pass, 1 = wrong rows selected, 2 = inconclusive (the current data
+gave no such layout; try other filters). With the dev data of 2026-11-19 the `Sales` view is
+enough, and it is much faster: `node scripts/e2e/selection.mjs Sales`. Tokens expire after 8 hours.
+A run where every page gets 401 shows up as INCONCLUSIVE, so re-mint `tokens.json` first.
+
 ## Limits
 
 These are smoke tests: they prove screens load and requests succeed for each role. They do not
