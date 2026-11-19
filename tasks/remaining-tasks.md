@@ -152,8 +152,31 @@ stage dates), `qcCells` (QC status), `dispatchCells` (dispatch / invoice), `cust
 `return`/`throw` (no fall-through), so grouping them is behaviour-preserving.
 Verified: rendered HTML of every table cell for each role and every Admin department filter
 (184,144 cells, page size "all", status "all") was identical before and after, and two "before"
-runs were identical too, so the comparison has no noise. Next: step 4 (state hooks) only if
-wanted, and the `TableRow` memo fix below (separate task).
+runs were identical too, so the comparison has no noise.
+
+Step 4 (state hooks) is done for the self-contained groups: `AllOrdersTableView.jsx` went from 3,355
+to ~3,100 lines. New hooks in `allOrdersTable/hooks/`, each holding the moved code unchanged and called
+where its first hook used to be:
+- `useTableFilters()`: search, tab, priority / status filters, sort key / direction (saved as
+  `erp_all_*`) and `handleSort`.
+- `usePagination({ searchTerm, activeTab, priorityFilter, statusFilter, statCardFilter })`: page
+  size (saved) and current page, reset to 1 when any input changes.
+- `useReferenceData()`: part-number and panel-size masters (+ `panelSizeMap`), wiremen (cached in
+  sessionStorage) and vendor POs (+ `purchaseOrdersBySerialAndCat`), with their fetch functions.
+- `useColumnWidths({ allColumns })`: column widths (saved v16 / v15 or the defaults), debounced
+  saving, and `handleResizeStart`.
+Hook call order moves only by whole groups and is the same on every render, which is all React needs.
+Verified: every moved line is in a hook and every kept line is unchanged and in order, `npm run
+check` / build pass, the 184,144-cell render snapshot is identical, a settings test (sort, filters,
+page size, next page, search reset, column resize, reload) is identical before and after, and
+`scripts/e2e/selection.mjs` passes.
+Deliberately not extracted, because they are entangled:
+- Row selection: its state and `isIdSelected` are used by callbacks defined long before
+  `displayedUnits`, whose dependency arrays are evaluated during render, while the range handlers
+  need `displayedUnits`. Splitting it would need two hooks or a ref.
+- Column order / pin / visibility: `handleHeaderDrop` reads `visibleCols`, which is computed at the
+  end of the component from `activeCols`, `isColVisible` and `userHiddenColumns`.
+Both are possible follow-ups if wanted, with the same verification.
 
 **Approach (small, verifiable steps):**
 1. Move module-level constants/helpers (`DEPT_OWNED_COLUMNS`, `PRODUCTION_AND_QC_COLS`,

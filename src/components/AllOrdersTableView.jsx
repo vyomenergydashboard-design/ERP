@@ -13,7 +13,7 @@ import ProductionBatchBar from './ProductionBatchBar';
 import QcBatchBar from './QcBatchBar';
 import { ToastContainer, useToast } from './Toast';
 import { ConfirmModal } from './ConfirmModal';
-import { DEFAULT_COL_WIDTHS, MIN_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
+import { DEFAULT_COL_WIDTHS, calculateOptimalColumnWidth } from './tableColumnSizing';
 import TableHorizontalScrollbar from './TableHorizontalScrollbar';
 import TableVerticalScrollbar from './TableVerticalScrollbar';
 import { MODAL_OVERLAY_SELECTOR } from '../hooks/useGlobalModalEscape';
@@ -29,8 +29,12 @@ import { isStatusInProgress, calculateUnitStatus } from './allOrdersTable/status
 import TableRow from './allOrdersTable/TableRow.jsx';
 import PoUploadBar from './allOrdersTable/PoUploadBar.jsx';
 import StoresBatchTrayStatusBar from './allOrdersTable/StoresBatchTrayStatusBar.jsx';
+import useTableFilters from './allOrdersTable/hooks/useTableFilters.js';
+import usePagination from './allOrdersTable/hooks/usePagination.js';
+import useReferenceData from './allOrdersTable/hooks/useReferenceData.js';
+import useColumnWidths from './allOrdersTable/hooks/useColumnWidths.js';
 
-// DEFAULT_COL_WIDTHS and MIN_COL_WIDTHS imported from ./tableColumnSizing
+// DEFAULT_COL_WIDTHS imported from ./tableColumnSizing (MIN_COL_WIDTHS is used by hooks/useColumnWidths.js)
 
 // TechnicalDocsModal has been modularized and extracted to src/components/TechnicalDocsModal.jsx
 
@@ -146,32 +150,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   }, []);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('erp_all_activeTab') || 'all');
-  const [priorityFilter, setPriorityFilter] = useState(() => localStorage.getItem('erp_all_priorityFilter') || 'all');
-  const [statusFilter, setStatusFilter] = useState(() => localStorage.getItem('erp_all_statusFilter') || 'incomplete');
-  const [sortKey, setSortKey] = useState(() => localStorage.getItem('erp_all_sortKey') || 'order_number');
-  const [sortDir, setSortDir] = useState(() => localStorage.getItem('erp_all_sortDir') || 'asc');
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_activeTab', activeTab);
-  }, [activeTab]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_priorityFilter', priorityFilter);
-  }, [priorityFilter]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_statusFilter', statusFilter);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_sortKey', sortKey);
-  }, [sortKey]);
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_sortDir', sortDir);
-  }, [sortDir]);
+  const {
+    searchTerm, setSearchTerm, activeTab, setActiveTab, priorityFilter, setPriorityFilter,
+    statusFilter, setStatusFilter, sortKey, sortDir, handleSort,
+  } = useTableFilters();
 
   // Excel-style multi-row selection state (persisted across browser refresh)
   // Active / focused row highlight (clicked row inspection without batch selection)
@@ -220,23 +202,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   const [isUploadingPo, setIsUploadingPo] = useState(false);
   const [poSuccessMsg, setPoSuccessMsg] = useState('');
 
-  // Pagination state
-  const [pageSize, setPageSize] = useState(() => {
-    const saved = localStorage.getItem('erp_all_pageSize');
-    if (saved === 'all') return 'all';
-    const num = Number(saved);
-    return num && num > 0 ? num : 100;
-  });
-  const [currentPage, setCurrentPage] = useState(1);
-
-  useEffect(() => {
-    localStorage.setItem('erp_all_pageSize', String(pageSize));
-  }, [pageSize]);
-
-  // Reset to page 1 on filter or search change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, activeTab, priorityFilter, statusFilter, statCardFilter]);
+  const {
+    pageSize, setPageSize, currentPage, setCurrentPage,
+  } = usePagination({ searchTerm, activeTab, priorityFilter, statusFilter, statCardFilter });
 
   // In-app PDF viewer modal for PO document
   const [poPdfViewer, setPoPdfViewer] = useState(null);
@@ -318,55 +286,9 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.setItem('erp_all_pinned_keys', JSON.stringify(pinnedKeys));
   }, [pinnedKeys]);
 
-  // Column Widths (Resizing)
-  const [columnWidths, setColumnWidths] = useState(() => {
-    try {
-      const savedV16 = localStorage.getItem('erp_all_colWidths_v16');
-      if (savedV16) {
-        const parsed = JSON.parse(savedV16);
-        const merged = { ...DEFAULT_COL_WIDTHS };
-        for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
-          if (parsed[k] !== undefined) {
-            const minSafe = MIN_COL_WIDTHS[k] || 85;
-            merged[k] = Math.max(Number(parsed[k]) || minSafe, minSafe);
-          }
-        }
-        for (const [k, v] of Object.entries(parsed)) {
-          if (merged[k] === undefined && typeof v === 'number') {
-            merged[k] = Math.max(v, MIN_COL_WIDTHS[k] || 85);
-          }
-        }
-        return merged;
-      }
-      // Migrate from v15 if available, but clamp strictly to new safe MIN_COL_WIDTHS
-      const savedV15 = localStorage.getItem('erp_all_colWidths_v15');
-      if (savedV15) {
-        const parsed = JSON.parse(savedV15);
-        const merged = { ...DEFAULT_COL_WIDTHS };
-        for (const k of Object.keys(DEFAULT_COL_WIDTHS)) {
-          const minSafe = MIN_COL_WIDTHS[k] || 85;
-          if (parsed[k] !== undefined) {
-            merged[k] = Math.max(Number(parsed[k]) || (DEFAULT_COL_WIDTHS[k] || minSafe), minSafe);
-          }
-        }
-        return merged;
-      }
-      return { ...DEFAULT_COL_WIDTHS };
-    } catch (e) {
-      return { ...DEFAULT_COL_WIDTHS };
-    }
-  });
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      try {
-        localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(columnWidths));
-      } catch (err) {
-        console.error('Failed to save colWidths', err);
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [columnWidths]);
+  const {
+    columnWidths, setColumnWidths, handleResizeStart,
+  } = useColumnWidths({ allColumns });
 
   // Header Drag & Drop state
   const [draggedColKey, setDraggedColKey] = useState(null);
@@ -455,61 +377,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     localStorage.removeItem('erp_all_pinned_keys');
   };
 
-  const rafResizeRef = useRef(null);
-
-  const handleResizeStart = (e, colKey) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const startX = e.pageX;
-    const startWidth = columnWidths[colKey] || DEFAULT_COL_WIDTHS[colKey] || 120;
-    const colDef = allColumns?.find(c => c.key === colKey);
-    const minSafe = MIN_COL_WIDTHS[colKey] || (isDateTimeType(colDef?.fieldType) ? 165 : 80);
-
-    document.body.classList.add('resizing-active');
-    let latestWidth = startWidth;
-
-    const onMouseMove = (moveEvent) => {
-      moveEvent.preventDefault();
-      latestWidth = Math.max(minSafe, startWidth + (moveEvent.pageX - startX));
-
-      if (!rafResizeRef.current) {
-        rafResizeRef.current = requestAnimationFrame(() => {
-          setColumnWidths(prev => {
-            if (prev[colKey] === latestWidth) return prev;
-            return {
-              ...prev,
-              [colKey]: latestWidth
-            };
-          });
-          rafResizeRef.current = null;
-        });
-      }
-    };
-
-    const onMouseUp = () => {
-      if (rafResizeRef.current) {
-        cancelAnimationFrame(rafResizeRef.current);
-        rafResizeRef.current = null;
-      }
-      document.body.classList.remove('resizing-active');
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-
-      setColumnWidths(prev => {
-        const finalMap = { ...prev, [colKey]: latestWidth };
-        try {
-          localStorage.setItem('erp_all_colWidths_v16', JSON.stringify(finalMap));
-        } catch (err) {
-          console.error('Failed to save colWidths', err);
-        }
-        return finalMap;
-      });
-    };
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  };
-
   const token = localStorage.getItem('token');
   const userRole = (() => {
     if (propUserRole) return propUserRole;
@@ -590,128 +457,17 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
   };
 
   const [editingCell, setEditingCell] = useState(null);
-  const [partMasters, setPartMasters] = useState([]);
-  const [panelSizeMasters, setPanelSizeMasters] = useState([]);
-  const [wiremenList, setWiremenList] = useState(() => {
-    try {
-      const cached = sessionStorage.getItem('erp_cache_wiremen');
-      return cached ? JSON.parse(cached) : [];
-    } catch (e) {
-      return [];
-    }
-  });
+  const {
+    partMasters, panelSizeMasters, wiremenList, fetchVendorPurchaseOrders,
+    purchaseOrdersBySerialAndCat, fetchPartMasters, fetchPanelSizeMasters, fetchWiremenMasters,
+    panelSizeMap,
+  } = useReferenceData();
   const [showDocsModal, setShowDocsModal] = useState(false);
   const [selectedPartForDocs, setSelectedPartForDocs] = useState(null);
   const [editingRefTagUnit, setEditingRefTagUnit] = useState(null);
   const [orderDocsModalData, setOrderDocsModalData] = useState(null);
   const [isPurchaseNewOrderOpen, setIsPurchaseNewOrderOpen] = useState(false);
   const [isPurchaseOrderReceivedOpen, setIsPurchaseOrderReceivedOpen] = useState(false);
-  const [vendorPurchaseOrders, setVendorPurchaseOrders] = useState([]);
-
-  const fetchVendorPurchaseOrders = async () => {
-    try {
-      const res = await apiFetch(`/api/purchase-orders`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setVendorPurchaseOrders(data);
-          try {
-            localStorage.setItem('vyom_purchase_orders', JSON.stringify(data));
-          } catch (e) { }
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to fetch vendor purchase orders:', err);
-    }
-    try {
-      const cached = localStorage.getItem('vyom_purchase_orders');
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed)) setVendorPurchaseOrders(parsed);
-      }
-    } catch (e) { }
-  };
-
-  const purchaseOrdersBySerialAndCat = useMemo(() => {
-    const map = new Map();
-    (vendorPurchaseOrders || []).forEach(order => {
-      const cat = String(order.category || '').trim();
-      const posList = Array.isArray(order.pos) && order.pos.length > 0
-        ? order.pos
-        : [{ poNumber: order.poNumber || order.order_uid || 'PO', status: order.status || 'Pending' }];
-      const serials = Array.isArray(order.serials) ? order.serials : [];
-
-      serials.forEach(s => {
-        const sn = String(s?.serialNumber || s?.unit_serial || s?.serial_number || s?.serial || s || '').trim();
-        if (!sn) return;
-
-        posList.forEach(p => {
-          const entry = {
-            poNumber: p.poNumber || order.poNumber || order.order_uid || 'PO',
-            status: p.status || order.status || 'Pending',
-            category: cat,
-            orderId: order.id,
-            createdDate: p.date || (order.created_at ? String(order.created_at).slice(0, 10) : null),
-            receivedDate: p.dateReceived || (order.received_at ? String(order.received_at).slice(0, 10) : null)
-          };
-
-          const key = `${sn}__${cat}`.toLowerCase();
-          const shortKey = `${sn.slice(-4)}__${cat}`.toLowerCase();
-
-          if (!map.has(key)) map.set(key, []);
-          map.get(key).push(entry);
-
-          if (!map.has(shortKey)) map.set(shortKey, []);
-          map.get(shortKey).push(entry);
-        });
-      });
-    });
-    return map;
-  }, [vendorPurchaseOrders]);
-
-  const fetchPartMasters = async () => {
-    try {
-      const res = await apiFetch(`/api/part-number-masters`);
-      if (res.ok) {
-        setPartMasters(await res.json());
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const fetchPanelSizeMasters = async () => {
-    try {
-      const res = await apiFetch(`/api/panel-size-masters`);
-      if (res.ok) {
-        setPanelSizeMasters(await res.json());
-      }
-    } catch (err) { console.error(err); }
-  };
-
-  const fetchWiremenMasters = async () => {
-    try {
-      const res = await apiFetch(`/api/wireman-masters`);
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setWiremenList(data);
-          try {
-            sessionStorage.setItem('erp_cache_wiremen', JSON.stringify(data));
-          } catch (e) { }
-        }
-      }
-    } catch (err) { console.error('Failed to fetch wireman masters:', err); }
-  };
-
-  const panelSizeMap = useMemo(() => {
-    const map = new Map();
-    (panelSizeMasters || []).forEach(m => {
-      if (m.panel_size) map.set(m.panel_size, m);
-      if (m.size_name) map.set(m.size_name, m);
-      if (m.panel_code) map.set(m.panel_code, m);
-    });
-    return map;
-  }, [panelSizeMasters]);
 
   const customColumnMap = useMemo(() => {
     const map = new Map();
@@ -1592,18 +1348,6 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
     window.dispatchEvent(new CustomEvent('setView', {
       detail: { view: 'flow', orderId: parseInt(orderId), unitId: parseInt(unitId) }
     }));
-  }, []);
-
-  const handleSort = useCallback((key) => {
-    setSortKey(prevKey => {
-      if (prevKey === key) {
-        setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-        return prevKey;
-      } else {
-        setSortDir('asc');
-        return key;
-      }
-    });
   }, []);
 
   const unitStatusMap = useMemo(() => {
