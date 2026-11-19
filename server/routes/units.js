@@ -12,7 +12,7 @@ import { tryInSavepoint, lockOrders } from '../services/transactions.js';
 import { resolveCustomFieldValues, propagateCustomFieldsToDB } from '../services/customFields.js';
 import {
   deriveUnitStatus, syncLineItemStatusFromUnits, evaluateUnitDesignDocuments,
-  syncUnitDesignDocumentStatus, updateOrderQCStatusFromSteps, findBlockingUpstreamDepts,
+  syncUnitDesignDocumentStatus, updateOrderQCStatusFromSteps, findBlockingUpstreamDepts, isAwaitingSales,
 } from '../services/unitStatus.js';
 
 /**
@@ -1029,15 +1029,13 @@ export default function createUnitsRouter(pool, authorize) {
       }
       const unit = uRes.rows[0];
 
-      // A panel only comes to Design after Sales has cleared it
-      const pendingSalesRes = await client.query(
-        `SELECT id, name FROM unit_steps WHERE order_unit_id = $1 AND dept = 'Sales' AND status != 'done'`,
-        [unit.id]
-      );
-      if (pendingSalesRes.rows.length > 0 && !['Admin', 'Manager'].includes(req.user.role)) {
+      // A panel only comes to Design after Sales has cleared it: the full Sales gate (PO, mandatory
+      // order-level Sales steps and the panel's own Sales steps). Admin / Manager may override
+      // (owner decision 2026-11-19).
+      if (!['Admin', 'Manager'].includes(req.user.role) && await isAwaitingSales(client, unit.id)) {
         await client.query('ROLLBACK');
         return res.status(400).json({
-          error: 'Panel cannot be confirmed by Design: Awaiting Sales clearance. A panel only comes to Design after Sales has cleared it.'
+          error: 'Panel cannot be confirmed by Design: Awaiting Sales clearance (PO or Sales tasks still pending). A panel only comes to Design after Sales has cleared it.'
         });
       }
 

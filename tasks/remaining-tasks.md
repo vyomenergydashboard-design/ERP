@@ -76,11 +76,11 @@ Pre-existing behaviours seen while probing `orders`: the missing-`unit_price` 50
 Still open: changing an order's classification only applies to units created afterwards (existing
 units keep theirs).
 
-Found while probing (pre-existing, not changed): `POST /api/units/:id/design-confirm` only refuses
-when the unit has unfinished *unit-level* Sales steps. A unit still in Sales because its PO /
-order-level `Upload PO` is missing can be pre-confirmed (200; `design_confirmed` set). It still
-cannot advance, because `deriveUnitStatus` keeps it in Sales, but AGENTS.md §8 says this call should
-return 400 while Sales clearances are pending. Owner to decide whether to tighten the guard.
+Found while probing and fixed on 2026-11-19: `POST /api/units/:id/design-confirm` used to refuse
+only when the unit had unfinished *unit-level* Sales steps, so a unit still in Sales because its PO /
+order-level `Upload PO` was missing could be pre-confirmed by Design. It now uses the full Sales gate
+(`isAwaitingSales`, shared with `deriveUnitStatus`); Admin / Manager keep their override (§5).
+Test: `test_design_confirm_sales_gate.js`.
 Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `authorize` stays in
 `index.js` and is passed to each router factory. (`evaluateOrderDesignGate` /
 `isReleaseDocumentsStep`, `templateHandler` and `loginRateLimiter` now live in their routers.)
@@ -287,6 +287,8 @@ Fixed on 2026-11-19 (each with a test that failed first):
 - Wiremen and panel-size lists are **readable by every logged-in user**; writes stay restricted.
 - Logs feed visible to everyone (non-admins capped at 1,000 rows); user emails Admin-only.
 - Uploads/backups stay in `server/uploads` / `server/backups` (off-site copy is an ops task).
+- Design confirmation while a panel is awaiting Sales: **Admin and Manager keep their override**;
+  Design users get 400 (2026-11-19).
 
 ---
 

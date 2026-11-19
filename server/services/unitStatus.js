@@ -54,44 +54,15 @@ export const syncLineItemStatusFromUnits = async (lineItemId, clientOrPool) => {
   }
 };
 
-export const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
-  const prevUnitRes = await clientOrPool.query(
-    `SELECT ou.current_dept, ou.status, ou.line_item_id, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, ou.tray_start_date, ou.issued_date, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
-     FROM order_units ou
-     JOIN orders o ON ou.order_id = o.id
-     WHERE ou.id = $1`,
-    [unitId]
-  );
-  if (prevUnitRes.rows.length === 0) return;
-
-  const row = prevUnitRes.rows[0];
-  const oldDept = row.current_dept;
-  const unit_id_str = row.unit_id || '';
-  const short_serial = row.short_serial || '';
+/**
+ * The order-level part of the Sales gate. deriveUnitStatus keeps a panel in Sales until this is true
+ * AND the panel's own Sales steps are done. True when the PO is satisfied (panel PO number and
+ * document, the order's "Upload PO" step done, Sales clearance, or, with no order-level Sales steps,
+ * an order PO document) and no other mandatory order-level Sales step is pending.
+ * `row` needs order_id, sales_cleared, po_override_unlinked, unit_po_number, order_po_number, po_doc_id.
+ */
+const isOrderSalesWorkDone = async (clientOrPool, unitId, row) => {
   const orderId = row.order_id;
-  const unitHoldStatus = row.hold_status;
-  const orderHoldStatus = row.order_hold_status;
-
-  // 1. Check if unit is Cancelled
-  if (unitHoldStatus === 'Cancelled') {
-    const cancelDept = row.cancelled_dept || oldDept || 'Sales';
-    await clientOrPool.query(
-      `UPDATE order_units SET status = 'Cancelled', current_dept = $1 WHERE id = $2`,
-      [cancelDept, unitId]
-    );
-    return;
-  }
-
-  // 2. Check if unit or order is On Hold
-  if (unitHoldStatus === 'Hold' || orderHoldStatus === 'Approved') {
-    const holdDept = row.hold_dept || oldDept || 'Sales';
-    const statusText = row.hold_step_name ? `Hold @ ${row.hold_step_name}` : 'Hold';
-    await clientOrPool.query(
-      `UPDATE order_units SET status = $1, current_dept = $2 WHERE id = $3`,
-      [statusText, holdDept, unitId]
-    );
-    return;
-  }
 
   // Check individual panel PO resolution
   const isSalesCleared = row.sales_cleared === true;
@@ -149,7 +120,72 @@ export const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = fal
   }
 
   const isPoSatisfied = hasPanelPo || orderPoStepDone || isSalesCleared || hasOrderDocFallback;
-  const isSalesDone = isPoSatisfied && !otherSalesOrderStepsPending;
+  return isPoSatisfied && !otherSalesOrderStepsPending;
+};
+
+/**
+ * Whether a panel is still waiting for Sales: the same Sales gate deriveUnitStatus applies
+ * (order-level Sales work not done, or one of the panel's own Sales steps pending). Used by
+ * design-confirm, which refuses Design users while this is true (AGENTS.md §8).
+ */
+export const isAwaitingSales = async (clientOrPool, unitId) => {
+  const unitRes = await clientOrPool.query(
+    `SELECT ou.order_id, ou.sales_cleared, ou.po_override_unlinked, ou.po_number AS unit_po_number, ou.po_doc_id,
+            o.po_number AS order_po_number
+     FROM order_units ou JOIN orders o ON ou.order_id = o.id
+     WHERE ou.id = $1`,
+    [unitId]
+  );
+  if (unitRes.rows.length === 0) return false;
+  const unitSalesPending = await clientOrPool.query(
+    `SELECT 1 FROM unit_steps WHERE order_unit_id = $1 AND dept = 'Sales' AND status != 'done' LIMIT 1`,
+    [unitId]
+  );
+  if (unitSalesPending.rows.length > 0) return true;
+  return !(await isOrderSalesWorkDone(clientOrPool, unitId, unitRes.rows[0]));
+};
+
+export const deriveUnitStatus = async (unitId, clientOrPool, suppressEmail = false) => {
+  const prevUnitRes = await clientOrPool.query(
+    `SELECT ou.current_dept, ou.status, ou.line_item_id, ou.unit_id, ou.short_serial, ou.order_id, ou.hold_status, ou.hold_step_name, ou.hold_dept, ou.cancelled_step_name, ou.cancelled_dept, ou.design_confirmed, ou.po_number as unit_po_number, ou.po_doc_id, ou.po_override_unlinked, ou.sales_cleared, ou.tray_start_date, ou.issued_date, o.classification, o.po_number as order_po_number, o.hold_status as order_hold_status
+     FROM order_units ou
+     JOIN orders o ON ou.order_id = o.id
+     WHERE ou.id = $1`,
+    [unitId]
+  );
+  if (prevUnitRes.rows.length === 0) return;
+
+  const row = prevUnitRes.rows[0];
+  const oldDept = row.current_dept;
+  const unit_id_str = row.unit_id || '';
+  const short_serial = row.short_serial || '';
+  const orderId = row.order_id;
+  const unitHoldStatus = row.hold_status;
+  const orderHoldStatus = row.order_hold_status;
+
+  // 1. Check if unit is Cancelled
+  if (unitHoldStatus === 'Cancelled') {
+    const cancelDept = row.cancelled_dept || oldDept || 'Sales';
+    await clientOrPool.query(
+      `UPDATE order_units SET status = 'Cancelled', current_dept = $1 WHERE id = $2`,
+      [cancelDept, unitId]
+    );
+    return;
+  }
+
+  // 2. Check if unit or order is On Hold
+  if (unitHoldStatus === 'Hold' || orderHoldStatus === 'Approved') {
+    const holdDept = row.hold_dept || oldDept || 'Sales';
+    const statusText = row.hold_step_name ? `Hold @ ${row.hold_step_name}` : 'Hold';
+    await clientOrPool.query(
+      `UPDATE order_units SET status = $1, current_dept = $2 WHERE id = $3`,
+      [statusText, holdDept, unitId]
+    );
+    return;
+  }
+
+  // Sales gate, order-level part (PO and mandatory order-level Sales steps)
+  const isSalesDone = await isOrderSalesWorkDone(clientOrPool, unitId, row);
 
   let newStatus = 'Pending';
   let newDept = 'Sales';

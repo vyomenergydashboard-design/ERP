@@ -271,7 +271,7 @@ The database schema is defined in `server/init.sql` and updated via `server/run_
 
 8. **Sales to Design Gate:**
    - A panel only comes to Design after Sales has completed all mandatory Sales tasks (`Upload PO`) and any configured Sales clearance steps (`unit.current_dept === 'Sales'` until Sales tasks are done).
-   - Design confirmation (`POST /api/units/:id/design-confirm`) is strictly blocked with HTTP 400 if Sales tasks or clearances are pending.
+   - Design confirmation (`POST /api/units/:id/design-confirm`) is blocked with HTTP 400 for Design users while the panel is awaiting Sales: the same Sales gate as `deriveUnitStatus` (PO, mandatory order-level Sales steps and the panel's own Sales steps; `isAwaitingSales` in `server/services/unitStatus.js`). Admin and Manager may override (owner decision 2026-11-19); an override records the confirmation but never moves the panel out of Sales.
 
 9. **Dynamic Task Masters Lifecycle & Department Isolation:**
    - Admins have complete freedom to create, edit, or delete task templates in Task Masters (`task_masters`).
