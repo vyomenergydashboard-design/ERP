@@ -11,7 +11,8 @@ import { sendHoldRequestEmail } from '../services/notifications.js';
 import { upload } from '../services/uploads.js';
 import { formatOrderNumber, parseOrderCounter, lockSerialAllocation, generateOrderNumber } from '../services/orderNumbers.js';
 import { resolveCustomFieldValues, propagateCustomFieldsToDB } from '../services/customFields.js';
-import { deriveUnitStatus, evaluateUnitDesignDocuments, updateOrderQCStatusFromSteps } from '../services/unitStatus.js';
+import { deriveUnitStatus, evaluateUnitDesignDocuments, updateOrderQCStatusFromSteps, syncUnitDesignDocumentStatus } from '../services/unitStatus.js';
+import { lockOrders } from '../services/transactions.js';
 import { sentFieldAssignments } from '../services/partialUpdate.js';
 
 // Order-level planning fields PUT /:id/planning may change; only the ones sent are written.
@@ -288,28 +289,63 @@ export default function createOrdersRouter(pool, authorize) {
   });
 
   router.put('/:id/classification', authorize(['Admin', 'Manager', 'Design', 'Sales']), async (req, res) => {
-    try {
-      const { classification } = req.body;
-      if (!['Standard', 'Non-Standard'].includes(classification)) {
-        return res.status(400).json({ error: 'Classification must be Standard or Non-Standard' });
-      }
+    const { classification } = req.body;
+    if (!['Standard', 'Non-Standard'].includes(classification)) {
+      return res.status(400).json({ error: 'Classification must be Standard or Non-Standard' });
+    }
 
-      const checkOrder = await pool.query('SELECT order_number, classification FROM orders WHERE id = $1', [req.params.id]);
-      if (checkOrder.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await lockOrders(client, [req.params.id]);
+
+      const checkOrder = await client.query('SELECT order_number, classification FROM orders WHERE id = $1', [req.params.id]);
+      if (checkOrder.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Order not found' });
+      }
       const oldClass = checkOrder.rows[0].classification || 'Standard';
       const order_number = checkOrder.rows[0].order_number;
 
-      await pool.query('UPDATE orders SET classification = $1 WHERE id = $2', [classification, req.params.id]);
+      await client.query('UPDATE orders SET classification = $1 WHERE id = $2', [classification, req.params.id]);
 
-      await pool.query(
+      // Existing panels that have not passed Design take the new type and get their Drawing / BOM
+      // requirement re-checked (owner decision 2026-11-19). Panels in Purchase or later keep the type
+      // they were built with: Non-Standard ignores part-number documents, so switching them could send
+      // them back to Design. Cancelled panels are left alone.
+      const notPastDesign = PIPELINE.slice(0, PIPELINE.indexOf('Design') + 1);
+      const updatedUnits = await client.query(
+        `UPDATE order_units SET classification = $1
+         WHERE order_id = $2 AND COALESCE(hold_status, '') <> 'Cancelled'
+           AND current_dept = ANY($3::text[]) AND classification IS DISTINCT FROM $1
+         RETURNING id`,
+        [classification, req.params.id, notPastDesign]
+      );
+      for (const u of updatedUnits.rows) {
+        await syncUnitDesignDocumentStatus(client, u.id, req.user.id);
+      }
+      const panelCount = updatedUnits.rows.length;
+
+      await client.query(
         'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
-        [req.user.id, req.user.role, `Changed classification of order ${order_number} from "${oldClass}" to "${classification}"`, req.params.id]
+        [req.user.id, req.user.role,
+          `Changed classification of order ${order_number} from "${oldClass}" to "${classification}" (${panelCount} panel(s) not past Design updated)`,
+          req.params.id]
       );
 
-      res.json({ success: true, classification, message: `Order ${order_number} classification updated to ${classification}` });
+      await client.query('COMMIT');
+      res.json({
+        success: true,
+        classification,
+        updatedPanels: panelCount,
+        message: `Order ${order_number} classification updated to ${classification}`
+      });
     } catch (err) {
+      await client.query('ROLLBACK');
       console.error(err);
       res.status(500).json({ error: 'Failed to update order classification' });
+    } finally {
+      client.release();
     }
   });
 

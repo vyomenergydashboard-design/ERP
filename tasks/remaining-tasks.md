@@ -73,8 +73,11 @@ table (95 registrations) is identical before and after. **Task C is complete:** 
 
 Pre-existing behaviours seen while probing `orders`: the missing-`unit_price` 500 and
 `PUT /api/orders/:id/planning` clearing fields that were not sent are fixed (2026-11-19, see §3).
-Still open: changing an order's classification only applies to units created afterwards (existing
-units keep theirs).
+Also fixed on 2026-11-19: changing an order's classification used to apply only to units created
+afterwards. `PUT /api/orders/:id/classification` now updates existing panels that have not passed
+Design (Sales / Design, not cancelled) and re-checks their Drawing / BOM requirement
+(`syncUnitDesignDocumentStatus`); panels in Purchase or later keep their type (§5).
+Test: `test_order_classification_panels.js`.
 
 Found while probing and fixed on 2026-11-19: `POST /api/units/:id/design-confirm` used to refuse
 only when the unit had unfinished *unit-level* Sales steps, so a unit still in Sales because its PO /
@@ -289,6 +292,9 @@ Fixed on 2026-11-19 (each with a test that failed first):
 - Uploads/backups stay in `server/uploads` / `server/backups` (off-site copy is an ops task).
 - Design confirmation while a panel is awaiting Sales: **Admin and Manager keep their override**;
   Design users get 400 (2026-11-19).
+- Changing an order's classification updates **existing panels that have not passed Design** and
+  re-checks their Drawing / BOM; panels in Purchase or later keep the type they were built with,
+  because Non-Standard ignores part-number documents and would send them back to Design (2026-11-19).
 
 ---
 
