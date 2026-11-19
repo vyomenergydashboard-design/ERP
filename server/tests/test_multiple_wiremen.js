@@ -1,6 +1,9 @@
 import assert from 'assert';
-import pool from '../db.js';
+import pg from 'pg';
 import jwt from 'jsonwebtoken';
+
+// DATABASE_URL like the other tests: ../db.js reads DB_HOST / DB_NAME instead and ignores it.
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db' });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 const API_BASE = process.env.API_BASE || 'http://localhost:5000';

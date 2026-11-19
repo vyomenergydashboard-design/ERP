@@ -7,8 +7,11 @@
  * 3. Log preservation (ON DELETE SET NULL, historical records survive user deletion)
  */
 
-import pool from '../db.js';
+import pg from 'pg';
 import { generateDatabaseBackup } from '../services/databaseBackup.js';
+
+// DATABASE_URL like the other tests: ../db.js reads DB_HOST / DB_NAME instead and ignores it.
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db' });
 
 async function runTests() {
   console.log('====================================================');

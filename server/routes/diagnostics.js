@@ -24,8 +24,8 @@ export default function createDiagnosticsRouter(pool, authorize) {
         unitsCount: unitsCount.rows[0].count,
       });
     } catch (err) {
-      console.error('Realign pipeline stats failed:', err);
-      res.status(500).json({ error: publicErrorMessage(err, 'Failed to load pipeline counts') });
+      console.error('Diagnostic status failed:', err);
+      res.status(500).json({ error: publicErrorMessage(err, 'Failed to load diagnostic status') });
     }
   });
 

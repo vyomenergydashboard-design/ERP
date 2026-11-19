@@ -1,6 +1,9 @@
-import pool from '../db.js';
+import pg from 'pg';
 import jwt from 'jsonwebtoken';
 import { checkUnitPurchaseCategoriesStatus, evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
+
+// DATABASE_URL like the other tests: ../db.js reads DB_HOST / DB_NAME instead and ignores it.
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db' });
 
 async function runTests() {
   console.log('====================================================');
@@ -175,6 +178,7 @@ async function runTests() {
   // --- INTEGRATION TEST 3: POST /api/units/batch-purchase-na endpoint ---
   console.log('\n[TEST 3] Testing POST /api/units/batch-purchase-na endpoint...');
   const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+  const API_BASE = process.env.API_BASE || 'http://localhost:5000';
   const token = jwt.sign({ id: 1, username: 'admin', role: 'Admin' }, JWT_SECRET, { expiresIn: '1h' });
 
   await pool.query("DELETE FROM orders WHERE order_number = '99990003' OR po_number = 'TEST-BATCH-NA-PO'");
@@ -207,7 +211,7 @@ async function runTests() {
   `, [tuId1, tuId2]);
 
   try {
-    const batchRes = await fetch('http://localhost:5000/api/units/batch-purchase-na', {
+    const batchRes = await fetch(`${API_BASE}/api/units/batch-purchase-na`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

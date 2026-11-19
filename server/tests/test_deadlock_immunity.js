@@ -1,4 +1,7 @@
-import pool from '../db.js';
+import pg from 'pg';
+
+// DATABASE_URL like the other tests: ../db.js reads DB_HOST / DB_NAME instead and ignores it.
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5433/erp_db' });
 
 async function runDeadlockImmunityTest() {
   console.log('====================================================');

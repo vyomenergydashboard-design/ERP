@@ -12,6 +12,13 @@ import { upload } from '../services/uploads.js';
 import { formatOrderNumber, parseOrderCounter, lockSerialAllocation, generateOrderNumber } from '../services/orderNumbers.js';
 import { resolveCustomFieldValues, propagateCustomFieldsToDB } from '../services/customFields.js';
 import { deriveUnitStatus, evaluateUnitDesignDocuments, updateOrderQCStatusFromSteps } from '../services/unitStatus.js';
+import { sentFieldAssignments } from '../services/partialUpdate.js';
+
+// Order-level planning fields PUT /:id/planning may change; only the ones sent are written.
+const ORDER_PLANNING_FIELDS = [
+  'end_client_name', 'planned_dispatch_date', 'wiring_assigned_date', 'wiring_expected_date',
+  'expected_qc_date', 'qc_date'
+];
 
 // Order-level Design gate: every active (non-cancelled) panel of the order must have Drawing AND BOM AND
 // Design confirmation before an order-level Release Documents step may be marked done.
@@ -62,11 +69,20 @@ export default function createOrdersRouter(pool, authorize) {
         // Ignore
       }
 
-      // Validate line item price values to prevent Postgres numeric field overflow
-      for (const li of parsedLineItems) {
+      // Validate line item price values to prevent Postgres numeric field overflow. A price is
+      // required (0 is fine); the validated numbers replace the raw values for the insert below,
+      // since unit_price and total_price are NOT NULL.
+      const isBlank = (v) => v === undefined || v === null || String(v).trim() === '';
+      for (const [index, li] of parsedLineItems.entries()) {
         const qty = parseInt(li.quantity) || 1;
-        const uPrice = parseFloat(li.unit_price) || 0;
-        const tPrice = parseFloat(li.total_price) || (qty * uPrice);
+        if (isBlank(li.unit_price)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: `Unit price is required (line item ${index + 1}).` });
+        }
+        const uPrice = parseFloat(li.unit_price);
+        const tPrice = isBlank(li.total_price) ? qty * uPrice : parseFloat(li.total_price);
+        li.unit_price = uPrice;
+        li.total_price = tPrice;
 
         if (isNaN(uPrice) || uPrice < 0 || uPrice > 9999999999999.99) {
           await client.query('ROLLBACK');
@@ -492,8 +508,12 @@ export default function createOrdersRouter(pool, authorize) {
         values.push(unit || null);
       }
       if (unit_price !== undefined) {
-        const price = unit_price ? parseFloat(unit_price) : null;
-        if (price !== null && (isNaN(price) || price < 0 || price > 9999999999999.99)) {
+        // unit_price is NOT NULL: 0 is a valid price, an empty one is refused.
+        if (unit_price === null || String(unit_price).trim() === '') {
+          return res.status(400).json({ error: 'Unit price is required.' });
+        }
+        const price = parseFloat(unit_price);
+        if (isNaN(price) || price < 0 || price > 9999999999999.99) {
           return res.status(400).json({ error: "Unit price must be a valid number between 0 and 9,999,999,999,999.99." });
         }
         updates.push(`unit_price = $${idx++}`);
@@ -503,7 +523,7 @@ export default function createOrdersRouter(pool, authorize) {
         let total = null;
         if (req.body.total_price !== undefined) {
           total = parseFloat(req.body.total_price);
-        } else if (quantity && unit_price) {
+        } else if (quantity) {
           total = parseInt(quantity) * parseFloat(unit_price);
         }
         if (total !== null && (isNaN(total) || total < 0 || total > 9999999999999.99)) {
@@ -1652,17 +1672,7 @@ export default function createOrdersRouter(pool, authorize) {
     if (await isOrderOnHold(req.params.id)) {
       return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
     }
-    const {
-      end_client_name,
-      planned_dispatch_date,
-      wiring_assigned_date,
-      wiring_expected_date,
-      expected_qc_date,
-      priority,
-      status,
-      qc_status,
-      qc_date
-    } = req.body;
+    const { priority, status, qc_status } = req.body;
 
     try {
       const checkOrder = await pool.query('SELECT order_number FROM orders WHERE id = $1', [req.params.id]);
@@ -1671,30 +1681,22 @@ export default function createOrdersRouter(pool, authorize) {
       }
       const order_number = checkOrder.rows[0].order_number;
 
+      // Only the planning fields that were sent are written; an empty value clears one.
+      const sent = sentFieldAssignments(req.body, ORDER_PLANNING_FIELDS, 5);
       const result = await pool.query(
-        `UPDATE orders 
-         SET end_client_name = $1, 
-             planned_dispatch_date = $2, 
-             wiring_assigned_date = $3, 
-             wiring_expected_date = $4, 
-             expected_qc_date = $5, 
-             priority = COALESCE($6, priority), 
-             status = COALESCE($7, status), 
-             qc_status = COALESCE($8, qc_status), 
-             qc_date = $9 
-         WHERE id = $10 
+        `UPDATE orders
+         SET ${sent.clauses.map(c => `${c},`).join(' ')}
+             priority = COALESCE($1, priority),
+             status = COALESCE($2, status),
+             qc_status = COALESCE($3, qc_status)
+         WHERE id = $4
          RETURNING *`,
         [
-          end_client_name || null,
-          planned_dispatch_date || null,
-          wiring_assigned_date || null,
-          wiring_expected_date || null,
-          expected_qc_date || null,
           priority,
           status,
           qc_status,
-          qc_date || null,
-          req.params.id
+          req.params.id,
+          ...sent.values
         ]
       );
 

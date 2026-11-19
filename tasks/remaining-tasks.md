@@ -1,6 +1,6 @@
 # Remaining Tasks — Handoff for Next Sessions
 
-Last updated: 2026-11-18. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
+Last updated: 2026-11-19. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
 AGENTS.md rules still apply: no code changes unless asked, **no commits/pushes unless the user
 explicitly says so**. The user's workflow so far: one task at a time → verify → user says
 "commit, merge into main and push" → commit on a short-lived branch, fast-forward `main`, push,
@@ -71,10 +71,10 @@ table (95 registrations) is identical before and after. **Task C is complete:** 
 `authorize` middleware, `/uploads` (+ `authorizeUploadDownload`), the error handler, and startup
 (`initDB`, `seedSayaUser`, `startServer`).
 
-Pre-existing behaviours seen while probing `orders` (not changed): creating an order whose line item
-has no `unit_price` fails with 500 (NOT NULL) instead of a 400; `PUT /api/orders/:id/planning` sets
-`end_client_name` to NULL when the field is not sent; changing an order's classification only applies
-to units created afterwards (existing units keep theirs).
+Pre-existing behaviours seen while probing `orders`: the missing-`unit_price` 500 and
+`PUT /api/orders/:id/planning` clearing fields that were not sent are fixed (2026-11-19, see §3).
+Still open: changing an order's classification only applies to units created afterwards (existing
+units keep theirs).
 
 Found while probing (pre-existing, not changed): `POST /api/units/:id/design-confirm` only refuses
 when the unit has unfinished *unit-level* Sales steps. A unit still in Sales because its PO /
@@ -117,7 +117,7 @@ Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `
 - `node --check` on changed files; `docker-compose restart backend`, wait for `healthy`.
 - Route table unchanged: dump `METHOD path` for all `app.*` / router routes before and after and diff
   (e.g. walk `app._router.stack` in a one-off script, or grep the sources).
-- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → must stay 24/24.
+- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → must stay 27/27 (29 with `--all`).
 - Browser smoke (`scripts/e2e`, see §4) → identical to the run before the step.
 
 ### Task D — Split `src/components/AllOrdersTableView.jsx`
@@ -220,7 +220,6 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 | Deleting a part-number document leaves its file on disk | `server/index.js` `DELETE /api/part-number-masters/:id/documents/:docId` | Row is deleted, file never unlinked → orphan. Unlink after delete (or keep if history is wanted — ask). |
 | Settings page header says "User Management" | `src/App.jsx` page-title chain | The title ternary has no `settings`/`users` cases and falls through. Cosmetic. |
 | 28 older unreferenced upload files | `server/uploads` | From before 2026-11-17, origin unknown. Review with `node scripts/cleanup_orphan_uploads.js` (dry run, in the backend container) before deleting. |
-| CI first run not verified | GitHub Actions | `gh` is not installed locally. Check the Actions tab; integration job may need tweaks. |
 | Login rate limiter can be bypassed via port 5000 | `server/index.js` `trust proxy` | Port 5000 stays public by owner's choice, so `X-Forwarded-For` can be spoofed when calling it directly. |
 | SSE only broadcasts from 4 routes | `server/services/eventStream.js` callers | Other users don't see order/step/hold/PO changes live. |
 | Big table not virtualized | `AllOrdersTableView.jsx` | "All" page size renders every row. |
@@ -228,7 +227,24 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 | No ESLint / Prettier | repo | `npm run check` is the only static check. |
 | nginx: no TLS/HSTS/CSP | `nginx.conf` | Depends on how production is exposed. |
 | Default DB credentials `postgres/postgres` | `docker-compose.yml` | Port 5433 is public by owner's choice. |
-| Some tests ignore `DATABASE_URL` / `API_BASE` | `server/tests/` | Five tests import `../db.js`, which uses `DB_NAME` (deadlock_immunity, jsonb_merge_integrity, multiple_wiremen, optimistic_concurrency_control, purchase_auto_completion), and `test_purchase_auto_completion.js` hard-codes `http://localhost:5000/api/units/batch-purchase-na`. Inside the dev backend container these always reach `erp_db`, whatever `DATABASE_URL` says. In a "fresh DB" run next to the dev backend, that hard-coded call sends throwaway-DB unit ids to the dev backend. Fix: use `API_BASE` and `DATABASE_URL` everywhere (or a shared test helper). Until then use the isolated recipe in §4. |
+| Viewing the Purchase worklist writes | `server/routes/deptWorklist.js` (`GET /api/dept-worklist`) | The GET runs purchase auto-completion, which can complete steps and move units. Owner to decide: keep, or move it to the write paths / a scheduled job. |
+| Planning "Completed" ticks off upstream steps | `server/routes/planning.js` (`PUT /units/:unitId`, `PUT /line-items/:lineItemId`) | Setting status Completed marks pending Sales / Design / Purchase / Stores steps done ("never blocked from Production"). Check against the AGENTS.md §7 / §8 gates before deciding. |
+| Adding a line item without a price stores 0 | `POST /api/orders/:orderId/line-items` | Order create and line-item edit answer 400 "Unit price is required" since 2026-11-19; this route still turns a missing price into 0. Probably fine; align if wanted. |
+
+Fixed on 2026-11-19 (each with a test that failed first):
+- Planning saves (`PUT /api/planning/line-items/:id`, `PUT /api/planning/units/:unitId`,
+  `PUT /api/orders/:id/planning`) only change the fields they are sent (`services/partialUpdate.js`).
+  The Planning screen's custom-column edit sends only `custom_fields` and used to empty the row's 7
+  planning dates. Test: `test_planning_partial_update.js`.
+- Line-item prices: 0 is allowed; a missing or empty price is a 400 on order create and line-item
+  edit (was a 500, NOT NULL), and quantity × price 0 gives total 0. Test: `test_line_item_price.js`.
+- The six tests that imported `../db.js` (backup_and_audit, deadlock_immunity, jsonb_merge_integrity,
+  multiple_wiremen, optimistic_concurrency_control, purchase_auto_completion) use `DATABASE_URL`;
+  `test_purchase_auto_completion.js` uses `API_BASE` instead of a hard-coded `localhost:5000`.
+- Login logs show a masked id (`services/logPrivacy.js`: `s***@gmail.com`, `a***`), never the full
+  email or username; the diagnostics route's copy-pasted error label is corrected.
+  Test: `test_mask_login_id.js`.
+- CI checked on GitHub: CI and the secret scan are green on `a0b60ac`.
 
 ---
 
@@ -237,10 +253,10 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 - **Backend integration tests:** `npm test` in `server/` (runs all `test_*.js`, cleans up uploads
   and dangling document rows it created). Run inside the container with the env shown in §2.
 - **Fresh-database run** (what CI does): a throwaway DB `erp_ci` served by its **own container**,
-  whose PID 1 listens on port 5000 with `DB_NAME=erp_ci`. Every way a test reaches the backend or DB
-  then points at `erp_ci`: `API_BASE`, `DATABASE_URL`, `../db.js` (`DB_NAME`) and the hard-coded
-  `localhost:5000` (see §3). Don't run the suite inside the dev `backend` container against a second
-  port: those tests would still hit `erp_db`. Run from the repo root:
+  whose PID 1 listens on port 5000 with `DB_NAME=erp_ci`. The tests reach the backend via `API_BASE`
+  and the DB via `DATABASE_URL` (since 2026-11-19 none use `../db.js` or a hard-coded
+  `localhost:5000`), and the backend itself uses `erp_ci`, so nothing touches `erp_db`. Run from the
+  repo root:
   ```bash
   docker-compose exec -T db psql -U postgres -c "DROP DATABASE IF EXISTS erp_ci WITH (FORCE)" -c "CREATE DATABASE erp_ci"
   docker run -d --name erp-ci --network erp_default -v "$PWD/server:/app" --tmpfs /app/node_modules -w /app \
@@ -298,9 +314,16 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 
 ---
 
-## 7. Production redeploy checklist (not yet done)
+## 7. Production redeploy (done 2026-11-19)
 
-1. `JWT_SECRET` set in the server's `.env` (backend refuses to start without it).
-2. Copy aside any local AI-tool folders before `git pull` (they are untracked now and will be removed).
-3. `git pull && docker-compose up -d --build` (first build needs internet: npm + `cdn.sheetjs.com`).
-4. Check `docker-compose ps` shows `backend` and `db` healthy; log in once; spot-check uploads.
+Production was moved from the pre-rewrite `d773d42` to `a0b60ac` with `git fetch` +
+`git reset --hard origin/main` (a `git pull` across the history rewrite would merge the old history
+back in). Before that, `.env`, uploads and a full DB dump were copied out of the checkout, because
+the old history had tracked `.env` and some uploads and the reset removes them. A new random
+`JWT_SECRET` was written to `.env` (the old compose file hard-coded a public one), and the images
+were rebuilt with `docker compose --profile prod up -d --build`. Login, documents and Settings were
+checked afterwards.
+
+Next deploys (now on the new history): `git fetch && git reset --hard origin/main` (or `git pull`),
+then `docker compose --profile prod up -d --build`; check `docker compose ps` shows everything
+healthy and log in once.

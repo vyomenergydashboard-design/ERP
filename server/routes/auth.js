@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { maskLoginId } from '../services/logPrivacy.js';
 
 // ---------------- In-Memory Rate Limiting for Auth ----------------
 const loginAttempts = new Map();
@@ -82,20 +83,22 @@ export default function createAuthRouter(pool, authorize, JWT_SECRET) {
 
   router.post('/login', loginRateLimiter, async (req, res) => {
     const { email, password } = req.body;
-    console.log(`[LOGIN TRY] Email: "${email}"`);
+    // The log shows a masked login id (e.g. s***@gmail.com), never the full email or username.
+    const loginId = maskLoginId(email);
+    console.log(`[LOGIN TRY] Email: "${loginId}"`);
     try {
       const result = await pool.query('SELECT * FROM users WHERE email = $1 OR username = $1', [email]);
       if (result.rows.length === 0) {
-        console.log(`[LOGIN FAIL] User not found for email: "${email}"`);
+        console.log(`[LOGIN FAIL] User not found for email: "${loginId}"`);
         return res.status(400).json({ error: 'Invalid credentials' });
       }
       const user = result.rows[0];
       const isMatch = await bcrypt.compare(password, user.password);
       if (!isMatch) {
-        console.log(`[LOGIN FAIL] Password mismatch for email: "${email}"`);
+        console.log(`[LOGIN FAIL] Password mismatch for email: "${loginId}"`);
         return res.status(400).json({ error: 'Invalid credentials' });
       }
-      console.log(`[LOGIN SUCCESS] Email: "${email}", Role: "${user.role}"`);
+      console.log(`[LOGIN SUCCESS] Email: "${loginId}", Role: "${user.role}"`);
       // Clear failed login tracking on successful authentication
       const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
       loginAttempts.delete(clientIp);

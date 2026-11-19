@@ -2,6 +2,14 @@ import express from 'express';
 import { PIPELINE } from '../data/workflow.js';
 import { isLineItemOnHold } from '../services/holds.js';
 import { deriveUnitStatus, updateOrderQCStatusFromSteps, findBlockingUpstreamDepts } from '../services/unitStatus.js';
+import { sentFieldAssignments } from '../services/partialUpdate.js';
+
+// Planning dates a line-item or unit save may change. Only the ones present in the request are
+// written, so a custom-column edit (which sends only custom_fields) leaves them alone.
+const PLANNING_DATE_FIELDS = [
+  'planned_dispatch_date', 'wiring_assigned_date', 'wiring_expected_date', 'expected_qc_date',
+  'qc_date', 'mounting_start_date', 'mounting_complete_date'
+];
 
 /**
  * Router for the Planning view (mounted at /api/planning): the line-item planning list and
@@ -297,20 +305,7 @@ export default function createPlanningRouter(pool, authorize) {
 
   router.put('/units/:unitId', authorize(['Admin', 'Manager', 'Planning']), async (req, res) => {
     const { unitId } = req.params;
-    const {
-      end_client_name,
-      planned_dispatch_date,
-      wiring_assigned_date,
-      wiring_expected_date,
-      expected_qc_date,
-      priority,
-      status,
-      qc_status,
-      qc_date,
-      mounting_start_date,
-      mounting_complete_date,
-      custom_fields
-    } = req.body;
+    const { end_client_name, priority, status, qc_status, custom_fields } = req.body;
 
     const client = await pool.connect();
     try {
@@ -335,36 +330,25 @@ export default function createPlanningRouter(pool, authorize) {
         );
       }
 
-      // Update unit level planning fields directly
+      // Update unit level planning fields directly (only the dates that were sent)
+      const dates = sentFieldAssignments(req.body, PLANNING_DATE_FIELDS, 5);
       const result = await client.query(
-        `UPDATE order_units 
-         SET planned_dispatch_date = $1, 
-             wiring_assigned_date = $2, 
-             wiring_expected_date = $3, 
-             expected_qc_date = $4, 
-             status = COALESCE($5, status), 
-             qc_status = COALESCE($6, qc_status), 
-             qc_date = $7,
-             mounting_start_date = $8,
-             mounting_complete_date = $9,
-             custom_fields = CASE 
-               WHEN $10::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $10::jsonb 
-               ELSE custom_fields 
+        `UPDATE order_units
+         SET ${dates.clauses.map(c => `${c},`).join(' ')}
+             status = COALESCE($1, status),
+             qc_status = COALESCE($2, qc_status),
+             custom_fields = CASE
+               WHEN $3::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $3::jsonb
+               ELSE custom_fields
              END
-         WHERE id = $11 
+         WHERE id = $4
          RETURNING *`,
         [
-          planned_dispatch_date || null,
-          wiring_assigned_date || null,
-          wiring_expected_date || null,
-          expected_qc_date || null,
           status,
           qc_status,
-          qc_date || null,
-          mounting_start_date || null,
-          mounting_complete_date || null,
           custom_fields ? JSON.stringify(custom_fields) : null,
-          unitId
+          unitId,
+          ...dates.values
         ]
       );
 
@@ -417,20 +401,7 @@ export default function createPlanningRouter(pool, authorize) {
     if (await isLineItemOnHold(req.params.lineItemId)) {
       return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
     }
-    const {
-      end_client_name,
-      planned_dispatch_date,
-      wiring_assigned_date,
-      wiring_expected_date,
-      expected_qc_date,
-      priority,
-      status,
-      qc_status,
-      qc_date,
-      mounting_start_date,
-      mounting_complete_date,
-      custom_fields
-    } = req.body;
+    const { end_client_name, priority, status, qc_status, custom_fields } = req.body;
 
     const client = await pool.connect();
     try {
@@ -448,36 +419,25 @@ export default function createPlanningRouter(pool, authorize) {
         [end_client_name || null, priority, order_id]
       );
 
-      // Update line item level fields
+      // Update line item level fields (only the dates that were sent)
+      const dates = sentFieldAssignments(req.body, PLANNING_DATE_FIELDS, 5);
       const result = await client.query(
-        `UPDATE order_line_items 
-         SET planned_dispatch_date = $1, 
-             wiring_assigned_date = $2, 
-             wiring_expected_date = $3, 
-             expected_qc_date = $4, 
-             status = COALESCE($5, status), 
-             qc_status = COALESCE($6, qc_status), 
-             qc_date = $7,
-             mounting_start_date = $8,
-             mounting_complete_date = $9,
-             custom_fields = CASE 
-               WHEN $10::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $10::jsonb 
-               ELSE custom_fields 
+        `UPDATE order_line_items
+         SET ${dates.clauses.map(c => `${c},`).join(' ')}
+             status = COALESCE($1, status),
+             qc_status = COALESCE($2, qc_status),
+             custom_fields = CASE
+               WHEN $3::text IS NOT NULL THEN COALESCE(custom_fields, '{}'::jsonb) || $3::jsonb
+               ELSE custom_fields
              END
-         WHERE id = $11 
+         WHERE id = $4
          RETURNING *`,
         [
-          planned_dispatch_date || null,
-          wiring_assigned_date || null,
-          wiring_expected_date || null,
-          expected_qc_date || null,
           status,
           qc_status,
-          qc_date || null,
-          mounting_start_date || null,
-          mounting_complete_date || null,
           custom_fields ? JSON.stringify(custom_fields) : null,
-          req.params.lineItemId
+          req.params.lineItemId,
+          ...dates.values
         ]
       );
 
