@@ -36,6 +36,7 @@ import { ALL_ROLES, PIPELINE_SQL_ARRAY, deptOrderSql } from './data/workflow.js'
 import { publicErrorMessage } from './services/httpErrors.js';
 import { setSystemSeeding, deriveUnitStatus, updateOrderQCStatusFromSteps } from './services/unitStatus.js';
 import { cleanupUploadedFiles } from './services/uploads.js';
+import { sweepPurchaseAutoCompletion } from './services/purchaseAutoCompletion.js';
 
 // Emails and other side effects queued inside a transaction run only after COMMIT.
 installAfterCommitHooks(pool);
@@ -558,6 +559,13 @@ const seedSayaUser = async () => {
 const startServer = async () => {
   await initDB();
   await seedSayaUser().catch(console.error);
+  // Purchase auto-completion catch-up. Reads no longer run it; the write paths do, and this
+  // catches anything they could not (see services/purchaseAutoCompletion.js).
+  await sweepPurchaseAutoCompletion(pool, deriveUnitStatus)
+    .then((updated) => {
+      if (updated.length > 0) console.log(`[startup] Purchase auto-completion completed ${updated.length} unit(s)`);
+    })
+    .catch((err) => console.error('[startup] Purchase auto-completion sweep failed:', err));
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });

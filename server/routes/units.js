@@ -29,12 +29,7 @@ export default function createUnitsRouter(pool, authorize) {
 
   router.get('/:unitId/steps', authorize(), async (req, res) => {
     try {
-      try {
-        await evaluatePurchaseAutoCompletion([req.params.unitId], pool, deriveUnitStatus);
-      } catch (evalErr) {
-        console.warn('evaluatePurchaseAutoCompletion warn in get unit steps:', evalErr);
-      }
-
+      // Read-only: Purchase auto-completion runs on the write paths and at startup.
       const result = await pool.query(
         `SELECT s.*, tm.custom_fields as tm_custom_fields, tm.order_fields as tm_order_fields
          FROM unit_steps s

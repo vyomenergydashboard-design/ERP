@@ -55,7 +55,7 @@ The department order is the `PIPELINE` array (`Sales → Design → Purchase →
 - `server/index.js` is the monolith. It holds the auth (`authorize(roles)`), the large majority of routes, and startup DB init (being split up: Task C in `tasks/remaining-tasks.md`).
 - New code belongs in `server/routes/*.js`. These are router factories that receive dependencies, e.g. `createPurchaseOrdersRouter(pool, authorize, deriveUnitStatus)`, and are mounted in index.js. Supporting logic goes in `server/services/`, which routers import directly:
   - `unitStatus` (`deriveUnitStatus`, line-item/QC roll-ups, Design document gate, `findBlockingUpstreamDepts`), `holds` (`isOrderOnHold` / `isUnitOnHold` / `isLineItemOnHold`), `notifications` (handover / hold emails), `uploads` (multer `upload` + allowlist, `cleanupUploadedFiles`), `orderNumbers` (serial allocation), `transactions` (`tryInSavepoint`, `lockOrders`), `customFields` (task custom-field datakeys), `afterCommit`, `httpErrors`, `partialUpdate` (`sentFieldAssignments`: write only the fields a request sent), `logPrivacy` (`maskLoginId` for login logs);
-  - `purchaseAutoCompletion` / `storesAutoCompletion` (automatic step completion), `eventStream` (SSE), `databaseBackup`, and `safeConditionEvaluator`.
+  - `purchaseAutoCompletion` / `storesAutoCompletion` (automatic step completion; run on write paths, plus a Purchase catch-up sweep at startup, never on GET requests), `eventStream` (SSE), `databaseBackup`, and `safeConditionEvaluator`.
 - Schema: `init.sql` is the base schema. It also seeds the DB through docker-entrypoint. `run_deployment_migrations.js` runs on every boot and must stay idempotent and additive.
 
 ### Real-time updates

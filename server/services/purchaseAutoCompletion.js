@@ -264,3 +264,20 @@ export async function evaluatePurchaseAutoCompletion(identifiers, clientOrPool, 
 
   return updatedUnits;
 }
+
+/**
+ * Startup catch-up: evaluates every unit currently in Purchase once.
+ *
+ * The write paths (unit edits, batch "Purchase not applicable", vendor PO create / status update)
+ * evaluate the units they change. This catches what they could not: data from before
+ * auto-completion existed, a "Procure Materials" step added later, or a write-path evaluation that
+ * failed. Reads (the Purchase worklist, a unit's steps) used to do this on every load; they no
+ * longer write.
+ *
+ * @returns {Promise<Array<object>>} the units whose "Procure Materials" step was completed
+ */
+export async function sweepPurchaseAutoCompletion(pool, deriveUnitStatus) {
+  const res = await pool.query(`SELECT id FROM order_units WHERE current_dept = 'Purchase'`);
+  if (res.rows.length === 0) return [];
+  return evaluatePurchaseAutoCompletion(res.rows.map(r => r.id), pool, deriveUnitStatus, { by: 'id' });
+}

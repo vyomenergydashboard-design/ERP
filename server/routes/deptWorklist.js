@@ -1,12 +1,10 @@
 import express from 'express';
 import { PIPELINE_SQL_ARRAY } from '../data/workflow.js';
-import { evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
-import { deriveUnitStatus } from '../services/unitStatus.js';
 
 /**
  * Router for the department worklist (mounted at /api/dept-worklist): the units a department
- * (or 'all') should see, with their department steps. Opening the Purchase or 'all' list first
- * runs Purchase auto-completion for the units currently in Purchase.
+ * (or 'all') should see, with their department steps. Read-only: Purchase auto-completion runs on
+ * the write paths and once at startup (sweepPurchaseAutoCompletion), not when a list is opened.
  */
 export default function createDeptWorklistRouter(pool, authorize) {
   const router = express.Router();
@@ -14,17 +12,6 @@ export default function createDeptWorklistRouter(pool, authorize) {
   router.get('/:dept', authorize(), async (req, res) => {
     const dept = req.params.dept;
     try {
-      if (dept === 'Purchase' || dept === 'all') {
-        try {
-          const pUnits = await pool.query("SELECT id FROM order_units WHERE current_dept = 'Purchase'");
-          if (pUnits.rows.length > 0) {
-            await evaluatePurchaseAutoCompletion(pUnits.rows.map(r => r.id), pool, deriveUnitStatus, { by: 'id' });
-          }
-        } catch (evalErr) {
-          console.warn('evaluatePurchaseAutoCompletion warn in dept-worklist:', evalErr);
-        }
-      }
-
       // Get all units currently in this department (or all units if Sales)
       const result = await pool.query(`
         SELECT

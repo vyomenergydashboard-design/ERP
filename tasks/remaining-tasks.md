@@ -230,7 +230,6 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 | No ESLint / Prettier | repo | `npm run check` is the only static check. |
 | nginx: no TLS/HSTS/CSP | `nginx.conf` | Depends on how production is exposed. |
 | Default DB credentials `postgres/postgres` | `docker-compose.yml` | Port 5433 is public by owner's choice. |
-| Viewing the Purchase worklist writes | `server/routes/deptWorklist.js` (`GET /api/dept-worklist`) | The GET runs purchase auto-completion, which can complete steps and move units. Owner to decide: keep, or move it to the write paths / a scheduled job. |
 | Planning "Completed" ticks off upstream steps | `server/routes/planning.js` (`PUT /units/:unitId`, `PUT /line-items/:lineItemId`) | Setting status Completed marks pending Sales / Design / Purchase / Stores steps done ("never blocked from Production"). Check against the AGENTS.md §7 / §8 gates before deciding. |
 | Adding a line item without a price stores 0 | `POST /api/orders/:orderId/line-items` | Order create and line-item edit answer 400 "Unit price is required" since 2026-11-19; this route still turns a missing price into 0. Probably fine; align if wanted. |
 
@@ -248,6 +247,11 @@ Fixed on 2026-11-19 (each with a test that failed first):
   email or username; the diagnostics route's copy-pasted error label is corrected.
   Test: `test_mask_login_id.js`.
 - CI checked on GitHub: CI and the secret scan are green on `a0b60ac`.
+- Reads no longer write: `GET /api/dept-worklist/Purchase|all` and `GET /api/units/:unitId/steps`
+  used to run Purchase auto-completion, so merely viewing could complete "Procure Materials" and move
+  panels. It now runs only on the write paths (unit edit, batch "Purchase not applicable", vendor PO
+  create / status update) plus once at startup (`sweepPurchaseAutoCompletion` in `startServer`), which
+  catches legacy data or a "Procure Materials" step added later. Test: `test_reads_do_not_auto_complete.js`.
 
 ---
 
@@ -295,6 +299,8 @@ Fixed on 2026-11-19 (each with a test that failed first):
 - Changing an order's classification updates **existing panels that have not passed Design** and
   re-checks their Drawing / BOM; panels in Purchase or later keep the type they were built with,
   because Non-Standard ignores part-number documents and would send them back to Design (2026-11-19).
+- Opening a worklist or a unit's steps must not change data: Purchase auto-completion runs on the
+  write paths and once at server startup, not on reads (2026-11-19).
 
 ---
 
