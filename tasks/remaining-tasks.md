@@ -231,18 +231,25 @@ the TEST order). There are no unit tests for the frontend — the e2e harness is
 
 | Issue | Where | Notes |
 |---|---|---|
-| Deleting a part-number document leaves its file on disk | `server/index.js` `DELETE /api/part-number-masters/:id/documents/:docId` | Row is deleted, file never unlinked → orphan. Unlink after delete (or keep if history is wanted — ask). |
-| Settings page header says "User Management" | `src/App.jsx` page-title chain | The title ternary has no `settings`/`users` cases and falls through. Cosmetic. |
-| 28 older unreferenced upload files | `server/uploads` | From before 2026-11-17, origin unknown. Review with `node scripts/cleanup_orphan_uploads.js` (dry run, in the backend container) before deleting. |
-| Login rate limiter can be bypassed via port 5000 | `server/index.js` `trust proxy` | Port 5000 stays public by owner's choice, so `X-Forwarded-For` can be spoofed when calling it directly. |
-| SSE only broadcasts from 4 routes | `server/services/eventStream.js` callers | Other users don't see order/step/hold/PO changes live. |
-| Big table not virtualized | `AllOrdersTableView.jsx` | "All" page size renders every row. |
-| ~1,200 hardcoded hex colors in JSX | many components | Should use CSS tokens from `src/index.css`. |
-| No ESLint / Prettier | repo | `npm run check` is the only static check. |
-| nginx: no TLS/HSTS/CSP | `nginx.conf` | Depends on how production is exposed. |
-| Default DB credentials `postgres/postgres` | `docker-compose.yml` | Port 5433 is public by owner's choice. |
-| Planning "Completed" ticks off upstream steps | `server/routes/planning.js` (`PUT /units/:unitId`, `PUT /line-items/:lineItemId`) | Setting status Completed marks pending Sales / Design / Purchase / Stores steps done ("never blocked from Production"). Check against the AGENTS.md §7 / §8 gates before deciding. |
+| Login rate limiter can be bypassed via port 5000 | `server/index.js` `trust proxy` | Port 5000 stays public by owner's choice, so `X-Forwarded-For` can be spoofed when calling it directly. **Decided 2026-11-20: owner decided to leave it; handle at production time (expose only nginx).** |
+| Big table not virtualized | `AllOrdersTableView.jsx` | "All" page size renders every row. **Decided 2026-11-20: measured 2026-11-20, left as is: 100 rows blocks 0.3 s, "All" (1,574) about 4 s on a production build; revisit past ~5,000 serials; `content-visibility` does not help.** |
+| ~1,200 hardcoded hex colors in JSX | many components | Should use CSS tokens from `src/index.css`. **Decided 2026-11-20: owner decided to leave it.** |
+| No ESLint / Prettier | repo | `npm run check` is the only static check. **Decided 2026-11-20: owner decided to leave it.** |
+| nginx: no TLS/HSTS/CSP | `nginx.conf` | Depends on how production is exposed. **Decided 2026-11-20: owner decided to leave it for now; revisit before exposing the app outside the network.** |
+| Default DB credentials `postgres/postgres` | `docker-compose.yml` | Port 5433 is public by owner's choice. **Decided 2026-11-20: owner decided to leave it; not verified on the production server.** |
 | Adding a line item without a price stores 0 | `POST /api/orders/:orderId/line-items` | Order create and line-item edit answer 400 "Unit price is required" since 2026-11-19; this route still turns a missing price into 0. Probably fine; align if wanted. |
+
+Fixed on 2026-11-20 (`4177d7b`, `4353642`, `b4a7205`, `e9f860f`):
+- Planning "Completed" no longer ticks off upstream Sales / Design / Purchase / Stores steps. Non-Admin/
+  Manager users get 409 naming the unfinished departments (unit, line-item and bulk saves; only panels
+  not already Completed are checked, so re-saving a finished row still works). Admin / Manager are
+  exempt from the 409 but never force-complete. Test: `test_planning_completion_gate.js`.
+- Deleting a part-number document removes its file unless another row still uses it.
+  Test: `test_part_number_document_file_delete.js`.
+- Settings page header and breadcrumb say "Settings".
+- Live updates (SSE): `broadcastOrderUpdated()` after commit in the orders, planning, purchase-orders,
+  documents and units routers. Test: `test_event_broadcasts.js`.
+- The 28 older orphan uploads were gone: `cleanup_orphan_uploads.js` (dry run) found 0.
 
 Fixed on 2026-11-19 (each with a test that failed first):
 - Planning saves (`PUT /api/planning/line-items/:id`, `PUT /api/planning/units/:unitId`,
