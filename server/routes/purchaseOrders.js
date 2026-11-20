@@ -1,5 +1,6 @@
 import express from 'express';
 import { evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
+import { broadcastOrderUpdated } from '../services/eventStream.js';
 
 /**
  * Router for Vendor Purchase Orders (Buying materials/components from vendors).
@@ -135,6 +136,8 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
       }
 
       await client.query('COMMIT');
+      // Linked units may have auto-completed Purchase steps; no single order, so views refetch.
+      broadcastOrderUpdated(undefined, 'po', req.user);
 
       res.status(201).json({
         success: true,
@@ -226,6 +229,7 @@ export default function createPurchaseOrdersRouter(pool, authorize, deriveUnitSt
       }
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(undefined, 'po', req.user);
 
       res.json({
         success: true,

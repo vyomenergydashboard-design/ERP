@@ -14,6 +14,7 @@ import { resolveCustomFieldValues, propagateCustomFieldsToDB } from '../services
 import { deriveUnitStatus, evaluateUnitDesignDocuments, updateOrderQCStatusFromSteps, syncUnitDesignDocumentStatus } from '../services/unitStatus.js';
 import { lockOrders } from '../services/transactions.js';
 import { sentFieldAssignments } from '../services/partialUpdate.js';
+import { broadcastOrderUpdated } from '../services/eventStream.js';
 
 // Order-level planning fields PUT /:id/planning may change; only the ones sent are written.
 const ORDER_PLANNING_FIELDS = [
@@ -278,6 +279,7 @@ export default function createOrdersRouter(pool, authorize) {
       );
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(order.id, 'order', req.user);
       res.status(201).json({ order, message: `Order ${order_number} created with ${totalUnits} units.` });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -334,6 +336,7 @@ export default function createOrdersRouter(pool, authorize) {
       );
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(req.params.id, 'order', req.user);
       res.json({
         success: true,
         classification,
@@ -388,6 +391,7 @@ export default function createOrdersRouter(pool, authorize) {
       await client.query('DELETE FROM orders WHERE id = $1', [id]);
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(id, 'order', req.user, { deleted: true });
       res.json({ message: `Order ${orderNumberToDelete} deleted successfully` });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -485,6 +489,7 @@ export default function createOrdersRouter(pool, authorize) {
         await deriveUnitStatus(unit.id, pool);
       }
 
+      broadcastOrderUpdated(req.params.id, 'order', req.user);
       res.json({ success: true, order: result.rows[0] });
     } catch (err) {
       console.error('Failed to amend order details:', err);
@@ -603,6 +608,7 @@ export default function createOrdersRouter(pool, authorize) {
         [req.user.id, req.user.role, `Amended line item ${result.rows[0].line_item_number} on order ${order_number}`, orderId]
       );
 
+      broadcastOrderUpdated(orderId, 'order', req.user);
       res.json({ success: true, line_item: result.rows[0] });
     } catch (err) {
       console.error('Failed to amend line item:', err);
@@ -786,6 +792,7 @@ export default function createOrdersRouter(pool, authorize) {
       );
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(req.params.orderId, 'order', req.user);
       res.status(201).json({ success: true, line_item: lineItem, units_created: createdUnits.length });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -812,6 +819,7 @@ export default function createOrdersRouter(pool, authorize) {
       const requestedByUsername = userRes.rows[0]?.username || 'Sales User';
       sendHoldRequestEmail(req.params.id, order_number, requestedByUsername).catch(console.error);
 
+      broadcastOrderUpdated(req.params.id, 'order', req.user);
       res.json({ success: true, message: 'Hold requested successfully.' });
     } catch (err) {
       console.error(err);
@@ -830,6 +838,7 @@ export default function createOrdersRouter(pool, authorize) {
         'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
         [req.user.id, req.user.role, `Approved hold for order ${order_number}`, req.params.id]
       );
+      broadcastOrderUpdated(req.params.id, 'order', req.user);
       res.json({ success: true, message: 'Order put on hold.' });
     } catch (err) {
       console.error(err);
@@ -848,6 +857,7 @@ export default function createOrdersRouter(pool, authorize) {
         'INSERT INTO activity_logs (user_id, dept, action_text, order_id) VALUES ($1, $2, $3, $4)',
         [req.user.id, req.user.role, `Rejected hold request for order ${order_number}`, req.params.id]
       );
+      broadcastOrderUpdated(req.params.id, 'order', req.user);
       res.json({ success: true, message: 'Hold request rejected.' });
     } catch (err) {
       console.error(err);
@@ -876,6 +886,7 @@ export default function createOrdersRouter(pool, authorize) {
         await deriveUnitStatus(u.id, pool);
       }
 
+      broadcastOrderUpdated(orderId, 'order', req.user);
       res.json({ success: true, message: 'Order resumed successfully.' });
     } catch (err) {
       console.error(err);
@@ -1249,6 +1260,7 @@ export default function createOrdersRouter(pool, authorize) {
         }
 
         await client.query('COMMIT');
+        broadcastOrderUpdated(undefined, 'order', req.user);
         results.push({ po_number, order_number, units: totalUnits, is_appended: isAppended });
       } catch (err) {
         await client.query('ROLLBACK');
@@ -1481,6 +1493,7 @@ export default function createOrdersRouter(pool, authorize) {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, (SELECT COALESCE(MAX(step_order), 0) + 1 FROM order_steps WHERE order_id = $1 AND dept = $3)) RETURNING *`,
         [req.params.id, task.id, task.dept, task.name, task.sub, task.special, task.requires_upload, task.default_doc_type || 'General', JSON.stringify(fieldDefs)]
       );
+      broadcastOrderUpdated(req.params.id, 'step', req.user);
       res.status(201).json(result.rows[0]);
     } catch (err) {
       console.error(err);
@@ -1508,6 +1521,7 @@ export default function createOrdersRouter(pool, authorize) {
         [ids, req.params.orderId]
       );
       await client.query('COMMIT');
+      broadcastOrderUpdated(req.params.orderId, 'step', req.user);
       res.json({ message: 'Steps reordered successfully' });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -1672,6 +1686,7 @@ export default function createOrdersRouter(pool, authorize) {
       }
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(req.params.orderId, 'step', req.user);
       res.json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
@@ -1697,6 +1712,7 @@ export default function createOrdersRouter(pool, authorize) {
         [req.user.id, result.rows[0].dept, `Deleted task step: ${result.rows[0].name}`]
       );
 
+      broadcastOrderUpdated(req.params.orderId, 'step', req.user);
       res.json({ message: 'Step deleted successfully' });
     } catch (err) {
       console.error(err);
@@ -1746,6 +1762,7 @@ export default function createOrdersRouter(pool, authorize) {
         ]
       );
 
+      broadcastOrderUpdated(req.params.id, 'planning', req.user);
       res.json(result.rows[0]);
     } catch (err) {
       console.error('Failed to update planning details:', err);

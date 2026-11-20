@@ -103,3 +103,16 @@ export function initEventStream(app, authorize, jwtSecret = process.env.JWT_SECR
   });
 }
 
+
+// Tell open views that an order changed (they refetch). Call it after the change is committed.
+// `entity` is a short label ('order', 'unit', 'step', 'planning', 'document', 'po', ...).
+export function broadcastOrderUpdated(orderId, entity, user, extra = {}) {
+  broadcastEvent({
+    type: 'ORDER_UPDATED',
+    entity,
+    orderId: orderId == null ? undefined : orderId,
+    ...extra,
+    updatedBy: user?.username || 'User',
+    timestamp: Date.now()
+  });
+}

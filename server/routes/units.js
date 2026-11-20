@@ -3,7 +3,7 @@ import fs from 'fs';
 import { OPERATOR_ROLES } from '../data/workflow.js';
 import { evaluatePurchaseAutoCompletion } from '../services/purchaseAutoCompletion.js';
 import { evaluateStoresAutoCompletion } from '../services/storesAutoCompletion.js';
-import { broadcastEvent } from '../services/eventStream.js';
+import { broadcastEvent, broadcastOrderUpdated } from '../services/eventStream.js';
 import { safeEvaluateCondition } from '../services/safeConditionEvaluator.js';
 import { publicErrorMessage } from '../services/httpErrors.js';
 import { isUnitOnHold } from '../services/holds.js';
@@ -519,6 +519,7 @@ export default function createUnitsRouter(pool, authorize) {
         await syncLineItemStatusFromUnits(lineItemId, pool);
       }
 
+      broadcastOrderUpdated(result.rows[0].order_id, 'unit', req.user, { unitId: result.rows[0].id });
       res.json(result.rows[0]);
     } catch (err) {
       console.error(err);
@@ -1290,6 +1291,7 @@ export default function createUnitsRouter(pool, authorize) {
 
       await client.query('COMMIT');
       committed = true;
+      for (const ordId of orderIds) broadcastOrderUpdated(ordId, 'unit', req.user);
 
       res.status(200).json({
         success: true,
@@ -1365,6 +1367,7 @@ export default function createUnitsRouter(pool, authorize) {
       }
 
       await client.query('COMMIT');
+      for (const oid of new Set(unitsRes.rows.map(u => u.order_id))) broadcastOrderUpdated(oid, 'unit', req.user);
       res.json({ success: true, count: updatedIds.length });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -1427,6 +1430,7 @@ export default function createUnitsRouter(pool, authorize) {
         [req.user.id, unit.order_id, req.user.role, `Removed PO document for serial ${unit.short_serial || unit.unit_id}`]
       );
 
+      broadcastOrderUpdated(unit.order_id, 'unit', req.user, { unitId: unit.id });
       res.json({ success: true, message: 'PO document removed successfully.' });
     } catch (err) {
       console.error('Error removing unit PO document:', err);
@@ -1463,6 +1467,7 @@ export default function createUnitsRouter(pool, authorize) {
         [req.user.id, unit.order_id, req.user.role, `Manually cleared serial ${unit.short_serial || unit.unit_id} from Sales`]
       );
 
+      broadcastOrderUpdated(unit.order_id, 'unit', req.user, { unitId: unit.id });
       res.json({ success: true, message: `Panel ${unit.unit_id} cleared from Sales.` });
     } catch (err) {
       console.error('Error clearing panel from Sales:', err);
@@ -1624,6 +1629,7 @@ export default function createUnitsRouter(pool, authorize) {
       }
 
       await client.query('COMMIT');
+      for (const oid of new Set(targetUnits.map(tu => tu.order_id))) broadcastOrderUpdated(oid, 'unit', req.user, { action });
       res.json({ success: true, count: targetUnits.length, action });
     } catch (err) {
       await client.query('ROLLBACK');

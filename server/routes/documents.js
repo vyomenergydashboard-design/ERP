@@ -7,6 +7,7 @@ import { upload, cleanupUploadedFiles } from '../services/uploads.js';
 import { isOrderOnHold, isUnitOnHold } from '../services/holds.js';
 import { tryInSavepoint, lockOrders } from '../services/transactions.js';
 import { deriveUnitStatus, syncUnitDesignDocumentStatus } from '../services/unitStatus.js';
+import { broadcastOrderUpdated } from '../services/eventStream.js';
 
 /**
  * Router for order / unit / step documents (mounted at /api/documents): upload, the document
@@ -148,6 +149,8 @@ export default function createDocumentsRouter(pool, authorize, JWT_SECRET) {
 
       await client.query('COMMIT');
       committed = true;
+      broadcastOrderUpdated(entity_type === 'Order' ? entity_id : undefined, 'document', req.user,
+        entity_type === 'Unit' ? { unitId: entity_id } : {});
 
       res.status(201).json(savedDocs);
     } catch (err) {
@@ -310,6 +313,7 @@ export default function createDocumentsRouter(pool, authorize, JWT_SECRET) {
         }
       }
 
+      broadcastOrderUpdated(orderIdForLog, 'document', req.user);
       res.json({ success: true });
     } catch (err) {
       console.error(err);

@@ -3,6 +3,7 @@ import { PIPELINE } from '../data/workflow.js';
 import { isLineItemOnHold } from '../services/holds.js';
 import { deriveUnitStatus, updateOrderQCStatusFromSteps, findBlockingUpstreamDepts } from '../services/unitStatus.js';
 import { sentFieldAssignments } from '../services/partialUpdate.js';
+import { broadcastOrderUpdated } from '../services/eventStream.js';
 
 // Planning dates a line-item or unit save may change. Only the ones present in the request are
 // written, so a custom-column edit (which sends only custom_fields) leaves them alone.
@@ -180,10 +181,12 @@ export default function createPlanningRouter(pool, authorize) {
 
       // Sort lineItemIds deterministically by ID ascending to avoid deadlock
       const sortedLineItemIds = [...lineItemIds].map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+      const touchedOrderIds = new Set();
       for (const lineItemId of sortedLineItemIds) {
         const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [lineItemId]);
         if (checkLi.rows.length === 0) continue;
         const order_id = checkLi.rows[0].order_id;
+        touchedOrderIds.add(order_id);
 
         if (fields.status === 'Completed') {
           const liUnitIds = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [lineItemId]);
@@ -314,6 +317,7 @@ export default function createPlanningRouter(pool, authorize) {
       }
 
       await client.query('COMMIT');
+      for (const oid of touchedOrderIds) broadcastOrderUpdated(oid, 'planning', req.user);
       res.json({ success: true, message: `Bulk updated ${lineItemIds.length} line items` });
     } catch (err) {
       await client.query('ROLLBACK');
@@ -408,6 +412,7 @@ export default function createPlanningRouter(pool, authorize) {
       );
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(unit.order_id, 'planning', req.user, { unitId: unit.id });
       const updatedUnitRes = await client.query('SELECT * FROM order_units WHERE id = $1', [unitId]);
       res.json(updatedUnitRes.rows[0] || result.rows[0]);
     } catch (err) {
@@ -515,6 +520,7 @@ export default function createPlanningRouter(pool, authorize) {
       );
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(order_id, 'planning', req.user);
       res.json(result.rows[0]);
     } catch (err) {
       await client.query('ROLLBACK');
@@ -576,8 +582,10 @@ export default function createPlanningRouter(pool, authorize) {
       }
 
       // 3. Update QC calculations for this order if the updated steps were in QC
+      let bulkStatusOrderId = null;
       const checkLi = await client.query('SELECT order_id FROM order_line_items WHERE id = $1', [req.params.lineItemId]);
       if (checkLi.rows.length > 0) {
+        bulkStatusOrderId = checkLi.rows[0].order_id;
         await updateOrderQCStatusFromSteps(checkLi.rows[0].order_id, client);
         await client.query(
           `INSERT INTO activity_logs (user_id, order_id, dept, action_text) VALUES ($1, $2, $3, $4)`,
@@ -586,6 +594,7 @@ export default function createPlanningRouter(pool, authorize) {
       }
 
       await client.query('COMMIT');
+      broadcastOrderUpdated(bulkStatusOrderId, 'step', req.user, { dept, status });
       res.json({ message: `Successfully updated all ${dept} steps to ${status} for this batch.` });
     } catch (err) {
       await client.query('ROLLBACK');
