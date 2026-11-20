@@ -281,6 +281,30 @@ export default function createPartNumberMastersRouter(pool, authorize) {
       if (deleted.rows.length === 0) return res.status(404).json({ error: 'Document not found' });
 
       const doc = deleted.rows[0];
+
+      // Remove the uploaded file too, unless another row still points at it (matched by file name,
+      // like cleanup_orphan_uploads.js). part_number_documents.file_path is relative to uploads/.
+      // A failure here must not turn the (already committed) row delete into an error.
+      if (doc.file_path) {
+        try {
+          const uploadsDir = path.resolve(SERVER_DIR, 'uploads');
+          const target = path.resolve(uploadsDir, doc.file_path);
+          const baseName = path.basename(String(doc.file_path).replace(/\\/g, '/'));
+          const stillUsed = await pool.query(
+            `SELECT 1 FROM part_number_documents WHERE right(file_path, length($1)) = $1
+             UNION ALL
+             SELECT 1 FROM documents WHERE right(file_path, length($1)) = $1
+             LIMIT 1`,
+            [baseName]
+          );
+          if (stillUsed.rows.length === 0 && target.startsWith(uploadsDir + path.sep) && fs.existsSync(target)) {
+            fs.unlinkSync(target);
+          }
+        } catch (fErr) {
+          console.warn('Could not remove part-number document file:', fErr);
+        }
+      }
+
       if (doc.is_current) {
         await pool.query(
           `UPDATE part_number_documents
