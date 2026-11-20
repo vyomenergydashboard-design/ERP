@@ -22,6 +22,24 @@ const PLANNING_DATE_FIELDS = [
 export default function createPlanningRouter(pool, authorize) {
   const router = express.Router();
 
+  // Setting Planning status to 'Completed' never completes upstream steps itself. Non-privileged
+  // users get a 409 naming the unfinished upstream departments (same gate as step completion);
+  // Admin / Manager are exempt from the 409, like elsewhere. Only units that are not already
+  // Completed are checked: the Planning screen re-sends a row's current status with every save, so
+  // editing a date on a finished row must not be refused because an upstream step was reopened later
+  // (e.g. a QC fail back to Design). Returns an error message or null.
+  const planningCompletionBlock = async (client, user, unitIds) => {
+    if (['Admin', 'Manager'].includes(user.role)) return null;
+    const moving = await client.query(
+      `SELECT id FROM order_units WHERE id = ANY($1::int[]) AND status IS DISTINCT FROM 'Completed'`,
+      [unitIds.map(Number)]
+    );
+    const blocking = await findBlockingUpstreamDepts(client, moving.rows.map(r => Number(r.id)), 'Planning');
+    return blocking.length > 0
+      ? `Cannot complete: upstream departments not finished yet — ${blocking.join(', ')}.`
+      : null;
+  };
+
   router.get('/', authorize(), async (req, res) => {
     try {
       const result = await pool.query(
@@ -167,6 +185,15 @@ export default function createPlanningRouter(pool, authorize) {
         if (checkLi.rows.length === 0) continue;
         const order_id = checkLi.rows[0].order_id;
 
+        if (fields.status === 'Completed') {
+          const liUnitIds = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [lineItemId]);
+          const blockMsg = await planningCompletionBlock(client, req.user, liUnitIds.rows.map(r => r.id));
+          if (blockMsg) {
+            await client.query('ROLLBACK');
+            return res.status(409).json({ error: blockMsg });
+          }
+        }
+
         // 1. Update order level fields (only if provided in req.body.fields)
         const orderUpdates = [];
         const orderParams = [];
@@ -260,15 +287,9 @@ export default function createPlanningRouter(pool, authorize) {
 
           if (fields.status === 'Completed') {
             await client.query(
-              `UPDATE unit_steps 
-               SET status = 'done', updated = $1 
+              `UPDATE unit_steps
+               SET status = 'done', updated = $1
                WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning'`,
-              [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), lineItemId]
-            );
-            await client.query(
-              `UPDATE unit_steps 
-               SET status = 'done', updated = $1 
-               WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
               [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), lineItemId]
             );
           } else if (fields.status === 'Not Started' || fields.status === 'Pending') {
@@ -322,6 +343,14 @@ export default function createPlanningRouter(pool, authorize) {
         return res.status(400).json({ error: 'Order is currently on hold. Updates are disabled.' });
       }
 
+      if (status === 'Completed') {
+        const blockMsg = await planningCompletionBlock(client, req.user, [unit.id]);
+        if (blockMsg) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: blockMsg });
+        }
+      }
+
       // Update order level fields if provided
       if (end_client_name || priority) {
         await client.query(
@@ -359,13 +388,6 @@ export default function createPlanningRouter(pool, authorize) {
             `UPDATE unit_steps 
              SET status = 'done', updated = $1 
              WHERE order_unit_id = $2 AND dept = 'Planning'`,
-            [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), unitId]
-          );
-          // Also ensure lingering pending upstream steps are marked done so unit is never blocked from Production
-          await client.query(
-            `UPDATE unit_steps 
-             SET status = 'done', updated = $1 
-             WHERE order_unit_id = $2 AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
             [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), unitId]
           );
           await deriveUnitStatus(unitId, client);
@@ -412,6 +434,15 @@ export default function createPlanningRouter(pool, authorize) {
         return res.status(404).json({ error: 'Line item not found' });
       }
       const order_id = checkLi.rows[0].order_id;
+
+      if (status === 'Completed') {
+        const liUnitIds = await client.query('SELECT id FROM order_units WHERE line_item_id = $1', [req.params.lineItemId]);
+        const blockMsg = await planningCompletionBlock(client, req.user, liUnitIds.rows.map(r => r.id));
+        if (blockMsg) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: blockMsg });
+        }
+      }
 
       // Update order level fields
       await client.query(
@@ -461,12 +492,6 @@ export default function createPlanningRouter(pool, authorize) {
             `UPDATE unit_steps 
              SET status = 'done', updated = $1 
              WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept = 'Planning'`,
-            [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId]
-          );
-          await client.query(
-            `UPDATE unit_steps 
-             SET status = 'done', updated = $1 
-             WHERE order_unit_id IN (SELECT id FROM order_units WHERE line_item_id = $2) AND dept IN ('Sales', 'Design', 'Purchase', 'Stores') AND status = 'pending'`,
             [new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }), req.params.lineItemId]
           );
         } else if (status === 'Not Started' || status === 'Pending') {
