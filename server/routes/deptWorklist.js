@@ -52,7 +52,7 @@ export default function createDeptWorklistRouter(pool, authorize) {
           oindentdoc.id AS indent_doc_id,
           o.end_client_name,
           o.priority,
-          o.delivery_date,
+          COALESCE(oli.delivery_date, o.delivery_date) AS delivery_date,
           o.hold_status  AS order_hold_status,
           o.status       AS order_status,
           COALESCE(ou.classification, o.classification, 'Standard') AS classification,
@@ -264,7 +264,7 @@ export default function createDeptWorklistRouter(pool, authorize) {
                AND NOT EXISTS (SELECT 1 FROM unit_steps pus WHERE pus.order_unit_id = ou.id AND pus.dept = 'Production' AND pus.status != 'done')
              )
            ))
-        ORDER BY o.priority DESC, o.delivery_date ASC NULLS LAST, ou.unit_id ASC
+        ORDER BY o.priority DESC, COALESCE(oli.delivery_date, o.delivery_date) ASC NULLS LAST, ou.unit_id ASC
       `, [dept]);
       res.json(result.rows);
     } catch (err) {
