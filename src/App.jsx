@@ -460,7 +460,8 @@ function Dashboard() {
                                       currentView === 'form-qc' ? 'QC Form' :
                                         currentView === 'form-inspection' ? 'Inspection Form' :
                                           currentView === 'form-material-req' ? 'Material Request' :
-                                            'User Management'
+                                            currentView === 'settings' ? 'Settings' :
+                                              'User Management'
             }
             subtitle={
               currentView === 'flow' && selectedOrder
@@ -489,7 +490,8 @@ function Dashboard() {
                                     currentView === 'logs' ? 'Logs' :
                                       currentView === 'worklist' ? 'Worklist' :
                                         currentView.startsWith('form-') ? 'Forms' :
-                                          'Users'
+                                          currentView === 'settings' ? 'Settings' :
+                                            'Users'
               }
             ]}
             actions={
