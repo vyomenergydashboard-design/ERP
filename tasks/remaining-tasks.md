@@ -1,6 +1,6 @@
 # Remaining Tasks — Handoff for Next Sessions
 
-Last updated: 2026-11-19. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
+Last updated: 2026-11-20. Read this together with `CLAUDE.md` and `AGENTS.md` before starting.
 AGENTS.md rules still apply: no code changes unless asked, **no commits/pushes unless the user
 explicitly says so**. The user's workflow so far: one task at a time → verify → user says
 "commit, merge into main and push" → commit on a short-lived branch, fast-forward `main`, push,
@@ -30,6 +30,18 @@ built on the pre-rewrite history.
 | `55198e2` | **Task C step 1** — shared helpers into `server/services/` |
 | `2e5a437`, `2f9abbb`, `261fdaa` | **Task C step 2** — companies, part-number / panel-size, task / column masters, logs / users / system-settings routers |
 | `fa522ad`, `07b4d1b`, `1e18f61` | Repo cleanup (another session): stale files removed, docs reorganised, unused deps dropped, tests moved to `server/tests/` |
+| `0f5b49a` | Planning removed from the frontend `DEPTS`, kept in `PIPELINE` |
+| `2fd84f2`, `1d949c0`, `4b51241` | **Task C step 2** — planning, units and orders routers |
+| `24e27b2` | CI: gitleaks secret scan over the full history |
+| `005b582` | **Task C complete** — auth, diagnostics, board, dept-worklist and template routers; `index.js` ~570 lines |
+| `967697d` | **Task D steps 1-2** — `AllOrdersTableView` helpers and inner components into modules |
+| `bb96c21` | **Task D step 3** — `renderCellContent` split into per-column-family cell modules |
+| `a89a893` | Fix: range selection picks the displayed rows after the table is re-sorted |
+| `a0b60ac` | **Task D step 4** — `AllOrdersTableView` state groups moved into custom hooks |
+| `26cb190` | Fix: planning saves keep unsent dates, clear 400 for a missing price, masked login logs, tests honour `DATABASE_URL` |
+| `9118ca1` | Fix: design-confirm refuses Design users while a panel awaits Sales |
+| `de7e339` | Fix: changing an order's classification updates its panels not past Design |
+| `71a2971` | Fix: reads no longer run Purchase auto-completion |
 
 ---
 
@@ -88,13 +100,12 @@ Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `
 `index.js` and is passed to each router factory. (`evaluateOrderDesignGate` /
 `isReleaseDocumentsStep`, `templateHandler` and `loginRateLimiter` now live in their routers.)
 
-**State:** `server/index.js` was ~7,700 lines with **84 routes**. Only `routes/backup.js`,
-`maintenance.js`, `purchaseOrders.js`, `wiremanMasters.js` exist. Route groups still inline:
-`/api/orders` (20), `/api/units` (12), `/api/part-number-masters` (7), `/api/users` (5),
-`/api/planning` (5), `/api/documents` (5), `/api/column-masters` (5), `/api/task_masters` (4),
-`/api/panel-size-masters` (4), `/api/logs` (3), `/api/companies` (3), `/api/auth` (3),
-`/api/template` (2), `/api/system-settings` (2), and single routes (`health`, `diagnostic-status`,
-`dept-worklist`, `board`).
+**State:** Task C is complete. `server/index.js` went from ~7,700 lines with 84 routes to ~570 lines;
+every route group lives in `server/routes/*.js` (`auth`, `backup`, `board`, `columnMasters`,
+`companies`, `deptWorklist`, `diagnostics`, `documents`, `logs`, `maintenance`, `orders`,
+`panelSizeMasters`, `partNumberMasters`, `planning`, `purchaseOrders`, `systemSettings`,
+`taskMasters`, `template`, `units`, `users`, `wiremanMasters`). The text below is the plan that was
+followed, kept for reference.
 
 **Approach (one group per step, verify, then the next):**
 1. Move shared helpers out first so routers can import them instead of receiving 15 arguments:
@@ -120,7 +131,7 @@ Still in `index.js`: `authorizeUploadDownload` (guards the `/uploads` static); `
 - `node --check` on changed files; `docker-compose restart backend`, wait for `healthy`.
 - Route table unchanged: dump `METHOD path` for all `app.*` / router routes before and after and diff
   (e.g. walk `app._router.stack` in a one-off script, or grep the sources).
-- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → must stay 27/27 (29 with `--all`).
+- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → every test file must pass (30 on 2026-11-20; more with `--all`).
 - Browser smoke (`scripts/e2e`, see §4) → identical to the run before the step.
 
 ### Task D — Split `src/components/AllOrdersTableView.jsx`
