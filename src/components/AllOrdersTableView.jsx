@@ -21,7 +21,7 @@ import { useStableCallback } from '../hooks/useStableCallback';
 import { useSignedUploadUrl } from '../utils/protectedUploads';
 import { hasRole, TABLE_EDIT_ROLES } from '../data/roles';
 import { apiFetch } from '../api/client';
-import { getOwningDept, PRODUCTION_AND_QC_COLS, BASE_COLUMNS, DEFAULT_COLUMN_KEYS } from './allOrdersTable/columns';
+import { getOwningDept, PRODUCTION_AND_QC_COLS, BASE_COLUMNS, DEFAULT_COLUMN_KEYS, mergeCustomColumns, insertMissingColumnKeys } from './allOrdersTable/columns';
 import { PRIORITY_ORDER } from './allOrdersTable/statusStyles';
 import { isDateTimeType, isDateType } from './allOrdersTable/dates';
 import { getDocUrl } from './allOrdersTable/uploads';
@@ -265,7 +265,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
       const valid = prev.filter(k => availableKeys.includes(k));
       const missing = availableKeys.filter(k => !valid.includes(k));
       if (missing.length === 0 && valid.length === prev.length) return prev;
-      return [...valid, ...missing];
+      return insertMissingColumnKeys(valid, availableKeys, missing);
     });
   }, [allColumns]);
 
@@ -1251,10 +1251,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         }));
 
         const baseKeys = new Set(BASE_COLUMNS.map(c => c.key));
-        const merged = [
-          ...BASE_COLUMNS,
-          ...customMapped.filter(c => !baseKeys.has(c.key))
-        ];
+        const merged = mergeCustomColumns(
+          BASE_COLUMNS,
+          customMapped.filter(c => !baseKeys.has(c.key))
+        );
         setAllColumns(merged);
       }
     } catch (err) { console.error(err); }

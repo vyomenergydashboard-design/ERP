@@ -14,6 +14,7 @@ export const DEFAULT_COL_WIDTHS = {
   project_name: 155,
   po_number: 135,
   reference_number: 135,
+  internal_remarks: 240,
   end_client_name: 145,
   part_number: 145,
   panel_code: 110,

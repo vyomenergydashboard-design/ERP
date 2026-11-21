@@ -86,4 +86,35 @@ const BASE_COLUMNS = [
 
 const DEFAULT_COLUMN_KEYS = BASE_COLUMNS.map(c => c.key);
 
-export { DEPT_OWNED_COLUMNS, COLUMN_OWNER_DEPT, getOwningDept, PRODUCTION_AND_QC_COLS, TEXT_WRAPPABLE_COLS, BASE_COLUMNS, DEFAULT_COLUMN_KEYS };
+// Admin-created (custom) columns are normally appended after BASE_COLUMNS, far to the right of
+// a 40-column table. A custom column listed here is placed right after the named column instead,
+// so it is visible without scrolling. Saved per-browser layouts are not touched (Reset Layout
+// applies the new default).
+const CUSTOM_COLUMN_ANCHORS = {
+  internal_remarks: 'reference_number'
+};
+
+// Returns baseColumns with each custom column inserted after its anchor (else appended).
+const mergeCustomColumns = (baseColumns, customColumns) => {
+  const merged = [...baseColumns];
+  for (const col of customColumns) {
+    const anchorIdx = merged.findIndex(c => c.key === CUSTOM_COLUMN_ANCHORS[col.key]);
+    if (anchorIdx === -1) merged.push(col);
+    else merged.splice(anchorIdx + 1, 0, col);
+  }
+  return merged;
+};
+
+// Adds `missingKeys` to a saved column order, each right after the closest preceding column
+// (in `availableKeys` order) that is already present; keys with none go first.
+const insertMissingColumnKeys = (orderedKeys, availableKeys, missingKeys) => {
+  const result = [...orderedKeys];
+  for (const key of missingKeys) {
+    let at = availableKeys.indexOf(key) - 1;
+    while (at >= 0 && !result.includes(availableKeys[at])) at--;
+    result.splice(at >= 0 ? result.indexOf(availableKeys[at]) + 1 : 0, 0, key);
+  }
+  return result;
+};
+
+export { DEPT_OWNED_COLUMNS, COLUMN_OWNER_DEPT, getOwningDept, PRODUCTION_AND_QC_COLS, TEXT_WRAPPABLE_COLS, BASE_COLUMNS, DEFAULT_COLUMN_KEYS, mergeCustomColumns, insertMissingColumnKeys };
