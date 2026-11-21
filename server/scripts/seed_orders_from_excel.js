@@ -262,7 +262,10 @@ async function runSeed({ isDryRun = true } = {}) {
         const qty = liGroup.rows.length;
         const unitPrice = liGroup.unitPrice;
         const totalPrice = qty * unitPrice;
-        const matDesc = liGroup.partNumber || projectName || 'Control Panel';
+        // The sheet has no description text (its "Description" column is Standard / Non standard,
+        // imported as classification). Leave material_description empty instead of copying the part
+        // number, project name or a placeholder into it; the column is nullable.
+        const matDesc = null;
 
         let lineItemId;
         if (!isDryRun) {
