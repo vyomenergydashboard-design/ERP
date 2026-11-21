@@ -23,6 +23,7 @@ import { hasRole, TABLE_EDIT_ROLES } from '../data/roles';
 import { apiFetch } from '../api/client';
 import { getOwningDept, PRODUCTION_AND_QC_COLS, BASE_COLUMNS, DEFAULT_COLUMN_KEYS, mergeCustomColumns, insertMissingColumnKeys } from './allOrdersTable/columns';
 import { PRIORITY_ORDER } from './allOrdersTable/statusStyles';
+import { STATUS_SORT_ORDER, compareSortValues, compareRowIdentity } from './allOrdersTable/sorting';
 import { isDateTimeType, isDateType } from './allOrdersTable/dates';
 import { getDocUrl } from './allOrdersTable/uploads';
 import { isStatusInProgress, calculateUnitStatus } from './allOrdersTable/status';
@@ -1476,8 +1477,8 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         av = a[sortKey] ? new Date(a[sortKey]).getTime() : Infinity;
         bv = b[sortKey] ? new Date(b[sortKey]).getTime() : Infinity;
       } else if (sortKey === 'unit_status') {
-        av = getUnitStatus(a);
-        bv = getUnitStatus(b);
+        av = STATUS_SORT_ORDER[getUnitStatus(a)] ?? 99;
+        bv = STATUS_SORT_ORDER[getUnitStatus(b)] ?? 99;
       } else {
         let aVal = a[sortKey];
         let bVal = b[sortKey];
@@ -1497,9 +1498,7 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
         av = (aVal || '').toString().toLowerCase();
         bv = (bVal || '').toString().toLowerCase();
       }
-      if (av < bv) return sortDir === 'asc' ? -1 : 1;
-      if (av > bv) return sortDir === 'asc' ? 1 : -1;
-      return 0;
+      return compareSortValues(av, bv, sortDir) || compareRowIdentity(a, b);
     });
   }, [filtered, sortKey, sortDir, customColumnMap, panelSizeMap, getUnitStatus]);
 

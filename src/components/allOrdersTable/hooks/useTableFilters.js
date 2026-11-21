@@ -34,17 +34,17 @@ export default function useTableFilters() {
     localStorage.setItem('erp_all_sortDir', sortDir);
   }, [sortDir]);
 
+  // Same column: flip the direction. New column: sort it ascending. Both setters get plain
+  // values or pure updaters; calling setSortDir from inside the setSortKey updater could run
+  // twice (React re-runs updaters) and cancel the toggle out.
   const handleSort = useCallback((key) => {
-    setSortKey(prevKey => {
-      if (prevKey === key) {
-        setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-        return prevKey;
-      } else {
-        setSortDir('asc');
-        return key;
-      }
-    });
-  }, []);
+    if (key === sortKey) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+  }, [sortKey]);
 
   return {
     searchTerm, setSearchTerm, activeTab, setActiveTab, priorityFilter, setPriorityFilter,
