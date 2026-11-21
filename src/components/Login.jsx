@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Factory, User, Lock, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { isDepartmentRole } from '../data/roles';
 
 export default function Login() {
@@ -9,6 +9,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -55,10 +56,10 @@ export default function Login() {
       <div className="auth-card">
         <div className="auth-header">
           <div className="auth-logo">
-            <LogIn size={32} className="neon-text" />
+            <Factory size={32} className="neon-text" />
           </div>
-          <h1>Welcome Back</h1>
-          <p>Sign in to access your ERP dashboard</p>
+          <h1>Vyom ERP</h1>
+          <p>Sign in to continue</p>
         </div>
 
         <form onSubmit={handleSubmit} className="auth-form">
@@ -70,13 +71,15 @@ export default function Login() {
           )}
 
           <div className="input-group">
-            <label htmlFor="email">Email Address / Username</label>
+            <label htmlFor="email">Username or email</label>
             <div className="input-wrapper">
-              <Mail className="input-icon" size={18} />
+              <User className="input-icon" size={18} />
               <input
                 id="email"
                 type="text"
-                placeholder="email or username"
+                autoComplete="username"
+                autoFocus
+                placeholder="username or email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -91,9 +94,12 @@ export default function Login() {
               <input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyUp={(e) => setCapsLock(e.getModifierState?.('CapsLock') ?? false)}
+                onBlur={() => setCapsLock(false)}
                 required
               />
               <button
@@ -105,11 +111,15 @@ export default function Login() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {capsLock && <p className="auth-hint auth-hint-warn" role="status">Caps Lock is on</p>}
           </div>
 
           <button type="submit" className="auth-button" disabled={loading}>
             {loading ? <Loader2 className="animate-spin" /> : 'Sign In'}
           </button>
+          <p className="auth-hint" style={{ textAlign: 'center' }}>
+            Forgot your password? Ask your administrator.
+          </p>
         </form>
       </div>
     </div>
