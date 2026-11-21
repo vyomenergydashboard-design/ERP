@@ -79,7 +79,7 @@ constants moved with it, nothing else used them), `diagnostic-status` → `route
 `evaluatePurchaseAutoCompletion` and `deriveUnitStatus` itself), `template` → `routes/template.js`
 (`createTemplateRouter()`, no `authorize`, as before; `templateHandler` moved with it). The route
 table (95 registrations) is identical before and after. **Task C is complete:** `index.js` is now
-~570 lines. What is left inline on purpose: `/api/health` (must stay before the request logger), the
+~570 lines (574 on 2026-11-20). What is left inline on purpose: `/api/health` (must stay before the request logger), the
 `authorize` middleware, `/uploads` (+ `authorizeUploadDownload`), the error handler, and startup
 (`initDB`, `seedSayaUser`, `startServer`).
 
@@ -131,7 +131,7 @@ followed, kept for reference.
 - `node --check` on changed files; `docker-compose restart backend`, wait for `healthy`.
 - Route table unchanged: dump `METHOD path` for all `app.*` / router routes before and after and diff
   (e.g. walk `app._router.stack` in a one-off script, or grep the sources).
-- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → every test file must pass (30 on 2026-11-20; more with `--all`).
+- `docker-compose exec -T -e DATABASE_URL=postgresql://postgres:postgres@db:5432/erp_db -e API_BASE=http://localhost:5000 backend npm test` → every test file must pass (34 on 2026-11-20; more with `--all`).
 - Browser smoke (`scripts/e2e`, see §4) → identical to the run before the step.
 
 ### Task D — Split `src/components/AllOrdersTableView.jsx`
@@ -169,7 +169,7 @@ Verified: rendered HTML of every table cell for each role and every Admin depart
 runs were identical too, so the comparison has no noise.
 
 Step 4 (state hooks) is done for the self-contained groups: `AllOrdersTableView.jsx` went from 3,355
-to ~3,100 lines. New hooks in `allOrdersTable/hooks/`, each holding the moved code unchanged and called
+to ~3,100 lines (2,958 on 2026-11-20, after later changes). New hooks in `allOrdersTable/hooks/`, each holding the moved code unchanged and called
 where its first hook used to be:
 - `useTableFilters()`: search, tab, priority / status filters, sort key / direction (saved as
   `erp_all_*`) and `handleSort`.
