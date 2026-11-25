@@ -1,5 +1,6 @@
 import { Check, Paperclip, Pause, X } from 'lucide-react';
 import { formatFastDate, formatFastDateTime } from '../dates';
+import { getStatusDetail } from '../statusDetail';
 
 /**
  * Order and panel identity: order number, serial, client, Design type, priority, status, delivery date.
@@ -215,9 +216,11 @@ export default function renderOrderCell({ colKey, unit, currentFilter, status, c
         icon = '⚠';
       }
 
+      const detail = getStatusDetail(unit, status, currentFilter);
       return (
-        <span className={`erp-status-pill ${statusClass}`}>
-          <span>{icon}</span> {status}
+        <span className={`erp-status-pill ${statusClass}`} title={detail ? detail.title : undefined}>
+          <span aria-hidden="true">{icon}</span>
+          <span className="erp-status-pill-text">{detail ? detail.text : status}</span>
         </span>
       );
     }

@@ -3643,6 +3643,14 @@ body.resizing-active * {
   letter-spacing: 0.5px;
   white-space: nowrap;
   line-height: 1.2;
+  max-width: 100%;
+}
+
+/* Long step names ("Next: Upload PO +2") truncate instead of overflowing the cell. */
+.erp-status-pill .erp-status-pill-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .erp-status-pill.completed {
@@ -3679,6 +3687,35 @@ body.resizing-active * {
   background: rgba(239, 68, 68, 0.1);
   color: #f87171;
   border: 1px solid rgba(239, 68, 68, 0.24);
+}
+
+/* Light theme: the dark-theme pill text colours above are too pale on a light surface (the grey
+   Pending text was about 2.6:1). Same hues, darkened to clear 4.5:1. */
+[data-theme="light"] .erp-status-pill.pending {
+  background: rgba(71, 85, 105, 0.1);
+  color: #334155;
+  border-color: rgba(71, 85, 105, 0.3);
+}
+[data-theme="light"] .erp-status-pill.inprogress {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border-color: rgba(37, 99, 235, 0.3);
+}
+[data-theme="light"] .erp-status-pill.completed {
+  background: rgba(22, 163, 74, 0.1);
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.32);
+}
+[data-theme="light"] .erp-status-pill.hold {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.38);
+}
+[data-theme="light"] .erp-status-pill.blocked,
+[data-theme="light"] .erp-status-pill.cancelled {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+  border-color: rgba(220, 38, 38, 0.32);
 }
 
 /* ── Modern Priority Badges & Select ── */

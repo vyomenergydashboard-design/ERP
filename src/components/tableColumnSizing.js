@@ -7,6 +7,8 @@
  * Calibrated to snugly hug cell content and column headers without wasteful empty voids.
  */
 
+import { getStatusDetail } from './allOrdersTable/statusDetail';
+
 export const DEFAULT_COL_WIDTHS = {
   order_number: 118,
   short_serial: 108,
@@ -152,7 +154,10 @@ export function getCellSampleText(unit, colKey, panelSizeMap, getUnitStatus) {
       return String(unit.priority || 'Medium');
     case 'unit_status': {
       const st = getUnitStatus ? getUnitStatus(unit) : (unit.unit_status || 'In Progress');
-      return String(st);
+      // Size for the wording the cell actually shows (see statusDetail.js); '' as the filter makes
+      // the Completed → dept text count, which slightly over-sizes the "all departments" view.
+      const detail = getStatusDetail(unit, st, '');
+      return String(detail ? detail.text : st);
     }
     case 'wiremen': {
       const w = unit.wiremen || unit.custom_fields?.wiremen || '';
