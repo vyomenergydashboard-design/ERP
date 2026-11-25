@@ -55,6 +55,9 @@ export default function Sidenav({
 }) {
   const isAnyFormActive = currentView.startsWith('form-') || currentView === 'all-forms';
   const [isFormsExpanded, setIsFormsExpanded] = useState(() => isAnyFormActive);
+  // While the list is visible the open sub-item carries the highlight; the parent only takes it
+  // when the list is closed or the collapsed rail hides the sub-items.
+  const highlightFormsParent = isAnyFormActive && (!isFormsExpanded || collapsed);
   return (
     <aside className={`sidenav${collapsed ? ' sidenav--collapsed' : ''}`}>
       <div className="sidenav-inner">
@@ -75,7 +78,7 @@ export default function Sidenav({
 
           {/* ── Forms Accordion Item inside Workspace ── */}
           <button
-            className={`dept-btn forms-parent-btn${isAnyFormActive ? ' active' : ''}`}
+            className={`dept-btn forms-parent-btn${highlightFormsParent ? ' active' : ''}`}
             onClick={() => setIsFormsExpanded(prev => !prev)}
             title="Forms"
             type="button"

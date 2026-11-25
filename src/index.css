@@ -603,49 +603,24 @@ textarea::placeholder {
   box-shadow: 0 0 6px rgba(0, 0, 0, 0.2);
 }
 
-/* ── Forms Accordion Nav Item & Submenu inside Workspace ── */
-.forms-parent-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 9px 14px;
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  width: calc(100% - 24px);
-  margin: 2px 12px;
-  color: var(--sidebar-text);
-  font-family: var(--font);
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 8px;
-  white-space: nowrap;
-  overflow: hidden;
-  transition: background 0.15s ease, color 0.15s ease;
-  text-align: left;
-  position: relative;
-}
-
-.forms-parent-btn:hover {
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--sidebar-text-hover);
-}
-
+/* ── Forms accordion (Workspace group) ──
+   The parent button is also a .dept-btn: colours, hover and the active tint + accent bar come from the
+   .dept-btn rules above, so Forms looks like its neighbours. Only the chevron and submenu need rules. */
 .forms-expand-arrow {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 20px;
-  height: 20px;
-  border-radius: 4px;
-  color: var(--sidebar-text);
+  height: 16px;
+  color: inherit;
   opacity: 0.65;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
   flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
 }
 
-.forms-parent-btn:hover .forms-expand-arrow {
+.dept-btn:hover .forms-expand-arrow,
+.dept-btn.active .forms-expand-arrow {
   opacity: 1;
 }
 
@@ -661,147 +636,29 @@ textarea::placeholder {
   display: inline-flex;
 }
 
-/* Forms Submenu inside Workspace */
+/* Submenu: layout values are the ones the two old blocks resolved to, so nothing moves. */
 .forms-submenu {
   display: flex;
   flex-direction: column;
-  padding: 2px 0 4px 6px;
-  border-left: 1px solid var(--border, #334155);
   margin: 2px 12px 6px 26px;
-  animation: fadeIn 0.15s ease;
-}
-
-.forms-submenu-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  font-size: 12px;
-  color: var(--sidebar-text);
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  margin: 1px 0;
-  transition: all 0.15s ease;
-}
-
-.forms-submenu-item:hover {
-  background: rgba(148, 163, 184, 0.08);
-  color: var(--sidebar-text-hover);
-}
-
-.forms-submenu-item.active {
-  background: rgba(148, 163, 184, 0.14);
-  color: var(--sidebar-text-hover, #ffffff);
-  font-weight: 600;
-}
-
-.sidenav--collapsed .forms-submenu {
-  display: none;
-}
-
-.sidenav--collapsed:hover .forms-submenu {
-  display: flex;
-}
-
-
-
-
-/* ── Forms Accordion Nav Item & Submenu ── */
-.forms-parent-btn {
-  background: rgba(249, 115, 22, 0.09) !important;
-  border: 1px solid rgba(249, 115, 22, 0.25) !important;
-  color: var(--sidebar-text-active, #fff) !important;
-  font-weight: 600;
-  justify-content: flex-start;
-  transition: all 0.2s ease;
-}
-
-[data-theme="light"] .forms-parent-btn {
-  background: #fff7ed !important;
-  border: 1px solid #fed7aa !important;
-  color: #ea580c !important;
-}
-
-.forms-parent-btn:hover {
-  background: rgba(249, 115, 22, 0.16) !important;
-  border-color: rgba(249, 115, 22, 0.4) !important;
-  color: var(--sidebar-text-hover, #fff) !important;
-}
-
-[data-theme="light"] .forms-parent-btn:hover {
-  background: #ffedd5 !important;
-  border-color: #fdba74 !important;
-}
-
-.forms-expand-arrow {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: var(--sidebar-text, #cbd5e1);
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.15s ease, border-color 0.15s ease;
-  flex-shrink: 0;
-}
-
-[data-theme="light"] .forms-expand-arrow {
-  background: rgba(234, 88, 12, 0.1);
-  border: 1px solid rgba(234, 88, 12, 0.25);
-  color: #ea580c;
-}
-
-.forms-parent-btn:hover .forms-expand-arrow {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.28);
-}
-
-[data-theme="light"] .forms-parent-btn:hover .forms-expand-arrow {
-  background: rgba(234, 88, 12, 0.18);
-  border-color: rgba(234, 88, 12, 0.35);
-}
-
-.forms-expand-arrow.expanded {
-  transform: rotate(180deg);
-}
-
-.sidenav--collapsed .forms-expand-arrow {
-  display: none;
-}
-
-.sidenav--collapsed:hover .forms-expand-arrow {
-  display: inline-flex;
-}
-
-/* Forms Submenu */
-.forms-submenu {
-  display: flex;
-  flex-direction: column;
   padding: 4px 0 6px 12px;
-  animation: fadeInDown 0.2s ease forwards;
+  border-left: 1px solid var(--border);
 }
 
 .forms-submenu-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 7px 14px;
-  font-size: 12.5px;
-  color: var(--sidebar-text);
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
   width: calc(100% - 24px);
   margin: 1px 12px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--sidebar-text);
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
   transition: all 0.15s ease;
 }
 
@@ -814,14 +671,6 @@ textarea::placeholder {
   background: var(--sidebar-active-bg);
   color: var(--sidebar-text-active);
   font-weight: 600;
-}
-
-.forms-submenu-placeholder {
-  padding: 6px 16px;
-  font-size: 11.5px;
-  color: var(--sidebar-text);
-  opacity: 0.55;
-  font-style: italic;
 }
 
 .sidenav--collapsed .forms-submenu {
