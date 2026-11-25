@@ -78,7 +78,12 @@ scripts/e2e/result-*.json
 skills-lock.json
 
 # Never commit secrets, database dumps or key material (see AGENTS.md section 8)
-/*.sql
+# Any .sql file in any folder is ignored (dumps like backup_*.sql, server/backup_before_migration.sql);
+# server/init.sql, the base schema, is the only tracked one. *.sq catches dumps with a cut-off extension.
+*.sql
+!server/init.sql
+*.sql.gz
+*.sq
 *.dump
 *.bak
 *.pem
