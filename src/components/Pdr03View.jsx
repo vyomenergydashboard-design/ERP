@@ -1,31 +1,36 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, Printer, RefreshCw, ArrowRight, FileText } from 'lucide-react';
+import { Search, X, Printer, ArrowRight } from 'lucide-react';
 import { apiFetch } from '../api/client';
 
 export default function Pdr03View({ onNavigateToView, userRole }) {
   const [units, setUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  // The serial list failed to load; the dropdown then offers a Retry (there is no Refresh button).
+  const [listError, setListError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUnit, setSelectedUnit] = useState(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [unitSteps, setUnitSteps] = useState([]);
-  const [referenceDocs, setReferenceDocs] = useState(null);
+  // Loaded form data is stored with the unit it belongs to: { unitId, data } on success,
+  // { unitId, error: true } on failure. It only counts while unitId is the selected unit.
+  const [sheetState, setSheetState] = useState(null);
+  const [sheetRetry, setSheetRetry] = useState(0);
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
 
   const token = localStorage.getItem('token');
 
-  // Fetch all units from backend
+  // Fetch all units from backend. Runs when the view opens (it remounts on every visit), so the
+  // list is fresh each time; the form data itself is fetched per serial when one is selected.
   const fetchAllUnits = async () => {
     setIsLoading(true);
+    setListError(false);
     try {
       const res = await apiFetch(`/api/dept-worklist/all`);
-      if (res.ok) {
-        const data = await res.json();
-        setUnits(data);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setUnits(await res.json());
     } catch (err) {
       console.error('Failed to load units for PRD-03:', err);
+      setListError(true);
     } finally {
       setIsLoading(false);
     }
@@ -35,45 +40,37 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
     fetchAllUnits();
   }, []);
 
-  // Fetch steps for selected unit
+  // Load the form data for the selected serial from the one PRD-03 endpoint.
+  // A late response for a previously selected serial is ignored (cancelled flag);
+  // bumping sheetRetry re-runs the load for the same serial.
   useEffect(() => {
-    if (!selectedUnit?.unit_id) {
-      setUnitSteps([]);
-      return;
-    }
-    const fetchSteps = async () => {
+    setSheetState(null);
+    const unitId = selectedUnit?.unit_id;
+    if (!unitId) return undefined;
+    let cancelled = false;
+    (async () => {
       try {
-        const res = await apiFetch(`/api/units/${selectedUnit.unit_id}/steps`);
-        if (res.ok) {
-          const steps = await res.json();
-          setUnitSteps(steps);
-        }
+        const res = await apiFetch(`/api/units/${unitId}/prd03`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled) setSheetState({ unitId, data });
       } catch (err) {
-        console.error('Failed to fetch unit steps:', err);
+        console.error('Failed to load PRD-03 form data:', err);
+        if (!cancelled) setSheetState({ unitId, error: true });
       }
-    };
-    fetchSteps();
-  }, [selectedUnit]);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedUnit?.unit_id, sheetRetry]);
 
-  // Fetch reference documents (Drawings / BOMs) for selected unit
-  useEffect(() => {
-    if (!selectedUnit?.unit_id) {
-      setReferenceDocs(null);
-      return;
-    }
-    const fetchDocs = async () => {
-      try {
-        const res = await apiFetch(`/api/units/${selectedUnit.unit_id}/reference-documents`);
-        if (res.ok) {
-          const docs = await res.json();
-          setReferenceDocs(docs);
-        }
-      } catch (err) {
-        console.warn('Failed to fetch reference docs for unit:', err);
-      }
-    };
-    fetchDocs();
-  }, [selectedUnit]);
+  // The sheet is valid only for the serial it was loaded for, so a new serial never
+  // shows (or prints) the previous serial's milestone data.
+  const selectedUnitId = selectedUnit?.unit_id;
+  const stateMatches = !!selectedUnitId && sheetState?.unitId === selectedUnitId;
+  const sheet = stateMatches && sheetState.data ? sheetState.data : null;
+  const sheetError = stateMatches && !!sheetState.error;
+  const sheetReady = !!sheet;
+  // A serial is selected but its form data is loading or failed: the sheet must not pass for a real form.
+  const sheetBlocked = !!selectedUnitId && !sheetReady;
 
   // Handle clicking outside of search dropdown
   useEffect(() => {
@@ -131,6 +128,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
   };
 
   const handlePrint = () => {
+    if (sheetBlocked) return;
     window.print();
   };
 
@@ -149,29 +147,30 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
     }
   };
 
-  // Derive Drawing and BOM numbers
-  const bomDoc = referenceDocs?.masterDocs?.find(d => d.doc_type?.toUpperCase() === 'BOM');
-  const drawingDoc = referenceDocs?.masterDocs?.find(d => d.doc_type?.toUpperCase() === 'DRAWING');
-  const bomNumber = bomDoc?.file_name || bomDoc?.revision_label || selectedUnit?.reference_number || '';
-  const drawingNumber = drawingDoc?.file_name || drawingDoc?.revision_label || selectedUnit?.part_number || '';
+  // Cell value from the endpoint: 'YYYY-MM-DD' -> 'DD/MM/YYYY' by rearranging the
+  // string (no Date, so no timezone shift); a full ISO timestamp -> formatDate;
+  // anything else ('Standard', 'N/A', ...) is shown as is.
+  const formatCell = (value) => {
+    if (value === null || value === undefined) return '';
+    const s = String(value);
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return formatDate(s);
+    return s;
+  };
 
-  // Derive completion date
-  const completionDate = selectedUnit?.dispatch_date
-    ? formatDate(selectedUnit.dispatch_date)
-    : (selectedUnit?.qc_complete_date ? formatDate(selectedUnit.qc_complete_date) : '');
-
-  // 10 milestone rows
+  // 10 milestone rows; each key matches a row of sheet.rows from the endpoint
   const milestoneActivities = [
-    'Production BOM',
-    'Production drawing',
-    'Electrical cabinet procurement',
-    'Automation components procurement',
-    'Low voltage components procurement',
-    'Wires & Accessories procurement',
-    'Mounting of components',
-    'Electrical wiring',
-    'Internal inspection',
-    'Factory acceptance test'
+    { key: 'bom', label: 'Production BOM' },
+    { key: 'drawing', label: 'Production drawing' },
+    { key: 'cabinet', label: 'Electrical cabinet procurement' },
+    { key: 'automation', label: 'Automation components procurement' },
+    { key: 'low_voltage', label: 'Low voltage components procurement' },
+    { key: 'wires', label: 'Wires & Accessories procurement' },
+    { key: 'mounting', label: 'Mounting of components' },
+    { key: 'wiring', label: 'Electrical wiring' },
+    { key: 'internal_inspection', label: 'Internal inspection' },
+    { key: 'fat', label: 'Factory acceptance test' }
   ];
 
   return (
@@ -236,7 +235,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                   borderRadius: 8,
                   background: 'var(--bg3, #f8fafc)',
                   border: '1.5px solid var(--border, #e2e8f0)',
-                  padding: '0 80px 0 40px',
+                  padding: '0 112px 0 40px',
                   fontSize: 13,
                   fontWeight: 500,
                   color: 'var(--text, #172033)',
@@ -254,38 +253,44 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                   e.currentTarget.style.boxShadow = 'none';
                 }}
               />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery('');
-                    searchInputRef.current?.focus();
-                  }}
-                  style={{
-                    position: 'absolute',
-                    right: 38,
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--text3)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    padding: 4
-                  }}
-                  title="Clear search"
-                >
-                  <X size={14} />
-                </button>
-              )}
-              <span style={{
+              {/* Clear button and result count share one right-aligned row so they never overlap */}
+              <div style={{
                 position: 'absolute',
                 right: 12,
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--text3, #64748b)',
-                pointerEvents: 'none'
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6
               }}>
-                {filteredUnits.length} found
-              </span>
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      searchInputRef.current?.focus();
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--text3)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      padding: 4
+                    }}
+                    title="Clear search"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+                <span style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'var(--text3, #64748b)',
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none'
+                }}>
+                  {isLoading ? 'Loading…' : `${filteredUnits.length} found`}
+                </span>
+              </div>
             </div>
 
             {/* Search Results Dropdown */}
@@ -386,7 +391,18 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                   })
                 ) : (
                   <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text3)', fontSize: 13 }}>
-                    No serial numbers found matching "{searchQuery}"
+                    {listError ? (
+                      <>
+                        <div style={{ marginBottom: 10 }}>Could not load serial numbers.</div>
+                        <button type="button" className="vbtn" onClick={fetchAllUnits} style={{ fontSize: 12, padding: '6px 16px' }}>
+                          Retry
+                        </button>
+                      </>
+                    ) : isLoading ? (
+                      'Loading serial numbers…'
+                    ) : (
+                      `No serial numbers found matching "${searchQuery}"`
+                    )}
                   </div>
                 )}
               </div>
@@ -396,30 +412,12 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
               type="button"
-              onClick={fetchAllUnits}
-              className="vbtn"
-              title="Refresh serial numbers"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, height: 42, padding: '0 14px' }}
-            >
-              <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
-              <span>Refresh</span>
-            </button>
-            <a
-              href="/order.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="vbtn"
-              title="Open the official order.pdf directly in new browser tab"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, height: 42, padding: '0 14px', textDecoration: 'none' }}
-            >
-              <FileText size={14} />
-              <span>View PDF</span>
-            </a>
-            <button
-              type="button"
               onClick={handlePrint}
+              disabled={sheetBlocked}
               className="vbtn"
-              title="Print Production Work Order (PRD-03)"
+              title={sheetBlocked
+                ? (sheetError ? 'Form data failed to load. Retry before printing.' : 'Waiting for form data to load')
+                : 'Print Production Work Order (PRD-03)'}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -430,7 +428,9 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                 background: 'var(--accent, #f97316)',
                 color: '#ffffff',
                 border: 'none',
-                fontWeight: 600
+                fontWeight: 600,
+                opacity: sheetBlocked ? 0.5 : 1,
+                cursor: sheetBlocked ? 'not-allowed' : 'pointer'
               }}
             >
               <Printer size={14} />
@@ -489,6 +489,44 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
         )}
       </div>
 
+      {sheetError && (
+        <div className="no-print" role="alert" style={{
+          maxWidth: 1040,
+          margin: '0 auto',
+          width: '100%',
+          boxSizing: 'border-box',
+          padding: '10px 16px',
+          borderRadius: 8,
+          border: '1px solid var(--red, #dc2626)',
+          background: 'var(--red-dim, #fef2f2)',
+          color: 'var(--red, #dc2626)',
+          fontSize: 13,
+          fontWeight: 600,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12
+        }}>
+          <span>Could not load form data for this serial. Do not print.</span>
+          <button
+            type="button"
+            onClick={() => setSheetRetry(n => n + 1)}
+            style={{
+              background: 'none',
+              border: '1px solid var(--red, #dc2626)',
+              borderRadius: 6,
+              color: 'var(--red, #dc2626)',
+              fontWeight: 700,
+              fontSize: 12,
+              padding: '3px 12px',
+              cursor: 'pointer'
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* ── Document Viewer Background (Dark slate canvas matching the PDF reader in the screenshot) ── */}
       <div style={{
         background: '#2a2d32',
@@ -496,30 +534,31 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
         borderRadius: 12,
         boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.3)',
         overflowX: 'auto',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center'
+        display: 'flex'
       }}>
 
-        {/* ── Exact Landscape Paper Sheet (11in x 8.5in Landscape, 1000px wide) ── */}
-        <div className="prd03-sheet" style={{
-          background: '#ffffff',
-          color: '#000000',
-          width: 1000,
-          minWidth: 1000,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-          padding: '24px 30px',
-          boxSizing: 'border-box',
-          fontFamily: 'Arial, Helvetica, sans-serif'
-        }}>
+        {/* ── A4 landscape sheet (297mm x 210mm). Sizing is in the <style> block below so the screen
+            view and the printout share it. ── */}
+        <div className="prd03-sheet">
 
-          {/* Outer Black Border (Matching PDF MediaBox / Frame) */}
-          <div style={{
-            border: '1px solid #000000',
-            padding: '24px 28px 16px 28px',
-            boxSizing: 'border-box',
-            width: '100%'
-          }}>
+          {/* Outer black frame: fills the page like the official PRD-03, footer at the bottom */}
+          <div className="prd03-frame">
+
+            {/* Shown on screen and in print while a selected serial has no loaded form data */}
+            {sheetBlocked && (
+              <div role="status" style={{
+                border: '3px solid #000000',
+                padding: '8px 12px',
+                marginBottom: 12,
+                textAlign: 'center',
+                fontSize: 15,
+                fontWeight: 800,
+                letterSpacing: '0.5px',
+                color: '#000000'
+              }}>
+                FORM DATA NOT LOADED — DO NOT USE THIS PRINTOUT
+              </div>
+            )}
 
             {/* Document Header Row: Title Centered + Logo Top Right */}
             <div style={{
@@ -590,7 +629,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                     Production BOM number:
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px', width: '12.6%' }}>
-                    {bomNumber || ''}
+                    {sheet?.bomNumber || ''}
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px', width: '13.8%', whiteSpace: 'nowrap' }}>
                     WO Number:
@@ -604,13 +643,13 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                     Project:
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px' }}>
-                    {selectedUnit?.project_name || selectedUnit?.tag || selectedUnit?.material_description || ''}
+                    {sheet?.projectName || ''}
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px', whiteSpace: 'nowrap' }}>
                     Production Drawing number:
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px' }}>
-                    {drawingNumber || ''}
+                    {sheet?.drawingNumber || ''}
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px', whiteSpace: 'nowrap' }}>
                     Order date:
@@ -624,7 +663,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                     Sales person:
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px' }}>
-                    {selectedUnit?.person_in_charge || selectedUnit?.created_by_name || ''}
+                    {sheet?.salesPerson || ''}
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px', whiteSpace: 'nowrap' }}>
                     Priority:
@@ -669,17 +708,26 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                 </tr>
               </thead>
               <tbody>
-                {milestoneActivities.map((name, i) => (
-                  <tr key={i} style={{ height: 21 }}>
-                    <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'left' }}>
-                      {name}
-                    </td>
-                    <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}></td>
-                    <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}></td>
-                    <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}></td>
-                    <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}></td>
-                  </tr>
-                ))}
+                {milestoneActivities.map(({ key, label }) => {
+                  const row = sheet?.rows?.find(r => r.key === key);
+                  return (
+                    <tr key={key} style={{ height: 21 }}>
+                      <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'left' }}>
+                        {label}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}>
+                        {formatCell(row?.start)}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}>
+                        {formatCell(row?.end)}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}>
+                        {row?.reference ?? ''}
+                      </td>
+                      <td style={{ border: '1px solid #000000', padding: '2px 6px', textAlign: 'center' }}></td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -688,7 +736,9 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
               <div style={{ fontSize: 11, fontFamily: 'Arial, Helvetica, sans-serif', marginBottom: 2 }}>
                 Instruction for dispatch:
               </div>
-              <div style={{ borderBottom: '1px solid #000000', height: 23 }} />
+              <div style={{ borderBottom: '1px solid #000000', height: 23, fontSize: 11, lineHeight: '22px', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                {sheet?.instructionForDispatch || ''}
+              </div>
               <div style={{ borderBottom: '1px solid #000000', height: 23 }} />
               <div style={{ borderBottom: '1px solid #000000', height: 23 }} />
               <div style={{ borderBottom: '1px solid #000000', height: 23 }} />
@@ -700,12 +750,13 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
               fontSize: 11,
               fontFamily: 'Arial, Helvetica, sans-serif'
             }}>
-              Date of completion:  __ / __ / ____
+              Date of completion:  {sheet?.dateOfCompletion ? formatCell(sheet.dateOfCompletion) : '__ / __ / ____'}
             </div>
 
-            {/* ── 4 Signatures (Exact Horizontal Spacing from PDF) ── */}
+            {/* ── 4 Signatures: pushed down to sit just above the footer, as on the official form ── */}
             <div style={{
-              marginTop: 34,
+              marginTop: 'auto',
+              paddingTop: 16,
               marginBottom: 14,
               display: 'grid',
               gridTemplateColumns: 'repeat(4, 1fr)',
@@ -749,16 +800,47 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
         </div>
       </div>
 
-      {/* Print styling for authentic physical paper export in landscape */}
+      {/* A4 landscape sheet (297mm x 210mm) on screen and on paper */}
       <style dangerouslySetInnerHTML={{ __html: `
+        .prd03-sheet {
+          box-sizing: border-box;
+          flex: none;
+          display: flex;
+          flex-direction: column;
+          width: 297mm;
+          min-width: 297mm;
+          min-height: 210mm;
+          margin: 0 auto;
+          padding: 9mm 10mm;
+          background: #ffffff;
+          color: #000000;
+          font-family: Arial, Helvetica, sans-serif;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+        }
+        .prd03-frame {
+          box-sizing: border-box;
+          flex: 1 0 auto;
+          display: flex;
+          flex-direction: column;
+          border: 1px solid #000000;
+          padding: 24px 28px 16px 28px;
+        }
+        .prd03-frame > * {
+          flex-shrink: 0;
+        }
         @media print {
           @page {
-            size: letter landscape;
+            size: A4 landscape;
             margin: 0;
           }
           body {
             background: #ffffff !important;
             color: #000000 !important;
+          }
+          /* .app is position:relative; overflow:hidden; one screen high, so it was the sheet's
+             containing block and cut the bottom of the page off (frame border and footer). */
+          .app {
+            position: static !important;
           }
           body * {
             visibility: hidden;
@@ -767,14 +849,15 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
             visibility: visible;
           }
           .prd03-sheet {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            min-width: 100% !important;
-            box-shadow: none !important;
-            padding: 12mm 16mm !important;
-            margin: 0 !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            margin: 0;
+            box-shadow: none;
+            /* 1mm under the page so rounding never adds a blank second page; if the content is
+               ever taller, it overflows visibly onto a second page instead of being cut off. */
+            height: 209mm;
+            min-height: 0;
           }
           .no-print, .header, .sidenav, .vbtn, .order-selector {
             display: none !important;

@@ -23,6 +23,7 @@ import createSystemSettingsRouter from './routes/systemSettings.js';
 import createDocumentsRouter from './routes/documents.js';
 import createPlanningRouter from './routes/planning.js';
 import createUnitsRouter from './routes/units.js';
+import createPrd03Router from './routes/prd03.js';
 import createOrdersRouter from './routes/orders.js';
 import createAuthRouter from './routes/auth.js';
 import createDiagnosticsRouter from './routes/diagnostics.js';
@@ -340,6 +341,7 @@ app.use('/api/board', createBoardRouter(pool, authorize));
 app.use('/api/planning', createPlanningRouter(pool, authorize));
 
 app.use('/api/units', createUnitsRouter(pool, authorize));
+app.use('/api/units', createPrd03Router(pool, authorize));
 
 app.use('/api/dept-worklist', createDeptWorklistRouter(pool, authorize));
 
