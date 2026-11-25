@@ -2,17 +2,53 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, X, Printer, ArrowRight } from 'lucide-react';
 import { apiFetch } from '../api/client';
 
+// The selected serial and its form data are cached in the browser, so a page refresh shows the form
+// at once instead of waiting for the serial list and the form data. The cached copy is only a
+// placeholder: it is re-fetched on every open, shown as "stale", and can neither be printed nor
+// mistaken for a loaded form until the fresh data arrives.
+const CACHE_KEY = 'erp_prd03_cache';
+const CACHED_UNIT_FIELDS = ['unit_id', 'unit_serial', 'short_serial', 'order_number', 'company_name', 'priority', 'delivery_date', 'order_date', 'current_dept', 'material_description', 'po_number'];
+
+const currentUserId = () => {
+  try { return JSON.parse(localStorage.getItem('user'))?.id ?? null; } catch { return null; }
+};
+
+const readCache = () => {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY));
+    // A cache written by another user (shared browser) is ignored.
+    if (c && c.v === 1 && c.uid === currentUserId() && c.unit?.unit_id) return c;
+  } catch { /* unreadable cache = no cache */ }
+  return null;
+};
+
+// sheet === undefined keeps the cached sheet when it belongs to the same unit.
+const saveCache = (unit, sheet) => {
+  try {
+    if (!unit) { localStorage.removeItem(CACHE_KEY); return; }
+    const slim = Object.fromEntries(CACHED_UNIT_FIELDS.map(k => [k, unit[k] ?? null]));
+    let kept = null;
+    if (sheet === undefined) {
+      const old = readCache();
+      if (old && old.unit.unit_id === unit.unit_id) kept = old.sheet;
+    }
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ v: 1, uid: currentUserId(), unit: slim, sheet: sheet === undefined ? kept : sheet }));
+  } catch { /* storage full or unavailable */ }
+};
+
 export default function Pdr03View({ onNavigateToView, userRole }) {
+  const [cached] = useState(readCache);
   const [units, setUnits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   // The serial list failed to load; the dropdown then offers a Retry (there is no Refresh button).
   const [listError, setListError] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedUnit, setSelectedUnit] = useState(null);
+  const [searchQuery, setSearchQuery] = useState(() => (cached ? String(cached.unit.unit_serial || cached.unit.short_serial || '') : ''));
+  const [selectedUnit, setSelectedUnit] = useState(() => cached?.unit ?? null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   // Loaded form data is stored with the unit it belongs to: { unitId, data } on success,
-  // { unitId, error: true } on failure. It only counts while unitId is the selected unit.
-  const [sheetState, setSheetState] = useState(null);
+  // { unitId, error: true } on failure, { unitId, data, stale: true } for a cached copy that is
+  // being re-fetched. It only counts while unitId is the selected unit.
+  const [sheetState, setSheetState] = useState(() => (cached?.sheet ? { unitId: cached.unit.unit_id, data: cached.sheet, stale: true } : null));
   const [sheetRetry, setSheetRetry] = useState(0);
   const searchInputRef = useRef(null);
   const searchContainerRef = useRef(null);
@@ -44,8 +80,9 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
   // A late response for a previously selected serial is ignored (cancelled flag);
   // bumping sheetRetry re-runs the load for the same serial.
   useEffect(() => {
-    setSheetState(null);
     const unitId = selectedUnit?.unit_id;
+    // A cached sheet of the same unit stays on screen (marked stale) while it is re-fetched.
+    setSheetState(prev => (unitId && prev && prev.unitId === unitId && prev.data ? { ...prev, stale: true } : null));
     if (!unitId) return undefined;
     let cancelled = false;
     (async () => {
@@ -68,8 +105,10 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
   const stateMatches = !!selectedUnitId && sheetState?.unitId === selectedUnitId;
   const sheet = stateMatches && sheetState.data ? sheetState.data : null;
   const sheetError = stateMatches && !!sheetState.error;
-  const sheetReady = !!sheet;
-  // A serial is selected but its form data is loading or failed: the sheet must not pass for a real form.
+  // A cached copy that is still being re-fetched is shown but is not "ready".
+  const sheetStale = !!sheet && !!sheetState.stale;
+  const sheetReady = !!sheet && !sheetStale;
+  // A serial is selected but its form data is loading, stale or failed: it must not be printed.
   const sheetBlocked = !!selectedUnitId && !sheetReady;
 
   // Handle clicking outside of search dropdown
@@ -121,6 +160,19 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
       setSelectedUnit(exact);
     }
   }, [searchQuery, units]);
+
+  // When the serial list arrives, replace the (possibly cached) selected unit with its fresh row, or
+  // drop the selection if that serial no longer exists.
+  useEffect(() => {
+    if (units.length === 0) return;
+    setSelectedUnit(prev => (prev ? (units.find(u => u.unit_id === prev.unit_id) || null) : prev));
+  }, [units]);
+
+  // Keep the cache current: the selected unit, and its form data once freshly loaded.
+  useEffect(() => {
+    const fresh = selectedUnit && sheetState && sheetState.unitId === selectedUnit.unit_id && sheetState.data && !sheetState.stale;
+    saveCache(selectedUnit, fresh ? sheetState.data : undefined);
+  }, [selectedUnit, sheetState]);
 
   const handleSelectUnit = (unit) => {
     setSelectedUnit(unit);
@@ -416,7 +468,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
               disabled={sheetBlocked}
               className="vbtn"
               title={sheetBlocked
-                ? (sheetError ? 'Form data failed to load. Retry before printing.' : 'Waiting for form data to load')
+                ? (sheetError ? 'Form data failed to load. Retry before printing.' : sheetStale ? 'Updating form data...' : 'Waiting for form data to load')
                 : 'Print Production Work Order (PRD-03)'}
               style={{
                 display: 'inline-flex',
@@ -539,13 +591,13 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
 
         {/* ── A4 landscape sheet (297mm x 210mm). Sizing is in the <style> block below so the screen
             view and the printout share it. ── */}
-        <div className="prd03-sheet">
+        <div className={`prd03-sheet${sheetStale ? ' is-stale' : ''}`}>
 
           {/* Outer black frame: fills the page like the official PRD-03, footer at the bottom */}
           <div className="prd03-frame">
 
             {/* Shown on screen and in print while a selected serial has no loaded form data */}
-            {sheetBlocked && (
+            {sheetBlocked && !sheetStale && (
               <div role="status" style={{
                 border: '3px solid #000000',
                 padding: '8px 12px',
@@ -858,6 +910,10 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                ever taller, it overflows visibly onto a second page instead of being cut off. */
             height: 209mm;
             min-height: 0;
+          }
+          /* A cached copy still being re-fetched (Ctrl+P during that moment) prints as a blank page. */
+          .prd03-sheet.is-stale, .prd03-sheet.is-stale * {
+            visibility: hidden !important;
           }
           .no-print, .header, .sidenav, .vbtn, .order-selector {
             display: none !important;
