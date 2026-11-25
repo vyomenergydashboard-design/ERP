@@ -59,6 +59,7 @@ const BASE_COLUMNS = [
   { key: 'material_description', label: 'Description', align: 'left' },
   { key: 'classification', label: 'Type (Design)', align: 'center' },
   { key: 'priority', label: 'Priority', align: 'center' },
+  { key: 'order_date', label: 'Order Date', align: 'center' },
   { key: 'delivery_date', label: 'Delivery', align: 'center' },
   { key: 'unit_status', label: 'Status', align: 'center' },
   { key: 'purchase_cat_panel', label: 'Panel (PO)', align: 'center', catKey: 'Panel' },

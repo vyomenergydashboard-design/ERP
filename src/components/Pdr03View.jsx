@@ -655,7 +655,7 @@ export default function Pdr03View({ onNavigateToView, userRole }) {
                     Order date:
                   </td>
                   <td style={{ border: '1px solid #000000', padding: '2px 6px' }}>
-                    {formatDate(selectedUnit?.order_date || selectedUnit?.created_at)}
+                    {formatCell(selectedUnit?.order_date)}
                   </td>
                 </tr>
                 <tr style={{ height: 23 }}>

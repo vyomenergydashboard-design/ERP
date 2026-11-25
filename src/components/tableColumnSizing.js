@@ -24,6 +24,7 @@ export const DEFAULT_COL_WIDTHS = {
   material_description: 180,
   classification: 185,
   priority: 108,
+  order_date: 120,
   delivery_date: 120,
   unit_status: 130,
   purchase_cat_panel: 140,
@@ -65,6 +66,7 @@ export const MIN_COL_WIDTHS = {
   material_description: 120,
   classification: 170,
   priority: 95,
+  order_date: 112,
   delivery_date: 112,
   unit_status: 118,
   purchase_cat_panel: 125,
@@ -167,6 +169,7 @@ export function getCellSampleText(unit, colKey, panelSizeMap, getUnitStatus) {
       // Formatted date + time: "DD/MM/YYYY, hh:mm am" -> ~20 chars
       return '29/10/2026, 12:00 pm';
     }
+    case 'order_date':
     case 'delivery_date':
     case 'tray_start_date':
     case 'issued_date': {
@@ -190,7 +193,7 @@ export function calculateOptimalColumnWidth(colKey, units = [], allColumns = [],
 
   const isMono = ['order_number', 'short_serial', 'unit_serial', 'panel_code', 'mounting_start_date',
     'mounting_complete_date', 'wiring_start_date', 'wiring_complete_date', 'pending_material_complete_date',
-    'handover_to_qc_date', 'delivery_date', 'po_number'].includes(colKey);
+    'handover_to_qc_date', 'order_date', 'delivery_date', 'po_number'].includes(colKey);
 
   // When headers wrap cleanly into up to 2 lines:
   // Split multi-word labels into balanced lines so column name stays completely visible without forcing wide voids

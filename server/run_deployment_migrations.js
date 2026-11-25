@@ -776,6 +776,24 @@ export async function runDeploymentMigrations(clientParam) {
       console.error('[Deployment Migration] Error clearing duplicate part numbers from material_description:', clearErr);
     }
 
+    // 11. Order Date table column (shows orders.order_date): system column master, visible in every
+    // department view by default. DO NOTHING so an existing row (e.g. a custom column that already
+    // uses this key) is never converted or overwritten.
+    try {
+      await client.query(`
+        INSERT INTO column_masters (col_key, label, category, field_type, is_system, sort_order) VALUES
+          ('order_date', 'Order Date', 'Order', 'Date', true, 10)
+        ON CONFLICT (col_key) DO NOTHING;
+
+        INSERT INTO department_column_visibility (dept, col_key, is_visible)
+        SELECT d.dept, 'order_date', true
+        FROM (VALUES ('Sales'), ('Design'), ('Purchase'), ('Stores'), ('Planning'), ('Production'), ('QC'), ('Dispatch'), ('Accounts'), ('all')) AS d(dept)
+        ON CONFLICT (dept, col_key) DO NOTHING;
+      `);
+    } catch (odErr) {
+      console.error('[Deployment Migration] Error ensuring the Order Date column master:', odErr);
+    }
+
   } catch (err) {
     console.error('[Deployment Migration Error]:', err);
   } finally {

@@ -52,6 +52,7 @@ export default function createDeptWorklistRouter(pool, authorize) {
           oindentdoc.id AS indent_doc_id,
           o.end_client_name,
           o.priority,
+          to_char(o.order_date, 'YYYY-MM-DD') AS order_date,
           COALESCE(oli.delivery_date, o.delivery_date) AS delivery_date,
           o.hold_status  AS order_hold_status,
           o.status       AS order_status,

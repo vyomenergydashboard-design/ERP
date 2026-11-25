@@ -6,7 +6,7 @@ import { formatFastDate, formatFastDateTime } from '../dates';
  * Called by renderCellContent (../renderCellContent.jsx) with the same arguments it received plus
  * the values it computes up front; the case blocks below are moved there unchanged.
  */
-export const ORDER_CELL_KEYS = ['order_number', 'short_serial', 'unit_serial', 'company_name', 'classification', 'priority', 'unit_status', 'delivery_date'];
+export const ORDER_CELL_KEYS = ['order_number', 'short_serial', 'unit_serial', 'company_name', 'classification', 'priority', 'unit_status', 'order_date', 'delivery_date'];
 
 export default function renderOrderCell({ colKey, unit, currentFilter, status, canEdit, canConfirmDesign, onConfirmDesignClassification, onUnconfirmDesignClassification, onRequestUnconfirmDesign, editingCell, setEditingCell, onRowClick, onSaveInlineCell, onOpenOrderDocs, priority, isOverdue, effectiveUnitId }) {
   switch (colKey) {
@@ -221,6 +221,14 @@ export default function renderOrderCell({ colKey, unit, currentFilter, status, c
         </span>
       );
     }
+
+    case 'order_date':
+      // Read-only: the date the order was placed (orders.order_date), edited in the Orders view.
+      return (
+        <span style={{ color: 'var(--text2)', fontSize: 12 }}>
+          {formatFastDate(unit.order_date)}
+        </span>
+      );
 
     case 'delivery_date':
       const isEditingDate = editingCell && editingCell.unitId === effectiveUnitId && editingCell.colKey === 'delivery_date';

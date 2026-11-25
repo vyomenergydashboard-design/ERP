@@ -249,9 +249,10 @@ export default function AllOrdersTableView({ currentFilter, userRole: propUserRo
             if (panelMissing.includes('panel_comments')) {
               result.splice((ipIdx !== -1 ? ipIdx : newPtsIdx) + 1, 0, 'panel_comments');
             }
-            return [...result, ...otherMissing];
+            // Columns added since the layout was saved go next to their default neighbour, not at the far right.
+            return insertMissingColumnKeys(result, DEFAULT_COLUMN_KEYS, otherMissing);
           }
-          return [...valid, ...missing];
+          return insertMissingColumnKeys(valid, DEFAULT_COLUMN_KEYS, missing);
         }
         return valid;
       }
